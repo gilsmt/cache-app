@@ -50,7 +50,12 @@ import {
 } from "@/components/ui/sidebar";
 import { getServerSession } from "@/lib/auth/session";
 import { cn } from "@/lib/common/cn";
-import { BASE_URL, CACHE_EXTENSION_DOWNLOAD_URL } from "@/lib/common/constants";
+import {
+    APP_NAME,
+    BASE_URL,
+    CACHE_EXTENSION_DOWNLOAD_URL,
+    FOUNDING_DATE,
+} from "@/lib/common/constants";
 import { INTEGRATIONS } from "@/lib/integrations/support";
 import AiSectionLifestyleImage from "@/public/ai-section-lifestyle.webp";
 import AiSectionTravelImage from "@/public/ai-section-travel.webp";
@@ -69,19 +74,37 @@ const HOME_JSON_LD: Record<string, unknown> = {
     "@graph": [
         {
             "@type": "WebSite",
-            name: "Cache App",
+            name: APP_NAME,
             url: BASE_URL,
         },
         {
+            "@id": `${BASE_URL}/#organization`,
             "@type": "Organization",
-            logo: `${BASE_URL}/icon1.png`,
+            contactPoint: {
+                "@type": "ContactPoint",
+                contactType: "customer service",
+                email: "notices@cachd.app",
+            },
+            description:
+                "Cache is the AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms.",
+            foundingDate: FOUNDING_DATE.toISOString().slice(0, 10),
+            logo: {
+                "@type": "ImageObject",
+                height: 96,
+                url: `${BASE_URL}/icon1.png`,
+                width: 96,
+            },
             name: "CachdApp, Inc.",
+            sameAs: [
+                "https://github.com/rortan134/cache-app",
+                "https://x.com/gsmmtt",
+            ],
             url: BASE_URL,
         },
         {
             "@type": "SoftwareApplication",
             applicationCategory: "ProductivityApplication",
-            name: "Cache App",
+            name: APP_NAME,
             offers: {
                 "@type": "Offer",
                 price: "8",
