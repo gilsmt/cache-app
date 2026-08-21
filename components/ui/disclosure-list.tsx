@@ -15,8 +15,10 @@ const MAX_VISIBLE_VERTICAL_DEFAULT = 15;
 const MAX_VISIBLE_HORIZONTAL_DEFAULT = 5;
 
 interface DisclosureListVerticalProps extends React.ComponentProps<"div"> {
+    /** Items rendered inline before the rest collapse behind the overflow trigger. */
     maxVisible?: number;
-    triggerProps?: Omit<DisclosureListHiddenProps, "items">;
+    /** Props forwarded to the overflow trigger. */
+    triggerProps?: Omit<DisclosureListOverflowProps, "items">;
 }
 
 export function DisclosureListVertical({
@@ -50,7 +52,9 @@ export function DisclosureListVertical({
 }
 
 interface DisclosureListHorizontalProps extends React.ComponentProps<"div"> {
+    /** Element rendered as the overflow trigger; must resolve to an interactive element (e.g. pass `render={<button type="button" />}`) so the popover stays keyboard accessible. */
     badgeRender?: React.ReactElement;
+    /** Items rendered inline before the rest move into the overflow popover. */
     maxVisible?: number;
 }
 
@@ -80,7 +84,14 @@ export function DisclosureListHorizontal({
             {visible}
             {hidden.length > 0 ? (
                 <Popover>
-                    <PopoverTrigger render={badgeRender}>
+                    <PopoverTrigger
+                        className={
+                            badgeRender
+                                ? undefined
+                                : "flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground"
+                        }
+                        render={badgeRender}
+                    >
                         <Calligraph className="-mx-0.5">
                             {gt("+{count} more", { count: hidden.length })}
                         </Calligraph>
@@ -94,8 +105,9 @@ export function DisclosureListHorizontal({
     );
 }
 
-interface DisclosureListHiddenProps
-    extends React.ComponentProps<typeof CollapsibleTrigger> {
+interface DisclosureListOverflowProps
+    extends Omit<React.ComponentProps<typeof CollapsibleTrigger>, "children"> {
+    /** Items revealed by the overflow trigger. */
     items: React.ReactNode[];
 }
 
@@ -103,12 +115,12 @@ function DisclosureListOverflow({
     items,
     className,
     ...props
-}: DisclosureListHiddenProps) {
+}: DisclosureListOverflowProps) {
     const gt = useGT();
     const [isOpen, setIsOpen] = React.useState(false);
 
     return (
-        <Collapsible onOpenChange={setIsOpen} open={isOpen}>
+        <Collapsible className="gap-1" onOpenChange={setIsOpen} open={isOpen}>
             <CollapsibleTrigger
                 {...props}
                 className={cn(

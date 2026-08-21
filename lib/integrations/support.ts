@@ -121,6 +121,10 @@ export interface CopyPromptBehavior {
     path: string;
 }
 
+export interface MarkdownImportBehavior {
+    kind: "markdown-import";
+}
+
 export interface SupportedIntegration {
     actions: SupportedIntegrationAction[];
     behaviors: {
@@ -129,6 +133,7 @@ export interface SupportedIntegration {
             | RssManageConnectBehavior
             | SocialSignInConnectBehavior;
         copy?: CopyPromptBehavior;
+        import?: MarkdownImportBehavior;
         open?: ExtensionOpenBehavior;
         sync?: GooglePhotosPickerSyncBehavior | RouteSyncBehavior;
     };
@@ -586,7 +591,11 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 visibleWhen: "always",
             },
         ],
-        behaviors: {},
+        behaviors: {
+            import: {
+                kind: "markdown-import",
+            },
+        },
         category: "developer",
         description: "Markdown files on your computer",
         hint: "Import Markdown files from Obsidian, Bear, Apple Notes exports, or hand-authored folders on your computer.",

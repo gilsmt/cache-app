@@ -1,8 +1,8 @@
 "use client";
 
-import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
-import { T, Var } from "gt-next";
+import { useTimeout } from "@base-ui/utils/useTimeout";
+import { T, useGT, Var } from "gt-next";
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -41,32 +41,49 @@ import {
     executeConnectBehavior,
     executeCopyPromptBehavior,
     executeOpenBehavior,
-    executeRouteSyncBehavior,
+    executeSyncBehavior,
 } from "@/lib/integrations/client";
 import { IntegrationUserError } from "@/lib/integrations/error";
-import { executeGooglePhotosPickerFlow } from "@/lib/integrations/google-photos/client";
 import {
-    type ExtensionOpenBehavior,
     INTEGRATIONS,
     type IntegrationActionRole,
     type IntegrationDirection,
     type IntegrationId,
     listIntegrationActions,
-    type OAuthLinkConnectBehavior,
-    type RssManageConnectBehavior,
-    type SocialSignInConnectBehavior,
     type SupportedIntegration,
     type SupportedIntegrationAction,
 } from "@/lib/integrations/support";
 import IntegrationsPreviewImage from "@/public/integrations-preview.webp";
 
 const INTEGRATIONS_LIST_OPEN_STORAGE_KEY = "cache:integrations:list-open";
+const INTEGRATIONS_DISCLAIMER_VISIBLE_STORAGE_KEY =
+    "cache:integrations:disclaimer-visible";
+
+const ACTION_STATUS_DISMISS_MS = 6000;
+
+const CAPABILITY_MISSING_MESSAGES: Record<IntegrationActionRole, string> = {
+    connect: "This integration cannot be connected yet.",
+    copy: "This integration does not support copying a prompt.",
+    import: "This integration cannot be imported yet.",
+    open: "This integration cannot be opened yet.",
+    sync: "This integration cannot sync yet.",
+};
+
+const NO_ACTION_FEEDBACK: IntegrationActionResult = {
+    refresh: false,
+    successMessage: null,
+};
 
 type IntegrationActionStatusTone = "error" | "success";
 
 interface IntegrationActionStatus {
     message: string;
     tone: IntegrationActionStatusTone;
+}
+
+interface IntegrationActionResult {
+    refresh: boolean;
+    successMessage: string | null;
 }
 
 interface IntegrationActionViewModel {
@@ -92,6 +109,9 @@ const log = createLogger("library:integrations");
 
 const { actions: integrationsListActions, useStore: useIntegrationsListStore } =
     createStore({
+        isIntegrationsDisclaimerVisible: storage(true, {
+            storageKey: INTEGRATIONS_DISCLAIMER_VISIBLE_STORAGE_KEY,
+        }),
         isIntegrationsListOpen: storage(true, {
             storageKey: INTEGRATIONS_LIST_OPEN_STORAGE_KEY,
         }),
@@ -107,66 +127,37 @@ function useIntegrationActions({
     isExtensionInstalled,
     isConnected,
 }: UseIntegrationActionsArgs): UseIntegrationActionsResult {
+    const gt = useGT();
     const router = useRouter();
 
     const [actionStatus, setActionStatus] =
         React.useState<IntegrationActionStatus | null>(null);
+    const [loadingRoles, setLoadingRoles] = React.useState<
+        ReadonlySet<IntegrationActionRole>
+    >(() => new Set());
 
-    // synchronous guard so a same-role click is blocked before the state
-    // update commits
-    const activeActionRoles = useRefWithInit(() => {
-        let roles = new Set<IntegrationActionRole>();
-        const listeners = new Set<() => void>();
-        const notify = () => {
-            for (const listener of listeners) {
-                listener();
-            }
-        };
-        return {
-            add(role: IntegrationActionRole) {
-                if (!roles.has(role)) {
-                    roles = new Set(roles);
-                    roles.add(role);
-                    notify();
-                }
-            },
-            delete(role: IntegrationActionRole) {
-                if (!roles.has(role)) {
-                    return;
-                }
-                roles = new Set(roles);
-                roles.delete(role);
-                notify();
-            },
-            getSnapshot() {
-                return roles;
-            },
-            has(role: IntegrationActionRole) {
-                return roles.has(role);
-            },
-            subscribe(listener: () => void) {
-                listeners.add(listener);
-                return () => {
-                    listeners.delete(listener);
-                };
-            },
-        };
-    }).current;
+    const statusDismissTimeout = useTimeout();
 
-    const actionLoadingRoles = React.useSyncExternalStore(
-        activeActionRoles.subscribe,
-        activeActionRoles.getSnapshot,
-        activeActionRoles.getSnapshot
-    );
+    React.useEffect(() => {
+        if (!actionStatus) {
+            return;
+        }
+        statusDismissTimeout.start(ACTION_STATUS_DISMISS_MS, () =>
+            setActionStatus(null)
+        );
+        return () => {
+            statusDismissTimeout.clear();
+        };
+    }, [actionStatus, statusDismissTimeout]);
 
     const handleIntegrationAction = useStableCallback(
         async (role: IntegrationActionRole) => {
-            if (activeActionRoles.has(role)) {
+            if (loadingRoles.has(role)) {
                 return;
             }
 
             setActionStatus(null);
-            activeActionRoles.add(role);
+            setLoadingRoles((prev) => new Set(prev).add(role));
 
             try {
                 const result = await executeIntegrationAction({
@@ -201,7 +192,11 @@ function useIntegrationActions({
                     tone: "error",
                 });
             } finally {
-                activeActionRoles.delete(role);
+                setLoadingRoles((prev) => {
+                    const nextRoles = new Set(prev);
+                    nextRoles.delete(role);
+                    return nextRoles;
+                });
             }
         }
     );
@@ -217,13 +212,13 @@ function useIntegrationActions({
             continue;
         }
         visibleActions.push({
-            isLoading: actionLoadingRoles.has(action.role),
+            isLoading: loadingRoles.has(action.role),
             label: resolveActionLabel({
-                connectBehavior: integration.behaviors.connect,
+                gt,
+                integration,
                 isConnected,
                 isExtensionInstalled,
                 label: action.label,
-                openBehavior: integration.behaviors.open,
                 role: action.role,
             }),
             onClick: () => handleIntegrationAction(action.role),
@@ -235,24 +230,15 @@ function useIntegrationActions({
 }
 
 function resolveActionLabel(args: {
-    connectBehavior?:
-        | OAuthLinkConnectBehavior
-        | RssManageConnectBehavior
-        | SocialSignInConnectBehavior;
+    gt: ReturnType<typeof useGT>;
+    integration: SupportedIntegration;
     label?: string;
     isExtensionInstalled: boolean;
     isConnected: boolean;
-    openBehavior?: ExtensionOpenBehavior;
     role: IntegrationActionRole;
 }) {
-    const {
-        connectBehavior,
-        label,
-        isExtensionInstalled,
-        isConnected,
-        openBehavior,
-        role,
-    } = args;
+    const { gt, integration, isConnected, isExtensionInstalled, label, role } =
+        args;
 
     if (label) {
         return label;
@@ -260,24 +246,20 @@ function resolveActionLabel(args: {
 
     switch (role) {
         case "open":
-            if (!isExtensionInstalled && openBehavior?.installURL) {
-                return "Get Extension";
+            if (!isExtensionInstalled && integration.behaviors.open) {
+                return gt("Get Extension");
             }
-            return "Open";
+            return gt("Open");
         case "connect":
-            if (!connectBehavior) {
-                return "Open";
-            }
-            return isConnected ? "Reconnect" : "Connect";
+            return isConnected ? gt("Reconnect") : gt("Connect");
         case "sync":
-            return "Sync";
+            return gt("Sync");
         case "copy":
-            return "Copy prompt";
+            return gt("Copy prompt");
         case "import":
-            return "Import";
+            return gt("Import");
         default:
-            ((_: never) => _)(role);
-            return "Open";
+            return ((_: never) => _)(role);
     }
 }
 
@@ -315,92 +297,48 @@ async function executeIntegrationAction(args: {
     isExtensionInstalled: boolean;
     integration: SupportedIntegration;
     role: IntegrationActionRole;
-}) {
+}): Promise<IntegrationActionResult> {
     const { isExtensionInstalled, integration, role } = args;
+    const behavior = integration.behaviors[role];
 
-    switch (role) {
-        case "open": {
-            if (!integration.behaviors.open) {
-                throw buildCapabilityMissingError({
-                    capability: "open",
-                    integrationId: integration.id,
-                    message: "This integration cannot be opened yet.",
-                });
-            }
+    if (!behavior) {
+        throw buildCapabilityMissingError({
+            capability: role,
+            integrationId: integration.id,
+            message: CAPABILITY_MISSING_MESSAGES[role],
+        });
+    }
 
-            executeOpenBehavior(
-                integration.behaviors.open,
-                isExtensionInstalled
-            );
-
-            return { refresh: false, successMessage: null };
-        }
-        case "connect": {
-            if (!integration.behaviors.connect) {
-                throw buildCapabilityMissingError({
-                    capability: "connect",
-                    integrationId: integration.id,
-                    message: "This integration cannot be connected yet.",
-                });
-            }
-
-            if (integration.behaviors.connect.kind === "rss-manage") {
-                openRssManageDialog();
-
-                return { refresh: false, successMessage: null };
-            }
-
-            await executeConnectBehavior(integration.behaviors.connect);
-
-            return { refresh: false, successMessage: null };
-        }
-        case "copy": {
-            if (!integration.behaviors.copy) {
-                throw buildCapabilityMissingError({
-                    capability: "copy",
-                    integrationId: integration.id,
-                    message:
-                        "This integration does not support copying a prompt.",
-                });
-            }
-
-            await executeCopyPromptBehavior(integration.behaviors.copy);
-
+    // open
+    switch (behavior.kind) {
+        case "extension-entry":
+            executeOpenBehavior(behavior, isExtensionInstalled);
+            return NO_ACTION_FEEDBACK;
+        // connect
+        case "rss-manage":
+            openRssManageDialog();
+            return NO_ACTION_FEEDBACK;
+        case "oauth-link":
+        case "social-sign-in":
+            await executeConnectBehavior(behavior);
+            return NO_ACTION_FEEDBACK;
+        // copy
+        case "copy-prompt":
+            await executeCopyPromptBehavior(behavior);
             return { refresh: false, successMessage: "Copied to clipboard." };
-        }
-        case "sync": {
-            if (!integration.behaviors.sync) {
-                throw buildCapabilityMissingError({
-                    capability: "sync",
-                    integrationId: integration.id,
-                    message: "This integration cannot sync yet.",
-                });
-            }
-
-            if (integration.behaviors.sync.kind === "route") {
-                const successMessage = await executeRouteSyncBehavior(
-                    integration.behaviors.sync
-                );
-                return { refresh: true, successMessage };
-            }
-
-            const successMessage = await executeGooglePhotosPickerFlow();
-            return { refresh: true, successMessage };
-        }
-        case "import":
-            if (integration.id === "markdown") {
-                openMarkdownImportDialog();
-
-                return { refresh: false, successMessage: null };
-            }
-
-            throw buildCapabilityMissingError({
-                capability: "import",
-                integrationId: integration.id,
-                message: "This integration cannot be imported yet.",
-            });
+        // sync
+        case "route":
+        case "google-photos-picker":
+            return {
+                refresh: true,
+                successMessage: await executeSyncBehavior(behavior),
+            };
+        // import
+        case "markdown-import":
+            openMarkdownImportDialog();
+            return NO_ACTION_FEEDBACK;
         default:
-            return ((_: never) => _)(role);
+            return ((_: never) => _)(behavior);
     }
 }
 
@@ -416,9 +354,12 @@ export function Integrations({ connectedIntegrations }: IntegrationsProps) {
             >
                 <T>Integrations</T>
             </IntegrationsListTrigger>
-            <IntegrationsListPanel>
-                <IntegrationsListContent>
-                    {(integration) => (
+            <CollapsiblePanel>
+                <DisclosureListVertical
+                    maxVisible={6}
+                    triggerProps={{ className: "ml-1.25" }}
+                >
+                    {INTEGRATIONS.map((integration) => (
                         <IntegrationsListItem
                             direction={
                                 integration.source ? "source" : "destination"
@@ -429,12 +370,12 @@ export function Integrations({ connectedIntegrations }: IntegrationsProps) {
                             )}
                             key={integration.id}
                         />
-                    )}
-                </IntegrationsListContent>
+                    ))}
+                </DisclosureListVertical>
                 <IntegrationsListDisclaimer />
                 <RssManageDialog />
                 <MarkdownImportDialog />
-            </IntegrationsListPanel>
+            </CollapsiblePanel>
         </IntegrationsList>
     );
 }
@@ -443,6 +384,7 @@ function IntegrationsList({
     className,
     ...props
 }: React.ComponentProps<typeof Collapsible>) {
+    const gt = useGT();
     const { isIntegrationsListOpen, setIsIntegrationsListOpen } =
         useIntegrationsListStore();
 
@@ -451,7 +393,7 @@ function IntegrationsList({
     });
 
     useHotkeys("mod+i", handleKeyShortcutPress, {
-        description: "Toggle integrations panel",
+        description: gt("Toggle integrations panel"),
         preventDefault: true,
     });
 
@@ -476,6 +418,7 @@ function IntegrationsListTrigger({
     render,
     ...props
 }: IntegrationsListTriggerProps) {
+    const gt = useGT();
     const { isIntegrationsListOpen } = useIntegrationsListStore();
 
     return (
@@ -493,8 +436,8 @@ function IntegrationsListTrigger({
                         }
                         title={
                             isIntegrationsListOpen
-                                ? "Collapse group"
-                                : "Expand group"
+                                ? gt("Collapse group")
+                                : gt("Expand group")
                         }
                     />
                 }
@@ -543,38 +486,15 @@ function IntegrationsListTrigger({
     );
 }
 
-function IntegrationsListPanel(
-    props: React.ComponentProps<typeof CollapsiblePanel>
-) {
-    return <CollapsiblePanel {...props} />;
-}
-
-interface IntegrationsListContentProps {
-    children: (
-        integration: SupportedIntegration,
-        index: number
-    ) => React.ReactNode;
-}
-
-function IntegrationsListContent({ children }: IntegrationsListContentProps) {
-    return (
-        <DisclosureListVertical
-            maxVisible={6}
-            triggerProps={{ className: "ml-1.25" }}
-        >
-            {INTEGRATIONS.map(children)}
-        </DisclosureListVertical>
-    );
-}
-
 interface IntegrationsListItemProps
-    extends React.ComponentProps<typeof IntegrationsListItemPreviewTrigger> {
-    direction?: IntegrationDirection;
+    extends React.ComponentProps<typeof PreviewCardTrigger> {
+    direction: IntegrationDirection;
+    integration: SupportedIntegration;
     isConnected: boolean;
 }
 
 function IntegrationsListItem({
-    direction = "source",
+    direction,
     integration,
     isConnected,
     ...props
@@ -588,6 +508,7 @@ function IntegrationsListItem({
     });
     const [primaryAction] = actions;
     const isPrimaryActionLoading = primaryAction?.isLoading ?? false;
+    const hasActionStatus = actionStatus !== null;
     const IntegrationIcon = integration.Icon;
 
     const handleClick = useStableCallback(() => {
@@ -626,22 +547,19 @@ function IntegrationsListItem({
             <span className="min-w-0 flex-1 font-medium text-sm leading-snug">
                 {integration.label}
             </span>
-            <div className="pointer-events-none grid w-fit items-center justify-self-end text-muted-foreground leading-snug [grid-area:1/1]">
-                <span className="text-right text-[11px] opacity-0 [grid-area:1/1] sm:opacity-100 sm:group-hover:opacity-0 sm:group-focus-within:opacity-0">
+            <div className="pointer-events-none grid w-fit items-center justify-self-end text-muted-foreground leading-snug">
+                <span
+                    className={cn(
+                        "text-right text-[11px] opacity-0 [grid-area:1/1] sm:opacity-100 sm:group-hover:opacity-0 sm:group-focus-within:opacity-0",
+                        hasActionStatus && "sm:opacity-0"
+                    )}
+                >
                     {integration.description}
                 </span>
                 <IntegrationsListItemActions
                     actionStatus={actionStatus}
                     actions={actions}
-                    className="pointer-events-auto opacity-100 sm:pointer-events-none sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"
-                >
-                    {(action) => (
-                        <IntegrationsListItemActionButton
-                            action={action}
-                            key={action.role}
-                        />
-                    )}
-                </IntegrationsListItemActions>
+                />
             </div>
         </IntegrationsListItemPreviewTrigger>
     );
@@ -681,39 +599,39 @@ function IntegrationsListItemPreviewTrigger({
     );
 }
 
-interface IntegrationsListItemActionsProps
-    extends Omit<React.ComponentProps<"div">, "children"> {
+interface IntegrationsListItemActionsProps {
     actionStatus: IntegrationActionStatus | null;
     actions: IntegrationActionViewModel[];
-    children: (
-        action: IntegrationActionViewModel,
-        index: number
-    ) => React.ReactNode;
 }
 
 function IntegrationsListItemActions({
     actions,
     actionStatus,
-    className,
-    children,
-    ...props
 }: IntegrationsListItemActionsProps) {
     if (!actions.length) {
         return null;
     }
 
+    const hasActionStatus = actionStatus !== null;
+
     return (
         <div
-            {...props}
             className={cn(
                 "z-10 -mr-2.5 flex w-fit min-w-0 shrink-0 items-center justify-end justify-self-end [grid-area:1/1]",
-                className
+                hasActionStatus
+                    ? "pointer-events-auto opacity-100"
+                    : "pointer-events-auto opacity-100 sm:pointer-events-none sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"
             )}
         >
             <IntegrationsListActionStatus tone={actionStatus?.tone}>
                 {actionStatus?.message}
             </IntegrationsListActionStatus>
-            {actions.map(children)}
+            {actions.map((action) => (
+                <IntegrationsListItemActionButton
+                    action={action}
+                    key={action.role}
+                />
+            ))}
         </div>
     );
 }
@@ -729,17 +647,13 @@ function IntegrationsListActionStatus({
 }: IntegrationsListActionStatusProps) {
     const isError = tone === "error";
 
-    if (!props.children) {
-        return null;
-    }
-
     return (
         <p
             {...props}
             aria-atomic="true"
             aria-live={isError ? "assertive" : "polite"}
             className={cn(
-                "max-w-full text-right text-xs leading-tight",
+                "pointer-events-none max-w-full text-right text-xs leading-tight empty:hidden",
                 isError ? "text-destructive" : "text-muted-foreground",
                 className
             )}
@@ -774,15 +688,20 @@ function IntegrationsListItemActionButton({
 }
 
 function IntegrationsListDisclaimer() {
-    const [isOpen, setIsOpen] = React.useState(true);
+    const {
+        isIntegrationsDisclaimerVisible,
+        setIsIntegrationsDisclaimerVisible,
+    } = useIntegrationsListStore();
 
-    const handleDismiss = useStableCallback(() => setIsOpen(false));
+    const handleDismiss = useStableCallback(() =>
+        setIsIntegrationsDisclaimerVisible(false)
+    );
 
     return (
         <Collapsible
             className="mx-2.5 pb-1"
-            onOpenChange={setIsOpen}
-            open={isOpen}
+            onOpenChange={setIsIntegrationsDisclaimerVisible}
+            open={isIntegrationsDisclaimerVisible}
         >
             <CollapsiblePanel>
                 <p className="text-[11px] text-muted-foreground leading-tight">

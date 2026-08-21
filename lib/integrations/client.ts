@@ -8,9 +8,11 @@ import {
     IntegrationApiError,
     IntegrationConnectionError,
 } from "@/lib/integrations/error";
+import { executeGooglePhotosPickerFlow } from "@/lib/integrations/google-photos/client";
 import type {
     CopyPromptBehavior,
     ExtensionOpenBehavior,
+    GooglePhotosPickerSyncBehavior,
     OAuthLinkConnectBehavior,
     RouteSyncBehavior,
     SocialSignInConnectBehavior,
@@ -96,25 +98,36 @@ export async function executeConnectBehavior(
         return;
     }
 
-    const response = await authClient.$fetch("/oauth2/link", {
-        body: {
-            callbackURL: behavior.callbackURL,
-            disableRedirect: true,
-            errorCallbackURL: behavior.errorCallbackURL,
-            providerId: behavior.providerId,
-        },
-        method: "POST",
+    const linkSocialResponse = await authClient.linkSocial({
+        callbackURL: behavior.callbackURL,
+        disableRedirect: true,
+        errorCallbackURL: behavior.errorCallbackURL,
+        provider: behavior.providerId,
     });
 
-    const url = extractRedirectUrl(response);
+    if (linkSocialResponse.error) {
+        throw new IntegrationConnectionError(
+            {
+                cause: linkSocialResponse.error,
+                message:
+                    linkSocialResponse.error.message ??
+                    CONNECTION_FLOW_ERROR_MESSAGE,
+                operation: "executeConnectBehavior.oauthLink",
+            },
+            { cause: linkSocialResponse.error }
+        );
+    }
+
+    const url =
+        linkSocialResponse.data?.url ?? extractRedirectUrl(linkSocialResponse);
     if (!url) {
         throw new IntegrationConnectionError(
             {
-                cause: response,
+                cause: linkSocialResponse,
                 message: CONNECTION_FLOW_ERROR_MESSAGE,
                 operation: "executeConnectBehavior.oauthLink",
             },
-            { cause: response }
+            { cause: linkSocialResponse }
         );
     }
 
@@ -152,6 +165,22 @@ export async function executeRouteSyncBehavior(
     }
 
     return behavior.successMessage?.(payloadRecord) ?? null;
+}
+
+/**
+ * Executes a sync behavior, dispatching on its kind.
+ */
+export function executeSyncBehavior(
+    behavior: GooglePhotosPickerSyncBehavior | RouteSyncBehavior
+): Promise<string | null> {
+    switch (behavior.kind) {
+        case "route":
+            return executeRouteSyncBehavior(behavior);
+        case "google-photos-picker":
+            return executeGooglePhotosPickerFlow();
+        default:
+            return ((_: never) => _)(behavior);
+    }
 }
 
 /**
