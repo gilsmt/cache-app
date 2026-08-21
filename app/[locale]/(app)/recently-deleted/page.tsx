@@ -90,10 +90,7 @@ async function RecentlyDeletedPageBody() {
                     itemDaysRemainingById={Object.fromEntries(
                         items.map((entry) => [
                             entry.item.id,
-                            {
-                                daysRemaining: entry.daysRemaining,
-                                deletedAt: entry.deletedAt.toISOString(),
-                            },
+                            entry.daysRemaining,
                         ])
                     )}
                     items={items.map((entry) => entry.item)}
@@ -118,7 +115,7 @@ function RecentlyDeletedPageSkeleton() {
                         className="flex items-center gap-4 rounded-2xl bg-muted/60 p-4"
                         key={key}
                     >
-                        <Skeleton className="size-14 shrink-0 rounded-xl" />
+                        <Skeleton className="size-12 shrink-0 rounded-lg" />
                         <div className="flex min-w-0 flex-1 flex-col gap-2">
                             <Skeleton className="h-4 w-2/3" />
                             <Skeleton className="h-3 w-1/3" />

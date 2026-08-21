@@ -9,11 +9,13 @@ import {
     Dialog,
     DialogClose,
     DialogDescription,
+    DialogFieldError,
     DialogFooter,
     DialogHeader,
     DialogPopup,
     DialogTitle,
 } from "@/components/ui/dialog";
+import type { LibraryItemPurgeAllResult } from "@/lib/collections/items";
 import {
     purgeAllRecentlyDeletedItems,
     purgeLibraryItem,
@@ -25,21 +27,29 @@ import type {
 } from "@/lib/collections/utils";
 import { cn } from "@/lib/common/cn";
 import { ACTION_STATUS, ITEM_KIND_NOTE } from "@/lib/common/constants";
+import { createLogger } from "@/lib/common/logs/console/logger";
 import { parseDisplayUrl } from "@/lib/common/url";
 import { getSourceIcon } from "@/lib/integrations/support";
 
+const log = createLogger("recently-deleted");
+
 const RECENTLY_DELETED_EXPIRES_SOON_DAYS = 7;
 
-interface RecentlyDeletedItemMeta {
-    daysRemaining: number;
-    deletedAt: string;
+type ActionFailureKind = "purge" | "purge-all" | "restore";
+
+interface ActionFailure {
+    kind: ActionFailureKind;
+    /** Message returned by the action, shown verbatim when present. */
+    serverMessage?: string;
 }
 
 interface PendingAction {
     item: LibraryItemWithCollections;
-    kind: "purge" | "restore";
+    kind: Exclude<ActionFailureKind, "purge-all">;
 }
 
+// Mirrors getLibraryItemPrimaryText in components/library/browser.tsx; falls
+// back to a parsed display URL because tombstone rows should not print raw hrefs.
 function displayTitle(item: LibraryItemWithCollections): string {
     if (item.kind === ITEM_KIND_NOTE) {
         return item.noteContentText?.trim() || "Untitled note";
@@ -47,21 +57,12 @@ function displayTitle(item: LibraryItemWithCollections): string {
     return item.caption?.trim() || parseDisplayUrl(item.url);
 }
 
-function formatCountdownCopy(
-    daysRemaining: number | undefined
-): React.ReactNode {
-    if (daysRemaining === undefined) {
-        return "";
-    }
+function formatCountdownCopy(daysRemaining: number): React.ReactNode {
     if (daysRemaining === 0) {
         return <T>Deletes today</T>;
     }
     if (daysRemaining === 1) {
-        return (
-            <T>
-                Deletes in <Var>1</Var> day
-            </T>
-        );
+        return <T>Deletes in 1 day</T>;
     }
     return (
         <T>
@@ -71,7 +72,7 @@ function formatCountdownCopy(
 }
 
 interface RecentlyDeletedListProps {
-    itemDaysRemainingById: Record<string, RecentlyDeletedItemMeta>;
+    itemDaysRemainingById: Record<string, number>;
     items: LibraryItemWithCollections[];
 }
 
@@ -80,9 +81,10 @@ export function RecentlyDeletedList({
     items,
 }: RecentlyDeletedListProps) {
     const [isPending, startTransition] = React.useTransition();
-    const [pendingAction, setPendingAction] =
+    const [activeAction, setActiveAction] =
         React.useState<PendingAction | null>(null);
-    const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+    const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
+    const [failure, setFailure] = React.useState<ActionFailure | null>(null);
     const [hiddenItemIds, setHiddenItemIds] = React.useState<Set<string>>(
         () => new Set()
     );
@@ -95,31 +97,43 @@ export function RecentlyDeletedList({
 
     const handleRequestAction = useStableCallback(
         (item: LibraryItemWithCollections, kind: PendingAction["kind"]) => {
-            setErrorMessage(null);
-            setPendingAction({ item, kind });
+            setFailure(null);
+            setActiveAction({ item, kind });
+            setIsConfirmOpen(true);
         }
     );
 
-    const handleDialogOpenChange = useStableCallback((open: boolean) => {
+    const handleConfirmOpenChange = useStableCallback((open: boolean) => {
         if (!(open || isPending)) {
-            setPendingAction(null);
-            setErrorMessage(null);
+            setIsConfirmOpen(false);
         }
     });
 
+    // Keep the dialog subject mounted while the close animation plays.
+    const handleConfirmOpenChangeComplete = useStableCallback(
+        (open: boolean) => {
+            if (!open) {
+                setActiveAction(null);
+                setFailure(null);
+            }
+        }
+    );
+
     const handleConfirmAction = useStableCallback(() => {
-        const target = pendingAction;
+        const target = activeAction;
         if (!target) {
             return;
         }
+
+        const failureKind: ActionFailure["kind"] =
+            target.kind === "restore" ? "restore" : "purge";
 
         startTransition(async () => {
             const removeFromList = () => {
                 setHiddenItemIds((current) =>
                     new Set(current).add(target.item.id)
                 );
-                setPendingAction(null);
-                setErrorMessage(null);
+                setIsConfirmOpen(false);
             };
 
             try {
@@ -129,11 +143,10 @@ export function RecentlyDeletedList({
                         removeFromList();
                         return;
                     }
-                    setErrorMessage(
-                        "message" in response
-                            ? response.message
-                            : "We couldn't restore this saved item right now."
-                    );
+                    setFailure({
+                        kind: failureKind,
+                        serverMessage: response.message,
+                    });
                     return;
                 }
 
@@ -142,112 +155,130 @@ export function RecentlyDeletedList({
                     removeFromList();
                     return;
                 }
-                setErrorMessage(
-                    "message" in response
-                        ? response.message
-                        : "We couldn't permanently delete this saved item right now."
+                setFailure({
+                    kind: failureKind,
+                    serverMessage: response.message,
+                });
+            } catch (error) {
+                log.error(
+                    `Failed to ${failureKind} recently deleted item`,
+                    error
                 );
-            } catch {
-                setErrorMessage(
-                    target.kind === "restore"
-                        ? "We couldn't restore this saved item right now."
-                        : "We couldn't permanently delete this saved item right now."
-                );
+                setFailure({ kind: failureKind });
             }
         });
     });
 
     const handleDeleteAll = useStableCallback(() => {
         startDeleteAllTransition(async () => {
-            setErrorMessage(null);
-            const response = await purgeAllRecentlyDeletedItems();
+            setFailure(null);
+            let response: LibraryItemPurgeAllResult;
+            try {
+                response = await purgeAllRecentlyDeletedItems();
+            } catch (error) {
+                log.error("Failed to purge all recently deleted items", error);
+                setFailure({ kind: "purge-all" });
+                return;
+            }
             if (response.status === ACTION_STATUS.DELETED) {
-                setHiddenItemIds(new Set(items.map((item) => item.id)));
+                setHiddenItemIds(
+                    (current) =>
+                        new Set([...current, ...response.purgedItemIds])
+                );
                 setShowDeleteAllDialog(false);
                 return;
             }
-            setErrorMessage(
-                "message" in response
-                    ? response.message
-                    : "We couldn't permanently delete your items right now."
-            );
+            setFailure({ kind: "purge-all", serverMessage: response.message });
         });
     });
 
     const handleRequestDeleteAll = useStableCallback(() => {
+        setFailure(null);
         setShowDeleteAllDialog(true);
     });
 
     const handleDeleteAllDialogOpenChange = useStableCallback(
-        (open: boolean) => {
-            if (!(open || isDeleteAllPending)) {
+        (isOpen: boolean) => {
+            if (!(isOpen || isDeleteAllPending)) {
                 setShowDeleteAllDialog(false);
-                setErrorMessage(null);
             }
         }
     );
 
-    if (visibleItems.length === 0) {
-        return (
-            <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl bg-muted/50 p-8 text-center">
-                <p className="font-medium text-foreground text-sm">
-                    <T>Nothing to restore right now</T>
-                </p>
-                <p className="text-muted-foreground text-xs">
-                    <T>
-                        Items you remove from your library stay here for 30 days
-                        before being deleted forever.
-                    </T>
-                </p>
-            </div>
-        );
-    }
+    const handleDeleteAllDialogOpenChangeComplete = useStableCallback(
+        (isOpen: boolean) => {
+            if (!isOpen) {
+                setFailure(null);
+            }
+        }
+    );
 
     return (
         <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-end">
-                <Button
-                    onClick={handleRequestDeleteAll}
-                    size="sm"
-                    variant="destructive-outline"
-                >
-                    <Trash aria-hidden className="size-4" focusable="false" />
-                    <T>Delete all now</T>
-                </Button>
-            </div>
-            {visibleItems.map((item) => {
-                const meta = itemDaysRemainingById[item.id];
-                return (
-                    <RecentlyDeletedRow
-                        item={item}
-                        key={item.id}
-                        meta={meta}
-                        onRequestAction={handleRequestAction}
-                    />
-                );
-            })}
+            {visibleItems.length === 0 ? (
+                <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl bg-muted/50 p-8 text-center">
+                    <p className="font-medium text-foreground text-sm">
+                        <T>Nothing to restore right now</T>
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                        <T>
+                            Items you remove from your library stay here for 30
+                            days before being deleted forever.
+                        </T>
+                    </p>
+                </div>
+            ) : (
+                <>
+                    <div className="flex items-center justify-end">
+                        <Button
+                            onClick={handleRequestDeleteAll}
+                            size="sm"
+                            variant="destructive-outline"
+                        >
+                            <Trash
+                                aria-hidden
+                                className="size-4"
+                                focusable="false"
+                            />
+                            <T>Delete all now</T>
+                        </Button>
+                    </div>
+                    {visibleItems.map((item) => {
+                        const daysRemaining = itemDaysRemainingById[item.id];
+                        return (
+                            <RecentlyDeletedRow
+                                daysRemaining={daysRemaining}
+                                item={item}
+                                key={item.id}
+                                onRequestAction={handleRequestAction}
+                            />
+                        );
+                    })}
+                </>
+            )}
             <Dialog
-                onOpenChange={handleDialogOpenChange}
-                open={pendingAction !== null}
+                onOpenChange={handleConfirmOpenChange}
+                onOpenChangeComplete={handleConfirmOpenChangeComplete}
+                open={isConfirmOpen}
             >
                 <DialogPopup>
-                    {pendingAction ? (
+                    {activeAction ? (
                         <>
                             <DialogHeader>
                                 <DialogTitle>
-                                    {pendingAction.kind === "restore" ? (
+                                    {activeAction.kind === "restore" ? (
                                         <T>Restore this saved item?</T>
                                     ) : (
                                         <T>Delete forever?</T>
                                     )}
                                 </DialogTitle>
                                 <DialogDescription>
-                                    {pendingAction.kind === "restore" ? (
+                                    {activeAction.kind === "restore" ? (
                                         <T>
                                             Move{" "}
                                             <Var>
                                                 {displayTitle(
-                                                    pendingAction.item
+                                                    activeAction.item
                                                 )}
                                             </Var>{" "}
                                             back to your library. Collections
@@ -258,7 +289,7 @@ export function RecentlyDeletedList({
                                             Permanently delete{" "}
                                             <Var>
                                                 {displayTitle(
-                                                    pendingAction.item
+                                                    activeAction.item
                                                 )}
                                             </Var>{" "}
                                             from Cache. This cannot be undone.
@@ -266,6 +297,15 @@ export function RecentlyDeletedList({
                                     )}
                                 </DialogDescription>
                             </DialogHeader>
+                            {failure ? (
+                                <div className="px-6">
+                                    <DialogFieldError>
+                                        <ActionFailureMessage
+                                            failure={failure}
+                                        />
+                                    </DialogFieldError>
+                                </div>
+                            ) : null}
                             <DialogFooter>
                                 <DialogClose
                                     disabled={isPending}
@@ -277,32 +317,25 @@ export function RecentlyDeletedList({
                                     isLoading={isPending}
                                     onClick={handleConfirmAction}
                                     variant={
-                                        pendingAction.kind === "purge"
+                                        activeAction.kind === "purge"
                                             ? "destructive"
                                             : "default"
                                     }
                                 >
-                                    {pendingAction.kind === "restore" ? (
+                                    {activeAction.kind === "restore" ? (
                                         <T>Restore</T>
                                     ) : (
                                         <T>Delete forever</T>
                                     )}
                                 </Button>
                             </DialogFooter>
-                            {errorMessage ? (
-                                <p
-                                    className="text-destructive text-xs"
-                                    role="alert"
-                                >
-                                    {errorMessage}
-                                </p>
-                            ) : null}
                         </>
                     ) : null}
                 </DialogPopup>
             </Dialog>
             <Dialog
                 onOpenChange={handleDeleteAllDialogOpenChange}
+                onOpenChangeComplete={handleDeleteAllDialogOpenChangeComplete}
                 open={showDeleteAllDialog}
             >
                 <DialogPopup>
@@ -318,6 +351,13 @@ export function RecentlyDeletedList({
                             </T>
                         </DialogDescription>
                     </DialogHeader>
+                    {failure && showDeleteAllDialog ? (
+                        <div className="px-6">
+                            <DialogFieldError>
+                                <ActionFailureMessage failure={failure} />
+                            </DialogFieldError>
+                        </div>
+                    ) : null}
                     <DialogFooter>
                         <DialogClose
                             disabled={isDeleteAllPending}
@@ -333,11 +373,6 @@ export function RecentlyDeletedList({
                             <T>Delete all</T>
                         </Button>
                     </DialogFooter>
-                    {errorMessage && showDeleteAllDialog ? (
-                        <p className="text-destructive text-xs" role="alert">
-                            {errorMessage}
-                        </p>
-                    ) : null}
                 </DialogPopup>
             </Dialog>
         </div>
@@ -345,8 +380,8 @@ export function RecentlyDeletedList({
 }
 
 interface RecentlyDeletedRowProps {
+    daysRemaining?: number;
     item: LibraryItemWithCollections;
-    meta?: RecentlyDeletedItemMeta;
     onRequestAction: (
         item: LibraryItemWithCollections,
         kind: PendingAction["kind"]
@@ -355,14 +390,14 @@ interface RecentlyDeletedRowProps {
 
 function RecentlyDeletedRow({
     item,
-    meta,
+    daysRemaining,
     onRequestAction,
 }: RecentlyDeletedRowProps) {
     const SourceIcon = getSourceIcon(item.source) ?? Trash;
-    const isExpiresSoon = meta
-        ? meta.daysRemaining <= RECENTLY_DELETED_EXPIRES_SOON_DAYS
-        : false;
-    const countdownCopy = formatCountdownCopy(meta?.daysRemaining);
+    const displayUrl = parseDisplayUrl(item.url);
+    const isExpiresSoon =
+        daysRemaining !== undefined &&
+        daysRemaining <= RECENTLY_DELETED_EXPIRES_SOON_DAYS;
 
     const handleRestore = useStableCallback(() =>
         onRequestAction(item, "restore")
@@ -370,9 +405,7 @@ function RecentlyDeletedRow({
     const handlePurge = useStableCallback(() => onRequestAction(item, "purge"));
 
     return (
-        <div
-            className={cn("flex items-start gap-4 rounded-2xl bg-muted/60 p-4")}
-        >
+        <div className="flex items-start gap-4 rounded-2xl bg-muted/60 p-4">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                 <SourceIcon aria-hidden className="size-5" focusable="false" />
             </div>
@@ -380,21 +413,25 @@ function RecentlyDeletedRow({
                 <p className="truncate font-medium text-foreground text-sm">
                     {displayTitle(item)}
                 </p>
-                <p className="truncate text-muted-foreground text-xs">
-                    {parseDisplayUrl(item.url)}
-                </p>
+                {displayUrl ? (
+                    <p className="truncate text-muted-foreground text-xs">
+                        {displayUrl}
+                    </p>
+                ) : null}
                 <div className="flex items-center gap-2 text-xs">
-                    <span
-                        className={cn(
-                            "rounded-full px-2 py-0.5 font-medium",
-                            isExpiresSoon
-                                ? "bg-destructive/10 text-destructive"
-                                : "bg-muted text-muted-foreground"
-                        )}
-                    >
-                        {countdownCopy}
-                    </span>
-                    <CollectionsList collections={item.collections} />
+                    {daysRemaining === undefined ? null : (
+                        <span
+                            className={cn(
+                                "rounded-full px-2 py-0.5 font-medium",
+                                isExpiresSoon
+                                    ? "bg-destructive/10 text-destructive"
+                                    : "bg-muted text-muted-foreground"
+                            )}
+                        >
+                            {formatCountdownCopy(daysRemaining)}
+                        </span>
+                    )}
+                    <CollectionCountLabel collections={item.collections} />
                 </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -415,7 +452,29 @@ function RecentlyDeletedRow({
     );
 }
 
-function CollectionsList({
+function ActionFailureMessage({ failure }: { failure: ActionFailure }) {
+    if (failure.serverMessage) {
+        return <>{failure.serverMessage}</>;
+    }
+    switch (failure.kind) {
+        case "purge":
+            return (
+                <T>We couldn't permanently delete this saved item right now.</T>
+            );
+        case "purge-all":
+            return <T>We couldn't permanently delete your items right now.</T>;
+        case "restore":
+            return <T>We couldn't restore this saved item right now.</T>;
+        default: {
+            // Exhaustive over ActionFailureKind; fails to compile if a kind
+            // is added without a fallback message.
+            const unreachable: never = failure.kind;
+            return unreachable;
+        }
+    }
+}
+
+function CollectionCountLabel({
     collections,
 }: {
     collections: LibraryCollectionTag[];
@@ -425,13 +484,13 @@ function CollectionsList({
     }
     return (
         <span className="truncate text-muted-foreground text-xs">
-            <T>
-                <Var>
-                    {collections.length === 1
-                        ? "1 collection"
-                        : `${collections.length} collections`}
-                </Var>
-            </T>
+            {collections.length === 1 ? (
+                <T>1 collection</T>
+            ) : (
+                <T>
+                    <Var>{collections.length}</Var> collections
+                </T>
+            )}
         </span>
     );
 }
