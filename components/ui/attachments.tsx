@@ -32,7 +32,7 @@ const MEDIA_CATEGORY_ICON_BY_CATEGORY: Record<
     video: VideoIcon,
 };
 
-type AttachmentData =
+export type AttachmentData =
     | (FileUIPart & { id: string })
     | (SourceDocumentUIPart & { id: string });
 
@@ -71,7 +71,7 @@ export function getMediaCategory(
         return "source";
     }
 
-    const mediaType = data.mediaType ?? "";
+    const mediaType = data.mediaType;
 
     if (mediaType.startsWith("image/")) {
         return "image";
@@ -103,7 +103,10 @@ function renderAttachmentImage(url: string, filename: string | undefined) {
         <img
             alt={filename || "Image"}
             className="size-full rounded object-cover"
+            decoding="async"
             height={20}
+            loading="lazy"
+            referrerPolicy="no-referrer"
             src={url}
             width={20}
         />
@@ -125,7 +128,12 @@ function renderAttachmentPreviewContent(
 
     if (mediaCategory === "video" && data.type === "file" && data.url) {
         return (
-            <video className="size-full object-cover" muted src={data.url} />
+            <video
+                className="size-full object-cover"
+                muted
+                preload="metadata"
+                src={data.url}
+            />
         );
     }
 
@@ -154,7 +162,7 @@ export function Attachments({
     );
 }
 
-interface AttachmentProps extends React.ComponentProps<"li"> {
+interface AttachmentProps extends React.ComponentProps<"div"> {
     data: AttachmentData;
     onRemove?: () => void;
 }
@@ -170,7 +178,7 @@ export function Attachment({
 
     return (
         <AttachmentItemContext value={contextValue}>
-            <li
+            <div
                 {...props}
                 className={cn(
                     "group relative flex h-8 cursor-pointer items-center gap-1",
@@ -245,7 +253,7 @@ interface AttachmentRemoveProps extends React.ComponentProps<typeof Button> {
 
 export function AttachmentRemove({
     label = "Remove",
-    className,
+    size = "icon-xs",
     children,
     ...props
 }: AttachmentRemoveProps) {
@@ -264,8 +272,8 @@ export function AttachmentRemove({
         <Button
             {...props}
             aria-label={label}
-            className={cn("size-5 rounded p-0", "[&>svg]:size-2.5", className)}
             onClick={handleClick}
+            size={size}
             variant="ghost"
         >
             {children ?? <XIcon />}

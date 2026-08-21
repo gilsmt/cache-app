@@ -106,9 +106,6 @@ export default async function LocaleLayout(props: React.PropsWithChildren) {
             <body suppressHydrationWarning>
                 <ThemeSync />
                 <ConsoleBanner version={packageJson.version} />
-                <span aria-atomic="true" aria-live="polite" className="sr-only">
-                    {APP_NAME}
-                </span>
                 <div className="not-has-focus-visible:sr-only pointer-events-none fixed inset-x-0 top-0 z-50 mt-4 flex select-none justify-center">
                     <a
                         className="pointer-events-auto rounded-2xl bg-background px-4 py-2 text-base text-foreground outline-2 outline-offset-2 focus-visible:outline focus-visible:outline-ring print:hidden"

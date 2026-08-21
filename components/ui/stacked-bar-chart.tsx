@@ -32,7 +32,9 @@ export function StackedBarChart({
     segments,
     ...props
 }: StackedBarChartProps) {
-    const visibleSegments = segments.filter((segment) => segment.value > 0);
+    const visibleSegments = segments.filter(
+        (segment) => Number.isFinite(segment.value) && segment.value > 0
+    );
     const total = visibleSegments.reduce(
         (sum, segment) => sum + segment.value,
         0
@@ -64,7 +66,7 @@ export function StackedBarChart({
                 return (
                     <div
                         className={cn(
-                            "min-w-0 transition-[flex-grow]",
+                            "min-w-0 transition-[flex-grow] ease-out",
                             isFirst && "rounded-s-full",
                             isLast && "rounded-e-full"
                         )}

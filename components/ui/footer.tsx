@@ -4,7 +4,7 @@ import { GDPRIcon } from "@/components/ui/icons";
 
 export function Footer() {
     return (
-        <footer>
+        <footer className="content-auto">
             <div className="relative mx-auto mt-auto grid h-auto w-full max-w-5xl grid-cols-12 gap-x-[min(2.25vw,32px)] pt-30 lg:top-0">
                 <div className="relative z-20 col-span-full mx-auto grid w-full grid-cols-12 flex-col gap-6 gap-x-[min(2.25vw,32px)]">
                     <div className="col-span-full flex flex-col gap-4">

@@ -376,7 +376,7 @@ export function UserMenuContent() {
             <MenuSeparator />
             <MenuGroup>
                 <div className="flex items-center justify-between pr-2 pl-2.5">
-                    <span className="font-regular text-foreground text-sm">
+                    <span className="font-normal text-foreground text-sm">
                         <T>Theme</T>
                     </span>
                     <ThemeSelector />

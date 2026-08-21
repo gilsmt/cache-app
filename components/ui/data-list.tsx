@@ -58,7 +58,7 @@ export function DataListTitle({
     ...props
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
-        className: cn("font-regular text-muted-foreground text-xs", className),
+        className: cn("font-normal text-muted-foreground text-xs", className),
         "data-slot": "data-list-title",
     };
 
@@ -73,15 +73,15 @@ export function DataListSection({
     className,
     render,
     ...props
-}: useRender.ComponentProps<"section">) {
+}: useRender.ComponentProps<"div">) {
     const defaultProps = {
         className: cn("flex flex-col gap-2", className),
         "data-slot": "data-list-section",
     };
 
     return useRender({
-        defaultTagName: "section",
-        props: mergeProps<"section">(defaultProps, props),
+        defaultTagName: "div",
+        props: mergeProps<"div">(defaultProps, props),
         render,
     });
 }
@@ -93,7 +93,7 @@ export function DataListGroup({
 }: useRender.ComponentProps<"dl">) {
     const defaultProps = {
         className: cn("mt-1.5 flex flex-col gap-1.5", className),
-        "data-slot": "data-list-items",
+        "data-slot": "data-list-group",
     };
 
     return useRender({
@@ -103,12 +103,14 @@ export function DataListGroup({
     });
 }
 
-interface DataListItemProps extends useRender.ComponentProps<"div"> {
-    color?: string;
-    icon?: React.ReactNode;
+type DataListItemProps = Omit<useRender.ComponentProps<"div">, "children"> & {
     label: React.ReactNode;
     value: React.ReactNode;
-}
+} & (
+        | { color: string; icon?: never }
+        | { color?: never; icon?: React.ReactNode }
+        | { color?: never; icon?: never }
+    );
 
 export function DataListItem({
     className,

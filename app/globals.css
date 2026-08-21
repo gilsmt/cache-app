@@ -167,9 +167,8 @@
 
     body {
         position: relative;
-        display: flex;
-        flex-direction: column;
         overflow-wrap: anywhere;
+        isolation: isolate;
         @apply bg-background text-foreground;
     }
 
@@ -332,6 +331,10 @@
 
 @utility squircle {
     corner-shape: superellipse(1.2);
+}
+
+@utility content-auto {
+    content-visibility: auto;
 }
 
 @utility drag-none {

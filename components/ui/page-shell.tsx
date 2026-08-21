@@ -14,11 +14,10 @@ export function PageShell({
         <Comp
             {...props}
             className={cn(
-                "relative isolate z-0 mx-auto flex size-full min-h-dvh flex-col leading-snug tracking-tight outline-none [-webkit-user-drag:none] focus-visible:outline-none motion-reduce:animate-none",
+                "relative isolate z-0 mx-auto flex size-full min-h-dvh min-w-0 flex-1 flex-col overflow-x-clip leading-snug tracking-tight outline-none [-webkit-user-drag:none] focus-visible:outline-none",
                 className
             )}
             id="main"
-            tabIndex={-1}
         />
     );
 }
