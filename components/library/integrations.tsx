@@ -1,5 +1,6 @@
 "use client";
 
+import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
 import { T, useGT, Var } from "gt-next";
@@ -132,6 +133,9 @@ function useIntegrationActions({
 
     const [actionStatus, setActionStatus] =
         React.useState<IntegrationActionStatus | null>(null);
+    const pendingActionRoles = useRefWithInit(
+        () => new Set<IntegrationActionRole>()
+    ).current;
     const [loadingRoles, setLoadingRoles] = React.useState<
         ReadonlySet<IntegrationActionRole>
     >(() => new Set());
@@ -152,9 +156,10 @@ function useIntegrationActions({
 
     const handleIntegrationAction = useStableCallback(
         async (role: IntegrationActionRole) => {
-            if (loadingRoles.has(role)) {
+            if (pendingActionRoles.has(role)) {
                 return;
             }
+            pendingActionRoles.add(role);
 
             setActionStatus(null);
             setLoadingRoles((prev) => new Set(prev).add(role));
@@ -192,6 +197,7 @@ function useIntegrationActions({
                     tone: "error",
                 });
             } finally {
+                pendingActionRoles.delete(role);
                 setLoadingRoles((prev) => {
                     const nextRoles = new Set(prev);
                     nextRoles.delete(role);
