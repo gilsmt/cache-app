@@ -18,6 +18,7 @@ export function PageShell({
                 className
             )}
             id="main"
+            tabIndex={-1}
         />
     );
 }

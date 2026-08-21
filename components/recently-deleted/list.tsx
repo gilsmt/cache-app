@@ -58,7 +58,7 @@ function displayTitle(item: LibraryItemWithCollections): string {
 }
 
 function formatCountdownCopy(daysRemaining: number): React.ReactNode {
-    if (daysRemaining === 0) {
+    if (daysRemaining <= 0) {
         return <T>Deletes today</T>;
     }
     if (daysRemaining === 1) {
