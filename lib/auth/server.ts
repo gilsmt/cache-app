@@ -3,7 +3,10 @@ import { stripe } from "@better-auth/stripe";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
-import type { GenericOAuthConfig } from "better-auth/plugins";
+import type {
+    GenericOAuthConfig,
+    GenericOAuthUserInfo,
+} from "better-auth/plugins";
 import { genericOAuth, multiSession, oneTap } from "better-auth/plugins";
 import * as z from "zod";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/billing/client";
@@ -115,6 +118,7 @@ interface OAuthUserProfile {
     id: string;
     image?: string;
     name?: string;
+    [key: string]: unknown;
 }
 
 function integrationPlaceholderEmail(providerId: string, id: string): string {
@@ -136,7 +140,7 @@ async function fetchOAuthUser<T>(
     schema: z.ZodType<T>,
     mapUser: (data: T) => OAuthUserProfile | null,
     extraHeaders: Record<string, string> = {}
-): Promise<OAuthUserProfile | null> {
+): Promise<GenericOAuthUserInfo | null> {
     if (!tokens.accessToken) {
         return null;
     }
@@ -193,9 +197,7 @@ interface IntegrationOAuthDef<T> {
     authorizationUrlParams?: Record<string, string>;
     envPrefix: string;
     extraHeaders?: Record<string, string>;
-    mapUser: (
-        data: T
-    ) => Omit<OAuthUserProfile, "email" | "emailVerified"> | null;
+    mapUser: (data: T) => { id: string; image?: string; name?: string } | null;
     pkce?: boolean;
     providerId: string;
     schema: z.ZodType<T>;

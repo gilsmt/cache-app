@@ -16,8 +16,8 @@ export function accountHasOAuthScope(
 }
 
 export function compareProviderAccountsForScopePreference(
-    left: { accountId: string; scope: string | null },
-    right: { accountId: string; scope: string | null },
+    left: { id: string; scope: string | null },
+    right: { id: string; scope: string | null },
     requiredScope: string | undefined
 ): number {
     if (requiredScope) {
@@ -27,7 +27,7 @@ export function compareProviderAccountsForScopePreference(
             return leftHasScope ? -1 : 1;
         }
     }
-    return left.accountId.localeCompare(right.accountId);
+    return left.id.localeCompare(right.id);
 }
 
 export function getProviderTokenApiErrorCode(error: unknown): string | null {

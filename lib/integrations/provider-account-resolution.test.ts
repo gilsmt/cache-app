@@ -30,11 +30,11 @@ describe("accountHasOAuthScope", () => {
 
 describe("compareProviderAccountsForScopePreference", () => {
     const withScope = {
-        accountId: "b-account",
+        id: "b-account",
         scope: "openid photos",
     };
     const withoutScope = {
-        accountId: "a-account",
+        id: "a-account",
         scope: "openid",
     };
 
@@ -55,18 +55,18 @@ describe("compareProviderAccountsForScopePreference", () => {
         ).toBeLessThan(0);
     });
 
-    test("falls back to accountId order when scope ties or is unset", () => {
+    test("falls back to id order when scope ties or is unset", () => {
         expect(
             compareProviderAccountsForScopePreference(
                 withoutScope,
                 withScope,
                 undefined
             )
-        ).toBe(withoutScope.accountId.localeCompare(withScope.accountId));
+        ).toBe(withoutScope.id.localeCompare(withScope.id));
         expect(
             compareProviderAccountsForScopePreference(
-                { accountId: "z", scope: "photos" },
-                { accountId: "a", scope: "photos" },
+                { id: "z", scope: "photos" },
+                { id: "a", scope: "photos" },
                 "photos"
             )
         ).toBe("z".localeCompare("a"));
@@ -76,7 +76,7 @@ describe("compareProviderAccountsForScopePreference", () => {
         const ordered = [withoutScope, withScope].toSorted((left, right) =>
             compareProviderAccountsForScopePreference(left, right, "photos")
         );
-        expect(ordered.map((account) => account.accountId)).toEqual([
+        expect(ordered.map((account) => account.id)).toEqual([
             "b-account",
             "a-account",
         ]);

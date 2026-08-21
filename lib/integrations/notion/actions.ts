@@ -5,7 +5,7 @@ import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 import { extractNamedErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
-    getIntegrationAccountId,
+    hasLinkedProviderAccount,
     resolveProviderAccountAccessToken,
 } from "@/lib/integrations/account";
 import {
@@ -103,11 +103,12 @@ async function sendToNotion(
         return auth;
     }
 
-    const accountId = await getIntegrationAccountId(
-        auth.userId,
-        NOTION_PROVIDER_ID
-    );
-    if (!accountId) {
+    if (
+        !(await hasLinkedProviderAccount({
+            providerId: NOTION_PROVIDER_ID,
+            userId: auth.userId,
+        }))
+    ) {
         return {
             message: "Connect Notion before sending content there.",
             status: "NOT_CONNECTED",
@@ -115,7 +116,6 @@ async function sendToNotion(
     }
 
     const accessToken = await resolveProviderAccountAccessToken({
-        accountId,
         providerId: NOTION_PROVIDER_ID,
         userId: auth.userId,
     });

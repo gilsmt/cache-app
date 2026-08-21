@@ -1,7 +1,7 @@
 import "server-only";
 
 import {
-    getIntegrationAccountId,
+    hasLinkedProviderAccount,
     resolveProviderAccountAccessToken,
 } from "@/lib/integrations/account";
 import { IntegrationConnectionError } from "@/lib/integrations/error";
@@ -13,11 +13,15 @@ interface OAuthImportResult<T> {
 }
 
 /**
- * Resolves the linked provider account, fetches an access token, and runs
+ * Resolves a linked provider account, fetches an access token, and runs
  * the provider-specific import.
  *
+ * Every linked account for the provider is tried, so a user with multiple
+ * linked accounts (e.g. two Google accounts via accountLinking) is served by
+ * whichever holds a usable token instead of an arbitrarily pinned row.
+ *
  * Throws `IntegrationConnectionError` with `code: "not_connected"` when the
- * user has no linked account, and `code: "token_missing"` when the account
+ * user has no linked account, and `code: "token_missing"` when an account
  * is linked but no access token can be issued. Provider-specific HTTP
  * failures (`IntegrationApiError`) and any other error from `importFn`
  * propagate unchanged so the transport layer can map them.
@@ -35,11 +39,7 @@ export async function runOAuthImportService<
     providerId: IntegrationId;
     userId: string;
 }): Promise<OAuthImportResult<T>> {
-    const accountId = await getIntegrationAccountId(
-        args.userId,
-        args.providerId
-    );
-    if (!accountId) {
+    if (!(await hasLinkedProviderAccount(args))) {
         throw new IntegrationConnectionError({
             code: "not_connected",
             integrationId: args.providerId,
@@ -49,7 +49,6 @@ export async function runOAuthImportService<
     }
 
     const accessToken = await resolveProviderAccountAccessToken({
-        accountId,
         providerId: args.providerId,
         userId: args.userId,
     });

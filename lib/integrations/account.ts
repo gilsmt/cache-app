@@ -15,6 +15,14 @@ const log = createLogger("integrations:account");
 
 const LINKED_INTEGRATION_ACCOUNT_LIMIT = 50;
 
+/**
+ * A resolved provider token plus the local account row it came from.
+ *
+ * `accountId` is the local `Account.id` primary key — the same identifier
+ * better-auth 1.7 expects in `auth.api.getAccessToken({ accountId })` — not
+ * the provider-assigned subject stored in `Account.accountId`. It is opaque
+ * to callers and safe to round-trip through the client.
+ */
 export interface ResolvedProviderAccess {
     accessToken: string;
     accountId: string;
@@ -42,31 +50,31 @@ export function listLinkedIntegrationAccounts(args: {
     });
 }
 
-export async function getIntegrationAccountId(
-    userId: string,
-    providerId: string
-): Promise<string | null> {
-    const account = await prisma.account.findFirst({
-        select: {
-            accountId: true,
-        },
-        where: {
-            providerId,
-            userId,
-        },
-    });
-
-    return account?.accountId ?? null;
+/**
+ * Reports whether the user has any linked account for the provider, so
+ * callers can distinguish "not connected" from "connected but token
+ * unavailable" without pinning an arbitrary account row.
+ */
+export function hasLinkedProviderAccount(args: {
+    providerId: string;
+    userId: string;
+}): Promise<boolean> {
+    return prisma.account
+        .count({
+            where: {
+                providerId: args.providerId,
+                userId: args.userId,
+            },
+        })
+        .then((count) => count > 0);
 }
 
 async function tryGetAccessToken(
-    accountId: string,
-    providerId: string
+    localAccountId: string
 ): Promise<string | null> {
     const tokenResponse = await auth.api.getAccessToken({
         body: {
-            accountId,
-            providerId,
+            accountId: localAccountId,
         },
         headers: await headers(),
     });
@@ -80,7 +88,7 @@ async function tryResolveAccountAccess(
     softFailureMessage: string
 ): Promise<ResolvedProviderAccess | null> {
     try {
-        const accessToken = await tryGetAccessToken(accountId, providerId);
+        const accessToken = await tryGetAccessToken(accountId);
         if (!accessToken) {
             return null;
         }
@@ -127,9 +135,9 @@ export async function resolveProviderAccountAccess(args: {
 }): Promise<ResolvedProviderAccess | null> {
     if (args.accountId) {
         const ownedAccount = await prisma.account.findFirst({
-            select: { accountId: true },
+            select: { id: true },
             where: {
-                accountId: args.accountId,
+                id: args.accountId,
                 providerId: args.providerId,
                 userId: args.userId,
             },
@@ -177,8 +185,8 @@ export async function* eachProviderAccountAccess(args: {
     userId: string;
 }): AsyncGenerator<ResolvedProviderAccess> {
     const accounts = await prisma.account.findMany({
-        orderBy: { accountId: "asc" },
-        select: { accountId: true, scope: true },
+        orderBy: { id: "asc" },
+        select: { id: true, scope: true },
         take: LINKED_INTEGRATION_ACCOUNT_LIMIT,
         where: {
             providerId: args.providerId,
@@ -189,8 +197,8 @@ export async function* eachProviderAccountAccess(args: {
     const orderedAccounts = args.requiredScope
         ? accounts.toSorted((left, right) =>
               compareProviderAccountsForScopePreference(
-                  left,
-                  right,
+                  { id: left.id, scope: left.scope },
+                  { id: right.id, scope: right.scope },
                   args.requiredScope
               )
           )
@@ -198,7 +206,7 @@ export async function* eachProviderAccountAccess(args: {
 
     for (const account of orderedAccounts) {
         const access = await tryResolveAccountAccess(
-            account.accountId,
+            account.id,
             args.providerId,
             "Skipping account with unusable access token"
         );

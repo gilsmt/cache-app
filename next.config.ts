@@ -121,6 +121,16 @@ const nextConfig: NextConfig = {
     reactCompiler: true,
     async redirects() {
         return [
+            // better-auth 1.7 moved generic-OAuth callbacks from
+            // /oauth2/callback/:id to /callback/:id, so a provider dashboard
+            // still registered on the old path (e.g. Notion) would 404.
+            // Temporary: remove once every provider dashboard uses
+            // {baseURL}/api/auth/callback/:id.
+            {
+                destination: "/api/auth/callback/:path*",
+                permanent: false,
+                source: "/api/auth/oauth2/callback/:path*",
+            },
             {
                 destination: "/library",
                 permanent: true,

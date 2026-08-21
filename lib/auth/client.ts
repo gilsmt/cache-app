@@ -1,6 +1,5 @@
 import { stripeClient } from "@better-auth/stripe/client";
 import {
-    genericOAuthClient,
     inferAdditionalFields,
     multiSessionClient,
     oneTapClient,
@@ -15,7 +14,6 @@ export const HAS_GOOGLE_ONE_TAP_CLIENT_ID = !!GOOGLE_ONE_TAP_CLIENT_ID;
 export const authClient = createAuthClient({
     plugins: [
         inferAdditionalFields<typeof auth>(),
-        genericOAuthClient(),
         multiSessionClient(),
         stripeClient({ subscription: true }),
         ...(GOOGLE_ONE_TAP_CLIENT_ID
