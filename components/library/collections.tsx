@@ -6,8 +6,7 @@ import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
-import { T } from "gt-next";
-import { findAll as findTextMatches } from "highlight-words-core";
+import { T, useGT } from "gt-next";
 import {
     ArchiveIcon,
     ArchiveX,
@@ -123,6 +122,7 @@ import {
     PreviewCardPopup,
     PreviewCardTrigger,
 } from "@/components/ui/preview-card";
+import { SearchMatchText } from "@/components/ui/search-match-text";
 import { SidebarItem } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -2285,39 +2285,6 @@ function getCollectionActionKey(
     return `${action}:${collectionId}`;
 }
 
-function renderSearchQueryMatch(
-    textToHighlight: string,
-    query: string
-): React.ReactNode {
-    const normalizedQuery = query.trim();
-    if (normalizedQuery.length === 0) {
-        return textToHighlight;
-    }
-
-    const chunks = findTextMatches({
-        autoEscape: true,
-        caseSensitive: false,
-        searchWords: [normalizedQuery],
-        textToHighlight,
-    });
-
-    if (chunks.length === 1 && !chunks[0]?.highlight) {
-        return textToHighlight;
-    }
-
-    return chunks.map(({ end, highlight, start }) => {
-        const text = textToHighlight.slice(start, end);
-
-        return highlight ? (
-            <mark className="bg-(--accent-color)/50" key={start}>
-                {text}
-            </mark>
-        ) : (
-            text
-        );
-    });
-}
-
 export const LibraryItemsContext =
     React.createContext<LibraryItemsContext | null>(null);
 
@@ -2753,6 +2720,7 @@ function CollectionsListGroupTrigger({
     render,
     ...props
 }: CollectionsListGroupTriggerProps) {
+    const gt = useGT();
     const summary =
         description ??
         (labels.length > 0 ? LIST_FORMATTER.format(labels) : placeholder);
@@ -2772,7 +2740,9 @@ function CollectionsListGroupTrigger({
                                 />
                             )
                         }
-                        title={isOpen ? "Collapse group" : "Expand group"}
+                        title={
+                            isOpen ? gt("Collapse group") : gt("Expand group")
+                        }
                     />
                 }
             >
@@ -3789,7 +3759,10 @@ function CollectionsListItemValue() {
                 className="max-w-full shrink-0 truncate font-medium text-sm tracking-tight"
                 title={collection.description ?? undefined}
             >
-                {renderSearchQueryMatch(collection.name, textMatchQuery)}
+                <SearchMatchText
+                    query={textMatchQuery}
+                    text={collection.name}
+                />
             </span>
             {isSelected ? (
                 <span className="max-w-full flex-1 truncate py-px text-[11px] text-muted-foreground opacity-100">
