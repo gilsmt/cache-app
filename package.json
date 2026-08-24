@@ -33,7 +33,7 @@
         "@base-ui/utils": "0.3.2",
         "@better-auth/i18n": "1.6.29",
         "@better-auth/prisma-adapter": "1.6.29",
-        "@better-auth/stripe": "1.6.29",
+        "@better-auth/stripe": "1.7.1",
         "@blossom-carousel/react": "1.5.2",
         "@braintree/sanitize-url": "7.1.2",
         "@google/genai": "2.17.1",
