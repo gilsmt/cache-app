@@ -48,7 +48,7 @@
         "@t3-oss/env-nextjs": "0.13.11",
         "@tavily/ai-sdk": "0.5.0",
         "@workflow/ai": "4.2.0",
-        "ai": "6.0.222",
+        "ai": "7.0.73",
         "better-auth": "1.6.29",
         "better-auth-localization": "3.0.0",
         "browser-fs-access": "0.38.0",
