@@ -24,8 +24,17 @@ const DEFAULT_THEME_SNAPSHOT: ThemeSnapshot = {
 const THEME_COLOR_META_NAME = "theme-color";
 const DYNAMIC_THEME_COLOR_SELECTOR = `meta[name="${THEME_COLOR_META_NAME}"][data-dynamic-theme-color="true"]`;
 
+// The store is the sole writer of theme state on the DOM. Application points,
+// in timing order: module init below (pre-hydration), ThemeSync's effect (post
+// -mount, once stylesheets and layout surfaces exist), setTheme, and the
+// external sync handlers.
 let listeners: Array<() => void> = [];
 let lastSnapshot: ThemeSnapshot | null = null;
+let mediaQuery: MediaQueryList | null = null;
+// Latest theme whose persistence failed (blocked or unavailable storage). Wins
+// over storage reads so the UI still reflects the user's choice for this
+// session; a cross-tab storage event clears it, proving storage works again.
+let unpersistedTheme: Theme | null = null;
 
 function emitChange() {
     for (const listener of listeners) {
@@ -33,18 +42,23 @@ function emitChange() {
     }
 }
 
-function hasThemeStorage() {
-    return typeof getOwnerWindow().localStorage !== "undefined";
+function getMediaQuery(): MediaQueryList {
+    // Lazily created: this module also evaluates during SSR, where DOM APIs
+    // must never run.
+    mediaQuery ??= getOwnerWindow().matchMedia(THEME_MEDIA_QUERY);
+    return mediaQuery;
 }
 
 function getSystemDark() {
-    return getOwnerWindow().matchMedia(THEME_MEDIA_QUERY).matches;
+    return getMediaQuery().matches;
 }
 
 function getStored(): Theme {
-    if (!hasThemeStorage()) {
-        return DEFAULT_THEME_SNAPSHOT.theme;
+    if (unpersistedTheme) {
+        return unpersistedTheme;
     }
+    // Accessing localStorage itself throws SecurityError when storage is
+    // blocked, so the guard and the read share one try/catch.
     try {
         const raw = getOwnerWindow().localStorage.getItem(THEME_STORAGE_KEY);
         if (isTheme(raw)) {
@@ -54,21 +68,6 @@ function getStored(): Theme {
         return DEFAULT_THEME_SNAPSHOT.theme;
     }
     return DEFAULT_THEME_SNAPSHOT.theme;
-}
-
-function ensureThemeColorMetaTag(): HTMLMetaElement {
-    const ownerDocument = getOwnerDocument();
-    let element = ownerDocument.querySelector<HTMLMetaElement>(
-        DYNAMIC_THEME_COLOR_SELECTOR
-    );
-    if (element) {
-        return element;
-    }
-    element = ownerDocument.createElement("meta");
-    element.name = THEME_COLOR_META_NAME;
-    element.setAttribute("data-dynamic-theme-color", "true");
-    ownerDocument.head.append(element);
-    return element;
 }
 
 function normalizeThemeColor(value: string | null | undefined): string | null {
@@ -100,7 +99,22 @@ function resolveBrowserChromeSurface(): HTMLElement {
     );
 }
 
-export function syncBrowserChromeTheme() {
+function ensureThemeColorMetaTag(): HTMLMetaElement {
+    const ownerDocument = getOwnerDocument();
+    let element = ownerDocument.querySelector<HTMLMetaElement>(
+        DYNAMIC_THEME_COLOR_SELECTOR
+    );
+    if (element) {
+        return element;
+    }
+    element = ownerDocument.createElement("meta");
+    element.name = THEME_COLOR_META_NAME;
+    element.setAttribute("data-dynamic-theme-color", "true");
+    ownerDocument.head.append(element);
+    return element;
+}
+
+function syncBrowserChromeTheme() {
     const ownerDocument = getOwnerDocument();
     const ownerWindow = getOwnerWindow();
     // Keep chrome backgrounds on the CSS token so theme flips re-resolve.
@@ -122,6 +136,10 @@ export function syncBrowserChromeTheme() {
     }
 }
 
+function resolveIsDark(theme: Theme, systemDark: boolean) {
+    return theme === "dark" || (theme === "system" && systemDark);
+}
+
 function applyTheme(theme: Theme, suppressTransitions = false) {
     const ownerDocument = getOwnerDocument();
     const ownerWindow = getOwnerWindow();
@@ -129,7 +147,10 @@ function applyTheme(theme: Theme, suppressTransitions = false) {
     if (suppressTransitions) {
         documentElement.classList.add("no-transitions");
     }
-    const isDark = theme === "dark" || (theme === "system" && getSystemDark());
+    const isDark = resolveIsDark(
+        theme,
+        theme === "system" ? getSystemDark() : false
+    );
     documentElement.classList.toggle("dark", isDark);
     documentElement.style.colorScheme = isDark ? "dark" : "light";
     syncBrowserChromeTheme();
@@ -142,9 +163,6 @@ function applyTheme(theme: Theme, suppressTransitions = false) {
 }
 
 function getSnapshot(): ThemeSnapshot {
-    if (!hasThemeStorage()) {
-        return DEFAULT_THEME_SNAPSHOT;
-    }
     const theme = getStored();
     const systemDark = theme === "system" ? getSystemDark() : false;
 
@@ -163,42 +181,51 @@ function getServerSnapshot() {
     return DEFAULT_THEME_SNAPSHOT;
 }
 
-function subscribe(listener: () => void): () => void {
-    listeners.push(listener);
+function handleSystemSchemeChange() {
+    if (getStored() === "system") {
+        applyTheme("system", true);
+    }
+    emitChange();
+}
 
-    const ownerWindow = getOwnerWindow();
-    const mq = ownerWindow.matchMedia(THEME_MEDIA_QUERY);
-    const handleChange = () => {
-        if (getStored() === "system") {
-            applyTheme("system", true);
-        }
+function handleCrossTabStorageChange(event: StorageEvent) {
+    if (event.key === THEME_STORAGE_KEY || event.key === null) {
+        unpersistedTheme = null;
+        applyTheme(getStored(), true);
         emitChange();
-    };
-    mq.addEventListener("change", handleChange);
+    }
+}
 
-    const handleStorage = (e: StorageEvent) => {
-        if (e.key === THEME_STORAGE_KEY) {
-            applyTheme(getStored(), true);
-            emitChange();
-        }
-    };
-    ownerWindow.addEventListener("storage", handleStorage);
+function startExternalSync() {
+    const ownerWindow = getOwnerWindow();
+    getMediaQuery().addEventListener("change", handleSystemSchemeChange);
+    ownerWindow.addEventListener("storage", handleCrossTabStorageChange);
+}
+
+function stopExternalSync() {
+    const ownerWindow = getOwnerWindow();
+    getMediaQuery().removeEventListener("change", handleSystemSchemeChange);
+    ownerWindow.removeEventListener("storage", handleCrossTabStorageChange);
+}
+
+function subscribe(listener: () => void): () => void {
+    if (listeners.length === 0) {
+        startExternalSync();
+    }
+    listeners.push(listener);
 
     return () => {
         listeners = listeners.filter((l) => l !== listener);
-        mq.removeEventListener("change", handleChange);
-        ownerWindow.removeEventListener("storage", handleStorage);
+        if (listeners.length === 0) {
+            stopExternalSync();
+        }
     };
 }
 
 if (typeof document !== "undefined") {
+    // Tries syncing browser chrome (backgrounds and theme-color meta)
+    // before hydration, which the blocking bootstrap script cannot do.
     applyTheme(getStored());
-}
-
-/** Keep the theme store subscribed and system preference in sync app-wide. */
-export function ThemeSync() {
-    useTheme();
-    return null;
 }
 
 export function useTheme() {
@@ -207,23 +234,35 @@ export function useTheme() {
         getSnapshot,
         getServerSnapshot
     );
-    const { theme } = snapshot;
-    const colorScheme = snapshot.systemDark ? "dark" : "light";
-    const resolvedTheme: "light" | "dark" =
-        theme === "system" ? colorScheme : theme;
+    const isDark = resolveIsDark(snapshot.theme, snapshot.systemDark);
+    const resolvedTheme: "light" | "dark" = isDark ? "dark" : "light";
 
     const setTheme = useStableCallback((next: Theme) => {
-        if (!hasThemeStorage()) {
-            return;
+        unpersistedTheme = null;
+        try {
+            getOwnerWindow().localStorage.setItem(THEME_STORAGE_KEY, next);
+        } catch {
+            // Storage unavailable or blocked: keep the theme for this session.
+            unpersistedTheme = next;
         }
-        getOwnerWindow().localStorage.setItem(THEME_STORAGE_KEY, next);
         applyTheme(next, true);
         emitChange();
     });
+
+    return { resolvedTheme, setTheme, theme: snapshot.theme } as const;
+}
+
+/**
+ * Root-layout anchor for the theme store. Its subscription keeps external sync
+ * alive app-wide, and its post-mount effect is the canonical application pass
+ * that runs once stylesheets and layout surfaces have settled.
+ */
+export function ThemeSync() {
+    const { theme } = useTheme();
 
     useEffect(() => {
         applyTheme(theme);
     }, [theme]);
 
-    return { resolvedTheme, setTheme, theme } as const;
+    return null;
 }
