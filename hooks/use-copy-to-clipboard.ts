@@ -4,6 +4,8 @@ import copy from "copy-to-clipboard";
 import * as React from "react";
 import { canUseDOM } from "@/lib/common/dom";
 
+const DEFAULT_COPY_RESET_TIMEOUT_MS = 2000;
+
 interface UseCopyToClipboardOptions {
     onCopy?: () => void;
     timeoutMs?: number;
@@ -15,11 +17,11 @@ interface UseCopyToClipboardResult {
 }
 
 /**
- * Copies text to the clipboard and provides a transient `isCopied` state.
- * Resets automatically after the configured timeout.
+ * Copies text to the clipboard and tracks a transient `isCopied` state that
+ * resets automatically after `timeoutMs`.
  */
 export function useCopyToClipboard({
-    timeoutMs = 2000,
+    timeoutMs = DEFAULT_COPY_RESET_TIMEOUT_MS,
     onCopy: onCopyProp,
 }: UseCopyToClipboardOptions = {}): UseCopyToClipboardResult {
     const [isCopied, setIsCopied] = React.useState(false);
@@ -31,7 +33,6 @@ export function useCopyToClipboard({
         if (!(canUseDOM && value)) {
             return false;
         }
-        timeout.clear();
 
         const success = await copy(value);
         if (!success) {

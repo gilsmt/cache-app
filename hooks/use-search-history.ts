@@ -20,6 +20,10 @@ const EMPTY_HISTORY: string[] = [];
 let listeners: Array<() => void> = [];
 let cachedSnapshot: string[] | undefined;
 
+function normalizeTerm(term: string): string {
+    return term.trim().slice(0, TERM_MAX_LENGTH);
+}
+
 function readSearchHistory(): string[] {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -44,10 +48,12 @@ function readSearchHistory(): string[] {
         if (!Array.isArray(parsed)) {
             return EMPTY_HISTORY;
         }
-        const strings = parsed.filter(
-            (entry): entry is string => typeof entry === "string"
-        );
-        return strings.length > 0 ? strings : EMPTY_HISTORY;
+        const terms = parsed
+            .filter((entry): entry is string => typeof entry === "string")
+            .map(normalizeTerm)
+            .filter((term) => term.length > 0)
+            .slice(0, HISTORY_LIMIT);
+        return terms.length > 0 ? terms : EMPTY_HISTORY;
     } catch {
         return EMPTY_HISTORY;
     }
@@ -57,7 +63,7 @@ function writeSearchHistory(terms: string[]): void {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(terms));
     } catch {
-        // storage unavailable
+        // Storage unavailable (quota, private mode...)
     }
 }
 
@@ -71,7 +77,7 @@ function getSnapshot(): string[] {
     if (cachedSnapshot === undefined) {
         cachedSnapshot = readSearchHistory();
     }
-    return cachedSnapshot ?? EMPTY_HISTORY;
+    return cachedSnapshot;
 }
 
 function getServerSnapshot(): string[] {
@@ -79,6 +85,9 @@ function getServerSnapshot(): string[] {
 }
 
 function subscribe(listener: () => void): () => void {
+    if (listeners.length === 0) {
+        cachedSnapshot = undefined; // The cache is only valid while at least one subscriber exists.
+    }
     listeners.push(listener);
 
     const handleStorage = (event: StorageEvent) => {
@@ -107,7 +116,7 @@ export function useSearchHistory(): {
     );
 
     const recordSearchTerm = useStableCallback((term: string) => {
-        const normalized = term.trim().slice(0, TERM_MAX_LENGTH);
+        const normalized = normalizeTerm(term);
         if (!normalized) {
             return;
         }

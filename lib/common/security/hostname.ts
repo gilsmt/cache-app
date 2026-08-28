@@ -36,7 +36,9 @@ const LOCALHOST_ALIASES: ReadonlySet<string> = new Set([
 
 /**
  * Local aliases and loopback-like names that must never be fetched server-side.
- * Suffix matches cover `*.localhost` and `*.internal`. IP-range checks (e.g.
+ * Suffix matches cover `*.localhost`, `*.local`, and `*.internal`; `*.local`
+ * names resolve through LAN multicast rather than public DNS, so their
+ * answers never pass through the address checks below. IP-range checks (e.g.
  * `127.0.0.5`) are `isPrivateIp`'s job in `./ssrf`.
  */
 export function isLocalhostAlias(host: string): boolean {
@@ -45,6 +47,9 @@ export function isLocalhostAlias(host: string): boolean {
         return true;
     }
     if (normalized.endsWith(".localhost")) {
+        return true;
+    }
+    if (normalized.endsWith(".local")) {
         return true;
     }
     if (normalized.endsWith(".internal")) {
