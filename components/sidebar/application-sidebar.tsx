@@ -54,7 +54,6 @@ export function ApplicationSidebar({
                 </div>
                 <SidebarGroup>
                     <SidebarNavigationItem
-                        aria-label="Library"
                         href="/library"
                         icon={
                             <Compass
@@ -63,13 +62,12 @@ export function ApplicationSidebar({
                                 focusable="false"
                             />
                         }
-                        shortcutKeys="mod+h"
-                        title="Go to Library"
+                        label="Library"
+                        shortcutKeys="mod+alt+l"
                     >
                         <T>Library</T>
                     </SidebarNavigationItem>
                     <SidebarNavigationItem
-                        aria-label="Automations"
                         href="/automations"
                         icon={
                             <Workflow
@@ -78,8 +76,8 @@ export function ApplicationSidebar({
                                 focusable="false"
                             />
                         }
-                        shortcutKeys="mod+z"
-                        title="Go to Automations"
+                        label="Automations"
+                        shortcutKeys="mod+alt+a"
                     >
                         <T>Automations</T>
                     </SidebarNavigationItem>

@@ -1,28 +1,33 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { useGT } from "gt-next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { ActivePathname } from "@/components/ui/active-pathname";
-import { CmdKbd, Kbd } from "@/components/ui/kbd";
+import { Kbd, KbdCombo } from "@/components/ui/kbd";
 import { SidebarItem, SidebarItemValue } from "@/components/ui/sidebar";
 
 interface SidebarNavigationItemProps extends React.ComponentProps<typeof Link> {
     href: string;
     icon: React.ReactNode;
+    /** Item name used to build the localized hotkey description. */
+    label: string;
     shortcutKeys?: string;
 }
 
 export function SidebarNavigationItem({
     href,
     icon,
+    label,
     onMouseDown: onMouseDownProp,
     shortcutKeys,
     children,
     ...props
 }: SidebarNavigationItemProps) {
+    const gt = useGT();
     const router = useRouter();
 
     const handleMouseDown = useStableCallback(
@@ -49,7 +54,7 @@ export function SidebarNavigationItem({
     });
 
     useHotkeys(shortcutKeys ?? "", handleShortcut, {
-        description: `Navigate to ${props["aria-label"]}`,
+        description: gt("Navigate to {label}", { label }),
         enabled: !!shortcutKeys,
         preventDefault: true,
     });
@@ -65,8 +70,6 @@ export function SidebarNavigationItem({
                                 {...props}
                                 href={href}
                                 onMouseDown={handleMouseDown}
-                                prefetch
-                                tabIndex={0}
                             />
                         }
                     >
@@ -74,11 +77,10 @@ export function SidebarNavigationItem({
                         <SidebarItemValue>{children}</SidebarItemValue>
                         {shortcutKeys ? (
                             <Kbd
-                                className="ml-auto bg-transparent opacity-0 transition-none! group-hover:opacity-50"
+                                className="ml-auto bg-transparent opacity-0 transition-none! group-hover:opacity-50 group-focus-visible:opacity-50"
                                 data-sidebar-label=""
                             >
-                                <CmdKbd />
-                                {shortcutKeys.split("+").pop()}
+                                <KbdCombo keys={shortcutKeys} />
                             </Kbd>
                         ) : null}
                     </SidebarItem>
