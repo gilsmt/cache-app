@@ -178,7 +178,7 @@ function SearchField({
             <input
                 type="text"
                 className={styles.searchInput}
-                placeholder="Search..."
+                placeholder="Search…"
                 value={value}
                 disabled={disabled}
                 onChange={(e) => onChange(e.target.value)}

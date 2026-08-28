@@ -135,9 +135,9 @@ model User {
   automationRuns          AutomationRun[]
   comments                Comment[]
 
-  feedbackEntries Feedback[]
-  rssFeeds        RssFeed[]
-  markdownImports MarkdownImport[]
+  feedbackEntries       Feedback[]
+  rssFeeds              RssFeed[]
+  markdownImports       MarkdownImport[]
 
   @@index([stripeCustomerId])
   @@map("user")

@@ -58,6 +58,15 @@ export interface LibraryCollectionSummary extends LibraryCollectionTag {
     sources: LibraryItemSource[];
 }
 
+/** Field the collections list is sorted by; "text-match" ranks by name query match. */
+export type CollectionSortField =
+    | "count"
+    | "created"
+    | "name"
+    | "priority"
+    | "text-match"
+    | "updated";
+
 export interface LibraryItemWithCollections extends LibraryItem {
     collections: LibraryCollectionTag[];
 }

@@ -126,7 +126,7 @@ export function CollectionCreateView({
 
             <textarea
                 className={styles.createDescriptionTextarea}
-                placeholder="Describe what belongs here..."
+                placeholder="Describe what belongs here…"
                 value={description}
                 maxLength={DESCRIPTION_MAX_LENGTH}
                 onChange={(e) => setDescription(e.target.value)}

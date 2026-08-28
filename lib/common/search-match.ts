@@ -1,4 +1,4 @@
-export interface SearchMatchChunk {
+interface SearchMatchChunk {
     highlight: boolean;
     start: number;
     text: string;
