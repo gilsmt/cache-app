@@ -60,10 +60,7 @@ export function Footer() {
                                 </Link>
                             </div>
                             <p className="opacity-50">
-                                <T>
-                                    Copyright &copy; Cache App. All rights
-                                    reserved.
-                                </T>
+                                <T>&copy; Cache App. All rights reserved.</T>
                             </p>
                             <div className="flex items-center gap-1 opacity-50">
                                 <GDPRIcon />

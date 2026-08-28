@@ -21,7 +21,7 @@ import {
     DrawerTrigger,
     DrawerViewport,
 } from "@/components/ui/drawer";
-import { AltKbd, CmdKbd, Kbd, KbdGroup, ShiftKbd } from "@/components/ui/kbd";
+import { Kbd, KbdCombo, KbdGroup } from "@/components/ui/kbd";
 import { stopPropagationForPrintableKeys } from "@/lib/common/dom";
 
 // Re-exporting with "use client"
@@ -33,20 +33,8 @@ interface ShortcutItem {
     label: string;
 }
 
-function splitHotkeyParts(hotkey: string) {
-    const parts = hotkey.split("+");
-    let key = "";
-    return parts.map((part) => {
-        key = key ? `${key}+${part}` : part;
-        return { key, part };
-    });
-}
-
 /**
  * Button that opens a read-only drawer listing all library keyboard shortcuts.
- *
- * Splits `keys` on "+" so multi-part shortcuts render as separate `<Kbd>`
- * pills without callers having to pre-format them.
  */
 export function KeyboardShortcutsDialogTrigger(
     props: React.ComponentProps<typeof DrawerTrigger>
@@ -87,7 +75,7 @@ export function KeyboardShortcutsDialogTrigger(
                         <Command inline items={shortcutItems} open>
                             <CommandInput
                                 aria-label={gt("Search shortcuts")}
-                                placeholder={gt("Search...")}
+                                placeholder={gt("Search…")}
                             />
                             <CommandList className="px-0">
                                 <CommandEmpty>
@@ -105,16 +93,9 @@ export function KeyboardShortcutsDialogTrigger(
                                                 </span>
                                                 <KbdGroup>
                                                     <Kbd>
-                                                        {splitHotkeyParts(
-                                                            item.hotkey
-                                                        ).map(
-                                                            ({ key, part }) => (
-                                                                <ShortcutKeyPart
-                                                                    key={key}
-                                                                    part={part}
-                                                                />
-                                                            )
-                                                        )}
+                                                        <KbdCombo
+                                                            keys={item.hotkey}
+                                                        />
                                                     </Kbd>
                                                 </KbdGroup>
                                             </div>
@@ -128,18 +109,4 @@ export function KeyboardShortcutsDialogTrigger(
             </DrawerViewport>
         </Drawer>
     );
-}
-
-function ShortcutKeyPart({ part }: { part: string }) {
-    const lowerPart = part.toLowerCase();
-    if (lowerPart === "mod") {
-        return <CmdKbd />;
-    }
-    if (lowerPart === "alt") {
-        return <AltKbd />;
-    }
-    if (lowerPart === "shift") {
-        return <ShiftKbd />;
-    }
-    return part;
 }

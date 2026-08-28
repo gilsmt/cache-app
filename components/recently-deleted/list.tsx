@@ -88,7 +88,6 @@ export function RecentlyDeletedList({
     const [hiddenItemIds, setHiddenItemIds] = React.useState<Set<string>>(
         () => new Set()
     );
-
     const [showDeleteAllDialog, setShowDeleteAllDialog] = React.useState(false);
     const [isDeleteAllPending, startDeleteAllTransition] =
         React.useTransition();
@@ -109,7 +108,6 @@ export function RecentlyDeletedList({
         }
     });
 
-    // Keep the dialog subject mounted while the close animation plays.
     const handleConfirmOpenChangeComplete = useStableCallback(
         (open: boolean) => {
             if (!open) {

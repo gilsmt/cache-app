@@ -4,11 +4,15 @@ import { motion } from "motion/react";
 import type * as React from "react";
 import { cn } from "@/lib/common/cn";
 
-const FADE_IN_DURATION = 0.5;
-const STAY_DURATION = 1.5;
-const FADE_OUT_DURATION = 0.3;
+const FADE_IN_DURATION_SECONDS = 0.5;
+const STAY_DURATION_SECONDS = 1.5;
+const FADE_OUT_DURATION_SECONDS = 0.3;
 
-interface HighlightInProps extends React.ComponentProps<typeof motion.span> {
+interface HighlightInProps
+    extends Omit<
+        React.ComponentProps<typeof motion.span>,
+        "animate" | "initial" | "transition" | "inert"
+    > {
     delay?: number;
     shouldFadeOut?: boolean;
 }
@@ -19,12 +23,13 @@ export function HighlightIn({
     shouldFadeOut = true,
     ...props
 }: HighlightInProps) {
-    const fadeOutDurationActual = shouldFadeOut ? FADE_OUT_DURATION : 0;
-    const totalDurationActual =
-        FADE_IN_DURATION + STAY_DURATION + fadeOutDurationActual;
-    const fadeInEndActual = FADE_IN_DURATION / totalDurationActual;
-    const stayEndActual =
-        (FADE_IN_DURATION + STAY_DURATION) / totalDurationActual;
+    const totalSeconds =
+        FADE_IN_DURATION_SECONDS +
+        STAY_DURATION_SECONDS +
+        (shouldFadeOut ? FADE_OUT_DURATION_SECONDS : 0);
+    const fadeInEndTime = FADE_IN_DURATION_SECONDS / totalSeconds;
+    const stayEndTime =
+        (FADE_IN_DURATION_SECONDS + STAY_DURATION_SECONDS) / totalSeconds;
 
     return (
         <motion.span
@@ -35,13 +40,13 @@ export function HighlightIn({
             initial={{ opacity: 0 }}
             transition={{
                 delay,
-                duration: totalDurationActual,
+                duration: totalSeconds,
                 ease: shouldFadeOut
                     ? ["easeInOut", "linear", "easeInOut"]
                     : ["easeInOut", "linear"],
                 times: shouldFadeOut
-                    ? [0, fadeInEndActual, stayEndActual, 1]
-                    : [0, fadeInEndActual, stayEndActual],
+                    ? [0, fadeInEndTime, stayEndTime, 1]
+                    : [0, fadeInEndTime, stayEndTime],
             }}
         />
     );

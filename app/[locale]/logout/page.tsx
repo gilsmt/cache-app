@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
     return {
         ...buildPageMetadata({
-            description: gt("Signing you out..."),
+            description: gt("Signing you out…"),
             keywords: ["sign out", "logout", "Cache App"],
             locale,
             path: "/logout",

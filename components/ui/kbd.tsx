@@ -9,6 +9,15 @@ import {
     getSystemShiftKey,
 } from "@/lib/common/keyboard";
 
+function splitComboKeys(combo: string) {
+    const parts = combo.split("+");
+    let key = "";
+    return parts.map((part) => {
+        key = key ? `${key}+${part}` : part;
+        return { key, part };
+    });
+}
+
 export function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
     return (
         <kbd
@@ -32,6 +41,22 @@ export function KbdGroup({ className, ...props }: React.ComponentProps<"kbd">) {
     );
 }
 
+/**
+ * Renders a hotkey combo string (e.g. `"mod+shift+h"`) as key symbols,
+ * resolving `mod`, `alt`, and `shift` to their platform symbols.
+ *
+ * Wrap in `<Kbd>`.
+ */
+export function KbdCombo({ keys }: { keys: string }) {
+    return (
+        <>
+            {splitComboKeys(keys).map(({ key, part }) => (
+                <ComboKeyPart key={key} part={part} />
+            ))}
+        </>
+    );
+}
+
 export function CmdKbd() {
     return useClientOnlyValue(getSystemControlKey());
 }
@@ -42,4 +67,18 @@ export function AltKbd() {
 
 export function ShiftKbd() {
     return useClientOnlyValue(getSystemShiftKey());
+}
+
+function ComboKeyPart({ part }: { part: string }) {
+    const lowerPart = part.toLowerCase();
+    if (lowerPart === "mod") {
+        return <CmdKbd />;
+    }
+    if (lowerPart === "alt") {
+        return <AltKbd />;
+    }
+    if (lowerPart === "shift") {
+        return <ShiftKbd />;
+    }
+    return part;
 }

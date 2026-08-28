@@ -6,20 +6,24 @@ import { usePathname } from "next/navigation";
 import type * as React from "react";
 import { normalizePathname } from "@/lib/common/url";
 
+/** Splits a route href from its query or hash. */
+const HREF_SUFFIX_RE = /[?#]/;
+
 interface ActivePathnameProps extends useRender.ComponentProps<"div"> {
     /**
-     * Pathname that should be considered active.
+     * Route that should be considered active.
      *
-     * Keep this value normalized the same way Next.js exposes pathnames through
-     * `usePathname()`, including any locale or base path handling configured by
-     * the app.
+     * Compared against the pathname Next.js exposes through `usePathname()`,
+     * including any locale or base path handling configured by the app. Any
+     * query or hash on the value is ignored, so Link-style hrefs work as-is.
      */
     href: string;
     /**
      * Matching strategy for `href`.
      *
      * Use `prefix` for section-level navigation items where descendants should
-     * stay active, such as `/settings` matching `/settings/profile`.
+     * stay active, such as `/settings` matching `/settings/profile`. The
+     * section item then also reports `aria-current="page"` on those routes.
      */
     match?: "exact" | "prefix";
     /**
@@ -36,9 +40,9 @@ interface ActivePathnameProps extends useRender.ComponentProps<"div"> {
  * Adds pathname-aware active state to a rendered element.
  *
  * `aria-current="page"` is emitted for the actual active route, while
- * `data-active` is provided as a styling hook that can optionally be inverted
- * with `shouldReverseActive`. The attribute is emitted as `"true"` when active
- * and omitted otherwise, so both existence (`data-[active]:`) and value
+ * `data-active` provides a styling hook that can optionally be inverted with
+ * `shouldReverseActive`. The attribute is emitted as `"true"` when active and
+ * omitted otherwise, so both existence (`data-[active]:`) and value
  * (`data-[active=true]:`) selectors work.
  */
 export function ActivePathname({
@@ -68,10 +72,17 @@ export function ActivePathname({
 function isPathnameActive(
     pathname: string,
     href: string,
-    match: "exact" | "prefix" = "exact"
+    match: "exact" | "prefix"
 ): boolean {
+    const separatorIndex = href.search(HREF_SUFFIX_RE);
+    const bareHref =
+        separatorIndex === -1 ? href : href.slice(0, separatorIndex);
+    if (bareHref === "") {
+        // A query- or hash-only value (`#section`) does not address a route.
+        return false;
+    }
     const normalizedPathname = normalizePathname(pathname);
-    const normalizedHref = normalizePathname(href);
+    const normalizedHref = normalizePathname(bareHref);
 
     if (match === "prefix") {
         if (normalizedHref === "/") {

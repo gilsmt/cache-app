@@ -7,9 +7,9 @@ import {
     ChevronDown,
     Download,
     Ellipsis,
-    Globe,
     LoaderCircle,
     LogOut,
+    Megaphone,
     UserRoundPlus,
 } from "lucide-react";
 import Image from "next/image";
@@ -370,8 +370,8 @@ export function UserMenuContent() {
                 nativeButton={false}
                 render={<MenuItem closeOnClick={false} />}
             >
-                Give feedback
-                <Globe className="ml-auto inline-block size-3.5 text-muted-foreground" />
+                Send feedback
+                <Megaphone className="ml-auto inline-block size-3.5 text-muted-foreground" />
             </FeedbackWidget>
             <MenuSeparator />
             <MenuGroup>

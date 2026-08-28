@@ -5,13 +5,13 @@ import { cn } from "@/lib/common/cn";
 const ALERT_ROLE_BY_VARIANT = {
     default: undefined,
     error: "alert",
-    info: undefined,
+    info: "status",
     success: "status",
     warning: "alert",
 } as const;
 
 const alertVariants = cva(
-    "relative grid w-full items-center gap-x-2 gap-y-0.5 text-pretty rounded-xl px-3.5 py-2.5 text-card-foreground text-xs has-[>svg]:has-data-[slot=alert-action]:grid-cols-[calc(var(--spacing)*5)_1fr_auto] has-[>svg]:grid-cols-[calc(var(--spacing)*5)_1fr] has-data-[slot=alert-action]:grid-cols-[1fr_auto] has-[>svg]:gap-x-2 [&>svg]:size-5",
+    "relative grid w-full items-center gap-x-2 gap-y-0.5 text-pretty rounded-xl px-3.5 py-2.5 text-foreground text-xs has-[>svg]:has-data-[slot=alert-action]:grid-cols-[calc(var(--spacing)*5)_1fr_auto] has-[>svg]:grid-cols-[calc(var(--spacing)*5)_1fr] has-data-[slot=alert-action]:grid-cols-[1fr_auto] [&>svg]:size-5",
     {
         defaultVariants: {
             variant: "default",
@@ -33,9 +33,10 @@ export function Alert({
     className,
     variant,
     ...props
-}: React.ComponentProps<"aside"> & VariantProps<typeof alertVariants>) {
+}: Omit<React.ComponentProps<"div">, "role"> &
+    VariantProps<typeof alertVariants>) {
     return (
-        <aside
+        <div
             {...props}
             className={cn(alertVariants({ variant }), className)}
             data-slot="alert"
