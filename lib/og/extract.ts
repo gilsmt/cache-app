@@ -1,33 +1,14 @@
+import { decodeHTMLAttribute } from "entities";
 import { Parser } from "htmlparser2";
 
-/**
- * Extract candidate preview image URLs from an HTML document, mirroring the
- * precedence link-preview-js used for `page.images`:
- *   1. <meta property="og:image"> content — all, in document order
- *   2. else <meta name="og:image"> content — all, in document order
- *      (link-preview-js returns property nodes OR name nodes, never both)
- *   3. else the first <link rel="image_src"> href
- *   4. else every <img> src, deduped by raw src, in document order
- *
- * Relative URLs resolve against `baseUrl` via `new URL(src, baseUrl).href`,
- * so an unresolvable src throws — callers surface that as a 404, matching the
- * prior getPreviewFromContent behavior.
- *
- * Uses htmlparser2's streaming tokenizer instead of cheerio/parse5 to avoid
- * building a full DOM tree: ~10x faster (0.6ms vs 6.3ms on a 150 KiB page).
- * Tag and attribute names are lowercased to match parse5/cheerio; entities are
- * decoded so `&amp;` in a URL becomes `&` before resolution.
- *
- * Lower-priority collectors are skipped once a higher-precedence match is
- * confirmed (e.g. no `Set` allocation and no `<img>` `src` resolution when an
- * `og:image` property is found), so the common property-og path avoids most
- * per-request garbage. Parity is verified against link-preview-js in
- * `app/api/preview/extract.test.ts`.
- */
-export function extractPreviewImageUrls(
-    html: string,
-    baseUrl: string
-): string[] {
+const HEAD_END_RE = /<\/head\s*>/i;
+
+function resolveImageUrl(value: string, base: URL): string {
+    const decoded = value.includes("&") ? decodeHTMLAttribute(value) : value;
+    return new URL(decoded, base).href;
+}
+
+function extractWithParser(html: string, base: URL): string[] {
     const propertyOgImages: string[] = [];
     const nameOgImages: string[] = [];
     let imageSrcLinkChecked = false;
@@ -47,7 +28,7 @@ export function extractPreviewImageUrls(
                         hasPropertyOgImage = true;
                         if (content) {
                             propertyOgImages.push(
-                                new URL(content, baseUrl).href
+                                resolveImageUrl(content, base)
                             );
                         }
                     } else if (
@@ -56,7 +37,7 @@ export function extractPreviewImageUrls(
                     ) {
                         hasNameOgImage = true;
                         if (content) {
-                            nameOgImages.push(new URL(content, baseUrl).href);
+                            nameOgImages.push(resolveImageUrl(content, base));
                         }
                     }
                 } else if (tag === "link") {
@@ -71,7 +52,7 @@ export function extractPreviewImageUrls(
                     if (attrs.rel === "image_src") {
                         imageSrcLinkChecked = true;
                         if (href) {
-                            imageSrcLinkHref = new URL(href, baseUrl).href;
+                            imageSrcLinkHref = resolveImageUrl(href, base);
                         }
                     }
                 } else if (tag === "img") {
@@ -91,13 +72,13 @@ export function extractPreviewImageUrls(
                     }
                     if (!seenImgSrc.has(src)) {
                         seenImgSrc.add(src);
-                        imgUrls.push(new URL(src, baseUrl).href);
+                        imgUrls.push(resolveImageUrl(src, base));
                     }
                 }
             },
         },
         {
-            decodeEntities: true,
+            decodeEntities: false,
             lowerCaseAttributeNames: true,
             lowerCaseTags: true,
         }
@@ -115,4 +96,33 @@ export function extractPreviewImageUrls(
         return [imageSrcLinkHref];
     }
     return imgUrls;
+}
+
+export function extractPreviewImageUrls(
+    html: string,
+    baseUrl: string
+): string[] {
+    const base = new URL(baseUrl);
+
+    // Fast path for the common case: og:image is in <head> and not in <body>.
+    // Small docs (<1 KiB, no </head>) skip the fast path to avoid overhead.
+    if (html.length > 1024) {
+        const headEnd = html.search(HEAD_END_RE);
+        if (headEnd !== -1) {
+            const gt = html.indexOf(">", headEnd);
+            const headEndIdx = gt === -1 ? headEnd + 7 : gt + 1;
+            const headHtml = html.slice(0, headEndIdx);
+            if (headHtml.includes("og:image")) {
+                const headResult = extractWithParser(headHtml, base);
+                // If body doesn't contain og:image, headResult is final — covers both
+                // valid property and empty-property suppression (return []).
+                if (html.indexOf("og:image", headEndIdx) === -1) {
+                    return headResult;
+                }
+                // Body has og:image (rare, e.g., <meta> in <body>) — need full scan for correctness.
+            }
+        }
+    }
+
+    return extractWithParser(html, base);
 }

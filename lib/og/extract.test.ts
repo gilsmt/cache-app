@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { getPreviewFromContent } from "link-preview-js";
 
-import { extractPreviewImageUrls } from "@/app/api/preview/extract";
+import { extractPreviewImageUrls } from "@/lib/og/extract";
 
 const BASE_URL = "https://example.com/page";
 

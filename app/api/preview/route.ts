@@ -43,7 +43,12 @@ const MAX_IMAGE_CONTENT_LENGTH_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_CONTENT_LENGTH_BYTES = 200 * 1024 * 1024;
 const COBALT_CACHE_TTL_SECONDS = 5 * 60;
 const COBALT_CACHE_KEY_PREFIX = "cobalt-preview:";
-const PREVIEW_IMAGE_CACHE_TTL_SECONDS = 5 * 60;
+// og:image values are effectively static (sites change them on the order of
+// weeks), and every cache read re-checks signed-URL expiry via
+// isSignedUrlExpired, so a long positive TTL is safe: expired entries re-resolve
+// on demand, and an upstream image that dies surfaces only until the next
+// negative-cache cycle (60s) triggers a fresh resolution.
+const PREVIEW_IMAGE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
 const PREVIEW_IMAGE_CACHE_KEY_PREFIX = "preview-image:";
 const PREVIEW_NEGATIVE_CACHE_TTL_SECONDS = 60;
 const PREVIEW_NEGATIVE_CACHE_KEY_PREFIX = "preview-negative:";
@@ -126,11 +131,11 @@ type ImagePreviewResolution =
 // Lazy-loaded only on the HTML cache-miss path (not cache-hit / video).
 // On import failure, clear the cached promise so the next request can retry.
 let extractPreviewImageUrlsPromise: Promise<
-    typeof import("./extract").extractPreviewImageUrls
+    typeof import("@/lib/og/extract").extractPreviewImageUrls
 > | null = null;
 
 function loadExtractPreviewImageUrls() {
-    extractPreviewImageUrlsPromise ??= import("./extract")
+    extractPreviewImageUrlsPromise ??= import("@/lib/og/extract")
         .then((mod) => mod.extractPreviewImageUrls)
         .catch((error: unknown) => {
             extractPreviewImageUrlsPromise = null;
@@ -679,7 +684,10 @@ function streamImageResponse(
 ): Response {
     if (!imageResponse.ok) {
         if (imageResponse.status === 404 || imageResponse.status === 410) {
-            writeCachedNegativePreview(targetHref, "image");
+            deleteCachedImagePreview(targetHref);
+            writeCachedNegativePreview(targetHref, "image").catch(
+                () => undefined
+            );
             return previewNotFoundResponse(targetHref, "image");
         }
         return textResponse("Preview not found", 404);
@@ -1407,6 +1415,28 @@ function writeCachedImagePreview(
         }),
         PREVIEW_IMAGE_CACHE_TTL_SECONDS
     ).catch(() => undefined);
+}
+
+async function deleteFromRedis(key: string): Promise<void> {
+    try {
+        const { getRedisClient } = await loadRedisModule();
+        const redis = getRedisClient();
+        if (!redis) {
+            return;
+        }
+        await redis.del(key);
+    } catch (error) {
+        log.debug("Redis delete failed", {
+            error: error instanceof Error ? error.message : String(error),
+            key,
+        });
+    }
+}
+
+function deleteCachedImagePreview(targetHref: string): void {
+    const key = previewImageCacheKey(targetHref);
+    memoryImagePreviewCache.delete(key);
+    deleteFromRedis(key).catch(() => undefined);
 }
 
 async function readCachedNegativePreview<T>(
