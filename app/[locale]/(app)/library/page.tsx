@@ -46,13 +46,14 @@ export default async function LibraryPage() {
         return redirect("/");
     }
 
-    const hasAccess = await userHasActiveSubscription(userId);
     const [
         { itemSources, items, lockedItemCount, totalItemCount },
         collections,
         linkedAccounts,
     ] = await Promise.all([
-        getLibrary({ hasAccess, userId }),
+        userHasActiveSubscription(userId).then((hasAccess) =>
+            getLibrary({ hasAccess, userId })
+        ),
         listCollections({ userId }),
         listLinkedIntegrationAccounts({ userId }),
     ]);
