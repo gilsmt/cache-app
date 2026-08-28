@@ -41,12 +41,6 @@ import {
 
 const log = createLogger("mcp.route");
 
-// ---------------------------------------------------------------------------
-// Result helpers. Tool handlers return either a typed `structuredContent`
-// (paired with `outputSchema`) or a fallback text result on errors so SDK
-// clients always get useful feedback.
-// ---------------------------------------------------------------------------
-
 function resolveAuth(extra: ServerContext): {
     scopes: McpScope[];
     userId: string;

@@ -14,12 +14,6 @@ import { generateMcpSetupPrompt } from "@/lib/integrations/mcp/service";
  *   non-JSON-aware tools (Cursor's plain-text field, etc.) parse this block.
  * - `endpoint`/`token`: easy programmatic access for clients that want to
  *   build their own config without parsing prompt text.
- *
- * The token is a long-lived (30-day) HMAC-signed secret. We mark the
- * response `Cache-Control: no-store, private` so any intermediate cache
- * (Vercel edge, browser devtools, an IDE history buffer) does not persist
- * the token beyond the originating request. Programmatic consumers should
- * not log the response body.
  */
 export async function POST(): Promise<Response> {
     const session = await auth.api.getSession({
@@ -31,9 +25,7 @@ export async function POST(): Promise<Response> {
         return Response.json(
             { error: "Unauthorized" },
             {
-                headers: {
-                    "Cache-Control": "no-store, private",
-                },
+                headers: { "Cache-Control": "no-store, private" },
                 status: 401,
             }
         );
@@ -44,9 +36,7 @@ export async function POST(): Promise<Response> {
     return Response.json(
         { endpoint, prompt, token },
         {
-            headers: {
-                "Cache-Control": "no-store, private, max-age=0",
-            },
+            headers: { "Cache-Control": "no-store, private, max-age=0" },
         }
     );
 }
