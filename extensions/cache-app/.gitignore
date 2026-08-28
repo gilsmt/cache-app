@@ -1,10 +1,15 @@
-MIGRATION.md
-
-# Plasmo build cache + generated manifests
-.plasmo/
-
-# Build output
-build/
-
 # Dependencies
 node_modules/
+
+# Plasmo build cache + generated manifests + packaged zips
+.plasmo/
+build/
+
+# Environment files — .env.development is tracked deliberately (non-secret
+# PLASMO_PUBLIC_* dev config); secrets and local overrides stay out of VCS
+.env
+.env.*
+!.env.development
+
+# Store-publishing credentials (browser-platform-publisher)
+keys.json

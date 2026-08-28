@@ -26,8 +26,8 @@ coverage
 *.lcov
 
 # logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -40,8 +40,11 @@ yarn-error.log*
 .env.production.local
 .env.local
 
-# local database dumps
-/backups/
+# local
+backups
+.tmp
+.opencode
+opencode.json
 
 # caches
 .eslintcache
@@ -64,4 +67,4 @@ next-env.d.ts
 
 # Finder (MacOS) folder config
 .DS_Store
-opencode.json
+
