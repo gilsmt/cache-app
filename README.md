@@ -7,7 +7,7 @@
 <a href="./CODE_OF_CONDUCT.md"><img src="https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg" alt="Code of Conduct"></a>
 <a href="https://twitter.com/gsmmtt" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/twitter/follow/gsmmtt" alt="Twitter Follow"></a>
 
-Cache is the AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms. Unify your bookmarks across platforms into a single actionable library.
+Cache is the AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms.
 
 [cachd.app](https://cachd.app) · [Issues](https://github.com/rortan134/cache-app/issues)
 

@@ -1,14 +1,8 @@
-# AGENTS.md
-
-## Project overview
-
-[Cache](https://www.cachd.app) is a modern well-crafted purpose-built personal bookmark knowledge web application tool that unifies user bookmarks across all mainstream platforms into a single, searchable, actionable library. Read [README.md](README.md) for more.
+[Cache](https://www.cachd.app) is a modern well-crafted purpose-built personal bookmark knowledge web application tool that unifies user bookmarks across many platforms into a single, searchable, actionable library. Read [README.md](README.md) for more.
 
 ## Development workflow
 
-Cache has a zero technical debt policy. Do it right the first time: the design that lands in the codebase should be the correct one, with no intentional debt in that surface. A problem solved in design costs less than one solved in implementation, which costs less than one solved in production. "Right the first time" describes the landed output, not the exploration that produced it — see simplicity below. When rules conflict, prefer in order: correctness and safety of the change surface, then scope discipline (task-only files and isolation), then local coherence in files you already touch, then YAGNI, then style.
-
-Leave the codebase better than you found it.
+Cache has a zero technical debt policy. Do it right the first time: the design that lands in the codebase should be the correct one, with no intentional debt in that surface. A problem solved in design costs less than one solved in implementation, which costs less than one solved in production. "Right the first time" describes the landed output, not the exploration that produced it — see simplicity below. When rules conflict, prefer in order: correctness and safety of the change surface, then local coherence in files you already touch, then YAGNI, then style. Leave the codebase better than you found it.
 
 Suggest solutions or alternatives I didn’t think about and anticipate my needs.
 
@@ -24,7 +18,7 @@ Define success criteria. Loop until verified.
 
 It is not about formatting or syntax. Linters handle that. It is about how to think, how to make decisions, and what to value when building software.
 
-Read the full implementation of what you change and its direct callers/callees, not just the signature and not the whole repo.
+Read the full implementation of what you change and its direct callers/callees, not just the signatures, and not the whole repo.
 
 Simple and elegant systems are easier to design correctly, more efficient in execution, and more reliable. That simplicity requires hard work and discipline.
 
@@ -42,6 +36,8 @@ Follow YAGNI. Prefer the smallest clear unit, not the fewest lines — one-liner
 
 Composition over inheritance. Prefer dependency injection.
 
+Control flow: Avoid else statements. Prefer early returns.
+
 Handle errors at the appropriate scopes. Never silently swallow exceptions. If you think an error cannot happen, assert that assumption explicitly.
 
 Never compromise type safety: avoid `any`, `!` (non-null assertion), and `as Type` casting as they usually indicate wrong assumptions or bad implementation. A cast is allowed only at a trust boundary (SDK, ORM, framework) when the invariant is runtime-checked or guaranteed by a typed wrapper one layer in. Prefer narrowing (`zod`, predicates, exhaustiveness). If you need a cast deeper than the boundary, fix the model.
@@ -51,6 +47,8 @@ Declare variables at the smallest possible scope. Minimize the number of variabl
 Plugin architectures allow for extensibility and isolation; most functionality should live in plugins, not the core, enabling parallel development and future-proofing. Apply a plugin boundary when pluggability is itself a current requirement (sync adapters, export formats, AI providers). YAGNI governs speculative features — do not extract a plugin boundary for a single implementation.
 
 Minimize risk by anticipating what’s most likely to fail (platforms, language changes, hardware, people...) and insulating your system from those points of failure.
+
+When a function has several validation branches or supporting details, make the main function read as the happy path and move supporting details into small helpers below it. Keep helpers close to the code they support, below the main export when that improves readability.
 
 Great names capture what a thing is or does. Append qualifiers to names. Units, bounds, and modifiers come at the end. This groups related variables together and makes scanning easier.
 
@@ -71,7 +69,7 @@ const journalPath = path.join(dir, "journal.json");
 const journal = await Bun.file(journalPath).json();
 ```
 
-## React components
+## React
 
 Build React components following full `vercel-composition-patterns` and `vercel-react-best-practices` rules.
 
@@ -83,17 +81,11 @@ Use the `useTimeout` utility from `@base-ui/utils/useTimeout` instead of `window
 
 Use the `useStableCallback` utility from `@base-ui/utils/useStableCallback` instead of `React.useCallback` whenever the function is passed into an effect, an event handler, or any other long-lived closure — `useStableCallback` guarantees a stable identity without re-running on every render, which the React Compiler does not do for free. The utility cannot be used to memoize functions that are called directly in the body of a component (during render); in those cases the React Compiler memoizes the value automatically, so no manual hook is needed.
 
-Use the `useIsoLayoutEffect` utility from `@base-ui/utils/useIsoLayoutEffect` instead of `React.useLayoutEffect`.
-
-Use the shadow DOM-safe utilities for DOM traversal and event targeting: `contains`, `getTarget`, and `activeElement`. Use the owner utilities `ownerDocument` and `ownerWindow` instead of global `document`/`window` lookups when the code is tied to a DOM node, including realm-sensitive checks such as `instanceof`.
-
 Avoid duplicating logic where necessary: If two components can share logic (such as event handlers), define the logic/handlers in the parent and share it through a context to the child; use the existing context if it exists.
 
 Never show the empty state during the loading state. Loading indicators (skeletons, spinners) and empty states are mutually exclusive — guard empty state checks with `isLoading` so the loading UI renders first, and the empty state only appears after loading completes with zero results.
 
-### Definition Order
-
-Make sure every component file follows the same vertical stack: one shared module block (steps 2–5) at the top, then the exported components in original order (each with its props interfaces above), then the private sub-components at the bottom. A symbol is a component when it has a PascalCase name (render-prop components like `SignedOutOnly` return `children` with no JSX literal in the body); camelCase functions that return JSX (`renderQueryMatch`, `formatShareValue`) are render helpers, not components — JSX element names must be capitalized, so they are called as functions, never rendered as elements.
+Make sure every component file follows the same definition order: one shared module block (steps 2–5) at the top, then the exported components in original order (each with its props interfaces above), then the private sub-components at the bottom.
 
 1. Imports
 2. Module-level constants (UPPER_SNAKE_CASE)
@@ -106,35 +98,26 @@ Make sure every component file follows the same vertical stack: one shared modul
 
 Inside component functions, hooks and logic should be grouped in a predictable sequence.
 
-### Boolean Naming Conventions
+### Naming Conventions
 
-Boolean variables follow a rigid prefix convention. Scanning the files:
+Boolean variables follow a prefix convention:
 
-| Prefix           | Example                                                | Context                      |
-| ---------------- | ------------------------------------------------------ | ---------------------------- |
-| is               | isVerticalScrollAxis, isNestedDrawerOpenRef            | State or derived condition   |
-| has              | hasNestedDrawer, hasCrossAxisScrollableContent         | Possession                   |
-| should           | shouldUseAutoHeight, shouldApplySnapPoints, shouldDamp | Conditional behavior         |
-| can              | canSwipeFromScrollEdgeOnMove, canStart                 | Capability / permission      |
-| allow            | allowSwipe, allowTouchMove                             | Permission in touch handling |
-| disable / enable | disablePointerDismissal, enabled                       | Feature flags                |
+| Prefix | Example                                                | Context                      |
+| ------ | ------------------------------------------------------ | ---------------------------- |
+| is     | isVerticalScrollAxis, isNestedDrawerOpenRef            | State or derived condition   |
+| has    | hasNestedDrawer, hasCrossAxisScrollableContent         | Possession                   |
+| should | shouldUseAutoHeight, shouldApplySnapPoints, shouldDamp | Conditional behavior         |
+| can    | canSwipeFromScrollEdgeOnMove, canStart                 | Capability / permission      |
+| allow  | allowSwipe, allowTouchMove                             | Permission in touch handling |
 
-### Ref Naming
-
-Refs are initialized to their semantic empty state (false, 0, null, ''), never undefined unless the type requires it.
-
-| Pattern               | Example                            | Meaning                                 |
-| --------------------- | ---------------------------------- | --------------------------------------- |
-| xRef                  | popupHeightRef, lastPointerTypeRef | Plain ref holding a value               |
-| xRef.current = fn     | resetSwipeRef.current = resetSwipe | Callback ref pattern                    |
-| isNestedDrawerOpenRef | isNestedDrawerOpenRef              | Boolean ref for stale-closure avoidance |
+Refs should be suffixed with `Ref` (e.g. `popupHeightRef`, `lastPointerTypeRef`)
 
 ### Tech stack
 
 Runtime & Package Manager: Node.js 24.x and Bun (read Bun API docs in `node_modules/bun-types/docs/**.mdx` if necessary)
 Framework: Next.js 16 (App Router)
 UI: [React 19](https://react.dev/llms.txt), Base-UI ([@base-ui/react](https://base-ui.com/llms.txt), @base-ui/utils), [motion (previously framer motion)](https://motion.dev/llms.txt), and lucide-react icons
-React Compiler: `babel-plugin-react-compiler` is enabled. It automatically memoizes components and values, including render-time derived values. Do not add manual `useMemo` or `useCallback`; they can interfere with compiler optimization
+React Compiler: `babel-plugin-react-compiler` is enabled. It automatically memoizes components and values, such as render-time derived values. Do not add manual `useMemo` or `useCallback`; they can interfere with compiler optimization
 Styling: Tailwind CSS 4
 Rich Text: [Lexical](https://lexical.dev)
 Internationalization: [gt-next](https://generaltranslation.com/llms.txt)
@@ -144,7 +127,7 @@ AI: [Vercel AI SDK](https://ai-sdk.dev/llms.txt) + [Workflow SDK](https://workfl
 Auth: [better-auth](https://better-auth.com/llms.txt) with @better-auth/stripe
 Email: [Resend](https://resend.com/llms.txt)
 Security: [Arcjet](https://arcjet.com/llms.txt) for rate limiting and bot protection
-Tooling: TypeScript v7 (strict typing), Biome via Ultracite (run via `bun lint` or `bun lint:fix` for writing)
+Tooling: TypeScript v7 (strict typing), Biome via Ultracite (via `bun lint` or `bun lint:fix` for writing)
 
 <!-- BEGIN:nextjs-agent-rules -->
 
@@ -176,4 +159,4 @@ Use these in services and actions to propagate domain failures with structured m
 
 ## Data model
 
-The data model can be found at `prisma/schema.prisma`
+The data model and schemas can be found at `prisma/schema.prisma`
