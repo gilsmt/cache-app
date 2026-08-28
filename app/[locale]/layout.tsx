@@ -43,12 +43,13 @@ export async function generateMetadata(): Promise<Metadata> {
             url: BASE_URL,
         },
         other: {
-            "llm:content-type": "",
+            "llm:content-type": "web application",
             "llm:integrations": INTEGRATIONS.map((int) => int.label).join(", "),
             "llm:languages": "en",
             "llm:pricing": "free tier available, pro 8€/month",
             "llm:region": "global",
-            "llm:use-cases": "",
+            "llm:use-cases":
+                "unify bookmarks across platforms, AI-assisted collection organization, search across saved content, note-taking, automations",
         },
         publisher: APP_NAME,
         referrer: "strict-origin-when-cross-origin",

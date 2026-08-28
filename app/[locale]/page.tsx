@@ -95,10 +95,7 @@ const HOME_JSON_LD: Record<string, unknown> = {
                 width: 96,
             },
             name: "CachdApp, Inc.",
-            sameAs: [
-                "https://github.com/rortan134/cache-app",
-                "https://x.com/gsmmtt",
-            ],
+            sameAs: ["https://github.com/rortan134/cache-app"],
             url: BASE_URL,
         },
         {
