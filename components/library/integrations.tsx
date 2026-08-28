@@ -62,14 +62,6 @@ const INTEGRATIONS_DISCLAIMER_VISIBLE_STORAGE_KEY =
 
 const ACTION_STATUS_DISMISS_MS = 6000;
 
-const CAPABILITY_MISSING_MESSAGES: Record<IntegrationActionRole, string> = {
-    connect: "This integration cannot be connected yet.",
-    copy: "This integration does not support copying a prompt.",
-    import: "This integration cannot be imported yet.",
-    open: "This integration cannot be opened yet.",
-    sync: "This integration cannot sync yet.",
-};
-
 const NO_ACTION_FEEDBACK: IntegrationActionResult = {
     refresh: false,
     successMessage: null,
@@ -166,6 +158,7 @@ function useIntegrationActions({
 
             try {
                 const result = await executeIntegrationAction({
+                    gt,
                     integration,
                     isExtensionInstalled,
                     role,
@@ -192,7 +185,7 @@ function useIntegrationActions({
                 setActionStatus({
                     message: getErrorMessage(
                         error,
-                        "Could not complete this integration action."
+                        gt("Could not complete this integration action.")
                     ),
                     tone: "error",
                 });
@@ -269,6 +262,26 @@ function resolveActionLabel(args: {
     }
 }
 
+function resolveCapabilityMissingMessage(
+    gt: ReturnType<typeof useGT>,
+    role: IntegrationActionRole
+): string {
+    switch (role) {
+        case "connect":
+            return gt("This integration cannot be connected yet.");
+        case "copy":
+            return gt("This integration does not support copying a prompt.");
+        case "import":
+            return gt("This integration cannot be imported yet.");
+        case "open":
+            return gt("This integration cannot be opened yet.");
+        case "sync":
+            return gt("This integration cannot sync yet.");
+        default:
+            return ((_: never) => _)(role);
+    }
+}
+
 function isActionVisible(
     action: SupportedIntegrationAction,
     isConnected: boolean
@@ -300,18 +313,19 @@ function buildCapabilityMissingError({
 }
 
 async function executeIntegrationAction(args: {
+    gt: ReturnType<typeof useGT>;
     isExtensionInstalled: boolean;
     integration: SupportedIntegration;
     role: IntegrationActionRole;
 }): Promise<IntegrationActionResult> {
-    const { isExtensionInstalled, integration, role } = args;
+    const { gt, isExtensionInstalled, integration, role } = args;
     const behavior = integration.behaviors[role];
 
     if (!behavior) {
         throw buildCapabilityMissingError({
             capability: role,
             integrationId: integration.id,
-            message: CAPABILITY_MISSING_MESSAGES[role],
+            message: resolveCapabilityMissingMessage(gt, role),
         });
     }
 
@@ -331,7 +345,10 @@ async function executeIntegrationAction(args: {
         // copy
         case "copy-prompt":
             await executeCopyPromptBehavior(behavior);
-            return { refresh: false, successMessage: "Copied to clipboard." };
+            return {
+                refresh: false,
+                successMessage: gt("Copied to clipboard."),
+            };
         // sync
         case "route":
         case "google-photos-picker":

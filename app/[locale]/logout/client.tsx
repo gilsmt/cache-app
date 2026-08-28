@@ -34,10 +34,12 @@ export function LogoutPageClient() {
     return (
         <div className="flex h-dvh w-full flex-col items-center justify-center bg-muted">
             <div className="flex flex-col items-center gap-4">
-                <div aria-hidden>
-                    <Spinner className="size-8" />
-                </div>
-                <p className="shimmer shimmer-duration-1000 text-muted-foreground text-sm">
+                <Spinner aria-hidden className="size-8" />
+                <p
+                    aria-live="polite"
+                    className="shimmer shimmer-duration-1000 text-muted-foreground text-sm"
+                    role="status"
+                >
                     <T context="Logout redirect page">Signing out…</T>
                 </p>
             </div>

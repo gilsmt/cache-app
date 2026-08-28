@@ -39,21 +39,11 @@ export function openRssManageDialog() {
 }
 
 async function fetchFeeds(): Promise<FeedViewModel[]> {
-    try {
-        const result = await listFeeds();
-        if (result.status !== "SUCCESS") {
-            throw new Error(result.message);
-        }
-        return result.feeds;
-    } catch (error) {
-        if (error instanceof Error) {
-            throw error;
-        }
-        throw new Error(
-            typeof error === "string" ? error : "Failed to load feeds",
-            { cause: error }
-        );
+    const result = await listFeeds();
+    if (result.status !== "SUCCESS") {
+        throw new Error(result.message);
     }
+    return result.feeds;
 }
 
 export function RssManageDialog() {
@@ -72,7 +62,9 @@ export function RssManageDialog() {
         fetchFeeds
     );
 
-    const refreshFeeds = useStableCallback(() => mutate());
+    const refreshFeeds = useStableCallback(() => {
+        mutate().catch(() => undefined);
+    });
 
     const handleRemove = useStableCallback(async (feedId: string) => {
         setRemovingFeedIds((prev) => {
@@ -130,11 +122,7 @@ export function RssManageDialog() {
                     </RssFeedList>
                 </DialogPanel>
                 <DialogFooter>
-                    <DialogClose
-                        render={
-                            <Button isLoading={isLoading} variant="ghost" />
-                        }
-                    >
+                    <DialogClose render={<Button variant="ghost" />}>
                         Close
                     </DialogClose>
                 </DialogFooter>

@@ -503,7 +503,7 @@ export function AutomationComposerDialog({
                                 id={titleId}
                                 isUnstyled
                                 onChange={handleTitleChange}
-                                placeholder="Weekly research digest"
+                                placeholder="Automation title"
                                 required
                                 size="lg"
                                 type="text"
@@ -523,7 +523,7 @@ export function AutomationComposerDialog({
                                 id={promptId}
                                 isUnstyled
                                 onChange={handlePromptChange}
-                                placeholder="Summarize the most useful saved items and call out patterns worth revisiting."
+                                placeholder="Describe what Cache should do"
                                 required
                                 rows={5}
                                 size="lg"

@@ -46,7 +46,20 @@ interface CommentTextareaProps {
     item: LibraryItemWithCollections;
 }
 
-export function CommentTextarea({ isOpen, item }: CommentTextareaProps) {
+/**
+ * keyed by `item.id` here rather than left to callers
+ * since a surviving mount would save one item's draft onto another.
+ */
+export function CommentTextarea(props: CommentTextareaProps) {
+    return <ItemCommentTextarea key={props.item.id} {...props} />;
+}
+
+interface ItemCommentTextareaProps {
+    isOpen: boolean;
+    item: LibraryItemWithCollections;
+}
+
+function ItemCommentTextarea({ isOpen, item }: ItemCommentTextareaProps) {
     const gt = useGT();
 
     const { data, error, isLoading, mutate } = useSWR(
@@ -55,10 +68,6 @@ export function CommentTextarea({ isOpen, item }: CommentTextareaProps) {
         { keepPreviousData: true }
     );
 
-    // Once armed (first opened with the menu), stay armed until unmount so the
-    // autosave flush fires when the popup closes. Without this latch, `isOpen`
-    // flips false in the render that precedes unmount, `enabled` follows, and
-    // edits made right before closing would be dropped.
     const [hasOpened, setHasOpened] = React.useState(false);
     if (isOpen && !hasOpened) {
         setHasOpened(true);
@@ -71,9 +80,6 @@ export function CommentTextarea({ isOpen, item }: CommentTextareaProps) {
     const hasBeenEditedRef = React.useRef(false);
     const editVersionRef = React.useRef(0);
 
-    // When the fetched comment lands (or a save round-trips), replace the
-    // draft unless the user is mid-edit. Mirrors the note editor's
-    // "preserve local draft" guard.
     const [prevSavedContent, setPrevSavedContent] =
         React.useState(savedContent);
     if (prevSavedContent !== savedContent) {
@@ -93,10 +99,9 @@ export function CommentTextarea({ isOpen, item }: CommentTextareaProps) {
         if (result.status !== ACTION_STATUS.SUCCESS) {
             return false;
         }
-        await mutate(result.contentText);
-        // Clear the mid-edit latch only after the round-trip lands and only if
-        // no newer edit occurred while the save was in flight. Clearing it
-        // before `mutate` would let the draft guard overwrite those keystrokes.
+
+        await mutate(result.contentText, { revalidate: false });
+
         if (editVersionRef.current === saveVersion) {
             hasBeenEditedRef.current = false;
         }
@@ -127,7 +132,7 @@ export function CommentTextarea({ isOpen, item }: CommentTextareaProps) {
     }
 
     return (
-        <div className="mt-1 mb-1.5 space-y-1 px-0.5">
+        <div aria-busy={isLoading} className="mt-1 mb-1.5 space-y-1 px-0.5">
             <Textarea
                 aria-label={gt("Comment on this item")}
                 className="dark:border-none"
@@ -135,7 +140,7 @@ export function CommentTextarea({ isOpen, item }: CommentTextareaProps) {
                 maxLength={COMMENT_TEXT_MAX_LENGTH}
                 onChange={handleChange}
                 onKeyDown={stopPropagationForMenuTextInputKeys}
-                placeholder={gt("Add a comment...")}
+                placeholder={gt("Add a comment…")}
                 rows={4}
                 size="sm"
                 value={content}
