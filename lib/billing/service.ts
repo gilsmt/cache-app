@@ -27,6 +27,7 @@ export async function getUserActiveSubscriptionStatus(
         },
         where: {
             referenceId: userId,
+            status: { in: [...ACTIVE_SUBSCRIPTION_STATUSES] },
         },
     });
 
