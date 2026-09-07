@@ -256,6 +256,79 @@ export function releaseResponseBodyBudget(response: Response): void {
     getResponseBodyBudgetReleaser(response)?.();
 }
 
+export interface BoundedBodyText {
+    /** At most `maxChars` code units of the decoded body text. */
+    text: string;
+    /** True when the body carried more content than the cap allowed. */
+    truncated: boolean;
+}
+
+/**
+ * Reads an untrusted response body within a character budget instead of
+ * buffering it whole (`response.text()` reads until the connection ends).
+ * The body decodes incrementally so memory stays bounded by the cap, and the
+ * stream is cancelled the moment the budget overflows or a read fails —
+ * which releases this response's abort budget through its cancel hook.
+ */
+export async function readBodyText(
+    response: Response,
+    options: { maxChars: number }
+): Promise<BoundedBodyText> {
+    const body = response.body;
+    if (body === null) {
+        return { text: "", truncated: false };
+    }
+
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let text = "";
+    try {
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done) {
+                break;
+            }
+            text += decoder.decode(value, { stream: true });
+            if (text.length > options.maxChars) {
+                await reader.cancel().catch(() => undefined);
+                return {
+                    text: sliceToUtf16Boundary(text, options.maxChars),
+                    truncated: true,
+                };
+            }
+        }
+        text += decoder.decode();
+        return { text, truncated: false };
+    } catch (error) {
+        await reader.cancel().catch(() => undefined);
+        throw error;
+    } finally {
+        try {
+            reader.releaseLock();
+        } catch {
+            // Reader already released or the stream errored.
+        }
+    }
+}
+
+/**
+ * Truncates to `maxChars` code units without splitting a UTF-16 surrogate
+ * pair. The cap is counted in JS code units, so a cut can land between the
+ * two halves of one code point; roll back the incomplete pair so no lone
+ * surrogate is ever emitted to downstream parsers.
+ */
+function sliceToUtf16Boundary(text: string, maxChars: number): string {
+    let end = Math.min(text.length, maxChars);
+    if (end <= 0) {
+        return "";
+    }
+    const lastCodeUnit = text.charCodeAt(end - 1);
+    if (lastCodeUnit >= 0xd8_00 && lastCodeUnit <= 0xdb_ff) {
+        end -= 1;
+    }
+    return text.slice(0, end);
+}
+
 export type FetchHttpRedirectResult =
     | { status: "response"; response: Response }
     | { status: "blocked" }
@@ -292,6 +365,9 @@ export async function fetchPublicRedirect(
     ) {
         const host = await resolvePublicHttpUrl(currentUrl);
         if (!host) {
+            log.warn("Blocked URL fetch", {
+                host: bestEffortHostname(currentUrl),
+            });
             return { status: "blocked" };
         }
 
@@ -313,6 +389,7 @@ export async function fetchPublicRedirect(
 
         const redirectUrl = resolveRedirectLocation(location, host.url);
         if (!redirectUrl) {
+            log.warn("Blocked redirect target", { host: host.url.hostname });
             return { status: "blocked" };
         }
 
@@ -421,6 +498,18 @@ export function crossOriginSafeHeaders(
 function refererOrigin(referer: string): string | null {
     try {
         return `${new URL(referer).origin}/`;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Hostname for block-event logs. The raw value may be any attacker-supplied
+ * string, so parsing here must never throw.
+ */
+function bestEffortHostname(url: string | URL): string | null {
+    try {
+        return new URL(url).hostname;
     } catch {
         return null;
     }

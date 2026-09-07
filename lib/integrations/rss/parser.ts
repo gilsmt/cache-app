@@ -1,10 +1,11 @@
 import Parser from "rss-parser";
 import { abortAfter } from "@/lib/common/abort";
-import { fetchPublicRedirect } from "@/lib/common/security/fetch";
+import { fetchPublicRedirect, readBodyText } from "@/lib/common/security/fetch";
 import { RssFeedError } from "./errors";
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_REDIRECTS = 5;
+const FEED_BODY_CHARS_MAX = 10_000_000;
 
 export interface ParsedFeed {
     description?: string;
@@ -58,7 +59,16 @@ export async function parseFeed(url: string): Promise<ParsedFeed> {
             });
         }
 
-        xml = await response.text();
+        const body = await readBodyText(response, {
+            maxChars: FEED_BODY_CHARS_MAX,
+        });
+        if (body.truncated) {
+            throw new RssFeedError({
+                kind: "fetch_failed",
+                message: "The feed is too large to parse.",
+            });
+        }
+        xml = body.text;
     } catch (error) {
         if (RssFeedError.isInstance(error)) {
             throw error;
