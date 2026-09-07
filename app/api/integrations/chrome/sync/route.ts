@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import * as z from "zod";
 import { requireRouteUserId } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
     const parsed = chromeBookmarkSyncBodySchema.safeParse(json);
     if (!parsed.success) {
         return Response.json(
-            { error: parsed.error.flatten() },
+            { error: z.treeifyError(parsed.error) },
             { headers: cors, status: 400 }
         );
     }

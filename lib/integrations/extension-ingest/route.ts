@@ -1,6 +1,6 @@
 import "server-only";
 
-import type * as z from "zod";
+import * as z from "zod";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { resolveExtensionIngestUserId } from "@/lib/integrations/extension-ingest/service";
 
@@ -205,7 +205,7 @@ export async function runExtensionIngestImport<
     const parsed = config.bodySchema.safeParse(json);
     if (!parsed.success) {
         return Response.json(
-            { error: parsed.error.flatten() },
+            { error: z.treeifyError(parsed.error) },
             { headers: cors, status: 400 }
         );
     }
