@@ -51,14 +51,14 @@ You can self-host Cache for total control over your data and design. Cache has z
 - [Bun](https://bun.sh/) v1.3.14
 - [Node.js](https://nodejs.org/) 24.x
 - PostgreSQL 12+ (local or remote)
-- A Google Gemini API key (for AI features)
+- A [Google Gemini API](https://aistudio.google.com/apikey) or an [AI Gateway](https://vercel.com/docs/ai-gateway) key to route any provider (`CACHE_AI_MODEL` selects a different model; see `.env.example`)
 - Docker (optional)
 
 ### Local Development
 
 ```bash
 # Clone the repository
-git clone https://github.com/rortan134/cache-app.git
+git clone https://github.com/gilsmt/cache-app.git
 cd cache
 
 # Install dependencies
