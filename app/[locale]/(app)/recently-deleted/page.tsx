@@ -28,14 +28,20 @@ export async function generateMetadata({
     const { locale } = await params;
     const gt = await getGT();
 
-    return buildPageMetadata({
-        description: gt(
-            "Items you remove from your library live here for 30 days before being deleted forever."
-        ),
-        locale,
-        path: "/recently-deleted",
-        title: gt("Recently deleted"),
-    });
+    return {
+        ...buildPageMetadata({
+            description: gt(
+                "Items you remove from your library live here for 30 days before being deleted forever."
+            ),
+            locale,
+            path: "/recently-deleted",
+            title: gt("Recently deleted"),
+        }),
+        robots: {
+            follow: false,
+            index: false,
+        },
+    };
 }
 
 export default function RecentlyDeletedPage() {

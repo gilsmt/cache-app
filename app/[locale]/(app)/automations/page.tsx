@@ -24,14 +24,20 @@ export async function generateMetadata({
     const { locale } = await params;
     const gt = await getGT();
 
-    return buildPageMetadata({
-        description: gt(
-            "Manage lightweight automations that organize and summarize your saved content."
-        ),
-        locale,
-        path: "/automations",
-        title: gt("Automations"),
-    });
+    return {
+        ...buildPageMetadata({
+            description: gt(
+                "Manage lightweight automations that organize and summarize your saved content."
+            ),
+            locale,
+            path: "/automations",
+            title: gt("Automations"),
+        }),
+        robots: {
+            follow: false,
+            index: false,
+        },
+    };
 }
 
 export default function AutomationsPage() {
