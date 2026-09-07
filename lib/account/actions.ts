@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { AccountError } from "@/lib/account/error";
 import * as service from "@/lib/account/service";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
@@ -23,7 +24,10 @@ export async function deleteAccountAction(): Promise<DeleteAccountActionState> {
     }
 
     try {
-        const result = await service.deleteUserAccount(auth.userId);
+        const result = await service.deleteUserAccount(
+            auth.userId,
+            await headers()
+        );
 
         return {
             message: "",

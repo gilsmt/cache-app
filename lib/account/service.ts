@@ -1,6 +1,5 @@
 import "server-only";
 
-import { headers } from "next/headers";
 import { AccountError } from "@/lib/account/error";
 import { auth } from "@/lib/auth/server";
 import { cancelUserActiveSubscriptions } from "@/lib/billing/service";
@@ -24,7 +23,8 @@ interface DeleteUserAccountResult {
  * missing user) or the database write fails.
  */
 export async function deleteUserAccount(
-    userId: string
+    userId: string,
+    requestHeaders: Headers
 ): Promise<DeleteUserAccountResult> {
     try {
         await cancelUserActiveSubscriptions(userId);
@@ -39,7 +39,7 @@ export async function deleteUserAccount(
     try {
         await auth.api.deleteUser({
             body: {},
-            headers: await headers(),
+            headers: requestHeaders,
         });
     } catch (error) {
         const reason = extractDeleteUserError(error);
