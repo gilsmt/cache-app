@@ -37,13 +37,7 @@ interface ActivePathnameProps extends useRender.ComponentProps<"div"> {
 }
 
 /**
- * Adds pathname-aware active state to a rendered element.
- *
- * `aria-current="page"` is emitted for the actual active route, while
- * `data-active` provides a styling hook that can optionally be inverted with
- * `shouldReverseActive`. The attribute is emitted as `"true"` when active and
- * omitted otherwise, so both existence (`data-[active]:`) and value
- * (`data-[active=true]:`) selectors work.
+ * Adds accessible pathname-aware states to a rendered element.
  */
 export function ActivePathname({
     href,

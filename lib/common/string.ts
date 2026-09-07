@@ -18,7 +18,7 @@ export function getIncrementedName(baseName: string, others: string[]) {
     while (set.has(result)) {
         result = TRAILING_NUMBER_PATTERN.exec(result)?.[1]
             ? result.replace(TRAILING_NUMBER_REPLACE_PATTERN, (m) =>
-                  (+m + 1).toString()
+                  (Number(m) + 1).toString()
               )
             : `${result} 1`;
     }

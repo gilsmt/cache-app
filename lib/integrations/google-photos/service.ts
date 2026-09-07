@@ -28,7 +28,7 @@ export function mapPickerSessionToViewModel(
 ): PickerSessionViewModel {
     return {
         accountId,
-        mediaItemsSet: Boolean(session.mediaItemsSet),
+        mediaItemsSet: !!session.mediaItemsSet,
         pickerUri: session.pickerUri
             ? withPickerAutoclose(session.pickerUri)
             : null,

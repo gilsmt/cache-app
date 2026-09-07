@@ -649,9 +649,9 @@ function mergeInstagramDomIntoAccumulated(accumulated: any, delta: any) {
 
         if (accumulated.has(parsed.shortcode)) {
             const prev = accumulated.get(parsed.shortcode);
-            const shouldFillCaption = prev && !prev.caption && Boolean(caption);
+            const shouldFillCaption = prev && !prev.caption && !!(caption);
             const shouldFillPostedAt =
-                prev && !prev.postedAt && Boolean(postedAt);
+                prev && !prev.postedAt && !!(postedAt);
             if (shouldFillCaption || shouldFillPostedAt) {
                 accumulated.set(parsed.shortcode, {
                     ...prev,

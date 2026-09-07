@@ -1254,7 +1254,9 @@ chrome.runtime.onStartup?.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg?.type !== MESSAGE_TYPES.API_CALL) return;
+    if (msg?.type !== MESSAGE_TYPES.API_CALL) {
+        return;
+    }
     (async () => {
         try {
             const data = await chrome.storage.local.get([

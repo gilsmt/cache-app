@@ -35,9 +35,7 @@ export function isTextEntryTarget(target: EventTarget | null): boolean {
     return (
         target instanceof ownerWindow.HTMLElement &&
         (target.isContentEditable ||
-            Boolean(
-                target.closest('input, textarea, select, [role="textbox"]')
-            ))
+            !!target.closest('input, textarea, select, [role="textbox"]'))
     );
 }
 

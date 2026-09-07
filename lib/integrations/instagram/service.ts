@@ -11,7 +11,7 @@ export const instagramSavedItemSchema = extensionSavedItemBaseSchema
     .extend({
         shortcode: z.string().optional(),
     })
-    .refine((row) => Boolean(row.shortcode), {
+    .refine((row) => !!row.shortcode, {
         message: "Each item needs a shortcode",
     });
 

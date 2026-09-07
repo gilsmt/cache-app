@@ -11,7 +11,7 @@ export const tiktokSavedItemSchema = extensionSavedItemBaseSchema
     .extend({
         id: z.string().optional(),
     })
-    .refine((row) => Boolean(row.id), {
+    .refine((row) => !!row.id, {
         message: "Each item needs an id",
     });
 

@@ -67,11 +67,7 @@ export function RssManageDialog() {
     });
 
     const handleRemove = useStableCallback(async (feedId: string) => {
-        setRemovingFeedIds((prev) => {
-            const next = new Set(prev);
-            next.add(feedId);
-            return next;
-        });
+        setRemovingFeedIds((prev) => new Set(prev).add(feedId));
 
         try {
             const result = await removeFeed({ feedId });
