@@ -25,10 +25,6 @@ interface OAuthImportResult<T> {
  * is linked but no access token can be issued. Provider-specific HTTP
  * failures (`IntegrationApiError`) and any other error from `importFn`
  * propagate unchanged so the transport layer can map them.
- *
- * Framework-free: callers in a route handler should still wrap downstream
- * side-effects (e.g. auto-tagging) in `next/server`'s `after()` because
- * those primitives are request-scoped.
  */
 export async function runOAuthImportService<
     T extends {

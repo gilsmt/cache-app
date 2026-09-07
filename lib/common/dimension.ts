@@ -22,11 +22,9 @@ const PREVIEW_MIN_HEIGHT = 1;
 export interface DimensionsCache {
     cacheDimensions: (src: string, dimensions: Dimensions) => void;
     pinDefaultDimensionsIfMissing: (src: string) => Dimensions;
-    /** Pure read — safe during render. Does not reorder the cache. */
     readCachedDimensions: (src: string | null) => Dimensions | null;
 }
 
-/** Creates a bounded cache whose lifetime is owned by the rendering root. */
 export function createDimensionsCache(): DimensionsCache {
     const previewDimensionsCache = new Map<string, Dimensions>();
 

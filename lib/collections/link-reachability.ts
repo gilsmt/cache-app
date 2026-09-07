@@ -17,9 +17,6 @@ import {
 import { prisma } from "@/prisma";
 import type { LibraryItemLinkReachability } from "@/prisma/client/client";
 
-export type { LinkReachabilityStatus } from "@/lib/collections/library-quality";
-export { LINK_REACHABILITY_BATCH_MAX } from "@/lib/collections/library-quality";
-
 const log = createLogger("library:link-reachability");
 
 export interface LinkReachabilityResult {

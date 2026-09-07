@@ -12,22 +12,6 @@ const getServerPlatformSnapshot = (): DesktopPlatform | null => null;
 
 const getServerIsDesktopAppSnapshot = (): boolean => false;
 
-export function useDesktopPlatform(): {
-    isDesktop: boolean;
-    platform: DesktopPlatform | null;
-} {
-    const platform = useSyncExternalStore(
-        subscribe,
-        detectDesktopPlatform,
-        getServerPlatformSnapshot
-    );
-
-    return {
-        isDesktop: platform !== null,
-        platform,
-    };
-}
-
 export function useDesktopApp(): {
     isDesktopApp: boolean;
     platform: DesktopPlatform | null;
