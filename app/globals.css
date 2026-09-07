@@ -140,6 +140,7 @@
 
     html,
     body {
+        scrollbar-width: thin;
         scrollbar-color: color-mix(in oklab, var(--foreground) 20%, transparent)
             transparent;
         font-feature-settings: "case" on;
@@ -327,6 +328,11 @@
     :is(.dark *)&::before {
         opacity: 0.55;
     }
+}
+
+@utility text-trim-both {
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
 }
 
 @utility squircle {
