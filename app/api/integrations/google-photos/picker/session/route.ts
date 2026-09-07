@@ -14,6 +14,8 @@ import {
     GOOGLE_PHOTOS_PICKER_SCOPE,
 } from "@/lib/integrations/google-photos/shared";
 
+const NO_STORE_HEADERS = { "Cache-Control": "private, no-store" };
+
 function photosAuthErrorResponse(error: IntegrationApiError): Response {
     const status = error.data.status ?? 500;
     const message =
@@ -85,12 +87,18 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const id = url.searchParams.get("id");
     if (!id) {
-        return Response.json({ error: "Missing session id" }, { status: 400 });
+        return Response.json(
+            { error: "Missing session id" },
+            { headers: NO_STORE_HEADERS, status: 400 }
+        );
     }
 
     const accountId = url.searchParams.get("accountId");
     if (!accountId) {
-        return Response.json({ error: "Missing account id" }, { status: 400 });
+        return Response.json(
+            { error: "Missing account id" },
+            { headers: NO_STORE_HEADERS, status: 400 }
+        );
     }
 
     const accessToken = await resolveProviderAccountAccessToken({
@@ -101,14 +109,15 @@ export async function GET(request: Request) {
     if (!accessToken) {
         return Response.json(
             { error: "Missing Google access token. Reconnect Google first." },
-            { status: 403 }
+            { headers: NO_STORE_HEADERS, status: 403 }
         );
     }
 
     try {
         const pickerSession = await getPickerSession(accessToken, id);
         return Response.json(
-            mapPickerSessionToViewModel(pickerSession, accountId)
+            mapPickerSessionToViewModel(pickerSession, accountId),
+            { headers: NO_STORE_HEADERS }
         );
     } catch (error) {
         if (

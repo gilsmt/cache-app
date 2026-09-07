@@ -23,7 +23,10 @@ export async function GET(request: Request) {
     const { userId } = session;
 
     const token = await getOrCreateExtensionIngestToken({ userId });
-    return Response.json({ token }, { headers: cors });
+    // The ingest token is a bearer secret, so it must never be cached.
+    const responseHeaders = new Headers(cors);
+    responseHeaders.set("Cache-Control", "private, no-store");
+    return Response.json({ token }, { headers: responseHeaders });
 }
 
 export async function POST(request: Request) {
@@ -37,5 +40,8 @@ export async function POST(request: Request) {
     const { userId } = session;
 
     const token = await rotateExtensionIngestToken({ userId });
-    return Response.json({ token }, { headers: cors });
+    // The ingest token is a bearer secret, so it must never be cached.
+    const responseHeaders = new Headers(cors);
+    responseHeaders.set("Cache-Control", "private, no-store");
+    return Response.json({ token }, { headers: responseHeaders });
 }
