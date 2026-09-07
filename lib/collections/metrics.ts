@@ -8,7 +8,7 @@ import {
 
 export interface LibraryMetricsSegment {
     color: string;
-    key: string;
+    key: LibraryItemSource;
     label: string;
     value: number;
 }
@@ -19,7 +19,7 @@ export interface LibraryMetricsSnapshot {
     inCollectionCount: number;
     itemCount: number;
     noteCount: number;
-    sourceSegments: LibraryMetricsSegment[];
+    sourceSegments: readonly LibraryMetricsSegment[];
     uncollectedCount: number;
     unreachableCount: number;
 }
