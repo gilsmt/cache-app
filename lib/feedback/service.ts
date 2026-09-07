@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { prisma } from "@/prisma";
 import { FeedbackError } from "./error";
