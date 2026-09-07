@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { CreateCollectionResponse } from "@/lib/api";
 import styles from "./popup.module.css";
 
@@ -23,6 +23,7 @@ export function CollectionCreateView({
     const [description, setDescription] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const labelId = useId();
     const nameInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -137,12 +138,15 @@ export function CollectionCreateView({
 
             <div className={styles.formActions}>
                 <button
-                    type="button"
+                    aria-labelledby={labelId}
                     className={styles.primaryButton}
-                    onClick={handleSubmit}
                     disabled={!canSubmit}
+                    onClick={handleSubmit}
+                    type="button"
                 >
-                    {isSubmitting ? "Creating…" : "Create collection"}
+                    <span id={labelId}>
+                        {isSubmitting ? "Creating…" : "Create collection"}
+                    </span>
                 </button>
             </div>
         </div>
