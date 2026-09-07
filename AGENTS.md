@@ -1,24 +1,24 @@
-[Cache](https://www.cachd.app) is a modern well-crafted purpose-built personal bookmark knowledge web application tool that unifies user bookmarks across many platforms into a single, searchable, actionable library. Read [README.md](README.md) for more.
+[Cache](https://www.cachd.app) is a modern well-crafted purpose-built personal bookmark knowledge web application powertool that unifies user bookmarks across many platforms into a single, searchable, actionable library. Read [README.md](README.md) for more.
 
 ## Development workflow
 
-Cache has a zero technical debt policy. Do it right the first time: the design that lands in the codebase should be the correct one, with no intentional debt in that surface. A problem solved in design costs less than one solved in implementation, which costs less than one solved in production. "Right the first time" describes the landed output, not the exploration that produced it — see simplicity below. When rules conflict, prefer in order: correctness and safety of the change surface, then local coherence in files you already touch, then YAGNI, then style. Leave the codebase better than you found it.
+Cache has a zero technical debt policy. Do it right the first time: the design that lands in the codebase should be the correct one, with no intentional debt in that surface. A problem solved in design costs less than one solved in implementation, which costs less than one solved in production. "Right the first time" describes the landed output, not the exploration that produced it — see simplicity below.
 
-Suggest solutions or alternatives I didn’t think about and anticipate my needs.
+When rules conflict, prefer in order: correctness and safety of the change surface, then local coherence in files you already touch, then YAGNI, then style. If a tradeoff is required, choose correctness and robustness over short-term convenience or shortcuts.
 
-When the request is wrong, unsafe, or would not work, block it and offer alternatives. When it is merely suboptimal, challenge once with a concrete alternative, then execute the user's choice unless a hard constraint still fails. Reframe from first principles when that reaches a better answer.
+Leave the codebase better than you found it. Do not preserve complexity just because it already exists. Do not introduce machinery because it looks architecturally impressive. Understand the real constraint, then fight for the smallest model that makes the correct behavior unsurprising.
 
-Learn from existing code: Study and plan before implementing. Identify recurring patterns and design influences in the code. Keep rules or constraints of the task in mind.
+Suggest solutions or alternatives I didn’t think about and anticipate my needs. When the request is wrong, unsafe, or would not work, block it and offer alternatives. When it is merely suboptimal, challenge once with a concrete alternative, then execute the user's choice unless a hard constraint still fails. Reframe from first principles when that reaches a better answer.
+
+Study and plan before implementing. Identify recurring patterns and design influences in the code. Keep rules or constraints of the task in mind.
 
 Trace how parts connect, such as data flow between functions, stage dependencies, or what module owns what.
 
-If a tradeoff is required, choose correctness and robustness over short-term convenience or shortcuts.
+Read the full implementation of what you change and its direct callers/callees, not just the signatures, and not the whole repo.
 
 Define success criteria. Loop until verified.
 
 It is not about formatting or syntax. Linters handle that. It is about how to think, how to make decisions, and what to value when building software.
-
-Read the full implementation of what you change and its direct callers/callees, not just the signatures, and not the whole repo.
 
 Simple and elegant systems are easier to design correctly, more efficient in execution, and more reliable. That simplicity requires hard work and discipline.
 
@@ -34,9 +34,7 @@ Avoid unnecessary code indirection. Extract when the same reason to change appli
 
 Follow YAGNI. Prefer the smallest clear unit, not the fewest lines — one-liners only for pure expressions with no branching, I/O, or error paths.
 
-Composition over inheritance. Prefer dependency injection.
-
-Control flow: Avoid else statements. Prefer early returns.
+Control flow: Reduce nesting. Avoid else statements. Prefer early returns.
 
 Handle errors at the appropriate scopes. Never silently swallow exceptions. If you think an error cannot happen, assert that assumption explicitly.
 
@@ -52,22 +50,13 @@ When a function has several validation branches or supporting details, make the 
 
 Great names capture what a thing is or does. Append qualifiers to names. Units, bounds, and modifiers come at the end. This groups related variables together and makes scanning easier.
 
-Before adding a new utility, check if a similar one exists in the `lib/common` directory or nearby module scope as utils.
-
 Anchor design decisions on the user's primary task or focus, to make sure the user can complete those tasks easily, not overwhelmed by unrelated UI clutter or user flows. Our UI should help users complete their tasks, not hinder them.
 
 Constants are module-level and UPPER_SNAKE_CASE: Physics constants, selectors, and thresholds are declared at the top of the file, never inside the component.
 
 Inline single-use values when the expression is obvious in place. Keep a name when it encodes units, domain meaning, or a non-obvious intermediate — even if used once.
 
-```ts
-// Good
-const journal = await Bun.file(path.join(dir, "journal.json")).json();
-
-// Bad
-const journalPath = path.join(dir, "journal.json");
-const journal = await Bun.file(journalPath).json();
-```
+Before adding a new utility, check if a similar one exists in the `lib/common` directory or nearby module scope as utils.
 
 ## React
 
@@ -75,15 +64,9 @@ Build React components following full `vercel-composition-patterns` and `vercel-
 
 Every component should be co-located into a single file with its parts, and should use a common, composable interface, making them predictable.
 
-Do not declare an empty props interface (`interface XProps extends React.ComponentProps<"div"> {}`) — inline `React.ComponentProps<...>` in the component signature and extract a named type only once it gains custom props.
+Avoid duplicating logic where necessary: If two components can share logic (such as event handlers), define the logic/handlers in the parent and share it through a context to the child; use the existing context if it exists. Before building any new UI element, search for an existing one to reuse. The same goes for patterns, not just components: before building a new scene or view, read 2–3 comparable ones and model yours on those that follow these rules or best practices.
 
-Use the `useTimeout` utility from `@base-ui/utils/useTimeout` instead of `window.setTimeout`, and `useAnimationFrame` from `@base-ui/utils/useAnimationFrame` instead of `requestAnimationFrame`.
-
-Use the `useStableCallback` utility from `@base-ui/utils/useStableCallback` instead of `React.useCallback` whenever the function is passed into an effect, an event handler, or any other long-lived closure — `useStableCallback` guarantees a stable identity without re-running on every render, which the React Compiler does not do for free. The utility cannot be used to memoize functions that are called directly in the body of a component (during render); in those cases the React Compiler memoizes the value automatically, so no manual hook is needed.
-
-Avoid duplicating logic where necessary: If two components can share logic (such as event handlers), define the logic/handlers in the parent and share it through a context to the child; use the existing context if it exists.
-
-Never show the empty state during the loading state. Loading indicators (skeletons, spinners) and empty states are mutually exclusive — guard empty state checks with `isLoading` so the loading UI renders first, and the empty state only appears after loading completes with zero results.
+Loading, empty, and error are three different views. Never show an empty state during the loading state. Loading indicators (skeletons, spinners) and empty states are mutually exclusive — guard empty state checks with `isLoading` so the loading UI renders first, and the empty state only appears after if loading actually completes with zero results.
 
 Make sure every component file follows the same definition order: one shared module block (steps 2–5) at the top, then the exported components in original order (each with its props interfaces above), then the private sub-components at the bottom.
 
@@ -98,7 +81,7 @@ Make sure every component file follows the same definition order: one shared mod
 
 Inside component functions, hooks and logic should be grouped in a predictable sequence.
 
-### Naming Conventions
+## Naming Conventions
 
 Boolean variables follow a prefix convention:
 
@@ -112,21 +95,29 @@ Boolean variables follow a prefix convention:
 
 Refs should be suffixed with `Ref` (e.g. `popupHeightRef`, `lastPointerTypeRef`)
 
-### Tech stack
+## Comments
 
-Runtime & Package Manager: Node.js 24.x and Bun (read Bun API docs in `node_modules/bun-types/docs/**.mdx` if necessary)
+Use mostly ASD-STE100 Simplified Technical English. Use active voice, simple tenses, one idea per sentence, and consistent terms. Explain why, not what, and only when a future reader (with no access to this PR or chat) would otherwise be confused. If appropriate, prefer no comments at all.
+
+Never log change history or chat context in code — no "previously did X, now does Y", "per <task/PR>", "changed because…", or "AI:"/"agent:" notes. That goes in the commit message and PR description.
+
+When refactoring or moving code, preserve existing comments unless they are explicitly made obsolete by the change.
+
+## Tech stack
+
+Runtime & Package Manager: Node.js 24.x and Bun (API docs is in `node_modules/bun-types/docs/**.mdx` if necessary)
 Framework: Next.js 16 (App Router)
 UI: [React 19](https://react.dev/llms.txt), Base-UI ([@base-ui/react](https://base-ui.com/llms.txt), @base-ui/utils), [motion (previously framer motion)](https://motion.dev/llms.txt), and lucide-react icons
-React Compiler: `babel-plugin-react-compiler` is enabled. It automatically memoizes components and values, such as render-time derived values. Do not add manual `useMemo` or `useCallback`; they can interfere with compiler optimization
+React Compiler: enabled via Next.js `reactCompiler: true`. It automatically memoizes components and values, such as render-time derived values. Do not add manual `useMemo` or `useCallback`; they can interfere with compiler optimization
 Styling: Tailwind CSS 4
 Rich Text: [Lexical](https://lexical.dev)
 Internationalization: [gt-next](https://generaltranslation.com/llms.txt)
-Validation: [Zod v4](https://zod.dev/llms.txt) schemas
+Validation: [Zod v4.5](https://zod.dev/llms.txt) schemas
 Database: PostgreSQL via [Prisma ORM v7](https://www.prisma.io/docs/llms.txt)
 AI: [Vercel AI SDK](https://ai-sdk.dev/llms.txt) + [Workflow SDK](https://workflow-sdk.dev/llms.txt) for durable AI orchestration
 Auth: [better-auth](https://better-auth.com/llms.txt) with @better-auth/stripe
 Email: [Resend](https://resend.com/llms.txt)
-Security: [Arcjet](https://arcjet.com/llms.txt) for rate limiting and bot protection
+Security: [Arcjet](https://arcjet.com/llms.txt) for rate limiting and PII redaction
 Tooling: TypeScript v7 (strict typing), Biome via Ultracite (via `bun lint` or `bun lint:fix` for writing)
 
 <!-- BEGIN:nextjs-agent-rules -->
@@ -139,7 +130,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Server Actions / Service module pattern
+## Server actions / Service module pattern
 
 We organize and co-locate Next.js Server Actions as thin adapters in `lib/{module}/actions.ts` files that handle input/output validation, auth/session and privilege checks, error normalization, caching/revalidation and rate limiting. These actions call pure service functions which contain all business logic and database/external-API calls. Services never depend on the framework; they operate on validated data and return domain objects/typed results, and can be used independently either for other modules, as side effects, or pure server components.
 
