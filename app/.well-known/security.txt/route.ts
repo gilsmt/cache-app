@@ -25,7 +25,7 @@ Canonical: ${BASE_URL}/.well-known/security.txt
 Policy: ${BASE_URL}/security
 
 # If you discover a security vulnerability, please report it responsibly.
-# We appreciate your help in keeping Sim and our users secure.
+# We appreciate your help in keeping Cache and our users secure.
 `;
 
     return new Response(securityTxt, {
