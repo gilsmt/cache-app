@@ -1,13 +1,13 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { cn } from "cn";
 import { Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/common/cn";
 import { stopPropagationForPrintableKeys } from "@/lib/common/dom";
 import { createFeedback } from "@/lib/feedback/actions";
 import type { FeedbackActionState } from "@/lib/feedback/schema";
@@ -53,7 +53,12 @@ export function FeedbackWidget({
     return (
         <Popover>
             <PopoverTrigger {...props} openOnHover={openOnHover} />
-            <PopoverPopup className="*:p-2" positionMethod="fixed">
+            <PopoverPopup
+                align="start"
+                className="*:p-2"
+                positionMethod="fixed"
+                side="right"
+            >
                 <div className="space-y-3">
                     <form
                         action={formAction}
