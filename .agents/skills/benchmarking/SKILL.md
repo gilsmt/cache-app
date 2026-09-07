@@ -1,22 +1,21 @@
 ---
 name: benchmarking
-description: How to write accurate and meaningful benchmarks for JavaScript/TypeScript code using mitata. Covers JIT pitfalls (dead code elimination, loop invariant code motion), garbage collection noise, and reliable measurement methodology. Use this skill whenever benchmarking, measuring performance, or comparing implementation alternatives.
+description: How to write accurate and meaningful benchmarks for JavaScript/TypeScript code. Covers JIT pitfalls (dead code elimination, loop invariant code motion), garbage collection noise, and reliable measurement methodology. Use this skill whenever benchmarking, measuring performance, or comparing implementation alternatives.
 ---
 
-Creating accurate and meaningful benchmarks requires careful attention to how modern JavaScript engines optimize code. This covers essential concepts and best practices to ensure your benchmarks measure actual performance characteristics rather than optimization artifacts.
+Creating accurate and meaningful benchmarks requires careful attention to how modern JavaScript engines optimize code. Different ways of writing similar logic can have significant performance differences. This covers essential concepts and best practices to ensure your benchmarks measure actual performance characteristics rather than optimization artifacts.
 
 ## General Principles
 
 - Benchmark before optimizing: always measure code performance with real benchmarks first; never optimize without measuring.
 - Profile in realistic environments: engine behavior differs (V8, JSC, SpiderMonkey) and devtools instrumentation changes results. Benchmark in the actual environment the code will run in.
 - Focus on bottlenecks: optimize the code sections that consume the most runtime, not just any slow-looking code.
-- Prioritize readability: write clear, maintainable code first, and only optimize if benchmarks show a real need.
 - Document optimization rationale: when changing code for performance, include comments explaining the benchmark results and reasoning.
 - Doubt your results: if a change "runs 100x faster", verify it in production before trusting the benchmark.
 
 ## Setup with mitata
 
-Use [mitata](https://github.com/evanwashere/mitata) for benchmarking tooling. See its README for the full API; if the context7 MCP server is configured, use it to look up mitata docs.
+Use [mitata](https://github.com/evanwashere/mitata) for benchmarking tooling. See its README for the full API; If context7 is configured and available, use it to look up any docs too.
 
 ```typescript
 import { bench, run, do_not_optimize } from "mitata";
@@ -27,9 +26,9 @@ await run();
 ```
 
 - Run Node benchmarks with `node --expose-gc` so mitata can control garbage collection (Bun exposes GC by default).
-- Use dedicated, quiet hardware; install the optional `@mitata/counters` package for IPC/cache statistics.
+- Use dedicated, quiet hardware; install the optional `@mitata/counters` package for IPC (instructions per cycle) and cache statistics.
 - Let the JIT warm up — mitata handles warmup internally. Never hand-roll timing loops (e.g., N iterations around `Date.now()`); JIT compilation during the measured region invalidates results.
-- Report distributions, not just averages. Mitata shows min/max, p75/p99 and flags high variance; wrap benchmarks in `summary()`, `boxplot()`, or `lineplot()` for comparisons.
+- Report distributions, not just averages. Mitata shows min/max, p75/p99 and the sample distribution; wrap benchmarks in `summary()`, `boxplot()`, or `lineplot()` for comparisons.
 - Use a clean browser profile when measuring in the browser (extensions, especially React devtools, distort results).
 
 ## Dead Code Elimination
@@ -57,10 +56,12 @@ bench(() => {
 // ✅ Good: gc before each (batch-)iteration
 bench(() => {
     const bigArray = new Array(1000000);
-}).gc("inner"); // run gc before each iteration
+}).gc("inner"); // run gc before each batch-iteration
 ```
 
 GC modes: `false` (never), `"once"` (after warmup; the default), `"inner"` (after warmup and before each batch-iteration).
+
+- Treat GC dominance as a signal: if pauses dominate a benchmark, the code under test likely allocates heavily in production too. Reducing allocations by fusing small objects, flatter data structures, more compact storage formats improves the real workload; `.gc("inner")` only stabilizes the measurement. Consider techniques such as object pooling, lazy loading, pagination, stream processing or memoization.
 
 ## Loop Invariant Code Motion
 
@@ -91,7 +92,7 @@ bench(function* (ctx) {
 }).args("substr", ["c"]);
 ```
 
-Whether a particular call gets hoisted or folded varies by engine and version; computed parameters make results engine-independent by guaranteeing per-iteration values.
+Whether a particular call gets hoisted or folded varies by engine and version; computed parameters prevent both, making results engine-independent.
 
 ## Browser Benchmarks
 

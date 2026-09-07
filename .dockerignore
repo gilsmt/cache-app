@@ -1,21 +1,33 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Git
+.git
+.gitignore
+
+# IDE and editor
+.vscode
+.idea
+.zed
+*.swp
+*.swo
+
+# CI/CD and DevOps
+.github
+.devcontainer
+.husky
+docker-compose*.yml
+Dockerfile*
+
 # dependencies
 node_modules
 .pnp
 .pnp.js
-
-# testing
-coverage
+.bun
 
 # next.js
 .next/
 out/
 build
-
-# misc
-.DS_Store
-*.pem
 
 # debug
 npm-debug.log*
@@ -30,15 +42,28 @@ backups
 .env.test.local
 .env.production.local
 
-# vercel
-.vercel
+# Testing
+coverage
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+__tests__
+__mocks__
+jest.config.*
+vitest.config.*
 
-# docker build context size & cache bust
-.git
-.gitignore
-.husky
-.vscode
-.idea
+# Build artifacts and caches
+.vercel
 *.tsbuildinfo
 .swc
 .turbo
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+tmp
+temp
+LICENSE
+docs
