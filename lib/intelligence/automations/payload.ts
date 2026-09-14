@@ -7,6 +7,7 @@ import {
     crossOriginSafeHeaders,
     fetchPublicHop,
     isRedirectStatus,
+    readBodyText,
     resolvePublicHttpUrl,
     resolveRedirectLocation,
 } from "@/lib/common/security/fetch";
@@ -23,12 +24,6 @@ import {
     AUTOMATION_WEB_FETCH_TIMEOUT_MS,
     AUTOMATION_WEB_FETCH_TOTAL_TIMEOUT_MS,
 } from "./constants";
-
-export {
-    AutomationPayloadItemsInputSchema,
-    AutomationWebFetchInputSchema,
-    AutomationWebSearchInputSchema,
-} from "./tool-inputs";
 
 const AUTOMATION_WEB_FETCH_REDIRECT_LIMIT = 5;
 const AUTOMATION_WEB_FETCH_CAPTCHA_SCAN_BYTES = 4096;
@@ -236,7 +231,7 @@ export async function listAutomationPayloadItems(args: {
             url: item.url,
         })),
         nextCursor,
-        truncated: Boolean(nextCursor),
+        truncated: !!nextCursor,
     };
 }
 
@@ -363,9 +358,11 @@ export async function automationWebFetch(args: { url: string }) {
                 continue;
             }
 
-            const text = await response.text();
+            const body = await readBodyText(response, {
+                maxChars: AUTOMATION_WEB_FETCH_BODY_LENGTH_MAX,
+            });
 
-            if (hasCaptchaChallenge(text)) {
+            if (hasCaptchaChallenge(body.text)) {
                 return {
                     error: "URL triggered a browser challenge or CAPTCHA and could not be fetched.",
                     ok: false,
@@ -375,10 +372,10 @@ export async function automationWebFetch(args: { url: string }) {
             }
 
             return {
-                body: text.slice(0, AUTOMATION_WEB_FETCH_BODY_LENGTH_MAX),
+                body: body.text,
                 ok: response.ok,
                 status: response.status,
-                truncated: text.length > AUTOMATION_WEB_FETCH_BODY_LENGTH_MAX,
+                truncated: body.truncated,
                 url: response.url || host.url.href,
             };
         }

@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import { getRun } from "workflow/api";
 import { userHasActiveSubscription } from "@/lib/billing/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { DEFAULT_AGENT_MODEL } from "@/lib/intelligence/models";
+import type { GenerationUsage } from "@/lib/intelligence/generation";
+import { DEFAULT_MODEL_REF } from "@/lib/intelligence/providers/model-refs";
 import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
 import {
@@ -408,8 +409,9 @@ export async function pauseAutomation(args: {
                 automation: toAutomationListItem(paused),
                 workflowRunIds: inFlightRuns
                     .map((run) => run.workflowRunId)
-                    .filter((workflowRunId): workflowRunId is string =>
-                        Boolean(workflowRunId)
+                    .filter(
+                        (workflowRunId): workflowRunId is string =>
+                            !!workflowRunId
                     ),
             };
         }
@@ -508,9 +510,7 @@ export async function recoverStaleAutomationRuns(now = new Date()) {
     await cancelWorkflowRuns(
         staleRunningRuns
             .map((run) => run.workflowRunId)
-            .filter((workflowRunId): workflowRunId is string =>
-                Boolean(workflowRunId)
-            )
+            .filter((workflowRunId): workflowRunId is string => !!workflowRunId)
     );
 
     const running = await prisma.automationRun.updateMany({
@@ -577,6 +577,8 @@ export async function claimDueAutomationRuns(
 ) {
     const now = args.now ?? new Date();
     const limit = Math.min(args.limit ?? AUTOMATION_DUE_BATCH_LIMIT, 50);
+    await syncMissingPendingRunsForOverdueAutomations(now, limit);
+
     const dueRuns = await prisma.automationRun.findMany({
         orderBy: {
             scheduledForUtc: "asc",
@@ -766,7 +768,7 @@ export async function markAutomationRunRunning(args: {
     return {
         automationId: run.automationId,
         collectionId: run.collectionIdSnapshot,
-        modelId: DEFAULT_AGENT_MODEL,
+        modelId: DEFAULT_MODEL_REF,
         payloadScope: run.payloadScopeSnapshot,
         prompt: run.promptSnapshot,
         runId: run.id,
@@ -785,7 +787,7 @@ export async function finishAutomationRun(args: {
         | typeof AutomationRunStatus.succeeded
         | typeof AutomationRunStatus.failed;
     summaryMarkdown?: string;
-    usage?: Prisma.InputJsonValue;
+    usage?: GenerationUsage;
 }) {
     "use step";
 
@@ -817,7 +819,13 @@ export async function finishAutomationRun(args: {
                 sources: args.sources,
                 status: args.status,
                 summaryMarkdown: args.summaryMarkdown,
-                usage: args.usage,
+                usage: args.usage
+                    ? {
+                          inputTokens: args.usage.inputTokens,
+                          outputTokens: args.usage.outputTokens,
+                          totalTokens: args.usage.totalTokens,
+                      }
+                    : undefined,
             },
             where: {
                 id: args.runId,
@@ -1026,6 +1034,82 @@ function buildScheduleSnapshotJson(args: {
         timezone: snapshot.timezone,
         weekDay: snapshot.weekDay ?? null,
     };
+}
+
+async function syncMissingPendingRunsForOverdueAutomations(
+    now: Date,
+    limit: number
+) {
+    try {
+        const overdue = await prisma.automation.findMany({
+            include: {
+                collection: true,
+            },
+            orderBy: {
+                nextRunAtUtc: "asc",
+            },
+            take: limit,
+            where: {
+                nextRunAtUtc: {
+                    lte: now,
+                },
+                runs: {
+                    none: {
+                        status: AutomationRunStatus.pending,
+                    },
+                },
+                status: AutomationStatus.active,
+            },
+        });
+        if (overdue.length === 0) {
+            return;
+        }
+
+        const data: Prisma.AutomationRunCreateManyInput[] = [];
+        for (const automation of overdue) {
+            if (!automation.nextRunAtUtc) {
+                continue;
+            }
+            let schedule: AutomationScheduleData;
+            try {
+                schedule = getAutomationSchedule(automation);
+            } catch {
+                log.warn("Skipped overdue automation with invalid schedule", {
+                    automationId: automation.id,
+                });
+                continue;
+            }
+            data.push({
+                automationId: automation.id,
+                collectionIdSnapshot: automation.collectionId,
+                collectionNameSnapshot:
+                    automation.collection?.name ??
+                    automation.collectionNameSnapshot,
+                payloadScopeSnapshot: automation.payloadScope,
+                promptSnapshot: automation.prompt,
+                scheduledForUtc: automation.nextRunAtUtc,
+                scheduleSnapshot: buildScheduleSnapshotJson({
+                    nextRunAtUtc: automation.nextRunAtUtc,
+                    schedule,
+                }),
+                status: AutomationRunStatus.pending,
+                templateKeySnapshot: automation.templateKey,
+                userId: automation.userId,
+            });
+        }
+        if (data.length === 0) {
+            return;
+        }
+
+        await prisma.automationRun.createMany({
+            data,
+            skipDuplicates: true,
+        });
+    } catch (error) {
+        log.warn("Failed to sync overdue automation schedules", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
 }
 
 async function claimAutomationRun(args: {

@@ -4,9 +4,9 @@ import {
 } from "@/lib/collections/templates";
 import { normalizeCollectionName } from "@/lib/common/string";
 
-const MAX_RECOMMENDATIONS = 2;
+const MAX_SUGGESTIONS = 2;
 
-export function recommendCollectionTemplates(args: {
+export function suggestCollectionTemplates(args: {
     existingNameKeys: ReadonlySet<string>;
 }): CollectionTemplateOption[] {
     return TEMPLATES.filter(
@@ -14,5 +14,5 @@ export function recommendCollectionTemplates(args: {
             !args.existingNameKeys.has(
                 normalizeCollectionName(template.name).nameKey
             )
-    ).slice(0, MAX_RECOMMENDATIONS);
+    ).slice(0, MAX_SUGGESTIONS);
 }

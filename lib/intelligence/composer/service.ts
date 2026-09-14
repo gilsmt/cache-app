@@ -1,33 +1,22 @@
 import "server-only";
 
 import type { ArcjetNextRequest } from "@arcjet/next";
-import { DurableAgent } from "@workflow/ai/agent";
-import { google } from "@workflow/ai/google";
-import {
-    APICallError,
-    type LanguageModelUsage,
-    LoadAPIKeyError,
-    RetryError,
-    stepCountIs,
-    tool,
-    type UIMessageChunk,
-} from "ai";
+import { isStepCount, ToolLoopAgent, tool } from "ai";
 import * as z from "zod";
-import { serverEnv } from "@/env/server";
 import { LIBRARY_ITEM_COLLECTIONS_INCLUDE } from "@/lib/collections/utils";
 import { ITEM_KIND_FOLDER, SORT_DESC } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { isRecord } from "@/lib/common/object";
 import { truncateText } from "@/lib/common/string";
 import { parseDisplayUrl } from "@/lib/common/url";
 import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
 import { AUTOMATION_WEB_SEARCH_TIME_RANGES } from "../automations/tool-inputs";
 import { automationWebSearch } from "../automations/web-search";
-import { GenAiGenerationError } from "../error";
+import { EmptyGenerationOutputError, summarizeStepUsage } from "../classify";
+import { type GenerationUsage, runModelChain } from "../generation";
 import { normalizeGeneratedMarkdown } from "../markdown";
-import { type ModelId, resolveGenAIModels } from "../models";
 import { estimateGenAiTokens, protectGenAiRequest } from "../protection";
+import type { resolveLanguageModel } from "../providers/resolve-model";
 import {
     ASK_CACHE_DOMAIN_FILTER_COUNT_MAX,
     ASK_CACHE_DOMAIN_FILTER_MAX_LENGTH,
@@ -39,8 +28,11 @@ import {
     type AskCacheRequest,
     AskCacheToolUpdateInputSchema,
 } from "./ask-cache";
-
-process.env.GOOGLE_GENERATIVE_AI_API_KEY ??= serverEnv.GEMINI_API_KEY;
+import {
+    isNoopComposerPatch,
+    normalizeComposerPatchForContext,
+    resolveComposerPatchContradictions,
+} from "./patch";
 
 const ASK_CACHE_OUTPUT_TOKEN_LIMIT = 1200;
 const ASK_CACHE_MAX_STEPS = 12;
@@ -48,8 +40,6 @@ const ASK_CACHE_TIMEOUT_MS = 60_000;
 const ASK_CACHE_LIBRARY_SEARCH_LIMIT_MAX = 50;
 const ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX = 10_000;
 const ASK_CACHE_LIBRARY_TEXT_PREVIEW_LENGTH_MAX = 1000;
-const ASK_CACHE_PROVIDER_CONFIGURATION_ERROR_MESSAGE =
-    "Cache AI provider credentials are missing or invalid.";
 const ASK_CACHE_RUNTIME_CONTEXT_LOCALE_DEFAULT = "en-US";
 const ASK_CACHE_RUNTIME_CONTEXT_SURFACE_LABEL_BY_VALUE = {
     library_composer: "Cache library composer",
@@ -106,16 +96,7 @@ interface RunAskCacheAgentInput {
 interface RunAskCacheAgentResult {
     markdown: string;
     operations: AskCacheComposerPatch[];
-    usage?: Record<string, number>;
-}
-
-type AskCacheModelId = ModelId;
-
-class EmptyAskCacheAgentResultError extends Error {
-    constructor(model: AskCacheModelId) {
-        super(`Ask Cache model ${model} returned no text or operations.`);
-        this.name = "EmptyAskCacheAgentResultError";
-    }
+    usage?: GenerationUsage;
 }
 
 export async function runAskCacheAgent({
@@ -136,62 +117,57 @@ export async function runAskCacheAgent({
         userId,
     });
 
-    let lastError: unknown;
-
-    for (const model of resolveGenAIModels()) {
-        try {
-            return await runAskCacheAgentModel({
-                input,
-                instructions,
-                model,
-                userId,
-                userMessage,
-            });
-        } catch (error) {
-            lastError = error;
-            if (!shouldRetryAskCacheModelError(error)) {
-                break;
-            }
-
-            log.warn("Ask Cache model attempt failed", {
-                errorMessage:
-                    error instanceof Error ? error.message : String(error),
-                errorName: error instanceof Error ? error.name : undefined,
-                model,
-                userId,
-            });
-        }
+    try {
+        const result = await runModelChain(
+            {
+                defaultErrorMessage: "We couldn't ask Cache right now.",
+                feature: "ask-cache-agent",
+                logContext: { userId },
+                operation: "runAskCacheAgent",
+            },
+            (model) =>
+                runAskCacheAgentModel({
+                    input,
+                    instructions,
+                    model,
+                    userId,
+                    userMessage,
+                })
+        );
+        return {
+            markdown: result.output.markdown,
+            operations: result.output.operations,
+            usage: result.usage,
+        };
+    } catch (error) {
+        log.error("Ask Cache agent run failed", {
+            errorMessage:
+                error instanceof Error ? error.message : String(error),
+            errorName: error instanceof Error ? error.name : undefined,
+            userId,
+        });
+        throw error;
     }
-
-    const apiError = classifyAskCacheApiError(lastError);
-    log.error("Ask Cache agent run failed", {
-        errorMessage:
-            lastError instanceof Error ? lastError.message : String(lastError),
-        errorName: lastError instanceof Error ? lastError.name : undefined,
-        status: apiError.status,
-        userId,
-    });
-
-    throw new GenAiGenerationError({
-        message: apiError.message,
-        operation: "runAskCacheAgent",
-        status: apiError.status,
-    });
 }
 
 async function runAskCacheAgentModel(args: {
     input: AskCacheRequest;
     instructions: string;
-    model: AskCacheModelId;
-    userId: string;
+    model: Awaited<ReturnType<typeof resolveLanguageModel>>;
     userMessage: string;
-}): Promise<RunAskCacheAgentResult> {
+    userId: string;
+}): Promise<{
+    output: { markdown: string; operations: AskCacheComposerPatch[] };
+    usage?: GenerationUsage;
+}> {
     const operations: AskCacheComposerPatch[] = [];
     const operationSummaries: string[] = [];
-    const agent = new DurableAgent({
+
+    const agent = new ToolLoopAgent({
         instructions: args.instructions,
         maxOutputTokens: ASK_CACHE_OUTPUT_TOKEN_LIMIT,
-        model: google(args.model),
+        model: args.model,
+        stopWhen: isStepCount(ASK_CACHE_MAX_STEPS),
         tools: {
             search_library: tool({
                 description:
@@ -251,22 +227,19 @@ async function runAskCacheAgentModel(args: {
         },
     });
 
-    const result = await agent.stream({
-        maxSteps: ASK_CACHE_MAX_STEPS,
+    const result = await agent.generate({
         messages: [{ content: args.userMessage, role: "user" }],
-        stopWhen: stepCountIs(ASK_CACHE_MAX_STEPS),
         timeout: ASK_CACHE_TIMEOUT_MS,
-        writable: new WritableStream<UIMessageChunk>(),
     });
-    const markdown = getFinalStepText(result.steps, operationSummaries);
+
+    const markdown = getFinalMarkdown(result.steps, operationSummaries);
     if (!markdown) {
-        throw new EmptyAskCacheAgentResultError(args.model);
+        throw new EmptyGenerationOutputError();
     }
 
     return {
-        markdown,
-        operations,
-        usage: normalizeStepUsage(result.steps),
+        output: { markdown, operations },
+        usage: summarizeStepUsage(result.steps),
     };
 }
 
@@ -528,288 +501,32 @@ function buildAskCacheUserMessage(input: AskCacheRequest): string {
     ].join("\n");
 }
 
-function normalizeComposerPatchForContext(
-    patch: AskCacheComposerPatch,
-    request: AskCacheRequest
-): AskCacheComposerPatch {
-    const collectionIds = new Set(
-        request.visibleContext.availableCollections.map(
-            (collection) => collection.id
-        )
-    );
-    const domains = new Set(
-        request.visibleContext.availableDomains.map((entry) => entry.domain)
-    );
-
-    return {
-        ...patch,
-        ...(patch.domainFilters === undefined
-            ? {}
-            : {
-                  domainFilters: patch.domainFilters.filter((domain) =>
-                      domains.has(domain)
-                  ),
-              }),
-        ...(patch.selectedCollectionIds === undefined
-            ? {}
-            : {
-                  selectedCollectionIds: patch.selectedCollectionIds.filter(
-                      (collectionId) => collectionIds.has(collectionId)
-                  ),
-              }),
-    };
-}
-
-function arraysEqual(left: string[], right: string[]): boolean {
-    if (left.length !== right.length) {
-        return false;
-    }
-    const sortedLeft = left.toSorted((a, b) => a.localeCompare(b));
-    const sortedRight = right.toSorted((a, b) => a.localeCompare(b));
-    for (let i = 0; i < sortedLeft.length; i += 1) {
-        if (sortedLeft[i] !== sortedRight[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
 /**
- * Resolves mutually exclusive collection filters so a valid patch never
- * yields an empty result set. Prefer the field the model set explicitly:
- * `not-in-collections` clears selections; selecting collections resets
- * membership to `all`. Also heals latent contradictory state left by older
- * patches so a partial update (e.g. searchTerms only) does not keep zero results.
+ * Recovers the final markdown from an agent run: the last non-empty step,
+ * then aggregated step text, then operation summaries. Each candidate is
+ * normalized before acceptance because providers occasionally wrap the
+ * response in a JSON envelope.
  */
-function resolveComposerPatchContradictions(
-    patch: AskCacheComposerPatch,
-    state: AskCacheRequest["composerState"]
-): AskCacheComposerPatch {
-    if (patch.reset) {
-        return patch;
-    }
-
-    const resultingMembership =
-        patch.collectionMembershipFilter ?? state.collectionMembershipFilter;
-    const resultingSelectedCollectionIds =
-        patch.selectedCollectionIds ?? state.selectedCollectionIds;
-
-    if (
-        resultingMembership !== "not-in-collections" ||
-        resultingSelectedCollectionIds.length === 0
-    ) {
-        return patch;
-    }
-
-    if (patch.collectionMembershipFilter === "not-in-collections") {
-        return { ...patch, selectedCollectionIds: [] };
-    }
-
-    if (
-        patch.selectedCollectionIds !== undefined &&
-        patch.selectedCollectionIds.length > 0
-    ) {
-        return { ...patch, collectionMembershipFilter: "all" };
-    }
-
-    return { ...patch, selectedCollectionIds: [] };
-}
-
-function isNoopComposerPatch(
-    patch: AskCacheComposerPatch,
-    state: AskCacheRequest["composerState"]
-): boolean {
-    if (patch.reset) {
-        return false;
-    }
-
-    const checks: Array<() => boolean> = [
-        () =>
-            patch.collectionMembershipFilter !== undefined &&
-            patch.collectionMembershipFilter !==
-                state.collectionMembershipFilter,
-        () =>
-            patch.columnCountMode !== undefined &&
-            patch.columnCountMode !== state.columnCountMode,
-        () =>
-            patch.domainFilters !== undefined &&
-            !arraysEqual(patch.domainFilters, state.domainFilters),
-        () => patch.groupBy !== undefined && patch.groupBy !== state.groupBy,
-        () =>
-            patch.searchTerms !== undefined &&
-            !arraysEqual(patch.searchTerms, state.searchTerms),
-        () => patch.sortMode !== undefined && patch.sortMode !== state.sortMode,
-        () =>
-            patch.sourceFilters !== undefined &&
-            !arraysEqual(patch.sourceFilters, state.sourceFilters),
-        () =>
-            patch.selectedCollectionIds !== undefined &&
-            !arraysEqual(
-                patch.selectedCollectionIds,
-                state.selectedCollectionIds
-            ),
-    ];
-
-    return !checks.some((check) => check());
-}
-
-function getFinalStepText(
-    steps: Array<{ text?: string }>,
+function getFinalMarkdown(
+    steps: Array<{ text: string }>,
     operationSummaries: string[]
 ): string | null {
-    const lastText = steps.findLast((step) => step.text?.trim())?.text;
-    if (lastText) {
-        const normalized = normalizeGeneratedMarkdown(lastText);
+    const lastStepText = steps.findLast((step) => step.text.trim())?.text;
+    const aggregatedStepText = steps
+        .map((step) => step.text.trim())
+        .filter((text) => text.length > 0)
+        .join("\n");
+    const summaryText =
+        operationSummaries.length > 0
+            ? operationSummaries.join("\n")
+            : undefined;
+
+    for (const candidate of [lastStepText, aggregatedStepText, summaryText]) {
+        const normalized = normalizeGeneratedMarkdown(candidate);
         if (normalized) {
             return normalized;
         }
     }
 
-    const allTexts = steps
-        .map((step) => step.text?.trim())
-        .filter((text): text is string => text !== undefined)
-        .join("\n");
-    const aggregated = normalizeGeneratedMarkdown(allTexts);
-    if (aggregated) {
-        return aggregated;
-    }
-
-    if (operationSummaries.length > 0) {
-        const fallback = normalizeGeneratedMarkdown(
-            operationSummaries.join("\n")
-        );
-        if (fallback) {
-            return fallback;
-        }
-    }
-
     return null;
-}
-
-function normalizeStepUsage(
-    steps: Array<{ usage?: LanguageModelUsage }>
-): Record<string, number> | undefined {
-    if (steps.length === 0) {
-        return;
-    }
-
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let totalTokens = 0;
-    for (const step of steps) {
-        inputTokens += step.usage?.inputTokens ?? 0;
-        outputTokens += step.usage?.outputTokens ?? 0;
-        totalTokens += step.usage?.totalTokens ?? 0;
-    }
-
-    return { inputTokens, outputTokens, totalTokens };
-}
-
-function shouldRetryAskCacheModelError(error: unknown): boolean {
-    if (error instanceof EmptyAskCacheAgentResultError) {
-        return true;
-    }
-
-    const providerError = unwrapAskCacheProviderError(error);
-    if (!APICallError.isInstance(providerError)) {
-        return false;
-    }
-
-    return providerError.statusCode !== 429;
-}
-
-function classifyAskCacheApiError(error: unknown): {
-    message: string;
-    status: number;
-} {
-    const providerError = unwrapAskCacheProviderError(error);
-    if (LoadAPIKeyError.isInstance(providerError)) {
-        return {
-            message: ASK_CACHE_PROVIDER_CONFIGURATION_ERROR_MESSAGE,
-            status: 500,
-        };
-    }
-
-    if (APICallError.isInstance(providerError)) {
-        if (isProviderCredentialError(providerError)) {
-            return {
-                message: ASK_CACHE_PROVIDER_CONFIGURATION_ERROR_MESSAGE,
-                status: 500,
-            };
-        }
-
-        if (providerError.statusCode === 429) {
-            return {
-                message: "AI service quota exceeded. Please try again later.",
-                status: 429,
-            };
-        }
-
-        if (
-            providerError.statusCode === 408 ||
-            providerError.message.toLowerCase().includes("timeout")
-        ) {
-            return {
-                message: "Request timed out. Please try again.",
-                status: 408,
-            };
-        }
-
-        if (
-            providerError.statusCode !== undefined &&
-            providerError.statusCode >= 500
-        ) {
-            return {
-                message: "AI service temporarily unavailable.",
-                status: 502,
-            };
-        }
-    }
-
-    if (error instanceof Error) {
-        const message = error.message.toLowerCase();
-        if (message.includes("timeout") || message.includes("abort")) {
-            return {
-                message: "Request timed out. Please try again.",
-                status: 408,
-            };
-        }
-    }
-
-    return {
-        message: "We couldn't ask Cache right now.",
-        status: 500,
-    };
-}
-
-function unwrapAskCacheProviderError(error: unknown): unknown {
-    if (RetryError.isInstance(error)) {
-        return unwrapAskCacheProviderError(error.lastError);
-    }
-
-    if (!isRecord(error)) {
-        return error;
-    }
-
-    const { cause } = error;
-    if (cause) {
-        return unwrapAskCacheProviderError(cause);
-    }
-
-    return error;
-}
-
-function isProviderCredentialError(error: APICallError): boolean {
-    const message = error.message.toLowerCase();
-    return (
-        error.statusCode === 401 ||
-        error.statusCode === 403 ||
-        (error.statusCode === 400 &&
-            (message.includes("api key") ||
-                message.includes("apikey") ||
-                message.includes("credential"))) ||
-        message.includes("unauthenticated") ||
-        message.includes("authentication") ||
-        message.includes("permission denied")
-    );
 }

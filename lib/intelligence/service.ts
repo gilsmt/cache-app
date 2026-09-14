@@ -1,15 +1,17 @@
 import "server-only";
 
 import type { ArcjetNextRequest } from "@arcjet/next";
-import { ApiError } from "@google/genai";
 import { cacheLife } from "next/cache";
-import { createLogger } from "@/lib/common/logs/console/logger";
+import * as z from "zod";
 import {
-    generateCollectionDescription as generateCollectionDescriptionText,
-    generateExpandedSectionDescription,
-    generateSectionDescription,
-} from ".";
-import { GenAiGenerationError, GenAiProtectionError } from "./error";
+    type CollectionTemplateOption,
+    TEMPLATES,
+} from "@/lib/collections/templates";
+import { createLogger } from "@/lib/common/logs/console/logger";
+import { normalizeCollectionName } from "@/lib/common/string";
+import { prisma } from "@/prisma";
+import { suggestCollectionTemplates } from "./collections/suggestions";
+import { generateStructured } from "./generation";
 import {
     buildCollectionDescriptionPrompt,
     buildExpandedSummaryPrompt,
@@ -26,7 +28,16 @@ import { estimateGenAiTokens, protectGenAiRequest } from "./protection";
 
 const log = createLogger("intelligence:service");
 
-const OUTPUT_TOKEN_LIMIT = 96;
+const SECTION_OUTPUT_TOKEN_LIMIT = 96;
+const SECTION_TIMEOUT_MS = 30_000;
+const EXPANDED_SECTION_TIMEOUT_MS = 45_000;
+
+const SectionSummaryOutputSchema = z.object({
+    summary: z.string(),
+});
+const CollectionDescriptionOutputSchema = z.object({
+    description: z.string(),
+});
 
 export interface GenerateCollectionSummaryInput {
     expanded?: boolean;
@@ -51,11 +62,9 @@ export interface GenerateCollectionDescriptionResult {
 }
 
 /**
- * Generates a short overview for a collection section.
- *
- * Handles prompt building, token estimation, rate-limiting, AI generation,
- * and output normalization. Throws domain errors on failure so callers can
- * map to their own transport semantics.
+ * Generates a short overview for a collection section, or an expanded
+ * markdown overview. Normalization failure degrades to the fallback text;
+ * provider and protection failures propagate as named errors.
  */
 export async function generateCollectionSummary(
     input: GenerateCollectionSummaryInput
@@ -66,64 +75,66 @@ export async function generateCollectionSummary(
         items,
         sectionTitle,
     });
-
-    if (expanded) {
-        const summary = await executeGeneration({
-            debugLogLabel: "expanded section description",
-            errorLogLabel: "expanded library section description",
-            feature: "section_description_expanded",
-            generate: (args) =>
-                generateCachedExpandedSectionDescription({
-                    prompt: args.prompt,
-                    userId,
-                }),
-            input,
-            logContext: {
-                itemCount: items.length,
-                sectionTitle,
-                truncatedItemCount: truncatedRequest.items.length,
-            },
-            normalize: normalizeExpandedSummary,
-            operation: "generateCollectionSummary",
-            prompt: buildExpandedSummaryPrompt(truncatedRequest),
-            spanName: "generate-expanded-section-description",
-            tokenLimit: SECTION_DESCRIPTION_EXPANDED_OUTPUT_TOKEN_LIMIT,
-            warnLogLabel: "Expanded section description",
-        });
-
-        return {
-            summary: summary ?? SECTION_DESCRIPTION_FALLBACK_TEXT,
-        };
+    if (truncatedRequest.items.length === 0) {
+        return { summary: SECTION_DESCRIPTION_FALLBACK_TEXT };
     }
 
-    const summary = await executeGeneration({
-        debugLogLabel: "section description",
-        errorLogLabel: "library section description",
-        feature: "section_description",
-        generate: (args) =>
-            generateCachedSectionDescription({
-                prompt: args.prompt,
-                userId,
-            }),
-        input,
-        logContext: {
-            itemCount: items.length,
-            sectionTitle,
-            truncatedItemCount: truncatedRequest.items.length,
-        },
-        normalize: normalizeSummary,
-        operation: "generateCollectionSummary",
-        prompt: buildOverviewPrompt(truncatedRequest),
-        spanName: "generate-section-description",
-        tokenLimit: OUTPUT_TOKEN_LIMIT,
-        warnLogLabel: "Section description",
-    });
-
-    return {
-        summary: summary ?? SECTION_DESCRIPTION_FALLBACK_TEXT,
+    const logContext = {
+        itemCount: items.length,
+        sectionTitle,
+        truncatedItemCount: truncatedRequest.items.length,
+        userId,
     };
+    const span = log.time(
+        expanded
+            ? "generate-expanded-section-description"
+            : "generate-section-description",
+        logContext
+    );
+
+    try {
+        const prompt = expanded
+            ? buildExpandedSummaryPrompt(truncatedRequest)
+            : buildOverviewPrompt(truncatedRequest);
+
+        await protectGenAiRequest({
+            feature: expanded
+                ? "section_description_expanded"
+                : "section_description",
+            request: input.request,
+            requestedTokens: estimateGenAiTokens(
+                prompt,
+                expanded
+                    ? SECTION_DESCRIPTION_EXPANDED_OUTPUT_TOKEN_LIMIT
+                    : SECTION_OUTPUT_TOKEN_LIMIT
+            ),
+            userId,
+        });
+
+        const normalized = expanded
+            ? normalizeExpandedSummary(
+                  await generateCachedExpandedSummary({ prompt, userId })
+              )
+            : normalizeSummary(await generateCachedSummary({ prompt, userId }));
+        if (!normalized) {
+            log.warn("Section summary normalization rejected model output", {
+                ...logContext,
+                feature: expanded ? "expanded" : "standard",
+            });
+        }
+
+        return {
+            summary: normalized ?? SECTION_DESCRIPTION_FALLBACK_TEXT,
+        };
+    } finally {
+        span.stop();
+    }
 }
 
+/**
+ * Generates a one-sentence description for a collection title. Returns an
+ * empty description when the title is empty or the output normalizes to null.
+ */
 export async function generateCollectionDescription(
     input: GenerateCollectionDescriptionInput
 ): Promise<GenerateCollectionDescriptionResult> {
@@ -134,234 +145,130 @@ export async function generateCollectionDescription(
         return { description: "" };
     }
 
-    const description = await executeGeneration({
-        debugLogLabel: "collection description",
-        errorLogLabel: "collection description",
-        feature: "collection_description",
-        generate: (args) =>
-            generateCachedCollectionDescription({
-                prompt: args.prompt,
-                userId: input.userId,
-            }),
-        input,
-        logContext: { collectionTitle },
-        normalize: normalizeSummary,
-        operation: "generateCollectionDescription",
-        prompt: buildCollectionDescriptionPrompt({ title: collectionTitle }),
-        spanName: "generate-collection-description",
-        tokenLimit: OUTPUT_TOKEN_LIMIT,
-        warnLogLabel: "Collection description",
-    });
-
-    return {
-        description: description ?? "",
+    const logContext = {
+        collectionTitle,
+        userId: input.userId,
     };
-}
-
-// ---------------------------------------------------------------------------
-// Private helpers
-// ---------------------------------------------------------------------------
-
-interface GenerationConfig<T> {
-    debugLogLabel: string;
-    errorLogLabel: string;
-    feature: string;
-    generate: (args: { prompt: string }) => Promise<string | undefined>;
-    input: {
-        request: ArcjetNextRequest;
-        userId: string;
-    };
-    logContext: Record<string, unknown>;
-    normalize: (raw: string | undefined) => T | null;
-    operation: string;
-    prompt: string;
-    spanName: string;
-    tokenLimit: number;
-    warnLogLabel: string;
-}
-
-async function generateCachedSectionDescription(args: {
-    prompt: string;
-    userId: string;
-}): Promise<string | undefined> {
-    "use cache";
-    cacheLife("minutes");
-
-    const result = await generateSectionDescription({ prompt: args.prompt });
-    return result.rawSummary;
-}
-
-async function generateCachedExpandedSectionDescription(args: {
-    prompt: string;
-    userId: string;
-}): Promise<string | undefined> {
-    "use cache";
-    cacheLife("minutes");
-
-    const result = await generateExpandedSectionDescription({
-        prompt: args.prompt,
-    });
-    return result.rawSummary;
-}
-
-async function generateCachedCollectionDescription(args: {
-    prompt: string;
-    userId: string;
-}): Promise<string | undefined> {
-    "use cache";
-    cacheLife("minutes");
-
-    const result = await generateCollectionDescriptionText({
-        prompt: args.prompt,
-    });
-    return result.rawDescription;
-}
-
-/**
- * Executes a single protected generation pipeline.
- *
- * Builds the prompt, estimates tokens, enforces rate limits, calls the
- * model, normalizes output, and maps errors to domain failures.
- */
-async function executeGeneration<T>(
-    config: GenerationConfig<T>
-): Promise<T | null> {
-    const {
-        debugLogLabel,
-        errorLogLabel,
-        feature,
-        generate,
-        input,
-        logContext,
-        normalize,
-        operation,
-        prompt,
-        spanName,
-        tokenLimit,
-        warnLogLabel,
-    } = config;
-    const { request, userId } = input;
-    const requestedTokens = estimateGenAiTokens(prompt, tokenLimit);
-
-    log.debug(`Generating ${debugLogLabel}`, {
-        estimatedTokens: requestedTokens,
-        ...logContext,
-        userId,
-    });
-
-    const span = log.time(spanName, {
-        ...logContext,
-        userId,
-    });
+    const span = log.time("generate-collection-description", logContext);
 
     try {
-        await protectGenAiRequest({
-            feature,
-            request,
-            requestedTokens,
-            userId,
+        const prompt = buildCollectionDescriptionPrompt({
+            title: collectionTitle,
         });
 
-        const generatedContent = await generate({ prompt });
-        const normalized = normalize(generatedContent);
+        await protectGenAiRequest({
+            feature: "collection_description",
+            request: input.request,
+            requestedTokens: estimateGenAiTokens(
+                prompt,
+                SECTION_OUTPUT_TOKEN_LIMIT
+            ),
+            userId: input.userId,
+        });
+
+        const normalized = normalizeSummary(
+            await generateCachedDescription({ prompt, userId: input.userId })
+        );
 
         if (!normalized) {
-            log.warn(`${warnLogLabel} normalization rejected model output`, {
-                ...logContext,
-                raw: generatedContent,
-                userId,
-            });
+            log.warn(
+                "Collection description normalization rejected model output",
+                logContext
+            );
         }
 
-        return normalized;
-    } catch (error) {
-        if (GenAiProtectionError.isInstance(error)) {
-            throw error;
-        }
-
-        log.error(`Error generating ${errorLogLabel}`, {
-            errorMessage:
-                error instanceof Error ? error.message : String(error),
-            errorName: error instanceof Error ? error.name : undefined,
-        });
-
-        const { message, status } = classifyApiError(error);
-
-        log.warn(`Failed to generate ${errorLogLabel}`, {
-            error: message,
-            ...logContext,
-            status,
-            userId,
-        });
-
-        throw new GenAiGenerationError(
-            {
-                message,
-                operation,
-                status,
-            },
-            { cause: error }
-        );
+        return { description: normalized ?? "" };
     } finally {
         span.stop();
     }
 }
 
-/**
- * Classifies API errors into specific HTTP status codes and messages.
- *
- * Distinguishes timeouts, quota issues, safety blocks, and upstream failures
- * so the caller can react appropriately.
- */
-function classifyApiError(error: unknown): { message: string; status: number } {
-    if (error instanceof ApiError) {
-        const message = error.message.toLowerCase();
+export async function getCollectionSuggestions(args: {
+    userId: string;
+}): Promise<CollectionTemplateOption[]> {
+    const templateNameKeys = TEMPLATES.map(
+        (template) => normalizeCollectionName(template.name).nameKey
+    );
 
-        if (message.includes("timeout") || message.includes("deadline")) {
-            return {
-                message: "Request timed out. Please try again.",
-                status: 408,
-            };
-        }
-        if (
-            error.status === 429 ||
-            message.includes("quota") ||
-            message.includes("rate limit")
-        ) {
-            return {
-                message: "AI service quota exceeded. Please try again later.",
-                status: 429,
-            };
-        }
-        if (
-            error.status === 400 &&
-            (message.includes("safety") || message.includes("content"))
-        ) {
-            return {
-                message:
-                    "Content could not be processed due to safety settings.",
-                status: 400,
-            };
-        }
-        if (error.status >= 500) {
-            return {
-                message: "AI service temporarily unavailable.",
-                status: 502,
-            };
-        }
+    const existingCollections = await prisma.collection.findMany({
+        select: {
+            nameKey: true,
+        },
+        where: {
+            nameKey: { in: templateNameKeys },
+            userId: args.userId,
+        },
+    });
 
-        return { message: error.message, status: error.status ?? 500 };
-    }
+    const existingNameKeys = new Set(
+        existingCollections.map((collection) => collection.nameKey)
+    );
 
-    if (error instanceof Error) {
-        const message = error.message.toLowerCase();
-        if (message.includes("timeout") || message.includes("abort")) {
-            return {
-                message: "Request timed out. Please try again.",
-                status: 408,
-            };
-        }
-    }
+    return suggestCollectionTemplates({
+        existingNameKeys,
+    });
+}
 
-    return { message: "Unknown error", status: 500 };
+// ---------------------------------------------------------------------------
+// Cached generation
+// ---------------------------------------------------------------------------
+
+async function generateCachedSummary(args: {
+    prompt: string;
+    userId: string;
+}): Promise<string | undefined> {
+    "use cache";
+    cacheLife("minutes");
+    const { prompt } = args;
+
+    const result = await generateStructured({
+        feature: "section_description",
+        maxOutputTokens: SECTION_OUTPUT_TOKEN_LIMIT,
+        operation: "generateSectionSummary",
+        prompt,
+        schema: SectionSummaryOutputSchema,
+        system: "You write one-sentence UI summaries. Return plain text only, with no preamble. Never mention item counts or platform names, and avoid stock lead-ins.",
+        timeoutMs: SECTION_TIMEOUT_MS,
+    });
+    return result.output.summary;
+}
+
+async function generateCachedExpandedSummary(args: {
+    prompt: string;
+    userId: string;
+}): Promise<string | undefined> {
+    "use cache";
+    cacheLife("minutes");
+    const { prompt } = args;
+
+    const result = await generateStructured({
+        feature: "section_description_expanded",
+        maxOutputTokens: SECTION_DESCRIPTION_EXPANDED_OUTPUT_TOKEN_LIMIT,
+        operation: "generateExpandedSectionSummary",
+        prompt,
+        schema: SectionSummaryOutputSchema,
+        system: "You write reliable at-a-glance markdown overviews. Return a summary markdown string starting with one concise overview sentence, followed by 3-6 useful bullet takeaways when supported. No preamble, no commentary, no headings, no item counts, and no platform names.",
+        timeoutMs: EXPANDED_SECTION_TIMEOUT_MS,
+    });
+    return result.output.summary;
+}
+
+async function generateCachedDescription(args: {
+    prompt: string;
+    userId: string;
+}): Promise<string | undefined> {
+    "use cache";
+    cacheLife("minutes");
+    const { prompt } = args;
+
+    const result = await generateStructured({
+        feature: "collection_description",
+        maxOutputTokens: SECTION_OUTPUT_TOKEN_LIMIT,
+        operation: "generateCollectionDescription",
+        prompt,
+        schema: CollectionDescriptionOutputSchema,
+        system: "You write concise collection descriptions. Return plain text only, with no preamble. Never mention counts or platform names, and avoid stock lead-ins.",
+        timeoutMs: SECTION_TIMEOUT_MS,
+    });
+    return result.output.description;
 }

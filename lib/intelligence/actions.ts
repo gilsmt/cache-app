@@ -3,12 +3,8 @@
 import { request as getArcjetRequest } from "@arcjet/next";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 import type { CollectionTemplateOption } from "@/lib/collections/templates";
-import { TEMPLATES } from "@/lib/collections/templates";
 import { getValidationErrorMessage } from "@/lib/common/action";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { normalizeCollectionName } from "@/lib/common/string";
-import { recommendCollectionTemplates } from "@/lib/intelligence/recommendations";
-import { prisma } from "@/prisma";
 import {
     type AskCacheRequest,
     AskCacheRequestSchema,
@@ -26,6 +22,7 @@ import {
 import {
     generateCollectionDescription,
     generateCollectionSummary,
+    getCollectionSuggestions as getCollectionSuggestionsService,
 } from "./service";
 
 const log = createLogger("intelligence:actions");
@@ -96,30 +93,11 @@ export async function getSectionDescription(
             summary: result.summary,
         };
     } catch (error) {
-        if (GenAiProtectionError.isInstance(error)) {
-            return {
-                message: error.data.message,
-                status:
-                    error.data.reason === "quota_exceeded"
-                        ? "QUOTA_EXCEEDED"
-                        : "FORBIDDEN",
-            };
-        }
-
-        if (GenAiGenerationError.isInstance(error)) {
-            return {
-                message: error.data.message,
-                status: "ERROR",
-                summary: SECTION_DESCRIPTION_FALLBACK_TEXT,
-            };
-        }
-
-        log.error("Failed to generate library overview", error);
-        return {
-            message: "We couldn't generate this overview right now.",
-            status: "ERROR",
-            summary: SECTION_DESCRIPTION_FALLBACK_TEXT,
-        };
+        return mapGenerationFailure(error, {
+            fallbackMessage: "We couldn't generate this overview right now.",
+            logLabel: "generate library overview",
+            summaryFallback: SECTION_DESCRIPTION_FALLBACK_TEXT,
+        });
     }
 }
 
@@ -165,28 +143,11 @@ export async function getCollectionDescription(
             status: "SUCCESS",
         };
     } catch (error) {
-        if (GenAiProtectionError.isInstance(error)) {
-            return {
-                message: error.data.message,
-                status:
-                    error.data.reason === "quota_exceeded"
-                        ? "QUOTA_EXCEEDED"
-                        : "FORBIDDEN",
-            };
-        }
-
-        if (GenAiGenerationError.isInstance(error)) {
-            return {
-                message: error.data.message,
-                status: "ERROR",
-            };
-        }
-
-        log.error("Failed to generate collection description", error);
-        return {
-            message: "We couldn't generate a collection description right now.",
-            status: "ERROR",
-        };
+        return mapGenerationFailure(error, {
+            fallbackMessage:
+                "We couldn't generate a collection description right now.",
+            logLabel: "generate collection description",
+        });
     }
 }
 
@@ -222,38 +183,24 @@ export async function askCache(
             status: "SUCCESS",
         };
     } catch (error) {
-        if (GenAiProtectionError.isInstance(error)) {
-            return {
-                message: error.data.message,
-                status:
-                    error.data.reason === "quota_exceeded"
-                        ? "QUOTA_EXCEEDED"
-                        : "FORBIDDEN",
-            };
-        }
+        const failure = mapGenerationFailure(error, {
+            fallbackMessage: "We couldn't ask Cache right now.",
+            logLabel: "ask Cache",
+        });
 
-        if (GenAiGenerationError.isInstance(error)) {
-            return {
-                markdown:
-                    "Ask Cache could not complete that request. Please try again.",
-                message: error.data.message,
-                status: "ERROR",
-            };
-        }
-
-        log.error("Failed to ask Cache", error);
-        return {
-            markdown:
-                "Ask Cache could not complete that request. Please try again.",
-            message: "We couldn't ask Cache right now.",
-            status: "ERROR",
-        };
+        return failure.status === "ERROR"
+            ? {
+                  markdown:
+                      "Ask Cache could not complete that request. Please try again.",
+                  ...failure,
+              }
+            : failure;
     }
 }
 
-export type CollectionRecommendationsResult =
+export type CollectionSuggestionsResult =
     | {
-          recommendations: CollectionTemplateOption[];
+          suggestions: CollectionTemplateOption[];
           status: "SUCCESS";
       }
     | {
@@ -261,49 +208,81 @@ export type CollectionRecommendationsResult =
           status: "ERROR" | "INVALID" | "UNAUTHORIZED";
       };
 
-const RECOMMENDATIONS_ERROR_MESSAGE =
-    "We couldn't load collection recommendations right now.";
+const SUGGESTIONS_ERROR_MESSAGE =
+    "We couldn't load collection suggestions right now.";
 
-export async function getCollectionRecommendations(): Promise<CollectionRecommendationsResult> {
+export async function getCollectionSuggestions(): Promise<CollectionSuggestionsResult> {
     const auth = await requireActionUserId(
-        "Sign in again to view collection recommendations."
+        "Sign in again to view collection suggestions."
     );
     if (isUnauthenticated(auth)) {
         return auth;
     }
 
     try {
-        const templateNameKeys = TEMPLATES.map(
-            (template) => normalizeCollectionName(template.name).nameKey
-        );
-
-        const existingCollections = await prisma.collection.findMany({
-            select: {
-                nameKey: true,
-            },
-            where: {
-                nameKey: { in: templateNameKeys },
-                userId: auth.userId,
-            },
-        });
-
-        const existingNameKeys = new Set(
-            existingCollections.map((collection) => collection.nameKey)
-        );
-
-        const recommendations = recommendCollectionTemplates({
-            existingNameKeys,
+        const suggestions = await getCollectionSuggestionsService({
+            userId: auth.userId,
         });
 
         return {
-            recommendations,
             status: "SUCCESS",
+            suggestions,
         };
     } catch (error) {
-        log.error("Failed to fetch collection recommendations", { error });
+        log.error("Failed to fetch collection suggestions", { error });
         return {
-            message: RECOMMENDATIONS_ERROR_MESSAGE,
+            message: SUGGESTIONS_ERROR_MESSAGE,
             status: "ERROR",
         };
     }
+}
+
+interface GenerationFailure {
+    message: string;
+    status: "ERROR" | "FORBIDDEN" | "QUOTA_EXCEEDED";
+    summary?: string;
+}
+
+/**
+ * Maps generation pipeline failures to action result payloads. Protection
+ * denials map to quota or forbidden statuses with the protection message;
+ * generation errors carry the classified message; unknown failures log and
+ * fall back to generic copy.
+ */
+function mapGenerationFailure(
+    error: unknown,
+    args: {
+        fallbackMessage: string;
+        logLabel: string;
+        summaryFallback?: string;
+    }
+): GenerationFailure {
+    if (GenAiProtectionError.isInstance(error)) {
+        return {
+            message: error.data.message,
+            status:
+                error.data.reason === "quota_exceeded"
+                    ? "QUOTA_EXCEEDED"
+                    : "FORBIDDEN",
+        };
+    }
+
+    if (GenAiGenerationError.isInstance(error)) {
+        return {
+            message: error.data.message,
+            status: "ERROR",
+            ...(args.summaryFallback === undefined
+                ? {}
+                : { summary: args.summaryFallback }),
+        };
+    }
+
+    log.error(`Failed to ${args.logLabel}`, error);
+    return {
+        message: args.fallbackMessage,
+        status: "ERROR",
+        ...(args.summaryFallback === undefined
+            ? {}
+            : { summary: args.summaryFallback }),
+    };
 }

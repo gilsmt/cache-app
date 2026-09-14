@@ -9,9 +9,10 @@ import type { AutomationWebSearchTimeRange } from "./tool-inputs";
 const TAVILY_TIMEOUT_MS = 15_000;
 const TAVILY_RESULT_COUNT_MAX = 5;
 const TAVILY_MANUAL_EXECUTION_OPTIONS = {
+    context: undefined,
     messages: [],
     toolCallId: "automation-web-search",
-} satisfies ToolExecutionOptions;
+} satisfies ToolExecutionOptions<unknown>;
 
 const TavilySearchPayloadSchema = z.object({
     answer: z.string().optional(),

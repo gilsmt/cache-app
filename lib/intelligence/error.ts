@@ -22,3 +22,11 @@ export const GenAiGenerationError = NamedError.create(
         status: z.number().optional(),
     })
 );
+
+export const GenAiConfigurationError = NamedError.create(
+    "GenAiConfigurationError",
+    z.object({
+        message: z.string(),
+        operation: z.string(),
+    })
+);

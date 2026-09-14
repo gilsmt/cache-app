@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { isHttpUrl } from "@/lib/common/url";
 import { AUTOMATION_ITEM_PAGE_LIMIT_MAX } from "./constants";
 
 export const AUTOMATION_WEB_SEARCH_TIME_RANGES = [
@@ -21,7 +22,15 @@ export const AutomationPayloadItemsInputSchema = z.object({
 });
 
 export const AutomationWebFetchInputSchema = z.object({
-    url: z.url({ protocol: /^https?$/ }),
+    // z.url() fails at WorkflowAgent tool schema compilation with unknown format "uri".
+    // Use a plain string with a runtime check instead.
+    url: z
+        .string()
+        .trim()
+        .min(1)
+        .max(4096)
+        .refine(isHttpUrl, { error: "URL must be an http(s) URL." })
+        .describe("Absolute http(s) URL, e.g. https://example.com/article."),
 });
 
 export const AutomationWebSearchInputSchema = z.object({
