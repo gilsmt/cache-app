@@ -13,7 +13,6 @@ import {
     Megaphone,
     UserRoundPlus,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -24,10 +23,12 @@ import { LogOutDialogTrigger } from "@/components/auth/logout-dialog-trigger";
 import { WithUserSessionOnly } from "@/components/auth/session";
 import {
     SubscribedOnly,
-    SubscriptionBillingPortalButton,
+    SubscriptionErrorMessage,
+    SubscriptionLoadingOnly,
     SubscriptionStatusBadge,
-    SubscriptionUpgradeButton,
     UnsubscribedOnly,
+    useSubscriptionBillingPortalAction,
+    useSubscriptionUpgradeAction,
 } from "@/components/billing/subscription";
 import { FeedbackWidget } from "@/components/support/feedback-widget";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -63,7 +64,6 @@ import {
     getDesktopReleasesPageUrl,
     getStaticDesktopDownloads,
 } from "@/lib/desktop/releases";
-import AppIconSmall from "@/public/cache-icon-small.png";
 
 const FOOTER_LINKS = [
     { href: "/legal/privacy-policy", label: "Privacy" },
@@ -384,95 +384,18 @@ export function UserMenuContent() {
             </MenuGroup>
             <MenuSeparator />
             <MenuGroup>
+                <SubscriptionLoadingOnly>
+                    <MenuItem disabled>
+                        <Skeleton className="h-5 w-24" />
+                        <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground/50" />
+                    </MenuItem>
+                </SubscriptionLoadingOnly>
                 <SubscribedOnly>
-                    <SubscriptionBillingPortalButton
-                        className="w-full justify-start font-normal"
-                        nativeButton={false}
-                        render={<MenuItem closeOnClick={false} />}
-                    >
-                        <T>Billing</T>
-                        <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground" />
-                    </SubscriptionBillingPortalButton>
+                    <UserMenuBillingItem />
                 </SubscribedOnly>
                 <UnsubscribedOnly>
-                    <SubscriptionUpgradeButton
-                        className="w-full justify-start font-normal *:w-full"
-                        nativeButton={false}
-                        render={<MenuItem closeOnClick={false} />}
-                    >
-                        <T>Upgrade to Pro</T>
-                        <div className="ml-auto inline-flex flex-1 items-center justify-end gap-1">
-                            <Image
-                                alt=""
-                                height={12}
-                                src={AppIconSmall}
-                                width={12}
-                            />
-                            <ArrowUpRight className="inline-block size-4 text-muted-foreground" />
-                        </div>
-                    </SubscriptionUpgradeButton>
+                    <UserMenuUpgradeItem />
                 </UnsubscribedOnly>
-                <MenuSub>
-                    <MenuSubTrigger>
-                        <T>Resources</T>
-                    </MenuSubTrigger>
-                    <MenuSubPopup>
-                        <MenuItem
-                            className="justify-between"
-                            render={
-                                <Link
-                                    href="/changelog"
-                                    prefetch={false}
-                                    rel="noopener noreferrer"
-                                    target="_blank"
-                                />
-                            }
-                        >
-                            <T>Changelog</T>
-                            <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground" />
-                        </MenuItem>
-                        <MenuItem
-                            className="justify-between"
-                            render={
-                                <Link
-                                    href="https://docs.cachd.app/docs/privacy"
-                                    rel="noopener noreferrer"
-                                    target="_blank"
-                                />
-                            }
-                        >
-                            <T>Support</T>
-                            <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground" />
-                        </MenuItem>
-                        <MenuItem
-                            className="justify-between"
-                            render={
-                                <Link
-                                    href="https://github.com/rortan134/cache-app"
-                                    rel="noopener noreferrer"
-                                    target="_blank"
-                                />
-                            }
-                        >
-                            <T>GitHub</T>
-                            <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground" />
-                        </MenuItem>
-                        <KeyboardShortcutsDialogTrigger
-                            nativeButton={false}
-                            render={
-                                <MenuItem
-                                    className="justify-between"
-                                    closeOnClick={false}
-                                >
-                                    <T>Keyboard shortcuts</T>
-                                    <Kbd className="ml-auto inline-flex items-center gap-1 bg-transparent px-0">
-                                        <CmdKbd />/
-                                    </Kbd>
-                                </MenuItem>
-                            }
-                        />
-                    </MenuSubPopup>
-                </MenuSub>
                 <UserMenuDesktopDownloadSubMenu />
                 <LogOutDialogTrigger
                     nativeButton={false}
@@ -495,10 +418,13 @@ export function UserMenuFooter() {
     return (
         <>
             <MenuSeparator />
-            <div className="flex w-full items-center px-1.5 pt-1 font-medium opacity-80 *:w-full *:text-sm">
-                <LocaleSelector id="language-selector" name="language" />
+            <div className="flex w-full items-center px-1.5 pt-1 opacity-80">
+                <LocaleSelector
+                    className="w-full font-normal text-sm"
+                    id="language-selector"
+                    name="language"
+                />
             </div>
-            <MenuSeparator className="mt-2" />
             <div className="flex flex-wrap items-center -space-x-0.5 p-1 opacity-50">
                 {FOOTER_LINKS.map(({ href, label }) => (
                     <Button
@@ -790,6 +716,61 @@ function UserMenuAccountActionsSubMenu(
             />
             <MenuSubPopup align="end">
                 <MenuGroup>
+                    <MenuItem
+                        className="justify-between"
+                        render={
+                            <Link
+                                href="/changelog"
+                                prefetch={false}
+                                rel="noopener noreferrer"
+                                target="_blank"
+                            />
+                        }
+                    >
+                        <T>Changelog</T>
+                        <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground" />
+                    </MenuItem>
+                    <MenuItem
+                        className="justify-between"
+                        render={
+                            <Link
+                                href="https://docs.cachd.app/docs/privacy"
+                                rel="noopener noreferrer"
+                                target="_blank"
+                            />
+                        }
+                    >
+                        <T>Support</T>
+                        <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground" />
+                    </MenuItem>
+                    <MenuItem
+                        className="justify-between"
+                        render={
+                            <Link
+                                href="https://github.com/rortan134/cache-app"
+                                rel="noopener noreferrer"
+                                target="_blank"
+                            />
+                        }
+                    >
+                        <T>GitHub</T>
+                        <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground" />
+                    </MenuItem>
+                    <KeyboardShortcutsDialogTrigger
+                        nativeButton={false}
+                        render={
+                            <MenuItem
+                                className="justify-between"
+                                closeOnClick={false}
+                            >
+                                <T>Keyboard shortcuts</T>
+                                <Kbd className="ml-auto inline-flex items-center gap-1 bg-transparent px-0">
+                                    <CmdKbd />/
+                                </Kbd>
+                            </MenuItem>
+                        }
+                    />
+                    <MenuSeparator />
                     <DeleteAccountDialogTrigger
                         nativeButton={false}
                         render={
@@ -805,5 +786,50 @@ function UserMenuAccountActionsSubMenu(
                 </MenuGroup>
             </MenuSubPopup>
         </MenuSub>
+    );
+}
+
+function UserMenuBillingItem() {
+    const { errorMessage, execute, isPending } =
+        useSubscriptionBillingPortalAction();
+
+    return (
+        <>
+            <MenuItem
+                closeOnClick={false}
+                disabled={isPending}
+                onClick={execute}
+            >
+                <T>Billing</T>
+                {isPending ? (
+                    <LoaderCircle className="ml-auto size-4 animate-spin text-muted-foreground" />
+                ) : (
+                    <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
+                )}
+            </MenuItem>
+            <SubscriptionErrorMessage>{errorMessage}</SubscriptionErrorMessage>
+        </>
+    );
+}
+
+function UserMenuUpgradeItem() {
+    const { errorMessage, execute, isPending } = useSubscriptionUpgradeAction();
+
+    return (
+        <>
+            <MenuItem
+                closeOnClick={false}
+                disabled={isPending}
+                onClick={execute}
+            >
+                <T>Upgrade to Pro</T>
+                {isPending ? (
+                    <LoaderCircle className="ml-auto size-4 animate-spin text-muted-foreground" />
+                ) : (
+                    <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
+                )}
+            </MenuItem>
+            <SubscriptionErrorMessage>{errorMessage}</SubscriptionErrorMessage>
+        </>
     );
 }

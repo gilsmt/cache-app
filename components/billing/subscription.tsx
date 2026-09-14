@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GradientWaveText } from "@/components/ui/gradient-wave-text";
 import { CrownFilledIcon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { authClient, useSession } from "@/lib/auth/client";
 import { isActiveSubscriptionStatus } from "@/lib/billing/subscription-status";
 import { getActiveSubscription } from "@/lib/billing/subscriptions";
@@ -184,7 +185,9 @@ function getSuccessfulUpgradeReturnUrl() {
  */
 export function SubscriptionStatusBadge() {
     return (
-        <WithSubscriptionOnly>
+        <WithSubscriptionOnly
+            fallback={<Skeleton className="h-7 w-full rounded-full" />}
+        >
             {(subscription) => {
                 if (!subscription) {
                     return (
@@ -259,14 +262,12 @@ export function SubscriptionStatusBadge() {
 }
 
 /**
- * Triggers Stripe Checkout redirection for the premium Pro plan.
+ * Requests a Stripe Checkout redirect for the premium Pro plan. Use this with
+ * a plain MenuItem when the action lives inside a menu, where Button styles
+ * would add extra padding and borders.
  */
-export function SubscriptionUpgradeButton({
-    isAnnual = false,
-    variant = "ghost",
-    ...props
-}: React.ComponentProps<typeof Button> & { isAnnual?: boolean }) {
-    const { errorMessage, execute, isPending } = useSubscriptionRedirectAction(
+export function useSubscriptionUpgradeAction(isAnnual = false) {
+    return useSubscriptionRedirectAction(
         () =>
             authClient.subscription.upgrade({
                 annual: isAnnual,
@@ -276,6 +277,33 @@ export function SubscriptionUpgradeButton({
             }),
         <T>We couldn't open checkout right now.</T>
     );
+}
+
+/**
+ * Requests a Stripe billing portal redirect. Use this with a plain MenuItem
+ * when the action lives inside a menu, where Button styles would add extra
+ * padding and borders.
+ */
+export function useSubscriptionBillingPortalAction() {
+    return useSubscriptionRedirectAction(
+        () =>
+            authClient.subscription.billingPortal({
+                returnUrl: getReturnUrl(),
+            }),
+        <T>We couldn't open billing right now.</T>
+    );
+}
+
+/**
+ * Triggers Stripe Checkout redirection for the premium Pro plan.
+ */
+export function SubscriptionUpgradeButton({
+    isAnnual = false,
+    variant = "ghost",
+    ...props
+}: React.ComponentProps<typeof Button> & { isAnnual?: boolean }) {
+    const { errorMessage, execute, isPending } =
+        useSubscriptionUpgradeAction(isAnnual);
 
     return (
         <>
@@ -298,13 +326,8 @@ export function SubscriptionBillingPortalButton({
     variant = "ghost",
     ...props
 }: React.ComponentProps<typeof Button>) {
-    const { errorMessage, execute, isPending } = useSubscriptionRedirectAction(
-        () =>
-            authClient.subscription.billingPortal({
-                returnUrl: getReturnUrl(),
-            }),
-        <T>We couldn't open billing right now.</T>
-    );
+    const { errorMessage, execute, isPending } =
+        useSubscriptionBillingPortalAction();
 
     return (
         <>
@@ -421,7 +444,7 @@ function SubscriptionBadge({
  * Accessible error announcement for billing operations. Avoids layout shift by
  * returning null on the happy path, while exposing proper ARIA alerts if errors occur.
  */
-function SubscriptionErrorMessage(props: React.ComponentProps<"p">) {
+export function SubscriptionErrorMessage(props: React.ComponentProps<"p">) {
     if (!props.children) {
         return null;
     }

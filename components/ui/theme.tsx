@@ -90,10 +90,7 @@ function ThemeButton({ Icon, isSelected, label, value }: ThemeButtonProps) {
         <Button
             aria-label={label}
             aria-pressed={isSelected}
-            className={cn(
-                isSelected &&
-                    "bg-accent text-accent-foreground hover:bg-accent/90 data-pressed:bg-accent/90"
-            )}
+            className={cn(isSelected && "brightness-90")}
             data-pressed={isSelected ? "" : undefined}
             onClick={handleClick}
             size="icon-sm"
