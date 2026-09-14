@@ -137,7 +137,6 @@ function parseRepository(
                 defaultBranch: record.default_branch ?? null,
                 fork: record.fork ?? false,
                 fullName,
-                importTimestamp: new Date().toISOString(),
                 language,
                 owner: {
                     avatarUrl: owner?.avatar_url ?? null,
@@ -173,8 +172,15 @@ export async function getGitHubAuthenticatedUser(
 
 export async function listGitHubStarredRepositories(
     accessToken: string
-): Promise<GitHubImportableRepository[]> {
+): Promise<{
+    /** True only when a short page ended the walk; a page-cap stop leaves the fetched set partial. */
+    complete: boolean;
+    repositories: GitHubImportableRepository[];
+    /** True when the page cap stopped pagination before the list ended. */
+    truncated: boolean;
+}> {
     const repositories: GitHubImportableRepository[] = [];
+    let complete = false;
 
     for (let page = 1; page <= MAX_GITHUB_STARRED_PAGES; page += 1) {
         const payload = await fetchGitHub(
@@ -193,9 +199,14 @@ export async function listGitHubStarredRepositories(
 
         repositories.push(...repositoriesPage);
         if (rows.length < GITHUB_PAGE_SIZE) {
+            complete = true;
             break;
         }
     }
 
-    return repositories;
+    // A full final page at the cap may or may not have more stars behind it;
+    // reporting truncated (instead of guessing from page arithmetic) keeps
+    // the snapshot prune from treating unfetched items as deleted and only
+    // costs the UI suffix in the rare exact-multiple case.
+    return { complete, repositories, truncated: !complete };
 }

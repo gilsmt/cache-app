@@ -16,7 +16,15 @@ export async function importXBookmarks(args: {
 
     try {
         const xUser = await getXAuthenticatedUser(accessToken);
-        const bookmarks = await listXBookmarks(accessToken, xUser.id);
+        // Every sync walks the full feed so deletions reconcile: a bookmark
+        // removed upstream is absent from a complete fetch and the snapshot
+        // prune removes it. Stopping at the first known id would keep
+        // steady-state syncs cheap but leave removed bookmarks in the
+        // library indefinitely.
+        const { bookmarks, complete, truncated } = await listXBookmarks(
+            accessToken,
+            xUser.id
+        );
         const importedAt = new Date();
 
         const result = await importLibraryItemSnapshot({
@@ -28,13 +36,18 @@ export async function importXBookmarks(args: {
                 sourceMetadata: bookmark.sourceMetadata,
                 url: bookmark.url,
             })),
-            snapshotComplete: true,
+            // A cap-stop leaves the fetched set partial, so the snapshot prune
+            // must not treat unfetched items as deleted.
+            snapshotComplete: complete,
             source: LibraryItemSource.x_bookmarks,
             userId,
         });
 
         log.info("Successfully imported X bookmarks", {
             importedCount: result.importedCount,
+            pruneAborted: result.pruneAborted,
+            prunedCount: result.prunedCount,
+            truncated,
             userId,
             xUserId: xUser.id,
         });
@@ -43,6 +56,7 @@ export async function importXBookmarks(args: {
             ...result,
             smartCollectionItemIds: result.smartCollectionItemIds,
             totalFetched: bookmarks.length,
+            truncated,
             xUserId: xUser.id,
         };
     } catch (error) {

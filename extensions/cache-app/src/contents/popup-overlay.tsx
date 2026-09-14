@@ -12,7 +12,7 @@ import {
 } from "@/lib/runtime";
 import cssText from "data-text:../popup.module.css";
 import type { PlasmoCSConfig, PlasmoGetOverlayAnchor } from "plasmo";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { CollectionCreateView } from "../collection-create-view";
 import styles from "../popup.module.css";
 
@@ -356,6 +356,7 @@ function SocialImportPanel({ tab }: { tab: ActiveTab }): React.ReactElement {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [done, setDone] = useState(false);
+    const labelId = useId();
 
     const handleSubmit = () => {
         setError(null);
@@ -390,12 +391,15 @@ function SocialImportPanel({ tab }: { tab: ActiveTab }): React.ReactElement {
                 ) : null}
                 {error ? <p className={styles.inlineError}>{error}</p> : null}
                 <button
-                    type="button"
+                    aria-labelledby={labelId}
                     className={styles.primaryButton}
                     disabled={isSubmitting || done}
                     onClick={handleSubmit}
+                    type="button"
                 >
-                    {isSubmitting ? "Importing…" : "Import to Cache"}
+                    <span id={labelId}>
+                        {isSubmitting ? "Importing…" : "Import to Cache"}
+                    </span>
                 </button>
             </div>
         </div>
@@ -418,6 +422,7 @@ function PopupPanel({
     const [clipError, setClipError] = useState<string | null>(null);
     const [isClipping, setIsClipping] = useState(false);
     const [clipSuccess, setClipSuccess] = useState(false);
+    const clipLabelId = useId();
 
     const isUnsupported = isUnsupportedClipUrl(tab.url);
     const isSocial = !isUnsupported && isSocialImportUrl(tab.url);
@@ -639,12 +644,15 @@ function PopupPanel({
                             <p className={styles.inlineError}>{clipError}</p>
                         ) : null}
                         <button
-                            type="button"
+                            aria-labelledby={clipLabelId}
                             className={styles.secondaryButton}
                             disabled={isClipping || clipSuccess}
                             onClick={handleClip}
+                            type="button"
                         >
-                            {isClipping ? "Saving…" : "Done"}
+                            <span id={clipLabelId}>
+                                {isClipping ? "Saving…" : "Done"}
+                            </span>
                         </button>
                     </div>
                 </>

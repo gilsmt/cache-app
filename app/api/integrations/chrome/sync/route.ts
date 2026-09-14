@@ -11,7 +11,7 @@ import {
     authenticateExtensionIngest,
     extensionIngestCorsHeaders,
 } from "@/lib/integrations/extension-ingest/route";
-import { autoTagLibraryItemsByIds } from "@/lib/intelligence";
+import { autoTagLibraryItemsByIds } from "@/lib/intelligence/collections/engine";
 
 const log = createLogger("api:sync:chrome-bookmarks");
 

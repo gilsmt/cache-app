@@ -97,7 +97,6 @@ export async function importYoutubeWatchLaterSnapshot(args: {
                         channelId: item.channelId ?? null,
                         channelName: item.channelName ?? null,
                         duration: item.duration ?? null,
-                        importTimestamp: syncedAt.toISOString(),
                         isLive: item.availability === "live",
                         isUpcoming: item.availability === "upcoming",
                         playlistItemId: item.playlistItemId ?? null,

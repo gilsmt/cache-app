@@ -14,6 +14,7 @@ import {
     importMarkdownFiles,
     listMarkdownImportRecords,
 } from "@/lib/integrations/markdown/service";
+import { scheduleSmartCollections } from "@/lib/intelligence/schedule";
 import { Prisma } from "@/prisma/client/client";
 
 const log = createLogger("integrations:markdown:actions");
@@ -180,12 +181,16 @@ export async function importMarkdownBatch(input: {
             };
         }
 
-        const result = await importMarkdownFiles({
-            files: parsed.data.files,
-            importId: parsed.data.importId,
-            userId,
-        });
+        const { smartCollectionItemIds, ...result } = await importMarkdownFiles(
+            {
+                files: parsed.data.files,
+                importId: parsed.data.importId,
+                userId,
+            }
+        );
+        scheduleSmartCollections(userId, smartCollectionItemIds);
         const collections = await listCollections({ userId });
+
         return {
             data: { ...result, collections },
             status: "SUCCESS",

@@ -188,11 +188,13 @@ function parseAuthenticatedUser(payload: unknown): XAuthenticatedUser | null {
 function parseBookmarksPage(payload: unknown): XApiListResponse {
     const parsed = XBookmarksPageSchema.safeParse(payload);
     if (!parsed.success) {
-        return {
-            data: [],
-            includesLookup: { mediaByKey: new Map(), userById: new Map() },
-            nextToken: null,
-        };
+        throw new IntegrationApiError({
+            cause: payload,
+            integrationId: "x",
+            message: "X returned an unexpected bookmarks response.",
+            operation: "listXBookmarks",
+            status: 502,
+        });
     }
 
     const mediaByKey = new Map<string, XMediaItem>();
@@ -253,7 +255,6 @@ function parseBookmark(
                 entityUrls: (record.entities?.urls ?? [])
                     .map((u) => u.expanded_url)
                     .filter((u): u is string => !!u),
-                importTimestamp: new Date().toISOString(),
                 mediaKeys,
                 possiblySensitive: record.possibly_sensitive ?? false,
             },
@@ -289,7 +290,13 @@ export async function getXAuthenticatedUser(
 export async function listXBookmarks(
     accessToken: string,
     userId: string
-): Promise<XImportableBookmark[]> {
+): Promise<{
+    bookmarks: XImportableBookmark[];
+    /** True only when the natural end of the feed was reached; a page-cap stop leaves the fetched set partial. */
+    complete: boolean;
+    /** True when the page cap stopped pagination before the feed ended. */
+    truncated: boolean;
+}> {
     const items: XImportableBookmark[] = [];
     let nextToken: string | null = null;
 
@@ -314,12 +321,10 @@ export async function listXBookmarks(
             )
         );
 
-        for (const item of pagePayload.data) {
-            const bookmark = parseBookmark(item, pagePayload.includesLookup);
-            if (bookmark) {
-                items.push(bookmark);
-            }
-        }
+        const pageBookmarks = pagePayload.data
+            .map((item) => parseBookmark(item, pagePayload.includesLookup))
+            .filter((bookmark): bookmark is XImportableBookmark => !!bookmark);
+        items.push(...pageBookmarks);
 
         nextToken = pagePayload.nextToken;
         if (!nextToken) {
@@ -327,15 +332,12 @@ export async function listXBookmarks(
         }
     }
 
-    if (nextToken) {
-        throw new IntegrationApiError({
-            integrationId: "x",
-            message:
-                "X bookmark import exceeded the safe pagination limit before completion.",
-            operation: "listXBookmarks",
-            status: 502,
-        });
-    }
-
-    return items;
+    // A remaining cursor at the page cap means the library was only partly
+    // fetched; report it so the UI can say so instead of failing the whole
+    // import.
+    return {
+        bookmarks: items,
+        complete: nextToken === null,
+        truncated: nextToken !== null,
+    };
 }

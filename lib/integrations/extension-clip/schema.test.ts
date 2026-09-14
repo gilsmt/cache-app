@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import * as z from "zod";
 import {
     extensionClipBodySchema,
     extensionClipExternalId,
@@ -31,41 +32,43 @@ describe("extensionClipBodySchema", () => {
     });
 
     test("rejects missing url", () => {
-        const parsed = extensionClipBodySchema.safeParse({
-            collectionIds: [],
-        });
-        expect(parsed.success).toBe(false);
+        expect(
+            z.validate(extensionClipBodySchema, {
+                collectionIds: [],
+            })
+        ).toBe(false);
     });
 });
 
 describe("extensionCreateCollectionBodySchema", () => {
     test("requires name within 64 chars", () => {
         expect(
-            extensionCreateCollectionBodySchema.safeParse({ name: "Reading" })
-                .success
+            z.validate(extensionCreateCollectionBodySchema, { name: "Reading" })
         ).toBe(true);
         expect(
-            extensionCreateCollectionBodySchema.safeParse({ name: "" }).success
+            z.validate(extensionCreateCollectionBodySchema, { name: "" })
         ).toBe(false);
         expect(
-            extensionCreateCollectionBodySchema.safeParse({
+            z.validate(extensionCreateCollectionBodySchema, {
                 name: "x".repeat(65),
-            }).success
+            })
         ).toBe(false);
     });
 
     test("allows optional description up to 1024", () => {
-        const ok = extensionCreateCollectionBodySchema.safeParse({
-            description: "Notes",
-            name: "Reading",
-        });
-        expect(ok.success).toBe(true);
+        expect(
+            z.validate(extensionCreateCollectionBodySchema, {
+                description: "Notes",
+                name: "Reading",
+            })
+        ).toBe(true);
 
-        const tooLong = extensionCreateCollectionBodySchema.safeParse({
-            description: "x".repeat(1025),
-            name: "Reading",
-        });
-        expect(tooLong.success).toBe(false);
+        expect(
+            z.validate(extensionCreateCollectionBodySchema, {
+                description: "x".repeat(1025),
+                name: "Reading",
+            })
+        ).toBe(false);
     });
 });
 

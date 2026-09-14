@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import * as z from "zod";
 import { requireRouteUserId } from "@/lib/auth/session";
 import { resolveProviderAccountAccessToken } from "@/lib/integrations/account";
@@ -13,7 +12,7 @@ import {
     importGooglePhotosCandidates,
 } from "@/lib/integrations/google-photos/service";
 import { GOOGLE_PHOTOS_PERMISSION_MESSAGE } from "@/lib/integrations/google-photos/shared";
-import { autoTagLibraryItemsByIds } from "@/lib/intelligence";
+import { scheduleSmartCollections } from "@/lib/intelligence/schedule";
 
 const bodySchema = z.object({
     accountId: z.string().min(1),
@@ -31,7 +30,7 @@ export async function POST(request: Request) {
     const parsedBody = bodySchema.safeParse(bodyRaw);
     if (!parsedBody.success) {
         return Response.json(
-            { error: parsedBody.error.flatten() },
+            { error: z.treeifyError(parsedBody.error) },
             { status: 400 }
         );
     }
@@ -74,14 +73,7 @@ export async function POST(request: Request) {
 
         await deletePickerSession(accessToken, parsedBody.data.sessionId);
 
-        if (smartCollectionItemIds.length > 0) {
-            after(async () => {
-                await autoTagLibraryItemsByIds({
-                    itemIds: smartCollectionItemIds,
-                    userId,
-                });
-            });
-        }
+        scheduleSmartCollections(userId, smartCollectionItemIds);
 
         return Response.json({
             importedCount,

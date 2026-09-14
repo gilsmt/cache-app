@@ -164,7 +164,20 @@ function formatImportedCountMessage(
     if (typeof importedCount !== "number") {
         return null;
     }
-    return `Imported ${importedCount} ${importedCount === 1 ? noun : (plural ?? `${noun}s`)}.`;
+    const base = `Imported ${importedCount} ${
+        importedCount === 1 ? noun : (plural ?? `${noun}s`)
+    }.`;
+    const notices: string[] = [];
+    if (payload.truncated === true) {
+        notices.push("Some items couldn't be fetched this run.");
+    }
+    if (payload.pruneAborted === true) {
+        notices.push("Some deletions were held for safety.");
+    }
+    if (notices.length === 0) {
+        return base;
+    }
+    return `${base} ${notices.join(" ")}`;
 }
 
 export const INTEGRATIONS: readonly SupportedIntegration[] = [

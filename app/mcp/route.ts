@@ -3,7 +3,11 @@ import type {
     McpServer,
     ServerContext,
 } from "@modelcontextprotocol/server";
-import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import {
+    createMcpHandler,
+    type McpHandlerOptions,
+    withMcpAuth,
+} from "mcp-handler";
 import * as z from "zod";
 import { LibraryCollectionError } from "@/lib/collections/error";
 import {
@@ -405,6 +409,35 @@ const LibAnn = {
 // MCP server bootstrap.
 // ---------------------------------------------------------------------------
 
+type McpHandlerEvent = Parameters<NonNullable<McpHandlerOptions["onEvent"]>>[0];
+
+function logMcpEvent(event: McpHandlerEvent): void {
+    if (event.type === "ERROR") {
+        const meta = {
+            context: event.context,
+            error: event.error,
+            source: event.source,
+        };
+        if (event.severity === "warning") {
+            log.warn("mcp handler warning", meta);
+        } else {
+            log.error("mcp handler error", meta);
+        }
+        return;
+    }
+    // `REQUEST_RECEIVED` carries nothing `REQUEST_COMPLETED` doesn't already
+    // report (method, duration, outcome); logging both doubles the noise.
+    if (event.type === "REQUEST_RECEIVED") {
+        return;
+    }
+    const meta = { durationMs: event.duration, method: event.method };
+    if (event.status === "success") {
+        log.info("mcp request completed", meta);
+    } else {
+        log.warn("mcp request failed", meta);
+    }
+}
+
 const baseHandler = createMcpHandler(
     (server: McpServer) => {
         server.registerTool(
@@ -476,6 +509,7 @@ const baseHandler = createMcpHandler(
         );
     },
     {
+        onEvent: logMcpEvent,
         serverInfo: {
             name: "cache",
             version: "1.0.0",
@@ -529,6 +563,8 @@ function applyCorsHeaders(request: Request, headers: Headers): void {
 
 function withCors(request: Request, response: Response): Response {
     const headers = new Headers(response.headers);
+    // The MCP transport spec requires no-store on all HTTP responses.
+    headers.set("Cache-Control", "private, no-store");
     applyCorsHeaders(request, headers);
     return new Response(response.body, {
         headers,

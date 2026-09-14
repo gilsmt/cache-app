@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import {
     LIBRARY_ITEM_COLLECTIONS_INCLUDE,
     type LibraryItemWithCollections,
@@ -93,7 +94,7 @@ export async function createNote(
         data: {
             browserProfileId: DEFAULT_BROWSER_PROFILE_ID,
             caption: null,
-            externalId: `note_${crypto.randomUUID()}`,
+            externalId: `note_${randomUUID()}`,
             kind: ITEM_KIND_NOTE,
             noteContentHtml: note.contentHtml,
             noteContentState: noteContentStateForPrisma(note.contentState),

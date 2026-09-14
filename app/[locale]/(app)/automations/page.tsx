@@ -6,6 +6,7 @@ import { connection } from "next/server";
 import * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
 import { AutomationComposerDialog } from "@/components/automations/automation-composer-dialog";
+import { AutomationsRuns } from "@/components/automations/automation-runs";
 import { AutomationsList } from "@/components/automations/automations";
 import { ApplicationSidebar } from "@/components/sidebar/application-sidebar";
 import { FadeIn } from "@/components/ui/fade-in";
@@ -42,14 +43,9 @@ export async function generateMetadata({
 
 export default function AutomationsPage() {
     return (
-        <>
-            <ApplicationSidebar />
-            <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col gap-6 p-8">
-                <React.Suspense fallback={<AutomationsPageSkeleton />}>
-                    <AutomationsPageBody />
-                </React.Suspense>
-            </div>
-        </>
+        <React.Suspense fallback={<AutomationsPageSkeleton />}>
+            <AutomationsPageBody />
+        </React.Suspense>
     );
 }
 
@@ -93,47 +89,74 @@ async function AutomationsPageBody() {
     }));
 
     return (
-        <FadeIn>
-            <div className="flex flex-col gap-8">
-                <AutomationsPageHeader>
-                    <AutomationComposerDialog collections={collectionOptions} />
-                </AutomationsPageHeader>
-                <AutomationsList
-                    automations={automations}
-                    collections={collectionOptions}
-                />
+        <>
+            <ApplicationSidebar>
+                <AutomationsRuns automations={automations} />
+            </ApplicationSidebar>
+            <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col gap-6 p-8">
+                <FadeIn>
+                    <div className="flex flex-col gap-8">
+                        <AutomationsPageHeader>
+                            <AutomationComposerDialog
+                                collections={collectionOptions}
+                            />
+                        </AutomationsPageHeader>
+                        <AutomationsList
+                            automations={automations}
+                            collections={collectionOptions}
+                        />
+                    </div>
+                </FadeIn>
             </div>
-        </FadeIn>
+        </>
     );
 }
 
 function AutomationsPageSkeleton() {
     return (
         <>
-            <AutomationsPageHeader>
-                <Skeleton className="h-8 w-36 rounded-xl" />
-            </AutomationsPageHeader>
-            <div
-                aria-busy="true"
-                aria-label="Loading automations"
-                className="flex flex-col gap-8"
-                role="status"
-            >
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {AUTOMATION_SKELETON_KEYS.map((key) => (
-                        <div
-                            className="flex flex-col gap-3 rounded-2xl bg-muted/60 p-4"
-                            key={key}
-                        >
-                            <div className="flex items-start justify-between gap-3">
-                                <Skeleton className="size-9 rounded-xl" />
-                                <Skeleton className="size-7 rounded-full" />
+            <ApplicationSidebar>
+                <div
+                    className="relative flex flex-col gap-0.5"
+                    data-sidebar-collapsible=""
+                >
+                    <Skeleton className="h-8 w-full rounded-lg" />
+                    <div className="flex flex-col gap-px">
+                        {AUTOMATION_SKELETON_KEYS.map((key) => (
+                            <Skeleton
+                                className="h-8 w-full rounded-lg"
+                                key={key}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </ApplicationSidebar>
+            <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col gap-6 p-8">
+                <AutomationsPageHeader>
+                    <Skeleton className="h-8 w-36 rounded-xl" />
+                </AutomationsPageHeader>
+                <div
+                    aria-busy="true"
+                    aria-label="Loading automations"
+                    className="flex flex-col gap-8"
+                    role="status"
+                >
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {AUTOMATION_SKELETON_KEYS.map((key) => (
+                            <div
+                                className="flex flex-col gap-3 rounded-2xl bg-muted/60 p-4"
+                                key={key}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <Skeleton className="size-9 rounded-xl" />
+                                    <Skeleton className="size-7 rounded-full" />
+                                </div>
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-3 w-full" />
+                                <Skeleton className="h-3 w-2/3" />
                             </div>
-                            <Skeleton className="h-4 w-32" />
-                            <Skeleton className="h-3 w-full" />
-                            <Skeleton className="h-3 w-2/3" />
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
         </>

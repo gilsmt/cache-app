@@ -1,12 +1,12 @@
 "use server";
 
-import { getLinkPreview } from "link-preview-js";
 import { after } from "next/server";
 import * as z from "zod";
 import { getSessionUserId } from "@/lib/auth/session";
 import type { LibraryItemWithCollections } from "@/lib/collections/utils";
 import { ITEM_KIND_BOOKMARK } from "@/lib/common/constants";
 import { extractNamedErrorMessage } from "@/lib/common/error";
+import { fetchLinkPreview } from "@/lib/common/link-preview";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { parseStandaloneUrl } from "@/lib/common/url";
 import { DEFAULT_BROWSER_PROFILE_ID } from "@/lib/integrations/browser-profiles";
@@ -15,7 +15,7 @@ import {
     getChromeBookmarkItemForUserByExternalId,
 } from "@/lib/integrations/chrome/service";
 import { IntegrationUserError } from "@/lib/integrations/error";
-import { autoTagLibraryItemsByIds } from "@/lib/intelligence";
+import { autoTagLibraryItemsByIds } from "@/lib/intelligence/collections/engine";
 
 const log = createLogger("integrations:standalone:actions");
 const PASTED_BOOKMARK_URL_MAX_LENGTH = 4096;
@@ -73,10 +73,12 @@ export async function createChromeBookmarkFromUrl(input: {
     const occurredAt = new Date().toISOString();
     const externalId = pastedChromeBookmarkExternalId(normalizedUrl.href);
 
-    const preview = await getLinkPreview(normalizedUrl.href, {
-        timeout: PASTED_BOOKMARK_PREVIEW_TIMEOUT_MS,
-    }).catch(() => null);
-    const title = preview && "title" in preview ? preview.title : null;
+    const title =
+        (
+            await fetchLinkPreview(normalizedUrl.href, {
+                timeoutMs: PASTED_BOOKMARK_PREVIEW_TIMEOUT_MS,
+            })
+        )?.title ?? null;
 
     try {
         const syncResult = await applyChromeBookmarkSyncEvents(userId, {

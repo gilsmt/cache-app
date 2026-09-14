@@ -1,5 +1,5 @@
 import { start } from "workflow/api";
-import { automationRunWorkflow } from "@/app/workflows/automation-run";
+import { automationRunWorkflow } from "@/app/workflows/automation";
 import { serverEnv } from "@/env/server";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { withRetry } from "@/lib/common/retry";
@@ -12,20 +12,24 @@ import {
 
 const log = createLogger("automations:cron");
 
+const NO_STORE_HEADERS = { "Cache-Control": "private, no-store" };
+
 export async function GET(request: Request) {
-    if (!isAuthorizedCronRequest(request)) {
-        return Response.json({ error: "Unauthorized" }, { status: 401 });
+    if (
+        !isAuthorizedCronRequest(request) &&
+        serverEnv.NODE_ENV === "production"
+    ) {
+        return Response.json(
+            { error: "Unauthorized" },
+            { headers: NO_STORE_HEADERS, status: 401 }
+        );
     }
 
-    // Recover must finish before claim: recovered runs go `starting → pending`
-    // and would otherwise wait until the next cron tick to be picked up.
-    const recovered = await recoverStaleAutomationRuns();
-    const claimed = await claimDueAutomationRuns();
-    // Starts are independent per claimed run; parallelize so a slow
-    // workflow/api start does not serialize the whole cron tick.
-    // Each mapper always resolves so one mark/attach failure cannot 500 a
-    // partially successful tick or drop accurate started/failed counts.
-    const startOutcomes = await Promise.all(
+    const now = new Date();
+    const recovered = await recoverStaleAutomationRuns(now);
+    const claimed = await claimDueAutomationRuns({ now });
+
+    const startedResults = await Promise.all(
         claimed.claimed.map(async (run) => {
             let workflowRunId: string;
             try {
@@ -56,11 +60,6 @@ export async function GET(request: Request) {
                 return false;
             }
 
-            // start() already launched the workflow. Never mark failed on
-            // attach errors — that would race markAutomationRunRunning and
-            // leave recovery free to double-start the same run. Retry attach
-            // so a transient DB blip does not leave starting without
-            // workflowRunId until the workflow's own mark-running step.
             try {
                 await withRetry(
                     () =>
@@ -81,17 +80,21 @@ export async function GET(request: Request) {
             return true;
         })
     );
-    const started = startOutcomes.filter(Boolean).length;
-    const failedToStart = startOutcomes.length - started;
 
-    return Response.json({
-        claimed: claimed.claimed.length,
-        failedToStart,
-        recovered: recovered.recovered,
-        skipped: claimed.skipped,
-        started,
-        timedOut: recovered.timedOut,
-    });
+    const started = startedResults.filter(Boolean).length;
+    const failedToStart = startedResults.length - started;
+
+    return Response.json(
+        {
+            claimed: claimed.claimed.length,
+            failedToStart,
+            recovered: recovered.recovered,
+            skipped: claimed.skipped,
+            started,
+            timedOut: recovered.timedOut,
+        },
+        { headers: NO_STORE_HEADERS }
+    );
 }
 
 function isAuthorizedCronRequest(request: Request): boolean {

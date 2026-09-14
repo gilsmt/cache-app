@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { Streamdown } from "streamdown";
 import {
     type AutomationCollectionOption,
     type AutomationComposerAutomation,
@@ -155,19 +156,6 @@ function formatSchedule(automation: AutomationListItem): string | null {
     return `Daily at ${time}`;
 }
 
-function stripMarkdown(markdown: string): string {
-    return markdown
-        .replace(/!\[.*?\]\(.*?\)/g, "")
-        .replace(/\[([^\]]*)\]\(.*?\)/g, "$1")
-        .replace(/^#{1,6}\s+/gm, "")
-        .replace(/^>\s+/gm, "")
-        .replace(/[*_~`]{1,3}/g, "")
-        .replace(/---+/g, "")
-        .replace(/\n{2,}/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-}
-
 function isCompleteSchedule(
     automation: AutomationListItem
 ): automation is AutomationListItem & {
@@ -201,7 +189,7 @@ function isSuggestedAutomation(automation: AutomationListItem) {
     );
 }
 
-function getLastRunDisplay(
+export function getLastRunDisplay(
     lastRun: NonNullable<AutomationListItem["lastRun"]>
 ): {
     dotColor: string;
@@ -209,17 +197,13 @@ function getLastRunDisplay(
     output: React.ReactNode;
 } | null {
     if (lastRun.status === AutomationRunStatus.succeeded) {
-        const plainText = lastRun.summaryMarkdown
-            ? stripMarkdown(lastRun.summaryMarkdown)
-            : null;
-
         return {
             dotColor: "bg-green-500",
-            label: `Ran ${dayjs(lastRun.createdAt).fromNow()}`,
-            output: plainText ? (
-                <p className="line-clamp-2 text-muted-foreground/60 text-xs leading-5">
-                    {plainText}
-                </p>
+            label: `Last ran ${dayjs(lastRun.createdAt).fromNow()}`,
+            output: lastRun.summaryMarkdown ? (
+                <Streamdown className="text-muted-foreground/60 text-xs leading-5">
+                    {lastRun.summaryMarkdown}
+                </Streamdown>
             ) : null,
         };
     }
@@ -502,24 +486,18 @@ function AutomationCard({ automation, collections }: AutomationCardProps) {
                 <p className="line-clamp-2 text-muted-foreground text-xs leading-5">
                     {description}
                 </p>
-                {scheduleLabel ? (
-                    <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                        {scheduleLabel}
-                    </p>
-                ) : null}
-                {lastRun ? (
-                    <div className="flex flex-col gap-0.5">
-                        <span className="flex items-center gap-1">
-                            <span
-                                className={`inline-block size-1.5 shrink-0 rounded-full ${lastRun.dotColor}`}
-                            />
-                            <span className="text-[11px] text-muted-foreground/60">
-                                {lastRun.label}
-                            </span>
+                <div className="flex items-center gap-4">
+                    {scheduleLabel ? (
+                        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                            {scheduleLabel}
+                        </p>
+                    ) : null}
+                    {lastRun ? (
+                        <span className="text-[11px] text-muted-foreground/60">
+                            {lastRun.label}
                         </span>
-                        {lastRun.output}
-                    </div>
-                ) : null}
+                    ) : null}
+                </div>
                 {actionErrorMessage ? (
                     <p
                         aria-live="polite"

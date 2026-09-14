@@ -3,6 +3,7 @@
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { parseDate } from "chrono-node";
+import { cn } from "cn";
 import { useLocale } from "gt-next";
 import {
     CalendarDays,
@@ -39,7 +40,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/common/cn";
 import { getMonthDayLabel } from "@/lib/common/date";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
@@ -62,9 +62,7 @@ import AppIconSmall from "@/public/cache-icon-small.png";
 const ALL_LIBRARY_COLLECTION_ID = "all_library";
 const SAVE_AUTOMATION_FAILURE_MESSAGE =
     "We couldn't save this automation. Please try again.";
-const AUTOMATION_OPTION_TRIGGER_CLASS_NAME =
-    "h-7 max-w-full min-w-0 justify-start gap-1 rounded-md px-2 font-normal text-muted-foreground hover:bg-muted hover:text-foreground";
-const AUTOMATION_OPTION_POPUP_CLASS_NAME = "min-w-44";
+
 const DEFAULT_WEEK_DAY = 1;
 const DEFAULT_MONTH_DAY = 1;
 const DEFAULT_WEEK_DAY_OPTION: WeekDayOption = {
@@ -110,6 +108,28 @@ const ALL_LIBRARY_OPTION: AutomationCollectionOption = {
     id: ALL_LIBRARY_COLLECTION_ID,
     name: "All library",
 };
+
+function getAutomationCollectionName(
+    option: AutomationCollectionOption
+): string {
+    return option.name;
+}
+
+function getAutomationCollectionId(option: AutomationCollectionOption): string {
+    return option.id;
+}
+
+function getOptionLabel(option: { label: string }): string {
+    return option.label;
+}
+
+function getStringOptionValue(option: { value: string }): string {
+    return option.value;
+}
+
+function getNumericOptionValue(option: { value: number }): string {
+    return String(option.value);
+}
 
 type AutomationCadence = "daily" | "weekly" | "monthly";
 type AutomationPayloadScope = "all_library_items" | "collection";
@@ -644,7 +664,7 @@ function AutomationOptionTrigger({
             render={
                 <Button
                     aria-labelledby={labelId}
-                    className={AUTOMATION_OPTION_TRIGGER_CLASS_NAME}
+                    className="h-7 min-w-0 max-w-full justify-start gap-1 rounded-md px-2 font-normal text-muted-foreground hover:bg-muted hover:text-foreground"
                     size="xs"
                     variant="ghost"
                 />
@@ -682,16 +702,6 @@ function AutomationCollectionCombobox({
 }: AutomationCollectionComboboxProps) {
     const [isOpen, setIsOpen] = React.useState(false);
 
-    const itemToStringLabel = React.useCallback(
-        (option: AutomationCollectionOption) => option.name,
-        []
-    );
-
-    const itemToStringValue = React.useCallback(
-        (option: AutomationCollectionOption) => option.id,
-        []
-    );
-
     const handleValueChange = useStableCallback(
         (nextCollection: AutomationCollectionOption | null) => {
             if (!nextCollection) {
@@ -706,15 +716,15 @@ function AutomationCollectionCombobox({
         <Combobox<AutomationCollectionOption>
             autoHighlight
             items={options}
-            itemToStringLabel={itemToStringLabel}
-            itemToStringValue={itemToStringValue}
+            itemToStringLabel={getAutomationCollectionName}
+            itemToStringValue={getAutomationCollectionId}
             onOpenChange={setIsOpen}
             onValueChange={handleValueChange}
             open={isOpen}
             value={value}
         >
             <AutomationOptionTrigger icon={FolderOpen} labelId={labelId} />
-            <ComboboxPopup className={AUTOMATION_OPTION_POPUP_CLASS_NAME}>
+            <ComboboxPopup className="min-w-44">
                 <ComboboxInput
                     aria-label="Search collections"
                     placeholder="Collection"
@@ -754,16 +764,6 @@ function AutomationCadenceCombobox({
 }: AutomationCadenceComboboxProps) {
     const [isOpen, setIsOpen] = React.useState(false);
 
-    const itemToStringLabel = React.useCallback(
-        (option: CadenceOption) => option.label,
-        []
-    );
-
-    const itemToStringValue = React.useCallback(
-        (option: CadenceOption) => option.value,
-        []
-    );
-
     const handleValueChange = useStableCallback(
         (nextCadence: CadenceOption | null) => {
             if (!nextCadence) {
@@ -778,8 +778,8 @@ function AutomationCadenceCombobox({
         <Combobox<CadenceOption>
             autoHighlight
             items={CADENCE_OPTIONS}
-            itemToStringLabel={itemToStringLabel}
-            itemToStringValue={itemToStringValue}
+            itemToStringLabel={getOptionLabel}
+            itemToStringValue={getStringOptionValue}
             onOpenChange={setIsOpen}
             onValueChange={handleValueChange}
             open={isOpen}
@@ -859,16 +859,6 @@ function AutomationTimeCombobox({
         setIsOpen(false);
     });
 
-    const itemToStringLabel = React.useCallback(
-        (option: TimeOfDayOption) => option.label,
-        []
-    );
-
-    const itemToStringValue = React.useCallback(
-        (option: TimeOfDayOption) => option.value,
-        []
-    );
-
     const handleInputValueChange = useStableCallback(
         (nextInputValue: string) => {
             setInputValue(nextInputValue);
@@ -895,8 +885,8 @@ function AutomationTimeCombobox({
             autoHighlight
             inputValue={inputValue}
             items={options}
-            itemToStringLabel={itemToStringLabel}
-            itemToStringValue={itemToStringValue}
+            itemToStringLabel={getOptionLabel}
+            itemToStringValue={getStringOptionValue}
             onInputValueChange={handleInputValueChange}
             onOpenChange={setIsOpen}
             onValueChange={handleValueChange}
@@ -948,16 +938,6 @@ function AutomationWeekDayCombobox({
 }: AutomationWeekDayComboboxProps) {
     const [isOpen, setIsOpen] = React.useState(false);
 
-    const itemToStringLabel = React.useCallback(
-        (option: WeekDayOption) => option.label,
-        []
-    );
-
-    const itemToStringValue = React.useCallback(
-        (option: WeekDayOption) => String(option.value),
-        []
-    );
-
     const handleValueChange = useStableCallback(
         (nextWeekDay: WeekDayOption | null) => {
             if (!nextWeekDay) {
@@ -972,8 +952,8 @@ function AutomationWeekDayCombobox({
         <Combobox<WeekDayOption>
             autoHighlight
             items={WEEK_DAYS}
-            itemToStringLabel={itemToStringLabel}
-            itemToStringValue={itemToStringValue}
+            itemToStringLabel={getOptionLabel}
+            itemToStringValue={getNumericOptionValue}
             onOpenChange={setIsOpen}
             onValueChange={handleValueChange}
             open={isOpen}
@@ -1012,16 +992,6 @@ function AutomationMonthDayCombobox({
 }: AutomationMonthDayComboboxProps) {
     const [isOpen, setIsOpen] = React.useState(false);
 
-    const itemToStringLabel = React.useCallback(
-        (option: MonthDayOption) => option.label,
-        []
-    );
-
-    const itemToStringValue = React.useCallback(
-        (option: MonthDayOption) => String(option.value),
-        []
-    );
-
     const handleValueChange = useStableCallback(
         (nextMonthDay: MonthDayOption | null) => {
             if (!nextMonthDay) {
@@ -1036,8 +1006,8 @@ function AutomationMonthDayCombobox({
         <Combobox<MonthDayOption>
             autoHighlight
             items={MONTH_DAY_OPTIONS}
-            itemToStringLabel={itemToStringLabel}
-            itemToStringValue={itemToStringValue}
+            itemToStringLabel={getOptionLabel}
+            itemToStringValue={getNumericOptionValue}
             onOpenChange={setIsOpen}
             onValueChange={handleValueChange}
             open={isOpen}

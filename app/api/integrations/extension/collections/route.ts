@@ -1,8 +1,9 @@
+import * as z from "zod";
 import { LibraryCollectionError } from "@/lib/collections/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { extensionCreateCollectionBodySchema } from "@/lib/integrations/extension-clip/schema";
 import {
     createExtensionCollection,
-    extensionCreateCollectionBodySchema,
     listExtensionCollections,
 } from "@/lib/integrations/extension-clip/service";
 import {
@@ -26,9 +27,18 @@ export async function GET(request: Request) {
     }
     const { cors, userId } = authResult;
 
+    // Collection lists are user-specific, so no shared cache may store them.
+    const responseHeaders = new Headers(cors);
+    responseHeaders.set("Cache-Control", "private, no-store");
+
     try {
         const result = await listExtensionCollections({ userId });
-        return Response.json({ ok: true, ...result }, { headers: cors });
+        return Response.json(
+            { ok: true, ...result },
+            {
+                headers: responseHeaders,
+            }
+        );
     } catch (error) {
         log.error("List extension collections failed", { error, userId });
         return Response.json(
@@ -38,7 +48,7 @@ export async function GET(request: Request) {
                         ? error.message
                         : "Failed to list collections",
             },
-            { headers: cors, status: 500 }
+            { headers: responseHeaders, status: 500 }
         );
     }
 }
@@ -63,7 +73,7 @@ export async function POST(request: Request) {
     const parsed = extensionCreateCollectionBodySchema.safeParse(json);
     if (!parsed.success) {
         return Response.json(
-            { error: parsed.error.flatten() },
+            { error: z.treeifyError(parsed.error) },
             { headers: cors, status: 400 }
         );
     }

@@ -20,7 +20,6 @@ import {
     type NormalizedNotePayload,
     normalizeNotePayload,
 } from "@/lib/integrations/notes/service";
-import { scheduleSmartCollections } from "@/lib/intelligence/schedule";
 import { prisma } from "@/prisma";
 import { Prisma } from "@/prisma/client/client";
 import { LibraryItemSource } from "@/prisma/client/enums";
@@ -505,7 +504,7 @@ export async function importMarkdownFiles(args: {
     importId: string;
     userId: string;
     files: MarkdownBatchEntry[];
-}): Promise<MarkdownImportResult> {
+}): Promise<MarkdownImportResult & { smartCollectionItemIds: string[] }> {
     const { importId, userId, files } = args;
 
     const result: MarkdownImportResult = {
@@ -602,9 +601,7 @@ export async function importMarkdownFiles(args: {
         }
     }
 
-    scheduleSmartCollections(userId, newItemIds);
-
-    return result;
+    return { ...result, smartCollectionItemIds: newItemIds };
 }
 
 export function createMarkdownImportRecord(args: {

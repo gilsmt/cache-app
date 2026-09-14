@@ -8,15 +8,15 @@ export async function automationRunWorkflow(runId: string) {
     "use workflow";
 
     const { workflowRunId } = getWorkflowMetadata();
-    const prepared = await prepareAutomationRunForWorkflow({
+    const ready = await prepareAutomationRunForWorkflow({
         runId,
         workflowRunId,
     });
 
-    if (!prepared) {
+    if (!ready) {
         return { status: "skipped" };
     }
 
-    await executeReadOnlyAutomationRun(prepared);
+    await executeReadOnlyAutomationRun(ready);
     return { status: "succeeded" };
 }

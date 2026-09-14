@@ -24,14 +24,6 @@ import { prisma } from "@/prisma";
 import type { CollectionPriority } from "@/prisma/client/enums";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
-export {
-    type ExtensionClipBody,
-    type ExtensionCreateCollectionBody,
-    extensionClipBodySchema,
-    extensionClipExternalId,
-    extensionCreateCollectionBodySchema,
-} from "@/lib/integrations/extension-clip/schema";
-
 export const ExtensionClipError = NamedError.create(
     "ExtensionClipError",
     z.object({
@@ -171,7 +163,7 @@ export async function clipPageFromExtension(args: {
         userId: args.userId,
     });
 
-    if (upsertResult.upsertedCount === 0) {
+    if (upsertResult.upsertedCount + upsertResult.unchangedCount === 0) {
         throw new ExtensionClipError({
             code: "upsert_failed",
             message: "We couldn't save that page right now.",
