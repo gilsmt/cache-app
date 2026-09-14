@@ -1,485 +1,469 @@
 datasource db {
-  provider = "postgresql"
+    provider = "postgresql"
 }
 
 generator client {
-  provider        = "prisma-client"
-  output          = "./client"
-  previewFeatures = ["partialIndexes"]
+    provider        = "prisma-client"
+    output          = "./client"
+    previewFeatures = ["partialIndexes"]
 }
 
 /// External system or first-party surface where a library item originated.
 /// Values are part of the import contract, so prefer adding new values over
 /// repurposing existing ones when an integration changes shape.
 enum LibraryItemSource {
-  cache_note
-  chrome_bookmarks
-  extension_clip
-  github_starred_repositories
-  google_photos
-  instagram
-  markdown_import
-  other
-  pinterest
-  rss_feed
-  tiktok
-  x_bookmarks
-  youtube_watch_later
+    cache_note
+    chrome_bookmarks
+    extension_clip
+    github_starred_repositories
+    google_photos
+    instagram
+    markdown_import
+    other
+    pinterest
+    rss_feed
+    tiktok
+    x_bookmarks
+    youtube_watch_later
 }
 
 /// User-facing item category. Folders are persisted because some sources, such
 /// as Chrome bookmarks, have hierarchy that must survive round-trip sync.
 enum LibraryItemKind {
-  bookmark
-  folder
-  note
+    bookmark
+    folder
+    note
 }
 
 /// Last known HTTP reachability for a bookmark URL. Null means never checked.
 /// Transient failures and auth walls are `ambiguous`, not `unreachable`.
 enum LibraryItemLinkReachability {
-  reachable
-  unreachable
-  ambiguous
-  skipped
+    reachable
+    unreachable
+    ambiguous
+    skipped
 }
 
 /// Manual or AI-assisted ranking for how central a collection is to the user.
 /// `archive` keeps the collection available while moving it out of active work.
 enum CollectionPriority {
-  none
-  very_relevant
-  relevant
-  peripheral
-  archive
+    none
+    very_relevant
+    relevant
+    peripheral
+    archive
 }
 
 /// Timeline event taxonomy for library and collection changes. Events are
 /// append-only; add new kinds instead of rewriting historical metadata shape.
 enum LibraryActivityEventKind {
-  collection_created
-  collection_shared
-  item_added
-  item_collected
-  item_deleted
-  item_purged
-  item_restored
-  item_updated
-  source_connected
+    collection_created
+    collection_shared
+    item_added
+    item_collected
+    item_deleted
+    item_purged
+    item_restored
+    item_updated
+    source_connected
 }
 
 /// User-authored or first-party scheduled background behavior.
 enum AutomationStatus {
-  active
-  paused
+    active
+    paused
 }
 
 /// Library content boundary available to an automation run.
 enum AutomationPayloadScope {
-  all_library_items
-  collection
+    all_library_items
+    collection
 }
 
 /// Preset recurrence pattern interpreted in the automation's timezone.
 enum AutomationCadence {
-  daily
-  weekly
-  monthly
+    daily
+    weekly
+    monthly
 }
 
 /// First-party automation templates seeded for new users.
 enum AutomationTemplateKey {
-  daily_digest
-  worth_revisiting
-  next_actions
+    daily_digest
+    worth_revisiting
+    next_actions
 }
 
 /// Durable execution state for a single scheduled automation attempt.
 enum AutomationRunStatus {
-  pending
-  starting
-  running
-  succeeded
-  failed
-  skipped
-  canceled
+    pending
+    starting
+    running
+    succeeded
+    failed
+    skipped
+    canceled
 }
 
 /// Managed by better-auth core, with Cache-specific user preferences added.
 /// Do not rename auth-owned fields; better-auth reads them by convention.
 model User {
-  id                      String                 @id
-  name                    String
-  email                   String                 @unique
-  emailVerified           Boolean                @default(false)
-  image                   String?
-  createdAt               DateTime               @default(now())
-  updatedAt               DateTime               @updatedAt
-  /// Stripe customer id is duplicated here for fast account-level lookups even
-  /// though subscription state lives in the plugin-managed table.
-  stripeCustomerId        String?
-  /// Bearer token used by browser extensions to ingest into this user's library
-  /// without exposing session cookies.
-  extensionIngestToken    String?                @unique
-  /// Library preference: whether smart collections auto-tagging is on. Smart
-  /// collections runs only on the per-save event path; there is no scheduled
-  /// catch-up batch. Defaults to off so a brand-new user must opt in before
-  /// the classifier starts writing collection assignments.
-  smartCollectionsEnabled Boolean                @default(false)
-  sessions                Session[]
-  accounts                Account[]
-  libraryItems            LibraryItem[]
-  collections             Collection[]
-  libraryActivityEvents   LibraryActivityEvent[]
-  automations             Automation[]
-  automationRuns          AutomationRun[]
-  comments                Comment[]
+    id                      String                 @id
+    name                    String
+    email                   String                 @unique
+    emailVerified           Boolean                @default(false)
+    image                   String?
+    createdAt               DateTime               @default(now())
+    updatedAt               DateTime               @updatedAt
+    /// Stripe customer id is duplicated here for fast account-level lookups even
+    /// though subscription state lives in the plugin-managed table.
+    stripeCustomerId        String?
+    /// Bearer token used by browser extensions to ingest into this user's library
+    /// without exposing session cookies.
+    extensionIngestToken    String?                @unique
+    /// Library preference: whether smart collections auto-tagging is on. Smart
+    /// collections runs only on the per-save event path; there is no scheduled
+    /// catch-up batch. Defaults to off so a brand-new user must opt in before
+    /// the classifier starts writing collection assignments.
+    smartCollectionsEnabled Boolean                @default(false)
+    sessions                Session[]
+    accounts                Account[]
+    libraryItems            LibraryItem[]
+    collections             Collection[]
+    libraryActivityEvents   LibraryActivityEvent[]
+    automations             Automation[]
+    automationRuns          AutomationRun[]
+    comments                Comment[]
 
-  feedbackEntries       Feedback[]
-  rssFeeds              RssFeed[]
-  markdownImports       MarkdownImport[]
+    feedbackEntries Feedback[]
+    rssFeeds        RssFeed[]
+    markdownImports MarkdownImport[]
 
-  @@index([stripeCustomerId])
-  @@map("user")
+    @@map("user")
 }
 
 /// Application-owned grouping of library items. A collection is both an
 /// organizational unit and the public sharing boundary when `shareId` is set.
 model Collection {
-  id             String                 @id @default(cuid())
-  userId         String
-  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name           String
-  /// Lowercased normalized name used for per-user uniqueness. Store it
-  /// separately from `name` so display casing remains user-authored.
-  nameKey        String
-  description    String?
-  priority       CollectionPriority     @default(none)
-  /// Stable public identifier. A collection is considered public only when both
-  /// `shareId` and `sharedAt` are set; clearing both revokes sharing.
-  shareId        String?                @unique
-  sharedAt       DateTime?
-  items          LibraryItem[]
-  activityEvents LibraryActivityEvent[]
-  automations    Automation[]
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+    id             String                 @id @default(cuid())
+    userId         String
+    user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    name           String
+    /// Lowercased normalized name used for per-user uniqueness. Store it
+    /// separately from `name` so display casing remains user-authored.
+    nameKey        String
+    description    String?
+    priority       CollectionPriority     @default(none)
+    /// Stable public identifier. A collection is considered public only when both
+    /// `shareId` and `sharedAt` are set; clearing both revokes sharing.
+    shareId        String?                @unique
+    sharedAt       DateTime?
+    items          LibraryItem[]
+    activityEvents LibraryActivityEvent[]
+    automations    Automation[]
+    createdAt      DateTime               @default(now())
+    updatedAt      DateTime               @updatedAt
 
-  @@unique([userId, nameKey])
-  @@index([userId])
-  @@index([userId, name])
-  @@index([userId, updatedAt, createdAt])
-  @@map("collection")
+    @@unique([userId, nameKey])
+    @@index([userId, name])
+    @@map("collection")
 }
 
 /// Application-owned activity record for the user's library timeline. Item and
 /// collection relations are nullable so deletion preserves historical context.
 model LibraryActivityEvent {
-  id            String                   @id @default(cuid())
-  userId        String
-  user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind          LibraryActivityEventKind
-  libraryItemId String?
-  libraryItem   LibraryItem?             @relation(fields: [libraryItemId], references: [id], onDelete: SetNull)
-  collectionId  String?
-  collection    Collection?              @relation(fields: [collectionId], references: [id], onDelete: SetNull)
-  /// Event-specific payload. Keep payloads additive and version-tolerant because
-  /// old events may be replayed by timeline and analytics code.
-  metadata      Json?
-  /// User-visible time of the event. This may differ from `createdAt` for
-  /// imported or backfilled activity.
-  occurredAt    DateTime                 @default(now())
-  createdAt     DateTime                 @default(now())
+    id            String                   @id @default(cuid())
+    userId        String
+    user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    kind          LibraryActivityEventKind
+    libraryItemId String?
+    libraryItem   LibraryItem?             @relation(fields: [libraryItemId], references: [id], onDelete: SetNull)
+    collectionId  String?
+    collection    Collection?              @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+    /// Event-specific payload. Keep payloads additive and version-tolerant because
+    /// old events may be replayed by timeline and analytics code.
+    metadata      Json?
+    /// User-visible time of the event. This may differ from `createdAt` for
+    /// imported or backfilled activity.
+    occurredAt    DateTime                 @default(now())
+    createdAt     DateTime                 @default(now())
 
-  @@index([userId, occurredAt])
-  @@index([userId, occurredAt, createdAt])
-  @@index([libraryItemId])
-  @@index([collectionId])
-  @@map("library_activity_event")
+    @@index([userId, occurredAt, createdAt])
+    @@index([libraryItemId])
+    @@index([collectionId])
+    @@map("library_activity_event")
 }
 
 /// Application-owned saved content. The compound source identity is the durable
 /// dedupe key; collection membership and activity hang off this record.
 model LibraryItem {
-  id               String                       @id @default(cuid())
-  userId           String
-  user             User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  source           LibraryItemSource
-  kind             LibraryItemKind              @default(bookmark)
-  /// Source-native item id. For first-party notes this is generated by Cache;
-  /// for integrations it must remain whatever the upstream source uses.
-  externalId       String
-  /// Historical source ids that should resolve to this item. Chrome bookmark ids
-  /// can churn across syncs, so aliases prevent duplicate rows after moves.
-  sourceAliasIds   String[]                     @default([])
-  /// Import namespace within a source. Browser integrations use this to keep
-  /// separate profiles from colliding on the same upstream ids.
-  browserProfileId String                       @default("default")
-  /// Source-native parent id for hierarchical sources. It is intentionally not a
-  /// self-relation because parent rows can disappear or arrive out of order.
-  parentExternalId String?
-  sourceDeviceId   String?
-  sourceDeviceName String?
-  url              String
-  /// Non-note item caption or label. Notes store authored content only in the
-  /// note fields so rendered text does not diverge from editor state.
-  caption          String?
-  /// Sanitized HTML projection of the note payload. Paired with
-  /// `noteContentText` by a DB CHECK constraint; all writes must go through
-  /// `normalizeNotePayload` in `lib/integrations/notes/service.ts`.
-  noteContentHtml  String?
-  /// Editor-native document state when available. `noteContentHtml` and
-  /// `noteContentText` are denormalized render/search projections of the
-  /// current note payload. `noteContentText` is derived from `noteContentHtml`
-  /// by `extractNoteText(sanitizeNoteHtml(...))`; the functional dependency is
-  /// not representable as a CHECK constraint, so the single write path is the
-  /// source of truth and the DB only enforces the structural pair invariant.
-  noteContentState Json?
-  noteContentText  String?
-  /// Integration-specific metadata used for synthesis, display, and debugging.
-  /// Services must tolerate missing keys because upstream APIs evolve.
-  sourceMetadata   Json?
-  /// Content publication time from the source when available.
-  postedAt         DateTime?
-  /// Time Cache last fetched or refreshed source metadata.
-  scrapedAt        DateTime?
-  /// Time the user moved this item to Recently deleted. Null while the item
-  /// is in the active library. Tombstones are hard-deleted 30 days later (see
-  /// `lib/collections/service.ts:purgeExpiredLibraryItems`).
-  deletedAt        DateTime?
-  collections      Collection[]
-  activityEvents   LibraryActivityEvent[]
-  comment          Comment?
-  /// Null means the item has not entered the review workflow yet.
-  reviewedAt       DateTime?
-  /// When the user marked this item as a favorite. Null means not favorited.
-  favoritedAt      DateTime?
-  /// Last time Smart Collections added memberships to this item. Null means
-  /// never auto-tagged. UI uses recency of this stamp for a temporary
-  /// intelligence indicator; it is not cleared when the user edits memberships.
-  smartCollectedAt DateTime?
-  /// Last link-health classification from Cache's reachability probe.
-  linkReachability LibraryItemLinkReachability?
-  /// When `linkReachability` was last written. Null means never checked.
-  linkCheckedAt    DateTime?
-  createdAt        DateTime                     @default(now())
-  updatedAt        DateTime                     @updatedAt
+    id               String                       @id @default(cuid())
+    userId           String
+    user             User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    source           LibraryItemSource
+    kind             LibraryItemKind              @default(bookmark)
+    /// Source-native item id. For first-party notes this is generated by Cache;
+    /// for integrations it must remain whatever the upstream source uses.
+    externalId       String
+    /// Historical source ids that should resolve to this item. Chrome bookmark ids
+    /// can churn across syncs, so aliases prevent duplicate rows after moves.
+    sourceAliasIds   String[]                     @default([])
+    /// Import namespace within a source. Browser integrations use this to keep
+    /// separate profiles from colliding on the same upstream ids.
+    browserProfileId String                       @default("default")
+    /// Source-native parent id for hierarchical sources. It is intentionally not a
+    /// self-relation because parent rows can disappear or arrive out of order.
+    parentExternalId String?
+    sourceDeviceId   String?
+    sourceDeviceName String?
+    url              String
+    /// Non-note item caption or label. Notes store authored content only in the
+    /// note fields so rendered text does not diverge from editor state.
+    caption          String?
+    /// Sanitized HTML projection of the note payload. Paired with
+    /// `noteContentText` by a DB CHECK constraint; all writes must go through
+    /// `normalizeNotePayload` in `lib/integrations/notes/service.ts`.
+    noteContentHtml  String?
+    /// Editor-native document state when available. `noteContentHtml` and
+    /// `noteContentText` are denormalized render/search projections of the
+    /// current note payload. `noteContentText` is derived from `noteContentHtml`
+    /// by `extractNoteText(sanitizeNoteHtml(...))`; the functional dependency is
+    /// not representable as a CHECK constraint, so the single write path is the
+    /// source of truth and the DB only enforces the structural pair invariant.
+    noteContentState Json?
+    noteContentText  String?
+    /// Integration-specific metadata used for synthesis, display, and debugging.
+    /// Services must tolerate missing keys because upstream APIs evolve.
+    sourceMetadata   Json?
+    /// Content publication time from the source when available.
+    postedAt         DateTime?
+    /// Time Cache last fetched or refreshed source metadata.
+    scrapedAt        DateTime?
+    /// Time the user moved this item to Recently deleted. Null while the item
+    /// is in the active library. Tombstones are hard-deleted 30 days later (see
+    /// `lib/collections/service.ts:purgeExpiredLibraryItems`).
+    deletedAt        DateTime?
+    collections      Collection[]
+    activityEvents   LibraryActivityEvent[]
+    comment          Comment?
+    /// Null means the item has not entered the review workflow yet.
+    reviewedAt       DateTime?
+    /// When the user marked this item as a favorite. Null means not favorited.
+    favoritedAt      DateTime?
+    /// Last time Smart Collections added memberships to this item. Null means
+    /// never auto-tagged. UI uses recency of this stamp for a temporary
+    /// intelligence indicator; it is not cleared when the user edits memberships.
+    smartCollectedAt DateTime?
+    /// Last link-health classification from Cache's reachability probe.
+    linkReachability LibraryItemLinkReachability?
+    /// When `linkReachability` was last written. Null means never checked.
+    linkCheckedAt    DateTime?
+    createdAt        DateTime                     @default(now())
+    updatedAt        DateTime                     @updatedAt
 
-  @@unique([userId, source, browserProfileId, externalId])
-  @@index([userId])
-  @@index([userId, scrapedAt, updatedAt])
-  @@index([userId, source, browserProfileId])
-  @@index([userId, source, browserProfileId, parentExternalId], map: "library_item_user_source_profile_parent_idx")
-  @@index([userId, reviewedAt])
-  @@index([userId, favoritedAt])
-  @@index([userId, scrapedAt, updatedAt, reviewedAt])
-  /// Recently-deleted listing and lazy purge both filter by `(userId, deletedAt)`;
-  /// keep both live and trashed reads index-served.
-  @@index([userId, deletedAt])
-  @@index([userId, linkReachability])
-  @@map("library_item")
+    @@unique([userId, source, browserProfileId, externalId])
+    @@index([userId, scrapedAt, updatedAt])
+    /// Recently-deleted listing and lazy purge both filter by `(userId, deletedAt)`;
+    /// keep both live and trashed reads index-served.
+    @@index([userId, deletedAt])
+    @@map("library_item")
 }
 
 /// User-authored single comment attached to an item. One row per item; clearing
 /// the comment deletes the row. Notes cannot carry comments.
 model Comment {
-  id            String      @id @default(cuid())
-  userId        String
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  libraryItemId String      @unique
-  libraryItem   LibraryItem @relation(fields: [libraryItemId], references: [id], onDelete: Cascade)
-  contentText   String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+    id            String      @id @default(cuid())
+    userId        String
+    user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    libraryItemId String      @unique
+    libraryItem   LibraryItem @relation(fields: [libraryItemId], references: [id], onDelete: Cascade)
+    contentText   String
+    createdAt     DateTime    @default(now())
+    updatedAt     DateTime    @updatedAt
 
-  @@map("comment")
+    @@index([userId, updatedAt])
+    @@map("comment")
 }
 
 /// Scheduled assistant behavior owned by a user. Paused seeded automations may
 /// be unscheduled until the user explicitly enables them.
 model Automation {
-  id                     String                 @id @default(cuid())
-  userId                 String
-  user                   User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  templateKey            AutomationTemplateKey?
-  title                  String
-  prompt                 String
-  status                 AutomationStatus       @default(paused)
-  payloadScope           AutomationPayloadScope @default(all_library_items)
-  collectionId           String?
-  collection             Collection?            @relation(fields: [collectionId], references: [id], onDelete: SetNull)
-  collectionNameSnapshot String?
-  cadence                AutomationCadence?
-  timezone               String?
-  timeOfDayMinutes       Int?
-  weekDay                Int?
-  monthDay               Int?
-  nextRunAtUtc           DateTime?
-  activatedAtUtc         DateTime?
-  lastRunAtUtc           DateTime?
-  lastSucceededAtUtc     DateTime?
-  lastFailureCode        String?
-  runs                   AutomationRun[]
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
+    id                     String                 @id @default(cuid())
+    userId                 String
+    user                   User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    templateKey            AutomationTemplateKey?
+    title                  String
+    prompt                 String
+    status                 AutomationStatus       @default(paused)
+    payloadScope           AutomationPayloadScope @default(all_library_items)
+    collectionId           String?
+    collection             Collection?            @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+    collectionNameSnapshot String?
+    cadence                AutomationCadence?
+    timezone               String?
+    timeOfDayMinutes       Int?
+    weekDay                Int?
+    monthDay               Int?
+    nextRunAtUtc           DateTime?
+    activatedAtUtc         DateTime?
+    lastRunAtUtc           DateTime?
+    lastSucceededAtUtc     DateTime?
+    lastFailureCode        String?
+    runs                   AutomationRun[]
+    createdAt              DateTime               @default(now())
+    updatedAt              DateTime               @updatedAt
 
-  @@unique([userId, templateKey])
-  @@index([status, nextRunAtUtc])
-  @@index([userId, status])
-  @@index([userId, collectionId])
-  @@map("automation")
+    @@unique([userId, templateKey])
+    @@map("automation")
 }
 
 /// Immutable record of a scheduled automation occurrence. Output can contain
 /// synthesized user content and is deleted with the owning automation.
 model AutomationRun {
-  id                     String                 @id @default(cuid())
-  automationId           String
-  automation             Automation             @relation(fields: [automationId], references: [id], onDelete: Cascade)
-  userId                 String
-  user                   User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  scheduledForUtc        DateTime
-  status                 AutomationRunStatus    @default(pending)
-  workflowRunId          String?
-  leaseId                String?
-  leaseExpiresAt         DateTime?
-  startedAt              DateTime?
-  finishedAt             DateTime?
-  summaryMarkdown        String?
-  sources                Json?
-  usage                  Json?
-  errorCode              String?
-  errorMessage           String?
-  templateKeySnapshot    AutomationTemplateKey?
-  payloadScopeSnapshot   AutomationPayloadScope
-  collectionIdSnapshot   String?
-  collectionNameSnapshot String?
-  promptSnapshot         String
-  scheduleSnapshot       Json
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
+    id                     String                 @id @default(cuid())
+    automationId           String
+    automation             Automation             @relation(fields: [automationId], references: [id], onDelete: Cascade)
+    userId                 String
+    user                   User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    scheduledForUtc        DateTime
+    status                 AutomationRunStatus    @default(pending)
+    workflowRunId          String?
+    leaseId                String?
+    leaseExpiresAt         DateTime?
+    startedAt              DateTime?
+    finishedAt             DateTime?
+    summaryMarkdown        String?
+    sources                Json?
+    usage                  Json?
+    errorCode              String?
+    errorMessage           String?
+    templateKeySnapshot    AutomationTemplateKey?
+    payloadScopeSnapshot   AutomationPayloadScope
+    collectionIdSnapshot   String?
+    collectionNameSnapshot String?
+    promptSnapshot         String
+    scheduleSnapshot       Json
+    createdAt              DateTime               @default(now())
+    updatedAt              DateTime               @updatedAt
 
-  @@unique([automationId, scheduledForUtc])
-  @@index([status, scheduledForUtc])
-  @@index([automationId, createdAt])
-  @@index([userId, createdAt])
-  @@map("automation_run")
+    @@unique([automationId, scheduledForUtc])
+    @@index([status, scheduledForUtc])
+    @@index([automationId, createdAt])
+    @@map("automation_run")
 }
 
 /// Managed by better-auth core. Do not rename fields.
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id        String   @id
+    expiresAt DateTime
+    token     String   @unique
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    ipAddress String?
+    userAgent String?
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@map("session")
+    @@index([userId])
+    @@map("session")
 }
 
 /// Managed by better-auth core. Do not rename fields.
 model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  issuer                String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+    id                    String    @id
+    accountId             String
+    providerId            String
+    issuer                String
+    userId                String
+    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @updatedAt
 
-  @@unique([issuer, accountId])
-  @@index([userId, providerId])
-  @@map("account")
+    @@unique([issuer, accountId])
+    @@index([userId, providerId])
+    @@map("account")
 }
 
 /// Managed by better-auth core. Do not rename fields.
 model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+    id         String   @id
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
 
-  @@index([identifier])
-  @@map("verification")
+    @@index([identifier])
+    @@map("verification")
 }
 
 /// Managed by @better-auth/stripe plugin. Do not rename fields. Cache reads this
 /// table for entitlement state but should let the plugin own lifecycle writes.
 model Subscription {
-  id                   String    @id
-  plan                 String
-  referenceId          String
-  stripeCustomerId     String?
-  stripeSubscriptionId String?   @unique
-  status               String?   @default("incomplete")
-  periodStart          DateTime?
-  periodEnd            DateTime?
-  trialStart           DateTime?
-  trialEnd             DateTime?
-  cancelAtPeriodEnd    Boolean?  @default(false)
-  cancelAt             DateTime?
-  canceledAt           DateTime?
-  endedAt              DateTime?
-  seats                Int?
-  billingInterval      String?
-  stripeScheduleId     String?
+    id                   String    @id
+    plan                 String
+    referenceId          String
+    stripeCustomerId     String?
+    stripeSubscriptionId String?   @unique
+    status               String?   @default("incomplete")
+    periodStart          DateTime?
+    periodEnd            DateTime?
+    trialStart           DateTime?
+    trialEnd             DateTime?
+    cancelAtPeriodEnd    Boolean?  @default(false)
+    cancelAt             DateTime?
+    canceledAt           DateTime?
+    endedAt              DateTime?
+    seats                Int?
+    billingInterval      String?
+    stripeScheduleId     String?
 
-  @@unique([referenceId], map: "subscription_referenceId_active_idx", where: raw("status IN ('incomplete', 'trialing', 'active', 'past_due')"))
-  @@index([referenceId])
-  @@index([referenceId, periodEnd])
-  @@map("subscription")
+    @@unique([referenceId], map: "subscription_referenceId_active_idx", where: raw("status IN ('incomplete', 'trialing', 'active', 'past_due')"))
+    @@index([referenceId, periodEnd])
+    @@map("subscription")
 }
 
 /// Application-owned user feedback submissions. Feedback survives user deletion
 /// so product triage keeps historical context without retaining the account.
 model Feedback {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  pagePath  String
-  context   String?
-  message   String
-  createdAt DateTime @default(now())
+    id        String   @id @default(cuid())
+    userId    String?
+    user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+    pagePath  String
+    context   String?
+    message   String
+    email     String?
+    createdAt DateTime @default(now())
 
-  @@index([pagePath])
-  @@index([userId])
-  @@map("feedback")
+    @@index([userId])
+    @@map("feedback")
 }
 
 /// A feed the user follows. Entries from this feed are imported as
 /// LibraryItem rows with source = rss_feed and externalId = the entry guid.
 model RssFeed {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  feedUrl       String
-  urlKey        String
-  title         String?
-  siteUrl       String?
-  description   String?
-  lastFetchedAt DateTime?
-  lastError     String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+    id            String    @id @default(cuid())
+    userId        String
+    user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    feedUrl       String
+    urlKey        String
+    title         String?
+    siteUrl       String?
+    description   String?
+    lastFetchedAt DateTime?
+    lastError     String?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
 
-  @@unique([userId, urlKey])
-  @@index([userId])
-  @@map("rss_feed")
+    @@unique([userId, urlKey])
+    @@map("rss_feed")
 }
 
 /// A named import namespace for Markdown (.md) files from a single folder or
@@ -487,14 +471,13 @@ model RssFeed {
 /// (userId, source = markdown_import, browserProfileId, externalId) is the
 /// stable identity for each imported note.
 model MarkdownImport {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+    id        String   @id @default(cuid())
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    name      String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-  @@unique([userId, name])
-  @@index([userId])
-  @@map("markdown_import")
+    @@unique([userId, name])
+    @@map("markdown_import")
 }
