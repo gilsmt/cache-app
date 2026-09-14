@@ -2,48 +2,30 @@
     "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
     "extends": [
         "ultracite/biome/core",
-        "ultracite/biome/next",
-        "ultracite/biome/react"
+        "ultracite/biome/react",
+        "ultracite/biome/next"
     ],
     "files": {
-        "includes": ["!!**/extensions", "!!**/public", "!!**/prisma"]
+        "includes": [
+            "!!**/extensions",
+            "!!**/public",
+            "!!**/prisma/client",
+            "!!**/backups",
+            "!!**/.agents",
+            "!!**/.swc",
+            "!!**/.well-known/workflow"
+        ]
     },
-    "formatter": {
-        "indentWidth": 4
-    },
-    "javascript": {
-        "formatter": {
-            "indentWidth": 4,
-            "quoteStyle": "double"
-        }
-    },
-    "json": {
-        "formatter": {
-            "indentWidth": 4
-        }
-    },
-    "assist": {
-        "actions": {
-            "source": {
-                "organizeImports": "on",
-                "useSortedAttributes": "on",
-                "useSortedKeys": "on"
-            }
-        }
-    },
-    "css": {
-        "parser": {
-            "tailwindDirectives": true
-        }
-    },
+    "formatter": { "indentWidth": 4 },
+    "javascript": { "formatter": { "indentWidth": 4 } },
+    "json": { "formatter": { "indentWidth": 4 } },
     "linter": {
         "rules": {
-            "a11y": {
-                "noNoninteractiveElementInteractions": "off",
-                "noStaticElementInteractions": "off"
-            },
             "complexity": {
-                "noExcessiveCognitiveComplexity": "off"
+                "noExcessiveCognitiveComplexity": {
+                    "level": "warn",
+                    "options": { "maxAllowedComplexity": 62 }
+                }
             },
             "performance": {
                 "noBarrelFile": "off",
@@ -53,10 +35,14 @@
             },
             "suspicious": {
                 "noBitwiseOperators": "off",
+                "noForIn": "error",
                 "noUnnecessaryConditions": "off"
             },
             "style": {
                 "useDestructuring": "off"
+            },
+            "correctness": {
+                "noUndeclaredDependencies": "error"
             }
         }
     }

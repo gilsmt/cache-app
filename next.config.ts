@@ -38,12 +38,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
     cacheComponents: true,
     experimental: {
-        serverActions: {
-            // Markdown import batches up to 5 MB; the default 1 MB would
-            // 413-reject every nontrivial batch before the action runs.
-            bodySizeLimit: "8mb",
-        },
+        serverActions: { bodySizeLimit: "8mb" },
+        turbopackCjsTreeShaking: true,
         turbopackRustReactCompiler: true,
+        turbopackSharedRuntime: true,
         useOffline: true,
         useTypeScriptCli: true,
     },
@@ -121,12 +119,8 @@ const nextConfig: NextConfig = {
     reactCompiler: true,
     async redirects() {
         return [
-            // better-auth 1.7 moved generic-OAuth callbacks from
-            // /oauth2/callback/:id to /callback/:id, so a provider dashboard
-            // still registered on the old path (e.g. Notion) would 404.
-            // Temporary: remove once every provider dashboard uses
-            // {baseURL}/api/auth/callback/:id.
             {
+                // better-auth 1.7 moved generic-OAuth callbacks from /oauth2/callback/:id to /callback/:id
                 destination: "/api/auth/callback/:path*",
                 permanent: false,
                 source: "/api/auth/oauth2/callback/:path*",

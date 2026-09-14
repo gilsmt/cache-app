@@ -11,13 +11,25 @@ export const serverEnv = createEnv({
         ARCJET_KEY: z.string().startsWith("ajkey_").optional(),
         BETTER_AUTH_SECRET: z.string().optional(),
         BETTER_AUTH_URL: z.url().optional(),
+        /** Comma-separated vendor-qualified fallback models used after CACHE_AI_MODEL fails. */
+        CACHE_AI_FALLBACK_MODELS: z.string().optional(),
+        /** Self-host AI model override. Vendor-qualified, e.g. google/gemini-3.5-flash-lite. */
+        CACHE_AI_MODEL: z
+            .string()
+            .regex(/^[a-z0-9][a-z0-9-]*\/[a-z0-9._/-]+$/i)
+            .optional(),
         /** Optional override for local/unpacked Chrome extension origin trust. */
         CACHE_EXTENSION_ID: z
             .string()
             .regex(/^[a-p]{32}$/)
             .optional(),
         CRON_SECRET: z.string().optional(),
-        DATABASE_URL: z.string().startsWith("postgres://"),
+        DATABASE_URL: z
+            .string()
+            .regex(
+                /^postgres(ql)?:\/\//,
+                "DATABASE_URL must start with postgres:// or postgresql://"
+            ),
         DISABLE_AUTH: z
             .enum(["true", "false"])
             .default("false")
@@ -27,7 +39,7 @@ export const serverEnv = createEnv({
         EMAIL_SERVER_PASSWORD: z.string().optional(),
         EMAIL_SERVER_PORT: z.string().optional(),
         EMAIL_SERVER_USER: z.string().optional(),
-        GEMINI_API_KEY: z.string(),
+        GEMINI_API_KEY: z.string().optional(),
         GITHUB_CLIENT_ID: z.string().optional(),
         GITHUB_CLIENT_SECRET: z.string().optional(),
         GOOGLE_CLIENT_ID: z.string().optional(),
@@ -38,6 +50,7 @@ export const serverEnv = createEnv({
         NOTION_CLIENT_SECRET: z.string().optional(),
         PINTEREST_CLIENT_ID: z.string().optional(),
         PINTEREST_CLIENT_SECRET: z.string().optional(),
+        RESEND_API_KEY: z.string().optional(),
         STRIPE_PRICE_ID_MONTHLY: z.string().startsWith("price_").optional(),
         STRIPE_PRICE_ID_YEARLY: z.string().startsWith("price_").optional(),
         STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
