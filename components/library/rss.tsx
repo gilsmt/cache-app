@@ -16,6 +16,7 @@ import {
     DialogPopup,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { ErrorMessage } from "@/components/ui/error-message";
 import { Input } from "@/components/ui/input";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
@@ -51,6 +52,7 @@ export function RssManageDialog() {
     const [removingFeedIds, setRemovingFeedIds] = React.useState<Set<string>>(
         () => new Set()
     );
+    const [removeError, setRemoveError] = React.useState<string | null>(null);
 
     const {
         data: feeds = [],
@@ -63,23 +65,32 @@ export function RssManageDialog() {
     );
 
     const refreshFeeds = useStableCallback(() => {
-        mutate().catch(() => undefined);
+        mutate().catch((refreshError: unknown) => {
+            log.error("Refresh feeds failed", refreshError);
+        });
     });
 
     const handleRemove = useStableCallback(async (feedId: string) => {
         setRemovingFeedIds((prev) => new Set(prev).add(feedId));
+        setRemoveError(null);
 
         try {
             const result = await removeFeed({ feedId });
             if (result.status === "SUCCESS") {
-                await mutate((currentFeeds) =>
-                    (currentFeeds ?? []).filter((feed) => feed.id !== feedId)
+                await mutate(
+                    (currentFeeds) =>
+                        (currentFeeds ?? []).filter(
+                            (feed) => feed.id !== feedId
+                        ),
+                    { revalidate: false }
                 );
             } else {
                 log.error("Remove feed failed", result);
+                setRemoveError(result.message);
             }
         } catch (unexpectedError) {
             log.error("Remove feed failed unexpectedly", unexpectedError);
+            setRemoveError("We couldn't remove this feed right now.");
         } finally {
             setRemovingFeedIds((prev) => {
                 const next = new Set(prev);
@@ -101,6 +112,11 @@ export function RssManageDialog() {
                 </DialogHeader>
                 <DialogPanel className="space-y-2">
                     <RssAddFeedForm onFeedAdded={refreshFeeds} />
+                    {removeError ? (
+                        <ErrorMessage className="pt-2">
+                            {removeError}
+                        </ErrorMessage>
+                    ) : null}
                     <RssFeedList
                         error={error}
                         feeds={feeds}
@@ -162,7 +178,11 @@ function RssFeedList({
 }
 
 function RssFeedListLoading() {
-    return <p className="text-muted-foreground text-sm">Loading feeds...</p>;
+    return (
+        <p className="text-muted-foreground text-sm" role="status">
+            Loading feeds...
+        </p>
+    );
 }
 
 interface RssFeedListErrorProps {
@@ -173,7 +193,7 @@ interface RssFeedListErrorProps {
 function RssFeedListError({ children, onRetry }: RssFeedListErrorProps) {
     return (
         <div className="flex flex-col items-start gap-1.5">
-            <p className="text-destructive text-sm">{children}</p>
+            <ErrorMessage className="text-sm">{children}</ErrorMessage>
             <Button onClick={onRetry} size="sm" variant="ghost">
                 Try again
             </Button>
@@ -200,7 +220,11 @@ function RssFeedItem({ feed, isRemoving, onRemove }: RssFeedItemProps) {
 
     return (
         <div className="flex items-center gap-3 rounded-lg bg-muted p-3 text-sm">
-            <Rss className="size-4 shrink-0 text-muted-foreground" />
+            <Rss
+                aria-hidden
+                className="size-4 shrink-0 text-muted-foreground"
+                focusable="false"
+            />
             <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">
                     {feed.title ?? feed.feedUrl}
@@ -215,12 +239,13 @@ function RssFeedItem({ feed, isRemoving, onRemove }: RssFeedItemProps) {
                 ) : null}
             </div>
             <Button
+                aria-label={`Remove ${feed.title ?? feed.feedUrl}`}
                 isLoading={isRemoving}
                 onClick={handleRemove}
                 size="icon"
                 variant="ghost"
             >
-                <Trash2 className="size-4" />
+                <Trash2 aria-hidden className="size-4" focusable="false" />
             </Button>
         </div>
     );
@@ -251,7 +276,7 @@ function RssAddFeedForm({ onFeedAdded }: RssAddFeedFormProps) {
 
             setError(null);
             startTransition(async () => {
-                const result = await addFeed({ feedUrl: url });
+                const result = await addFeed({ feedUrl: url.trim() });
                 if (result.status !== "SUCCESS") {
                     setError(result.message);
                     return;
@@ -282,13 +307,9 @@ function RssAddFeedForm({ onFeedAdded }: RssAddFeedFormProps) {
                 </Button>
             </div>
             {error ? (
-                <p
-                    className="text-destructive text-xs"
-                    id="add-feed-error"
-                    role="alert"
-                >
+                <ErrorMessage className="pt-2" id="add-feed-error">
                     {error}
-                </p>
+                </ErrorMessage>
             ) : null}
         </form>
     );

@@ -3,16 +3,13 @@
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { cn } from "cn";
 import { T } from "gt-next";
 import * as React from "react";
-import {
-    Masonry,
-    type MasonryRenderComponentProps,
-} from "@/components/ui/masonry";
-import { MediaPlaceholder } from "@/components/ui/media-placeholder";
+import { MasonryItem, MasonryRoot } from "@/components/ui/masonry";
+import { Placeholder } from "@/components/ui/placeholder";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Ticker } from "@/components/ui/ticker";
-import { cn } from "@/lib/common/cn";
 import {
     createDimensionsCache,
     type Dimensions,
@@ -101,15 +98,6 @@ export function PublicShareGrid({
 }): React.ReactElement {
     const [dimensionsCache] = React.useState(createDimensionsCache);
 
-    const renderCard = useStableCallback(
-        ({ data }: MasonryRenderComponentProps<PublicShareGridItem>) => (
-            <PublicShareGridCard
-                data={data}
-                dimensionsCache={dimensionsCache}
-            />
-        )
-    );
-
     if (items.length === 0) {
         return (
             <div className="flex min-h-[50vh] items-center justify-center">
@@ -123,15 +111,16 @@ export function PublicShareGrid({
     }
 
     return (
-        <Masonry
-            columnGutter={16}
-            itemAs="article"
-            items={items}
-            maxColumnCount={7}
-            render={renderCard}
-            rowGutter={16}
-            tabIndex={-1}
-        />
+        <MasonryRoot gap={16} items={items} maxColumnCount={7}>
+            {(item) => (
+                <MasonryItem key={item.id}>
+                    <PublicShareGridCard
+                        data={item}
+                        dimensionsCache={dimensionsCache}
+                    />
+                </MasonryItem>
+            )}
+        </MasonryRoot>
     );
 }
 
@@ -249,7 +238,7 @@ function PreviewMedia({
         setDimensions(dimensionsCache.readCachedDimensions(src));
     }
 
-    const canRenderImage = Boolean(src) && !didFail;
+    const canRenderImage = !!src && !didFail;
     const displayDimensions = resolveDisplayDimensions(dimensions);
 
     const applyNaturalDimensions = useStableCallback(
@@ -304,6 +293,7 @@ function PreviewMedia({
             }}
         >
             {canRenderImage ? (
+                // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts img onError/onLoad
                 <img
                     {...props}
                     alt=""
@@ -321,7 +311,7 @@ function PreviewMedia({
                     width={displayDimensions.w}
                 />
             ) : (
-                <MediaPlaceholder className="size-full" />
+                <Placeholder className="size-full" />
             )}
         </div>
     );

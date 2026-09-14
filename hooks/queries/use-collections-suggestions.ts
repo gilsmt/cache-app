@@ -1,16 +1,16 @@
 import useSWR from "swr";
 import type { CollectionTemplateOption } from "@/lib/collections/templates";
-import { getCollectionRecommendations } from "@/lib/intelligence/actions";
+import { getCollectionSuggestions } from "@/lib/intelligence/actions";
 
-const COLLECTION_RECOMMENDATIONS_KEY = "collection-recommendations";
+const COLLECTION_SUGGESTIONS_KEY = "collection-suggestions";
 
-async function fetchCollectionRecommendations() {
+async function fetchCollectionSuggestions() {
     try {
-        const result = await getCollectionRecommendations();
+        const result = await getCollectionSuggestions();
         if (result.status !== "SUCCESS") {
             throw new Error(result.message);
         }
-        return result.recommendations;
+        return result.suggestions;
     } catch (error) {
         if (error instanceof Error) {
             throw error;
@@ -18,21 +18,21 @@ async function fetchCollectionRecommendations() {
         throw new Error(
             typeof error === "string"
                 ? error
-                : "Failed to load collection recommendations",
+                : "Failed to load collection suggestions",
             { cause: error }
         );
     }
 }
 
-export function useCollectionRecommendations() {
+export function useCollectionsSuggestions() {
     const {
         data = [],
         error,
         isLoading,
         mutate,
     } = useSWR<CollectionTemplateOption[], Error>(
-        COLLECTION_RECOMMENDATIONS_KEY,
-        fetchCollectionRecommendations,
+        COLLECTION_SUGGESTIONS_KEY,
+        fetchCollectionSuggestions,
         {
             dedupingInterval: 60_000,
             keepPreviousData: true,

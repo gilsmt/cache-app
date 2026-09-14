@@ -12,7 +12,9 @@ interface BuildPageMetadataArgs {
     title: string | { absolute: string };
 }
 
-const DEFAULT_OG_IMAGE = `${BASE_URL}/opengraph-image.png`;
+export const DEFAULT_OG_IMAGE = `${BASE_URL}/opengraph-image.png`;
+export const DEFAULT_OG_IMAGE_ALT =
+    "The word 'Cache' in bold abstract lettering on a warm off-white background";
 
 /**
  * Builds a standard Metadata object with alternates, Open Graph, and Twitter
@@ -32,6 +34,10 @@ export function buildPageMetadata({
     path,
     title,
 }: BuildPageMetadataArgs): Metadata {
+    const defaultLocale = getDefaultLocale();
+    const resolvedLocale = locale ?? defaultLocale;
+    const url = getLocalizedUrl(resolvedLocale, path);
+
     return {
         alternates: buildLocaleAlternates(path, locale),
         description,
@@ -41,15 +47,17 @@ export function buildPageMetadata({
             description,
             images: [
                 {
-                    alt: "The word 'Cache' in bold abstract lettering on a warm off-white background",
+                    alt: DEFAULT_OG_IMAGE_ALT,
                     height: 630,
                     url: ogImage,
                     width: 1200,
                 },
             ],
-            locale,
+            locale: toOpenGraphLocale(resolvedLocale),
+            siteName: "Cache App",
             title,
             type: ogType,
+            url,
         },
         title,
         twitter: {
@@ -57,7 +65,7 @@ export function buildPageMetadata({
             description,
             images: [
                 {
-                    alt: "The word 'Cache' in bold abstract lettering on a warm off-white background",
+                    alt: DEFAULT_OG_IMAGE_ALT,
                     height: 630,
                     url: ogImage,
                     width: 1200,
@@ -66,6 +74,14 @@ export function buildPageMetadata({
             title,
         },
     };
+}
+
+/**
+ * Open Graph requires `language_TERRITORY` (e.g. `en_US`) while the app
+ * uses BCP-47 (`en-US`), so the separator must be converted.
+ */
+export function toOpenGraphLocale(locale: string) {
+    return locale.replaceAll("-", "_");
 }
 
 function getLocalizedUrl(locale: string, path: `/${string}`) {

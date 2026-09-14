@@ -8,19 +8,21 @@ import { Badge } from "@/components/ui/badge";
 
 export function OfflineBadge() {
     const gt = useGT();
+    const label = gt(
+        "You are offline. Any changes you make may be lost until you regain connectivity. Please check your connection and try again."
+    );
 
     return (
         <OfflineOnly>
             <Badge
                 aria-live="assertive"
                 role="alert"
-                title={gt(
-                    "You are offline. Any changes you make may be lost until you regain connectivity."
-                )}
+                title={label}
                 variant="outline"
             >
                 <RadioOff aria-hidden className="size-4" focusable="false" />
                 <span data-sidebar-collapsible="">Offline</span>
+                <span className="sr-only">{label}</span>
             </Badge>
         </OfflineOnly>
     );
@@ -31,8 +33,14 @@ export function OfflineBadge() {
  * state: `useOffline` starts `false` on the server and hydrates in sync, so
  * the online shell never flashes before the true state applies.
  */
-export function OfflineOnly({ children }: React.PropsWithChildren) {
-    return useOffline() ? children : null;
+interface OfflineOnlyProps {
+    children: React.ReactNode;
+}
+
+export function OfflineOnly({ children }: OfflineOnlyProps) {
+    const isOffline = useOffline();
+
+    return isOffline ? children : null;
 }
 
 /**
@@ -40,6 +48,12 @@ export function OfflineOnly({ children }: React.PropsWithChildren) {
  * affordances like "retry now" buttons that only make sense with a
  * connection.
  */
-export function OnlineOnly({ children }: React.PropsWithChildren) {
-    return useOffline() ? null : children;
+interface OnlineOnlyProps {
+    children: React.ReactNode;
+}
+
+export function OnlineOnly({ children }: OnlineOnlyProps) {
+    const isOffline = useOffline();
+
+    return isOffline ? null : children;
 }

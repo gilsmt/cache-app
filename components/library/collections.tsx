@@ -6,6 +6,9 @@ import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
+import { useValueAsRef } from "@base-ui/utils/useValueAsRef";
+import { Calligraph } from "calligraph";
+import { cn } from "cn";
 import { T, useGT } from "gt-next";
 import {
     ArchiveIcon,
@@ -15,6 +18,7 @@ import {
     Clock,
     ClockFading,
     Component,
+    CopyCheck,
     CopyIcon,
     CopyPlus,
     Download,
@@ -41,13 +45,18 @@ import {
     UserRoundPlus,
     X,
 } from "lucide-react";
-import { useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
+import { parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import { useSubscriptionAccess } from "@/components/billing/subscription";
+import {
+    useItemsContext,
+    useItemsStateContext,
+} from "@/components/library/items";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +66,7 @@ import {
     CollapsiblePanel,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { CollapsibleListVertical } from "@/components/ui/collapsible-list";
 import {
     Combobox,
     ComboboxCollection,
@@ -79,15 +89,19 @@ import {
     Dialog,
     DialogClose,
     DialogDescription,
-    DialogFieldError,
     DialogFooter,
     DialogHeader,
     DialogPanel,
     DialogPopup,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { DisclosureListVertical } from "@/components/ui/disclosure-list";
+import { ErrorMessage } from "@/components/ui/error-message";
 import { GradientWaveText } from "@/components/ui/gradient-wave-text";
+import {
+    HOVER_HOTKEY_REGIONS,
+    useHoverHotkeyRegionClaim,
+    useHoverHotkeySurface,
+} from "@/components/ui/hover-hotkey-surface";
 import {
     ChevronDownFilledIcon,
     NotionIcon,
@@ -96,7 +110,6 @@ import {
 } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { AltKbd, CmdKbd, Kbd, ShiftKbd } from "@/components/ui/kbd";
-import { MediaPlaceholder } from "@/components/ui/media-placeholder";
 import {
     Menu,
     MenuGroup,
@@ -110,6 +123,7 @@ import {
     MenuSubTrigger,
     MenuTrigger,
 } from "@/components/ui/menu";
+import { Placeholder } from "@/components/ui/placeholder";
 import {
     Popover,
     PopoverDescription,
@@ -122,12 +136,12 @@ import {
     PreviewCardPopup,
     PreviewCardTrigger,
 } from "@/components/ui/preview-card";
-import { SearchMatchText } from "@/components/ui/search-match-text";
 import { SidebarItem } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { TextMatch } from "@/components/ui/text-match";
 import { Textarea } from "@/components/ui/textarea";
-import { useCollectionRecommendations } from "@/hooks/queries/use-collection-recommendations";
+import { useCollectionsSuggestions } from "@/hooks/queries/use-collections-suggestions";
 import { useSmartCollectionsPreference } from "@/hooks/queries/use-smart-collections-preference";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import {
@@ -139,10 +153,10 @@ import {
     setSmartCollectionsPreference,
     updateCollectionPriority,
 } from "@/lib/collections/actions";
-import type {
-    LibraryItemCollectionsUpdateResult,
-    LibraryItemFavoriteToggleResult,
-} from "@/lib/collections/items";
+import {
+    groupCollectionsBySortField,
+    type RelativeDateGroupId,
+} from "@/lib/collections/grouping";
 import {
     disableCollectionSharing,
     shareCollectionPublicly,
@@ -156,10 +170,12 @@ import {
 } from "@/lib/collections/templates";
 import {
     buildItemsCsv,
+    type CollectionSortField,
     itemPreviewImageUrl,
     type LibraryCollectionSummary,
     type LibraryCollectionTag,
     type LibraryItemWithCollections,
+    toLibraryCollectionTag,
 } from "@/lib/collections/utils";
 import { tryAction } from "@/lib/common/action";
 import {
@@ -169,7 +185,11 @@ import {
     removeValue,
     toggleValue,
 } from "@/lib/common/array";
-import { cn } from "@/lib/common/cn";
+import {
+    forgetImageAspect,
+    peekImageAspect,
+    preloadImageAspect,
+} from "@/lib/common/aspect-ratio";
 import { getHexColorFromName } from "@/lib/common/color";
 import {
     ACTION_STATUS,
@@ -179,12 +199,8 @@ import {
     NAME_MAX_LENGTH,
 } from "@/lib/common/constants";
 import { dayjs } from "@/lib/common/dayjs";
-import { canUseDOM, getOwnerDocument, getOwnerWindow } from "@/lib/common/dom";
+import { getOwnerDocument, getOwnerWindow } from "@/lib/common/dom";
 import { saveFile } from "@/lib/common/file";
-import {
-    type CollectionHoverHotkeySurface,
-    createCollectionHoverHotkeySurface,
-} from "@/lib/common/hover-hotkey-surface";
 import { getSystemControlKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
@@ -192,7 +208,7 @@ import {
     normalizeWhitespace,
     slugify,
 } from "@/lib/common/string";
-import { normalizeURL, openExternalUrl } from "@/lib/common/url";
+import { isHttpUrl, normalizeURL, openExternalUrl } from "@/lib/common/url";
 import { sendCollectionToNotion } from "@/lib/integrations/notion/actions";
 import { getSourceLabel } from "@/lib/integrations/support";
 import { getCollectionDescription } from "@/lib/intelligence/actions";
@@ -235,15 +251,6 @@ const SHARE_COLLECTION_ERROR_MESSAGE =
 
 const PREVIEW_SLIDE_INTERVAL_MS = 1400;
 const PREVIEW_CROSSFADE_MS = 400;
-const PREVIEW_IMAGE_CACHE_MAX = 200;
-const PREVIEW_IMAGE_LOAD_CONCURRENCY = 2;
-
-const PREVIEW_IMAGE_CACHE = new Map<string, number>();
-const PREVIEW_IMAGE_LOADS = new Map<
-    string,
-    Promise<ReadyPreviewSlide | null>
->();
-const PREVIEW_IMAGE_LOAD_TIMEOUT_MS = 15_000;
 
 const COLLECTIONS_LIST_SORT_FIELD_STORAGE_KEY = "cache:collections:sort-field";
 const COLLECTIONS_LIST_TEXT_MATCH_QUERY_STORAGE_KEY =
@@ -254,20 +261,8 @@ const COLLECTIONS_LIST_FAVORITE_IDS_STORAGE_KEY =
 const COLLECTIONS_LIST_OPEN_STORAGE_KEY = "cache:collections:list-open";
 const COLLECTIONS_FAVORITES_LIST_OPEN_STORAGE_KEY =
     "cache:collections:favorites-open";
-const COLLECTIONS_RECOMMENDATIONS_OPEN_STORAGE_KEY =
-    "cache:collections:recommendations-open";
-
-const LEGACY_COLLECTIONS_LIST_STORAGE_KEYS: Record<string, string> = {
-    collectionSortField: COLLECTIONS_LIST_SORT_FIELD_STORAGE_KEY,
-    collectionTextMatchQuery: COLLECTIONS_LIST_TEXT_MATCH_QUERY_STORAGE_KEY,
-    collectionView: COLLECTIONS_LIST_VIEW_STORAGE_KEY,
-    favoriteCollectionIds: COLLECTIONS_LIST_FAVORITE_IDS_STORAGE_KEY,
-    isCollectionsListOpen: COLLECTIONS_LIST_OPEN_STORAGE_KEY,
-    isFavoritesListOpen: COLLECTIONS_FAVORITES_LIST_OPEN_STORAGE_KEY,
-    isRecommendationsOpen: COLLECTIONS_RECOMMENDATIONS_OPEN_STORAGE_KEY,
-};
-
-migrateLegacyCollectionsListStorage();
+const COLLECTIONS_SUGGESTIONS_OPEN_STORAGE_KEY =
+    "cache:collections:suggestions-open";
 
 const COMPACT_NUMBER_FORMATTER = new Intl.NumberFormat("en-US", {
     compactDisplay: "short",
@@ -279,11 +274,12 @@ const INITIAL_CREATE_FORM_STATE: CreateFormState = {
     descriptionErrorMessage: null,
     errorMessage: null,
     nameDraft: "",
+    pendingDescription: null,
 };
 
 const PRIORITY_RANK: Record<CollectionPriority, number> = {
-    archive: 3,
-    none: 4,
+    archive: 4,
+    none: 3,
     peripheral: 2,
     relevant: 1,
     very_relevant: 0,
@@ -294,6 +290,13 @@ const GROUP_LABELS: Record<ComboboxGroupData["group"], string> = {
     "text-match": "Match collection name",
     view: "View",
 };
+
+const COLLECTIONS_LIST_GROUP_LABELS: Record<string, React.ReactNode> = {
+    "last-3-days": <T>Last 3 days</T>,
+    "last-7-days": <T>Last 7 days</T>,
+    "last-30-days": <T>Last 30 days</T>,
+    older: <T>Older</T>,
+} satisfies Record<RelativeDateGroupId, React.ReactNode>;
 
 const DEFAULT_PRIORITY: PriorityOption = {
     icon: PriorityNoneIcon,
@@ -336,6 +339,16 @@ const SORT_OPTIONS: SortingOption[] = [
         value: "priority",
     },
     {
+        icon: Clock,
+        label: "Updated",
+        value: "updated",
+    },
+    {
+        icon: ClockFading,
+        label: "Created",
+        value: "created",
+    },
+    {
         icon: Component,
         label: "Count",
         value: "count",
@@ -344,16 +357,6 @@ const SORT_OPTIONS: SortingOption[] = [
         icon: ArrowUpDown,
         label: "Name",
         value: "name",
-    },
-    {
-        icon: ClockFading,
-        label: "Created",
-        value: "created",
-    },
-    {
-        icon: Clock,
-        label: "Updated",
-        value: "updated",
     },
 ];
 
@@ -385,14 +388,6 @@ const SUMMARY_SORTERS = {
     updated: compareUpdatedAt,
 } satisfies SummarySorter;
 
-type CollectionSortField =
-    | "count"
-    | "created"
-    | "name"
-    | "priority"
-    | "text-match"
-    | "updated";
-
 type CollectionView = "show-all" | "exclude-archives" | "show-shared-only";
 
 type SortableCollectionSummary = Pick<
@@ -409,7 +404,7 @@ type CollectionAction = "notion" | "priority" | "share";
 
 type CollectionsListStatusTone = "error" | "success";
 
-interface CollectionFeedback {
+interface CollectionStatus {
     message: string;
     tone: CollectionsListStatusTone;
 }
@@ -486,7 +481,6 @@ type SummarySorter = Record<
 interface CollectionsRootContext {
     collectionSummaries: LibraryCollectionSummary[];
     collections: LibraryCollectionSummary[];
-    hoverHotkeySurface: CollectionHoverHotkeySurface;
     mergeCollectionSummaries: (collections: LibraryCollectionSummary[]) => void;
     onClearCollectionFilters: () => void;
     onCloseCreate: () => void;
@@ -513,27 +507,10 @@ interface CollectionsRootPendingActionsContext {
     ) => boolean;
 }
 
-export interface LibraryItemsContext {
-    collectionPreviewThumbnailUrlsById: Map<string, string[]>;
-    favoriteItemIdSet: ReadonlySet<string>;
-    favoriteItems: LibraryItemWithCollections[];
-    items: LibraryItemWithCollections[];
-    itemsByCollectionId: Map<string, LibraryItemWithCollections[]>;
-    mergeImportedItems: (items: LibraryItemWithCollections[]) => void;
-    onCopyLink: (item: LibraryItemWithCollections) => void;
-    onDelete: (item: LibraryItemWithCollections) => void;
-    onFindSimilar: (item: LibraryItemWithCollections) => void;
-    onOpenFavoriteItem: (item: LibraryItemWithCollections) => void;
-    onOpenInNewTab: (item: LibraryItemWithCollections) => void;
-    onOpenNote: (item: LibraryItemWithCollections) => void;
-    onToggleItemFavorite: (
-        item: LibraryItemWithCollections
-    ) => Promise<LibraryItemFavoriteToggleResult>;
-    onUpdateItemCollections: (
-        itemId: string,
-        collectionIds: string[]
-    ) => Promise<LibraryItemCollectionsUpdateResult>;
-    pendingDeleteItemId: string | null;
+interface CollectionsListHoverContext {
+    hoveredCollectionIdRef: React.RefObject<string | null>;
+    hoveredCollectionSourceRef: React.RefObject<CollectionListSource | null>;
+    setHoveredCollectionSource: (source: CollectionListSource | null) => void;
 }
 
 interface CollectionsListItemContext {
@@ -542,21 +519,10 @@ interface CollectionsListItemContext {
     source: CollectionListSource;
 }
 
-interface CollectionsListHoverContext {
-    hoveredCollectionIdRef: React.RefObject<string | null>;
-    hoveredCollectionSourceRef: React.RefObject<CollectionListSource | null>;
-    setHoveredCollectionSource: (source: CollectionListSource | null) => void;
-}
-
-interface CollectionsRootCreateDialogContext {
-    createItemId: string | null;
-    isCreateOpen: boolean;
-}
-
 interface CollectionsListStateContext {
-    pendingDeleteId: string | null;
+    pendingDelete: LibraryCollectionSummary | null;
     pendingPriorityComboboxOpen: PriorityComboboxOpenTarget | null;
-    pendingRenameId: string | null;
+    pendingRename: LibraryCollectionSummary | null;
 }
 
 interface CollectionsListActionsContext {
@@ -589,6 +555,7 @@ interface CreateFormState {
     descriptionErrorMessage: string | null;
     errorMessage: string | null;
     nameDraft: string;
+    pendingDescription: { readonly title: string } | null;
 }
 
 const log = createLogger("library:collections");
@@ -631,30 +598,33 @@ export const shareCollectionPubliclySafely = tryAction(
     (input) => ({ collectionId: input.collectionId })
 );
 
-const { useStore: useCollectionsListStore } = createStore({
-    favoriteCollectionIds: storage<string[]>([], {
-        storageKey: COLLECTIONS_LIST_FAVORITE_IDS_STORAGE_KEY,
-    }),
-    feedback: null as CollectionFeedback | null,
-    isCollectionsListOpen: storage(false, {
-        storageKey: COLLECTIONS_LIST_OPEN_STORAGE_KEY,
-    }),
-    isFavoritesListOpen: storage(true, {
-        storageKey: COLLECTIONS_FAVORITES_LIST_OPEN_STORAGE_KEY,
-    }),
-    isRecommendationsOpen: storage(true, {
-        storageKey: COLLECTIONS_RECOMMENDATIONS_OPEN_STORAGE_KEY,
-    }),
-    sortField: storage<CollectionSortField>("priority", {
-        storageKey: COLLECTIONS_LIST_SORT_FIELD_STORAGE_KEY,
-    }),
-    textMatchQuery: storage("", {
-        storageKey: COLLECTIONS_LIST_TEXT_MATCH_QUERY_STORAGE_KEY,
-    }),
-    view: storage<CollectionView>("show-all", {
-        storageKey: COLLECTIONS_LIST_VIEW_STORAGE_KEY,
-    }),
-});
+const { useStore: useCollectionsListStore, getState: getCollectionsListState } =
+    createStore({
+        createItemId: null as string | null,
+        favoriteCollectionIds: storage<string[]>([], {
+            storageKey: COLLECTIONS_LIST_FAVORITE_IDS_STORAGE_KEY,
+        }),
+        isCollectionsListOpen: storage(false, {
+            storageKey: COLLECTIONS_LIST_OPEN_STORAGE_KEY,
+        }),
+        isCreateOpen: false,
+        isFavoritesListOpen: storage(true, {
+            storageKey: COLLECTIONS_FAVORITES_LIST_OPEN_STORAGE_KEY,
+        }),
+        isSuggestionsOpen: storage(true, {
+            storageKey: COLLECTIONS_SUGGESTIONS_OPEN_STORAGE_KEY,
+        }),
+        sortField: storage<CollectionSortField>("priority", {
+            storageKey: COLLECTIONS_LIST_SORT_FIELD_STORAGE_KEY,
+        }),
+        status: null as CollectionStatus | null,
+        textMatchQuery: storage("", {
+            storageKey: COLLECTIONS_LIST_TEXT_MATCH_QUERY_STORAGE_KEY,
+        }),
+        view: storage<CollectionView>("show-all", {
+            storageKey: COLLECTIONS_LIST_VIEW_STORAGE_KEY,
+        }),
+    });
 
 const CollectionsRootContext =
     React.createContext<CollectionsRootContext | null>(null);
@@ -664,19 +634,6 @@ export function useCollectionsContext(): CollectionsRootContext {
     if (!context) {
         throw new Error(
             "Collections context is required for collection controls."
-        );
-    }
-    return context;
-}
-
-const CollectionsListItemContext =
-    React.createContext<CollectionsListItemContext | null>(null);
-
-function useCollectionsListItemContext() {
-    const context = React.use(CollectionsListItemContext);
-    if (!context) {
-        throw new Error(
-            "CollectionsListItem compound components must be used within CollectionsListItem."
         );
     }
     return context;
@@ -721,14 +678,14 @@ function useCollectionsListHoverContext(): CollectionsListHoverContext {
     return context;
 }
 
-const CollectionsRootCreateDialogContext =
-    React.createContext<CollectionsRootCreateDialogContext | null>(null);
+const CollectionsListItemContext =
+    React.createContext<CollectionsListItemContext | null>(null);
 
-function useCollectionsCreateDialogContext(): CollectionsRootCreateDialogContext {
-    const context = React.use(CollectionsRootCreateDialogContext);
+function useCollectionsListItemContext() {
+    const context = React.use(CollectionsListItemContext);
     if (!context) {
         throw new Error(
-            "Collections create dialog state must be read within a CollectionsProvider."
+            "CollectionsListItem compound components must be used within CollectionsListItem."
         );
     }
     return context;
@@ -747,29 +704,26 @@ export function useCollectionsPendingActionsContext(): CollectionsRootPendingAct
     return context;
 }
 
-export function useLibraryItemsContext(): LibraryItemsContext {
-    const context = React.use(LibraryItemsContext);
-    if (!context) {
-        throw new Error(
-            "Library items context is required for library item controls."
-        );
-    }
-    return context;
+interface CollectionActionRunInput {
+    accessAction?: CollectionAccessAction;
+    action: CollectionAction;
+    collection: LibraryCollectionSummary;
+    run: () => Promise<void>;
 }
 
-function useRunCollectionAction() {
-    const { collection } = useCollectionsListItemContext();
+export function useCollectionActionRunner() {
     const { claimCollectionAction } = useCollectionsPendingActionsContext();
-    const { setFeedback } = useCollectionsListStore();
+    const { dismissStatus } = useCollectionStatus();
     const ensureAccess = useCollectionAccessGate();
     const [isPending, startTransition] = React.useTransition();
 
     const runCollectionAction = useStableCallback(
-        (
-            action: CollectionAction,
-            run: () => Promise<void>,
-            accessAction?: CollectionAccessAction
-        ) => {
+        ({
+            accessAction,
+            action,
+            collection,
+            run,
+        }: CollectionActionRunInput) => {
             if (accessAction && !ensureAccess(collection, accessAction)) {
                 return;
             }
@@ -777,7 +731,7 @@ function useRunCollectionAction() {
             if (!releaseAction) {
                 return;
             }
-            setFeedback(null);
+            dismissStatus();
             startTransition(async () => {
                 try {
                     await run();
@@ -791,22 +745,22 @@ function useRunCollectionAction() {
     return { isPending, runCollectionAction };
 }
 
-function useCollectionFeedback() {
-    const { feedback, setFeedback } = useCollectionsListStore();
+function useCollectionStatus() {
+    const { status, setStatus } = useCollectionsListStore();
 
     const showError = useStableCallback((message: string) => {
-        setFeedback({ message, tone: "error" });
+        setStatus({ message, tone: "error" });
     });
 
     const showSuccess = useStableCallback((message: string) => {
-        setFeedback({ message, tone: "success" });
+        setStatus({ message, tone: "success" });
     });
 
-    const dismissFeedback = useStableCallback(() => {
-        setFeedback(null);
+    const dismissStatus = useStableCallback(() => {
+        setStatus(null);
     });
 
-    return { dismissFeedback, feedback, showError, showSuccess };
+    return { dismissStatus, showError, showSuccess, status };
 }
 
 function useSubmissionDialog({
@@ -814,11 +768,13 @@ function useSubmissionDialog({
     submissionPendingRef,
 }: {
     onClose: () => void;
+    // Only passed when pending state must be read outside this hook, e.g.
+    // the create dialog shares it with the mod+n shortcut handler.
     submissionPendingRef?: React.RefObject<boolean>;
 }) {
     const [isSubmitting, startTransition] = React.useTransition();
-    const internalSubmissionPendingRef = React.useRef(false);
-    const pendingRef = submissionPendingRef ?? internalSubmissionPendingRef;
+    const internalPendingRef = React.useRef(false);
+    const pendingRef = submissionPendingRef ?? internalPendingRef;
 
     const handleOpenChange = useStableCallback((nextOpen: boolean) => {
         if (!(nextOpen || pendingRef.current)) {
@@ -840,17 +796,13 @@ function useSubmissionDialog({
         });
     });
 
-    return {
-        handleOpenChange,
-        isSubmitting,
-        runSubmission,
-        submissionPendingRef: pendingRef,
-    };
+    return { handleOpenChange, isSubmitting, runSubmission };
 }
 
 function useSmartCollectionsToggle() {
-    const { showError } = useCollectionFeedback();
+    const { showError } = useCollectionStatus();
     const { disabled, isLoading, mutate } = useSmartCollectionsPreference();
+    const isEnabled = typeof disabled === "undefined" ? undefined : !disabled;
 
     const setEnabled = useStableCallback(async (enabled: boolean) => {
         try {
@@ -882,13 +834,13 @@ function useSmartCollectionsToggle() {
         }
     });
 
-    return { disabled, isLoading, setEnabled };
+    return { isEnabled, isLoading, setEnabled };
 }
 
-function useCollectionAccessGate() {
-    const { itemsByCollectionId } = useLibraryItemsContext();
+export function useCollectionAccessGate() {
+    const { itemsByCollectionId } = useItemsContext();
     const { hasAccess } = useSubscriptionAccess();
-    const { showError } = useCollectionFeedback();
+    const { showError } = useCollectionStatus();
 
     return useStableCallback(
         (
@@ -913,7 +865,7 @@ function useCollectionAccessGate() {
 
 function useCopyWithFeedback() {
     const { copyToClipboard } = useCopyToClipboard();
-    const { showError, showSuccess } = useCollectionFeedback();
+    const { showError, showSuccess } = useCollectionStatus();
 
     return useStableCallback(
         async (text: string, successMessage: string, errorMessage: string) => {
@@ -927,8 +879,9 @@ function useCopyWithFeedback() {
 }
 
 function useToggleCollectionFavorite() {
-    const { favoriteCollectionIds, setFavoriteCollectionIds, setFeedback } =
+    const { favoriteCollectionIds, setFavoriteCollectionIds } =
         useCollectionsListStore();
+    const { showSuccess } = useCollectionStatus();
 
     const favoriteCollectionIdSet = new Set(favoriteCollectionIds);
 
@@ -938,60 +891,63 @@ function useToggleCollectionFavorite() {
             setFavoriteCollectionIds((current) =>
                 toggleValue(current, collection.id)
             );
-            setFeedback({
-                message: isNowFavorite
+            showSuccess(
+                isNowFavorite
                     ? `${collection.name} added to Favorites.`
-                    : `${collection.name} removed from Favorites.`,
-                tone: "success",
-            });
+                    : `${collection.name} removed from Favorites.`
+            );
         }
     );
 
     return { favoriteCollectionIdSet, toggleFavorite };
 }
 
+function useFavoriteCollections() {
+    const { collectionSummaries } = useCollectionsContext();
+    const { favoriteCollectionIds } = useCollectionsListStore();
+
+    return getFavoriteCollections(collectionSummaries, favoriteCollectionIds);
+}
+
 function useCollectionDialogRequests() {
-    const { setFeedback } = useCollectionsListStore();
-    const { isCreateOpen } = useCollectionsCreateDialogContext();
+    const { dismissStatus } = useCollectionStatus();
     const { onCloseCreate, requestCreate } = useCollectionsContext();
     const createSubmissionPendingRef = React.useRef(false);
 
-    const [pendingRenameId, setPendingRenameId] = React.useState<string | null>(
-        null
-    );
-    const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(
-        null
-    );
+    const [pendingRename, setPendingRename] =
+        React.useState<LibraryCollectionSummary | null>(null);
+    const [pendingDelete, setPendingDelete] =
+        React.useState<LibraryCollectionSummary | null>(null);
 
     const openCreateDialog = useStableCallback((itemId?: string) => {
-        setFeedback(null);
+        dismissStatus();
         requestCreate(itemId);
     });
 
     const requestDelete = useStableCallback(
         (collection: LibraryCollectionSummary) => {
-            setFeedback(null);
-            setPendingDeleteId(collection.id);
+            dismissStatus();
+            setPendingDelete(collection);
         }
     );
 
     const requestRename = useStableCallback(
         (collection: LibraryCollectionSummary) => {
-            setFeedback(null);
-            setPendingRenameId(collection.id);
+            dismissStatus();
+            setPendingRename(collection);
         }
     );
 
     const closePendingDelete = useStableCallback(() => {
-        setPendingDeleteId(null);
+        setPendingDelete(null);
     });
 
     const closePendingRename = useStableCallback(() => {
-        setPendingRenameId(null);
+        setPendingRename(null);
     });
 
     const handleCreateShortcutPress = useStableCallback(() => {
-        if (isCreateOpen) {
+        if (getCollectionsListState().isCreateOpen) {
             if (createSubmissionPendingRef.current) {
                 return;
             }
@@ -1012,8 +968,8 @@ function useCollectionDialogRequests() {
         closePendingRename,
         createSubmissionPendingRef,
         openCreateDialog,
-        pendingDeleteId,
-        pendingRenameId,
+        pendingDelete,
+        pendingRename,
         requestDelete,
         requestRename,
     };
@@ -1023,9 +979,8 @@ function useCollectionRowActions() {
     const { collections, syncCollectionCreated, syncCollectionPriority } =
         useCollectionsContext();
     const { claimCollectionAction } = useCollectionsPendingActionsContext();
-    const { itemsByCollectionId } = useLibraryItemsContext();
-    const { setFeedback } = useCollectionsListStore();
-    const { showError, showSuccess } = useCollectionFeedback();
+    const { itemsByCollectionId } = useItemsContext();
+    const { dismissStatus, showError, showSuccess } = useCollectionStatus();
     const ensureAccess = useCollectionAccessGate();
     const copyWithFeedback = useCopyWithFeedback();
     const [, startTransition] = React.useTransition();
@@ -1177,7 +1132,7 @@ function useCollectionRowActions() {
 
     const onDuplicate = useStableCallback(
         (collection: LibraryCollectionSummary) => {
-            setFeedback(null);
+            dismissStatus();
 
             startTransition(async () => {
                 const result = await duplicateCollectionSafely({
@@ -1213,7 +1168,10 @@ function useCollectionRowActions() {
 }
 
 function getItemUrls(items: LibraryItemWithCollections[]): string[] {
-    return items.map((item) => normalizeURL(item.url));
+    return items.flatMap((item) => {
+        const url = normalizeURL(item.url);
+        return isHttpUrl(url) ? [url] : [];
+    });
 }
 
 function useCollectionPanelHotkeys() {
@@ -1240,30 +1198,36 @@ function useCollectionPanelHotkeys() {
 }
 
 interface UseCollectionHoverHotkeysProps {
-    dialogs: ReturnType<typeof useCollectionDialogRequests>;
     hoveredCollectionIdRef: React.RefObject<string | null>;
     hoveredCollectionSourceRef: React.RefObject<CollectionListSource | null>;
-    hoverHotkeySurface: CollectionHoverHotkeySurface;
-    rowActions: ReturnType<typeof useCollectionRowActions>;
+    onCopyLinks: (collection: LibraryCollectionSummary) => Promise<void>;
+    onDelete: (collection: LibraryCollectionSummary) => void;
+    onRename: (collection: LibraryCollectionSummary) => void;
+    onSetPriorityComboboxOpen: React.Dispatch<
+        React.SetStateAction<PriorityComboboxOpenTarget | null>
+    >;
+    onUpdatePriority: (
+        collectionId: string,
+        priority: CollectionPriority
+    ) => Promise<void>;
 }
 
 function useCollectionHoverHotkeys({
-    dialogs,
-    hoverHotkeySurface,
     hoveredCollectionIdRef,
     hoveredCollectionSourceRef,
-    rowActions,
+    onCopyLinks,
+    onDelete,
+    onRename,
+    onSetPriorityComboboxOpen,
+    onUpdatePriority,
 }: UseCollectionHoverHotkeysProps) {
-    const { onCopyLinks, onUpdatePriority, setPendingPriorityComboboxOpen } =
-        rowActions;
-    const { requestDelete, requestRename } = dialogs;
-
     const { favoriteCollectionIdSet, toggleFavorite } =
         useToggleCollectionFavorite();
     const { collections } = useCollectionsContext();
+    const hoverHotkeySurface = useHoverHotkeySurface();
 
     const resolveHoveredCollection = useStableCallback(() => {
-        if (!hoverHotkeySurface.isClaimed()) {
+        if (!hoverHotkeySurface.isOwnedBy(HOVER_HOTKEY_REGIONS.collections)) {
             return null;
         }
         return (
@@ -1277,7 +1241,7 @@ function useCollectionHoverHotkeys({
         const target = resolveHoveredCollection();
         if (target) {
             event.preventDefault();
-            requestRename(target);
+            onRename(target);
         }
     });
 
@@ -1285,7 +1249,7 @@ function useCollectionHoverHotkeys({
         const target = resolveHoveredCollection();
         if (target) {
             event.preventDefault();
-            requestDelete(target);
+            onDelete(target);
         }
     });
 
@@ -1321,9 +1285,12 @@ function useCollectionHoverHotkeys({
         if (!target) {
             return;
         }
+        const source = hoveredCollectionSourceRef.current;
+        if (!source) {
+            return;
+        }
         event.preventDefault();
-        const source = hoveredCollectionSourceRef.current ?? "collections";
-        setPendingPriorityComboboxOpen({ collectionId: target.id, source });
+        onSetPriorityComboboxOpen({ collectionId: target.id, source });
     });
 
     useHotkeys("alt+e", handleRename, {
@@ -1362,33 +1329,28 @@ function useCollectionPreviewPlayback({
     shouldLoad,
     thumbnails,
 }: UseCollectionPreviewPlaybackProps) {
-    const isReducedMotion = useReducedMotion();
+    const prefersReducedMotion = useReducedMotion();
     const thumbnailsKey = thumbnails.join("\0");
     const slideTimeout = useTimeout();
 
-    const [readySlides, setReadySlides] = React.useState<ReadyPreviewSlide[]>(
-        () => getReadyPreviewSlides(thumbnails)
-    );
+    const [aspectsBySrc, setAspectsBySrc] = React.useState<
+        Record<string, number>
+    >({});
     const [activeSrc, setActiveSrc] = React.useState<string | null>(null);
-    const [prevThumbnailsKey, setPrevThumbnailsKey] =
-        React.useState(thumbnailsKey);
     const [prevShouldLoad, setPrevShouldLoad] = React.useState(shouldLoad);
 
-    const readySlidesRef = React.useRef<ReadyPreviewSlide[]>([]);
+    const readySlides = thumbnails.flatMap((url) => {
+        const aspectRatio = aspectsBySrc[url] ?? peekImageAspect(url);
+        return aspectRatio === undefined ? [] : [{ aspectRatio, src: url }];
+    });
+    const readySlidesRef = useValueAsRef(readySlides);
 
     if (!Object.is(prevShouldLoad, shouldLoad)) {
         setPrevShouldLoad(shouldLoad);
+        // Reset playback so the next hover starts from the first slide.
         if (!shouldLoad) {
-            setActiveSrc(readySlides[0]?.src ?? null);
+            setActiveSrc(null);
         }
-    }
-
-    if (!Object.is(prevThumbnailsKey, thumbnailsKey)) {
-        setPrevThumbnailsKey(thumbnailsKey);
-
-        const initialReady = getReadyPreviewSlides(thumbnails);
-        setReadySlides(initialReady);
-        setActiveSrc(initialReady[0]?.src ?? null);
     }
 
     React.useEffect(() => {
@@ -1400,15 +1362,18 @@ function useCollectionPreviewPlayback({
         const urls =
             thumbnailsKey.length === 0 ? [] : thumbnailsKey.split("\0");
 
-        startPreviewImageLoads(
-            urls,
-            (slide) => {
-                setReadySlides((previous) =>
-                    mergeReadyPreviewSlide(urls, previous, slide)
+        for (const url of urls) {
+            preloadImageAspect(url).then((aspectRatio) => {
+                if (cancelled || aspectRatio === null) {
+                    return;
+                }
+                setAspectsBySrc((previous) =>
+                    previous[url] === undefined
+                        ? { ...previous, [url]: aspectRatio }
+                        : previous
                 );
-            },
-            () => cancelled
-        );
+            });
+        }
 
         return () => {
             cancelled = true;
@@ -1421,11 +1386,7 @@ function useCollectionPreviewPlayback({
     }
 
     const shouldCycle =
-        isCycling && readySlides.length > 1 && isReducedMotion !== true;
-
-    React.useEffect(() => {
-        readySlidesRef.current = readySlides;
-    });
+        isCycling && readySlides.length > 1 && prefersReducedMotion !== true;
 
     React.useEffect(() => {
         if (!shouldCycle) {
@@ -1446,13 +1407,18 @@ function useCollectionPreviewPlayback({
         return () => {
             slideTimeout.clear();
         };
-    }, [shouldCycle, slideTimeout]);
+    }, [shouldCycle, slideTimeout, readySlidesRef]);
 
     const reportSlideError = useStableCallback((src: string) => {
-        PREVIEW_IMAGE_CACHE.delete(src);
-        setReadySlides((previous) =>
-            previous.filter((slide) => slide.src !== src)
-        );
+        forgetImageAspect(src);
+        setAspectsBySrc((previous) => {
+            if (previous[src] === undefined) {
+                return previous;
+            }
+            const next = { ...previous };
+            delete next[src];
+            return next;
+        });
         setActiveSrc((currentSrc) => (currentSrc === src ? null : currentSrc));
     });
 
@@ -1460,46 +1426,6 @@ function useCollectionPreviewPlayback({
         activeSlide,
         reportSlideError,
     };
-}
-
-function rememberPreviewImage(url: string, aspectRatio: number): void {
-    if (
-        !PREVIEW_IMAGE_CACHE.has(url) &&
-        PREVIEW_IMAGE_CACHE.size >= PREVIEW_IMAGE_CACHE_MAX
-    ) {
-        const oldestKey = PREVIEW_IMAGE_CACHE.keys().next().value;
-        if (oldestKey !== undefined) {
-            PREVIEW_IMAGE_CACHE.delete(oldestKey);
-        }
-    }
-    PREVIEW_IMAGE_CACHE.set(url, aspectRatio);
-}
-
-function getReadyPreviewSlides(urls: string[]): ReadyPreviewSlide[] {
-    const slides: ReadyPreviewSlide[] = [];
-    for (const url of urls) {
-        const aspectRatio = PREVIEW_IMAGE_CACHE.get(url);
-        if (aspectRatio !== undefined) {
-            slides.push({ aspectRatio, src: url });
-        }
-    }
-    return slides;
-}
-
-function mergeReadyPreviewSlide(
-    urls: string[],
-    previous: ReadyPreviewSlide[],
-    slide: ReadyPreviewSlide
-): ReadyPreviewSlide[] {
-    if (previous.some((entry) => entry.src === slide.src)) {
-        return previous;
-    }
-    const readyBySrc = keyBy(previous, (entry) => entry.src);
-    readyBySrc.set(slide.src, slide);
-    return urls.flatMap((url) => {
-        const entry = readyBySrc.get(url);
-        return entry ? [entry] : [];
-    });
 }
 
 function resolveActivePreviewSlide(
@@ -1534,100 +1460,7 @@ function nextPreviewSlideSrc(
     return readySlides[nextIndex]?.src ?? first.src;
 }
 
-function startPreviewImageLoads(
-    urls: string[],
-    onReady: (slide: ReadyPreviewSlide) => void,
-    isCancelled: () => boolean
-): void {
-    if (urls.length === 0) {
-        return;
-    }
-
-    let nextIndex = 0;
-
-    const runNext = (): Promise<void> => {
-        if (isCancelled() || nextIndex >= urls.length) {
-            return Promise.resolve();
-        }
-        const url = urls[nextIndex];
-        nextIndex += 1;
-        if (url === undefined) {
-            return runNext();
-        }
-        return loadPreviewImage(url).then(
-            (slide) => {
-                if (!(isCancelled() || slide === null)) {
-                    onReady(slide);
-                }
-                return runNext();
-            },
-            () => runNext()
-        );
-    };
-
-    const workerCount = Math.min(PREVIEW_IMAGE_LOAD_CONCURRENCY, urls.length);
-    for (let worker = 0; worker < workerCount; worker += 1) {
-        runNext().catch(() => undefined);
-    }
-}
-
-function loadPreviewImage(url: string): Promise<ReadyPreviewSlide | null> {
-    const cachedAspectRatio = PREVIEW_IMAGE_CACHE.get(url);
-    if (cachedAspectRatio !== undefined) {
-        return Promise.resolve({ aspectRatio: cachedAspectRatio, src: url });
-    }
-
-    const inflight = PREVIEW_IMAGE_LOADS.get(url);
-    if (inflight) {
-        return inflight;
-    }
-
-    const promise = new Promise<ReadyPreviewSlide | null>((resolve) => {
-        const image = document.createElement("img");
-        image.decoding = "async";
-        let settled = false;
-        let timeoutId = 0;
-
-        const settle = (slide: ReadyPreviewSlide | null) => {
-            if (settled) {
-                return;
-            }
-            settled = true;
-            window.clearTimeout(timeoutId);
-            image.onload = null;
-            image.onerror = null;
-            PREVIEW_IMAGE_LOADS.delete(url);
-            resolve(slide);
-        };
-
-        timeoutId = window.setTimeout(
-            () => settle(null),
-            PREVIEW_IMAGE_LOAD_TIMEOUT_MS
-        );
-
-        image.onload = () => {
-            const { naturalHeight, naturalWidth } = image;
-            if (naturalHeight <= 0 || naturalWidth <= 0) {
-                settle(null);
-                return;
-            }
-            const aspectRatio = naturalWidth / naturalHeight;
-            rememberPreviewImage(url, aspectRatio);
-            settle({ aspectRatio, src: url });
-        };
-        // Failures are not cached so transient CDN/network errors can retry.
-        image.onerror = () => settle(null);
-        image.src = url;
-    });
-
-    PREVIEW_IMAGE_LOADS.set(url, promise);
-    return promise;
-}
-
-function useFailedImageSrc(src: string | Blob | undefined): {
-    hasFailed: boolean;
-    handleError: () => void;
-} {
+function useFailedImageSrc(src: string | Blob | undefined) {
     const [failedSrc, setFailedSrc] = React.useState<string | Blob | null>(
         null
     );
@@ -1638,10 +1471,7 @@ function useFailedImageSrc(src: string | Blob | undefined): {
         }
     });
 
-    return {
-        handleError,
-        hasFailed: typeof src !== "undefined" && failedSrc === src,
-    };
+    return { handleError, hasFailed: failedSrc === src };
 }
 
 interface UseInternalCollectionsStateProps {
@@ -1657,14 +1487,15 @@ function useInternalCollectionsState({
         LibraryCollectionSummary[]
     >(() => initialCollections);
 
-    const [selectedCollectionIds, setSelectedCollectionIds] = React.useState<
-        string[]
-    >([]);
+    const [selectedCollectionIds, setSelectedCollectionIds] = useQueryState(
+        "collection",
+        parseAsArrayOf(parseAsString).withDefault([])
+    );
 
     const collectionSummaries = sortCollectionSummaries(
         getVisibleCollections(collections, view),
         sortField,
-        textMatchQuery
+        sortField === "text-match" ? textMatchQuery : ""
     );
 
     const validCollectionIds = new Set(
@@ -1680,7 +1511,12 @@ function useInternalCollectionsState({
     });
 
     const toggleCollectionSelection = useStableCallback((id: string) => {
-        setSelectedCollectionIds((current) => toggleValue(current, id));
+        setSelectedCollectionIds((current) =>
+            toggleValue(
+                current.filter((activeId) => validCollectionIds.has(activeId)),
+                id
+            )
+        );
     });
 
     const mergeCollectionSummariesState = useStableCallback(
@@ -1728,9 +1564,7 @@ function useInternalCollectionsState({
             current.filter((collection) => collection.id !== collectionId)
         );
         setSelectedCollectionIds((current) =>
-            current.includes(collectionId)
-                ? removeValue(current, collectionId)
-                : current
+            removeValue(current, collectionId)
         );
     });
 
@@ -1750,43 +1584,48 @@ function useInternalCollectionsState({
     };
 }
 
-function textMatchScore(
-    collection: Pick<SortableCollectionSummary, "name">,
-    normalizedQuery: string
-) {
-    if (normalizedQuery.length === 0) {
+function getTextMatchScore(name: string, query: string): number {
+    if (query.length === 0) {
         return 0;
     }
-    const name = collection.name.trim().toLowerCase();
-    if (name === normalizedQuery) {
+    if (name === query) {
         return 3;
     }
-    if (name.startsWith(normalizedQuery)) {
+    if (name.startsWith(query)) {
         return 2;
     }
-    if (name.includes(normalizedQuery)) {
+    if (name.includes(query)) {
         return 1;
     }
     return 0;
 }
 
-function compareTextMatch(query: string) {
-    const normalizedQuery = query.trim().toLowerCase();
-    return (a: SortableCollectionSummary, b: SortableCollectionSummary) =>
-        textMatchScore(b, normalizedQuery) -
-            textMatchScore(a, normalizedQuery) || compareNames(a, b);
-}
-
 function sortCollectionSummaries<T extends SortableCollectionSummary>(
     collections: readonly T[],
     sortField: CollectionSortField,
-    textMatchQuery = ""
+    query = ""
 ): T[] {
-    const comparator =
-        sortField === "text-match"
-            ? compareTextMatch(textMatchQuery)
-            : SUMMARY_SORTERS[sortField];
-    return collections.toSorted(comparator);
+    if (sortField !== "text-match") {
+        return collections.toSorted(SUMMARY_SORTERS[sortField]);
+    }
+    const normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.length === 0) {
+        return collections.toSorted(compareNames);
+    }
+    const decorated = collections.map((collection) => {
+        const normalizedName = collection.name.trim().toLowerCase();
+        return {
+            collection,
+            score: getTextMatchScore(normalizedName, normalizedQuery),
+        };
+    });
+    decorated.sort((a, b) => {
+        if (b.score !== a.score) {
+            return b.score - a.score;
+        }
+        return NAME_COLLATOR.compare(a.collection.name, b.collection.name);
+    });
+    return decorated.map((item) => item.collection);
 }
 
 function getVisibleCollections(
@@ -1815,8 +1654,7 @@ function mergeCollectionSummaries(
 }
 
 function useCreateDialogState() {
-    const [isCreateOpen, setIsCreateOpen] = React.useState(false);
-    const [createItemId, setCreateItemId] = React.useState<string | null>(null);
+    const { setCreateItemId, setIsCreateOpen } = useCollectionsListStore();
 
     const requestCreate = useStableCallback((itemId?: string) => {
         setCreateItemId(itemId ?? null);
@@ -1828,48 +1666,28 @@ function useCreateDialogState() {
         setCreateItemId(null);
     });
 
-    return { createItemId, isCreateOpen, onCloseCreate, requestCreate };
-}
-
-function migrateLegacyCollectionsListStorage(): void {
-    if (!canUseDOM) {
-        return;
-    }
-    try {
-        for (const [legacyKey, currentKey] of Object.entries(
-            LEGACY_COLLECTIONS_LIST_STORAGE_KEYS
-        )) {
-            if (localStorage.getItem(currentKey) !== null) {
-                continue;
-            }
-            const legacyValue = localStorage.getItem(legacyKey);
-            if (legacyValue === null) {
-                continue;
-            }
-            localStorage.setItem(currentKey, legacyValue);
-            localStorage.removeItem(legacyKey);
-        }
-    } catch {
-        // migration is best-effort and the store falls back to defaults.
-    }
+    return { onCloseCreate, requestCreate };
 }
 
 function compareCreatedAt<
-    T extends Pick<SortableCollectionSummary, "createdAt">,
+    T extends Pick<SortableCollectionSummary, "createdAt" | "name">,
 >(a: T, b: T) {
-    return b.createdAt.getTime() - a.createdAt.getTime();
+    const diff = b.createdAt.getTime() - a.createdAt.getTime();
+    return diff === 0 ? compareNames(a, b) : diff;
 }
 
 function compareUpdatedAt<
-    T extends Pick<SortableCollectionSummary, "updatedAt">,
+    T extends Pick<SortableCollectionSummary, "name" | "updatedAt">,
 >(a: T, b: T) {
-    return b.updatedAt.getTime() - a.updatedAt.getTime();
+    const diff = b.updatedAt.getTime() - a.updatedAt.getTime();
+    return diff === 0 ? compareNames(a, b) : diff;
 }
 
 function compareItemCount<
-    T extends Pick<SortableCollectionSummary, "itemCount">,
+    T extends Pick<SortableCollectionSummary, "itemCount" | "name">,
 >(a: T, b: T) {
-    return b.itemCount - a.itemCount;
+    const diff = b.itemCount - a.itemCount;
+    return diff === 0 ? compareNames(a, b) : diff;
 }
 
 export function reconcileCollectionTags(
@@ -1880,21 +1698,7 @@ export function reconcileCollectionTags(
 
     return tags.flatMap((tag) => {
         const collection = collectionById.get(tag.id);
-        if (!collection) {
-            return [];
-        }
-        return [
-            {
-                createdAt: collection.createdAt,
-                description: collection.description,
-                id: collection.id,
-                name: collection.name,
-                priority: collection.priority,
-                sharedAt: collection.sharedAt,
-                shareId: collection.shareId,
-                updatedAt: collection.updatedAt,
-            },
-        ];
+        return collection ? [toLibraryCollectionTag(collection)] : [];
     });
 }
 
@@ -1945,22 +1749,6 @@ export function sortCollections<
     return collections.toSorted(comparePriorities);
 }
 
-function areCollectionTagValuesEqual(
-    current: LibraryCollectionTag,
-    next: LibraryCollectionTag
-): boolean {
-    return (
-        current.createdAt === next.createdAt &&
-        current.description === next.description &&
-        current.id === next.id &&
-        current.name === next.name &&
-        current.priority === next.priority &&
-        current.sharedAt === next.sharedAt &&
-        current.shareId === next.shareId &&
-        current.updatedAt === next.updatedAt
-    );
-}
-
 function patchCollection<T extends LibraryCollectionTag>(
     collections: T[],
     id: string,
@@ -1973,7 +1761,11 @@ function patchCollection<T extends LibraryCollectionTag>(
     }
 
     const next = { ...current, ...patch };
-    if (areCollectionTagValuesEqual(current, next)) {
+    const hasChanges = (
+        Object.keys(patch) as Array<keyof LibraryCollectionTag>
+    ).some((key) => current[key] !== next[key]);
+
+    if (!hasChanges) {
         return collections;
     }
 
@@ -2060,12 +1852,12 @@ async function createCollectionAndSync({
     return result;
 }
 
-async function refreshCollectionRecommendations(
-    mutateRecommendations: () => Promise<unknown>,
+async function refreshCollectionSuggestions(
+    mutateSuggestions: () => Promise<unknown>,
     errorMessage: string
 ): Promise<void> {
     try {
-        await mutateRecommendations();
+        await mutateSuggestions();
     } catch (error) {
         log.error(errorMessage, { error });
     }
@@ -2285,9 +2077,6 @@ function getCollectionActionKey(
     return `${action}:${collectionId}`;
 }
 
-export const LibraryItemsContext =
-    React.createContext<LibraryItemsContext | null>(null);
-
 export function Collections() {
     return (
         <CollectionsListProvider>
@@ -2382,14 +2171,14 @@ export function Collections() {
                             </CollectionsListItem>
                         )}
                     </CollectionsListContent>
-                    <CollectionsListRecommendations>
+                    <CollectionsListSuggestions>
                         {(template) => (
-                            <CollectionsListRecommendationItem
+                            <CollectionsListSuggestionItem
                                 key={template.value}
                                 template={template}
                             />
                         )}
-                    </CollectionsListRecommendations>
+                    </CollectionsListSuggestions>
                 </CollapsiblePanel>
             </CollectionsList>
             <CollectionsListStatus />
@@ -2402,26 +2191,20 @@ export function Collections() {
 
 interface CollectionsProviderProps extends React.PropsWithChildren {
     initialCollections: LibraryCollectionSummary[];
-    setItems: React.Dispatch<
-        React.SetStateAction<LibraryItemWithCollections[]>
-    >;
 }
 
-export function CollectionsRootProvider({
+export function CollectionsProvider({
     children,
     initialCollections,
-    setItems,
 }: CollectionsProviderProps) {
+    const { setItems } = useItemsStateContext();
     const state = useInternalCollectionsState({ initialCollections });
     const createDialog = useCreateDialogState();
-    const hoverHotkeySurface = useRefWithInit(
-        createCollectionHoverHotkeySurface
-    ).current;
-    const [pendingCollectionActionKeys, setPendingCollectionActionKeys] =
-        React.useState<Set<string>>(() => new Set());
     const collectionActionKeys = useRefWithInit(
         () => new Set<string>()
     ).current;
+    const [pendingCollectionActionKeys, setPendingCollectionActionKeys] =
+        React.useState<ReadonlySet<string>>(() => new Set());
 
     const claimCollectionAction = useStableCallback(
         (action: CollectionAction, collectionId: string) => {
@@ -2431,24 +2214,13 @@ export function CollectionsRootProvider({
             }
 
             collectionActionKeys.add(key);
-            setPendingCollectionActionKeys((current) => {
-                const next = new Set(current);
-                next.add(key);
-                return next;
-            });
+            setPendingCollectionActionKeys(new Set(collectionActionKeys));
 
             return () => {
                 if (!collectionActionKeys.delete(key)) {
                     return;
                 }
-                setPendingCollectionActionKeys((current) => {
-                    if (!current.has(key)) {
-                        return current;
-                    }
-                    const next = new Set(current);
-                    next.delete(key);
-                    return next;
-                });
+                setPendingCollectionActionKeys(new Set(collectionActionKeys));
             };
         }
     );
@@ -2514,9 +2286,8 @@ export function CollectionsRootProvider({
         }
     );
 
-    const value: CollectionsRootContext = {
+    const contextValue: CollectionsRootContext = {
         ...state,
-        hoverHotkeySurface,
         onCloseCreate: createDialog.onCloseCreate,
         requestCreate: createDialog.requestCreate,
         syncCollectionCreated,
@@ -2526,52 +2297,25 @@ export function CollectionsRootProvider({
         syncCollectionShare,
     };
 
-    const createDialogValue: CollectionsRootCreateDialogContext = {
-        createItemId: createDialog.createItemId,
-        isCreateOpen: createDialog.isCreateOpen,
-    };
-
-    const pendingActionsValue: CollectionsRootPendingActionsContext = {
+    const pendingActionsContextValue: CollectionsRootPendingActionsContext = {
         claimCollectionAction,
         isCollectionActionPending,
     };
 
     return (
-        <CollectionsRootCreateDialogContext value={createDialogValue}>
-            <CollectionsRootPendingActionsContext value={pendingActionsValue}>
-                <CollectionsRootContext value={value}>
-                    {children}
-                </CollectionsRootContext>
+        <CollectionsRootContext value={contextValue}>
+            <CollectionsRootPendingActionsContext
+                value={pendingActionsContextValue}
+            >
+                {children}
             </CollectionsRootPendingActionsContext>
-        </CollectionsRootCreateDialogContext>
+        </CollectionsRootContext>
     );
-}
-
-interface CollectionsListChildrenProps<T> {
-    children: (item: T, index: number) => React.ReactNode;
-}
-
-function CollectionsListFavoritesContent({
-    children,
-}: CollectionsListChildrenProps<LibraryCollectionSummary>) {
-    const { collectionSummaries } = useCollectionsContext();
-    const { favoriteCollectionIds } = useCollectionsListStore();
-
-    const favoriteCollections = getFavoriteCollections(
-        collectionSummaries,
-        favoriteCollectionIds
-    );
-
-    return favoriteCollections.map(children);
 }
 
 function CollectionsListProvider({ children }: React.PropsWithChildren) {
-    const {
-        hoverHotkeySurface,
-        syncCollectionCreated,
-        syncCollectionDeleted,
-        syncCollectionName,
-    } = useCollectionsContext();
+    const { syncCollectionCreated, syncCollectionDeleted, syncCollectionName } =
+        useCollectionsContext();
     const { setFavoriteCollectionIds } = useCollectionsListStore();
     const dialogs = useCollectionDialogRequests();
     const rowActions = useCollectionRowActions();
@@ -2579,13 +2323,16 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
     const hoveredCollectionIdRef = React.useRef<string | null>(null);
     const hoveredCollectionSourceRef =
         React.useRef<CollectionListSource | null>(null);
+    const hoverHotkeySurface = useHoverHotkeySurface();
 
     useCollectionHoverHotkeys({
-        dialogs,
         hoveredCollectionIdRef,
         hoveredCollectionSourceRef,
-        hoverHotkeySurface,
-        rowActions,
+        onCopyLinks: rowActions.onCopyLinks,
+        onDelete: dialogs.requestDelete,
+        onRename: dialogs.requestRename,
+        onSetPriorityComboboxOpen: rowActions.setPendingPriorityComboboxOpen,
+        onUpdatePriority: rowActions.onUpdatePriority,
     });
 
     useCollectionPanelHotkeys();
@@ -2597,9 +2344,7 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
             hoverHotkeySurface.clear();
         }
         setFavoriteCollectionIds((current) =>
-            current.includes(collectionId)
-                ? removeValue(current, collectionId)
-                : current
+            removeValue(current, collectionId)
         );
     });
 
@@ -2637,9 +2382,9 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
     };
 
     const stateContextValue: CollectionsListStateContext = {
-        pendingDeleteId: dialogs.pendingDeleteId,
+        pendingDelete: dialogs.pendingDelete,
         pendingPriorityComboboxOpen: rowActions.pendingPriorityComboboxOpen,
-        pendingRenameId: dialogs.pendingRenameId,
+        pendingRename: dialogs.pendingRename,
     };
 
     const actionsContextValue: CollectionsListActionsContext = {
@@ -2687,15 +2432,76 @@ function CollectionsList(props: React.ComponentProps<typeof Collapsible>) {
     );
 }
 
+interface CollectionsListChildrenProps<T> {
+    children: (item: T, index: number) => React.ReactNode;
+}
+
 function CollectionsListContent({
     children,
 }: CollectionsListChildrenProps<LibraryCollectionSummary>) {
     const { collectionSummaries } = useCollectionsContext();
+    const { sortField } = useCollectionsListStore();
 
+    const groups = groupCollectionsBySortField(
+        collectionSummaries,
+        sortField,
+        dayjs()
+    );
+
+    if (!groups) {
+        return (
+            <CollapsibleListVertical className="ml-1.25" maxVisible={10}>
+                {collectionSummaries.map(children)}
+            </CollapsibleListVertical>
+        );
+    }
+
+    return groups.map((group) => (
+        <CollectionsListGroup
+            collections={group.collections}
+            key={group.groupId}
+            label={
+                COLLECTIONS_LIST_GROUP_LABELS[group.groupId] ?? group.groupId
+            }
+        >
+            {children}
+        </CollectionsListGroup>
+    ));
+}
+
+function CollectionsListFavoritesContent({
+    children,
+}: CollectionsListChildrenProps<LibraryCollectionSummary>) {
+    const favoriteCollections = useFavoriteCollections();
+
+    return favoriteCollections.map(children);
+}
+
+interface CollectionsListGroupProps {
+    children: (
+        item: LibraryCollectionSummary,
+        index: number
+    ) => React.ReactNode;
+    collections: LibraryCollectionSummary[];
+    label: React.ReactNode;
+}
+
+function CollectionsListGroup({
+    children,
+    collections,
+    label,
+}: CollectionsListGroupProps) {
     return (
-        <DisclosureListVertical className="ml-1.25" maxVisible={10}>
-            {collectionSummaries.map(children)}
-        </DisclosureListVertical>
+        <div className="flex flex-col">
+            <div className="flex items-center justify-between px-2.5 py-1.5">
+                <span className="min-w-0 truncate font-medium text-[11px] text-muted-foreground/50">
+                    {label}
+                </span>
+            </div>
+            <CollapsibleListVertical className="ml-1.25" maxVisible={10}>
+                {collections.map(children)}
+            </CollapsibleListVertical>
+        </div>
     );
 }
 
@@ -2721,11 +2527,6 @@ function CollectionsListGroupTrigger({
     ...props
 }: CollectionsListGroupTriggerProps) {
     const gt = useGT();
-    const summary =
-        description ??
-        (labels.length > 0 ? LIST_FORMATTER.format(labels) : placeholder);
-    const priorityBreakdownEntries =
-        buildPriorityBreakdownEntries(priorityCounts);
 
     return (
         <PreviewCard>
@@ -2748,7 +2549,9 @@ function CollectionsListGroupTrigger({
             >
                 <span className="min-w-0 text-xs">
                     {children}&nbsp;
-                    <span className="mx-0.5 opacity-80">{count}</span>
+                    <Calligraph className="mx-0.5 opacity-80">
+                        {count}
+                    </Calligraph>
                 </span>
                 <ChevronDownFilledIcon
                     aria-hidden
@@ -2762,17 +2565,48 @@ function CollectionsListGroupTrigger({
                 positionMethod="fixed"
                 side="right"
             >
-                {isOpen && priorityBreakdownEntries.length > 0 ? (
-                    <CollectionsListBreakdown
-                        entries={priorityBreakdownEntries}
-                    />
-                ) : (
-                    <p className="whitespace-normal font-medium text-xs leading-tight">
-                        {summary}
-                    </p>
-                )}
+                <CollectionsListGroupSummary
+                    description={description}
+                    isOpen={isOpen}
+                    labels={labels}
+                    placeholder={placeholder}
+                    priorityCounts={priorityCounts}
+                />
             </PreviewCardPopup>
         </PreviewCard>
+    );
+}
+
+interface CollectionsListGroupSummaryProps {
+    description?: string;
+    isOpen: boolean;
+    labels: string[];
+    placeholder: string;
+    priorityCounts?: Partial<Record<CollectionPriority, number>>;
+}
+
+function CollectionsListGroupSummary({
+    description,
+    isOpen,
+    labels,
+    placeholder,
+    priorityCounts,
+}: CollectionsListGroupSummaryProps) {
+    const priorityBreakdownEntries =
+        buildPriorityBreakdownEntries(priorityCounts);
+
+    if (isOpen && priorityBreakdownEntries.length > 0) {
+        return <CollectionsListBreakdown entries={priorityBreakdownEntries} />;
+    }
+
+    const summary =
+        description ??
+        (labels.length > 0 ? LIST_FORMATTER.format(labels) : placeholder);
+
+    return (
+        <p className="whitespace-normal font-medium text-xs leading-tight">
+            {summary}
+        </p>
     );
 }
 
@@ -2805,18 +2639,13 @@ function CollectionsListTrigger(
 function CollectionsListFavorites(
     props: React.ComponentProps<typeof Collapsible>
 ) {
-    const {
-        favoriteCollectionIds,
-        isFavoritesListOpen,
-        setIsFavoritesListOpen,
-    } = useCollectionsListStore();
-    const { collectionSummaries } = useCollectionsContext();
-    const { favoriteItems } = useLibraryItemsContext();
+    const { isFavoritesListOpen, setIsFavoritesListOpen } =
+        useCollectionsListStore();
+    const { favoriteItems } = useItemsContext();
+    const favoriteCollections = useFavoriteCollections();
 
     const hasFavoriteItems = favoriteItems.length > 0;
-    const hasFavoriteCollections =
-        getFavoriteCollections(collectionSummaries, favoriteCollectionIds)
-            .length > 0;
+    const hasFavoriteCollections = favoriteCollections.length > 0;
 
     if (!(hasFavoriteCollections || hasFavoriteItems)) {
         return null;
@@ -2834,15 +2663,10 @@ function CollectionsListFavorites(
 function CollectionsListFavoritesTrigger(
     props: React.ComponentProps<typeof CollapsibleTrigger>
 ) {
-    const { collectionSummaries } = useCollectionsContext();
-    const { favoriteItems } = useLibraryItemsContext();
-    const { favoriteCollectionIds, isFavoritesListOpen } =
-        useCollectionsListStore();
+    const { favoriteItems } = useItemsContext();
+    const { isFavoritesListOpen } = useCollectionsListStore();
 
-    const favoriteCollections = getFavoriteCollections(
-        collectionSummaries,
-        favoriteCollectionIds
-    );
+    const favoriteCollections = useFavoriteCollections();
     const collectionLabels = favoriteCollections.map(
         (collection) => collection.name
     );
@@ -2869,7 +2693,7 @@ function CollectionsListFavoritesTrigger(
 function CollectionsListFavoritesCarouselContent({
     children,
 }: CollectionsListChildrenProps<LibraryItemWithCollections>) {
-    const { favoriteItems } = useLibraryItemsContext();
+    const { favoriteItems } = useItemsContext();
 
     if (!favoriteItems.length) {
         return null;
@@ -2894,9 +2718,9 @@ interface CollectionsListFavoritesCarouselSlideProps {
 function CollectionsListFavoritesCarouselSlide({
     item,
 }: CollectionsListFavoritesCarouselSlideProps) {
-    const { onOpenFavoriteItem, onToggleItemFavorite } =
-        useLibraryItemsContext();
-    const { showError } = useCollectionFeedback();
+    const { onOpenFavoriteItem, onItemFavoriteToggle: onToggleItemFavorite } =
+        useItemsContext();
+    const { showError } = useCollectionStatus();
 
     const isNote = item.kind === ITEM_KIND_NOTE;
     const previewImageUrl = itemPreviewImageUrl(item);
@@ -2996,7 +2820,7 @@ function CollectionsListFavoritesCarouselImage({
 
     if (!src || hasFailed) {
         return (
-            <MediaPlaceholder
+            <Placeholder
                 {...props}
                 className={cn("min-h-32 w-full", className)}
             />
@@ -3004,7 +2828,7 @@ function CollectionsListFavoritesCarouselImage({
     }
 
     return (
-        // biome-ignore lint/correctness/useImageSize: dynamic aspect ratio parent handles layout
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions lint/correctness/useImageSize: resource error lifecycle is not user interaction (upstream exempts img onError); dynamic aspect ratio parent handles layout
         <img
             {...props}
             alt={alt}
@@ -3040,7 +2864,7 @@ function CollectionsListToolbarGroup({
         <Toolbar.Group
             {...props}
             className={cn(
-                "absolute right-1 flex items-center justify-end gap-1",
+                "pointer-events-none absolute right-1 flex items-center justify-end gap-1",
                 className
             )}
         />
@@ -3054,7 +2878,10 @@ function CollectionsListToolbarButton({
     return (
         <Toolbar.Button
             {...props}
-            className={cn("opacity-80 hover:opacity-100", className)}
+            className={cn(
+                "pointer-events-auto opacity-80 hover:opacity-100",
+                className
+            )}
         />
     );
 }
@@ -3137,10 +2964,10 @@ function CollectionsListStatus({
     className,
     ...props
 }: React.ComponentProps<"div">) {
-    const { dismissFeedback, feedback } = useCollectionFeedback();
-    const tone = feedback?.tone;
+    const { dismissStatus, status } = useCollectionStatus();
+    const tone = status?.tone;
 
-    if (!feedback?.message) {
+    if (!status?.message) {
         return null;
     }
 
@@ -3164,9 +2991,9 @@ function CollectionsListStatus({
                 )}
                 role={tone === "error" ? "alert" : "status"}
             >
-                {feedback.message}
+                {status.message}
             </p>
-            <Button onClick={dismissFeedback} size="xs" variant="ghost">
+            <Button onClick={dismissStatus} size="xs" variant="ghost">
                 Dismiss
             </Button>
         </div>
@@ -3418,22 +3245,21 @@ function CollectionsListCreateButton({
 }
 
 function CollectionsListSmartCollectionsPopover() {
-    const { disabled, isLoading, setEnabled } = useSmartCollectionsToggle();
+    const { isEnabled, isLoading, setEnabled } = useSmartCollectionsToggle();
 
     const handleToggle = useStableCallback(async () => {
-        if (typeof disabled === "undefined") {
-            // Not loaded yet
+        if (typeof isEnabled === "undefined") {
             return;
         }
-        await setEnabled(disabled);
+        await setEnabled(!isEnabled);
     });
 
-    if (isLoading || typeof disabled === "undefined") {
+    if (isLoading || typeof isEnabled === "undefined") {
         return (
             <div className="flex items-center gap-0.5 text-nowrap font-medium text-[11px] opacity-40">
                 Smart Collections
                 <span>is</span>
-                <Skeleton className="size-4" />
+                <Skeleton className="h-4 w-20" />
             </div>
         );
     }
@@ -3446,14 +3272,14 @@ function CollectionsListSmartCollectionsPopover() {
                 className="sr-only"
                 role="status"
             >
-                Smart Collections is {disabled ? "off" : "active"}
+                Smart Collections is {isEnabled ? "active" : "off"}
             </span>
             <PopoverTrigger
                 className={cn(
                     "group not-sr-only flex items-center text-nowrap font-medium text-[11px]",
-                    disabled
-                        ? "opacity-50"
-                        : "opacity-70 data-popup-open:opacity-100"
+                    isEnabled
+                        ? "opacity-70 data-popup-open:opacity-100"
+                        : "opacity-50"
                 )}
                 openOnHover
             >
@@ -3463,12 +3289,7 @@ function CollectionsListSmartCollectionsPopover() {
                 >
                     Smart Collections
                 </GradientWaveText>
-                &nbsp;is {disabled ? "off" : "active"}{" "}
-                <ChevronDownFilledIcon
-                    aria-hidden
-                    className="mb-px size-4 rotate-90 group-data-popup-open:opacity-10!"
-                    focusable="false"
-                />
+                &nbsp;is {isEnabled ? "active" : "off"}
             </PopoverTrigger>
             <PopoverPopup align="start" positionMethod="fixed">
                 <Image
@@ -3492,13 +3313,171 @@ function CollectionsListSmartCollectionsPopover() {
                         size="xs"
                         variant="link"
                     >
-                        {disabled
-                            ? "Turn on Smart Collections"
-                            : "Turn off Smart Collections"}
+                        {isEnabled
+                            ? "Turn off Smart Collections"
+                            : "Turn on Smart Collections"}
                     </Button>
                 </div>
             </PopoverPopup>
         </Popover>
+    );
+}
+
+function CollectionsListSuggestions({
+    children,
+}: CollectionsListChildrenProps<CollectionTemplateOption>) {
+    const { collectionSummaries } = useCollectionsContext();
+    const { isSuggestionsOpen, setIsSuggestionsOpen } =
+        useCollectionsListStore();
+    const { items, isLoading } = useCollectionsSuggestions();
+
+    if (!(collectionSummaries.length && items.length) || isLoading) {
+        return null;
+    }
+
+    return (
+        <Collapsible
+            className="ml-1.25 flex flex-col gap-1 pt-0.5"
+            onOpenChange={setIsSuggestionsOpen}
+            open={isSuggestionsOpen}
+        >
+            <CollapsibleTrigger
+                className="flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground"
+                title={
+                    isSuggestionsOpen
+                        ? "Hide suggested collections"
+                        : "Show suggested collections"
+                }
+            >
+                {isSuggestionsOpen ? (
+                    <T>Hide suggestions</T>
+                ) : (
+                    <T>Show suggestions</T>
+                )}
+            </CollapsibleTrigger>
+            <CollapsiblePanel>
+                <div className="flex flex-col gap-1">{items.map(children)}</div>
+            </CollapsiblePanel>
+        </Collapsible>
+    );
+}
+
+interface CollectionsListSuggestionItemProps {
+    template: CollectionTemplateOption;
+}
+
+function CollectionsListSuggestionItem({
+    template,
+}: CollectionsListSuggestionItemProps) {
+    const { showError, showSuccess } = useCollectionStatus();
+    const { syncCreated } = useCollectionsListActionsContext();
+    const { mutate: mutateSuggestions } = useCollectionsSuggestions();
+    const [isPending, startTransition] = React.useTransition();
+
+    const handleClick = useStableCallback((event: React.SyntheticEvent) => {
+        if (isPending) {
+            event.preventDefault();
+            return;
+        }
+        startTransition(async () => {
+            const result = await createCollectionAndSync({
+                description: template.description,
+                name: template.name,
+                syncCreated,
+            });
+            if (result.status !== ACTION_STATUS.CREATED) {
+                showError(result.message);
+                return;
+            }
+            await refreshCollectionSuggestions(
+                mutateSuggestions,
+                "Failed to refresh collection suggestions after creating from template"
+            );
+            showSuccess(`${template.name} created from template.`);
+        });
+    });
+
+    return (
+        <div className="group relative flex select-none items-center">
+            <PreviewCard>
+                <PreviewCardTrigger
+                    render={
+                        <SidebarItem
+                            className="w-full min-w-0 flex-1 justify-start rounded-lg pr-8 pl-9.5 text-left hover:bg-transparent"
+                            render={
+                                <button
+                                    disabled={isPending}
+                                    onClick={handleClick}
+                                    type="button"
+                                />
+                            }
+                        />
+                    }
+                >
+                    <span className="absolute top-1/2 left-1.25 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-md border-none bg-muted text-muted-foreground sm:size-6">
+                        <PlusIcon
+                            aria-hidden
+                            className="size-4"
+                            focusable="false"
+                        />
+                    </span>
+                    <div className="flex min-w-0 flex-1 items-center gap-3 leading-none">
+                        <span className="max-w-full shrink-0 truncate font-medium text-sm">
+                            {template.name}
+                        </span>
+                    </div>
+                    {isPending ? (
+                        <Spinner className="absolute right-3 size-3.5" />
+                    ) : (
+                        <span className="absolute right-3 text-muted-foreground text-xs opacity-0 group-hover:opacity-100">
+                            <T>Add</T>
+                        </span>
+                    )}
+                </PreviewCardTrigger>
+                <PreviewCardPopup
+                    align="start"
+                    className="p-3"
+                    positionMethod="fixed"
+                    side="right"
+                >
+                    <div className="flex max-w-64 flex-col gap-1">
+                        <p className="font-medium text-xs leading-tight">
+                            {template.name}
+                        </p>
+                        <p className="text-muted-foreground text-xs leading-snug">
+                            {template.description}
+                        </p>
+                    </div>
+                </PreviewCardPopup>
+            </PreviewCard>
+        </div>
+    );
+}
+
+interface CollectionsListBreakdownProps {
+    entries: PriorityBreakdownEntry[];
+}
+
+function CollectionsListBreakdown({ entries }: CollectionsListBreakdownProps) {
+    return (
+        <DataList>
+            <DataListSection>
+                {entries.map(({ count, icon: Icon, label, value }) => (
+                    <DataListItem
+                        icon={
+                            <Icon
+                                aria-hidden
+                                className="size-3.5 shrink-0 text-muted-foreground"
+                                focusable="false"
+                            />
+                        }
+                        key={value}
+                        label={label}
+                        value={count}
+                    />
+                ))}
+            </DataListSection>
+        </DataList>
     );
 }
 
@@ -3510,62 +3489,62 @@ interface CollectionsListItemProps extends React.ComponentProps<"div"> {
 function CollectionsListItem({
     className,
     collection,
-    onMouseEnter: onMouseEnterProp,
-    onMouseLeave: onMouseLeaveProp,
+    onPointerEnter: onPointerEnterProp,
+    onPointerLeave: onPointerLeaveProp,
     source,
     style: styleProp,
     ...props
 }: CollectionsListItemProps) {
-    const { hoverHotkeySurface, selectedCollectionIdSet } =
-        useCollectionsContext();
+    const { selectedCollectionIdSet } = useCollectionsContext();
     const { hoveredCollectionIdRef, setHoveredCollectionSource } =
         useCollectionsListHoverContext();
-
-    const hoverClaimIdRef = React.useRef(0);
+    const { claim: claimHoverHotkey, release: releaseHoverHotkeyClaim } =
+        useHoverHotkeyRegionClaim(HOVER_HOTKEY_REGIONS.collections);
 
     const isSelected = selectedCollectionIdSet.has(collection.id);
     const style = getCollectionItemStyle(collection.name, isSelected);
 
-    const handleMouseEnter = useStableCallback(onMouseEnterProp);
-    const handleMouseLeave = useStableCallback(onMouseLeaveProp);
+    const handlePointerEnterProp = useStableCallback(onPointerEnterProp);
+    const handlePointerLeaveProp = useStableCallback(onPointerLeaveProp);
 
     const releaseHoverClaim = useStableCallback(() => {
-        hoverHotkeySurface.release(hoverClaimIdRef.current);
-        hoverClaimIdRef.current = 0;
+        releaseHoverHotkeyClaim();
         if (hoveredCollectionIdRef.current === collection.id) {
             hoveredCollectionIdRef.current = null;
             setHoveredCollectionSource(null);
         }
     });
 
-    const onMouseEnter = useStableCallback(
-        (event: React.MouseEvent<HTMLDivElement>) => {
+    const onPointerEnter = useStableCallback(
+        (event: React.PointerEvent<HTMLDivElement>) => {
             hoveredCollectionIdRef.current = collection.id;
             setHoveredCollectionSource(source);
-            hoverClaimIdRef.current = hoverHotkeySurface.claim();
-            handleMouseEnter?.(event);
+            claimHoverHotkey();
+            handlePointerEnterProp?.(event);
         }
     );
 
-    const onMouseLeave = useStableCallback(
-        (event: React.MouseEvent<HTMLDivElement>) => {
+    const onPointerLeave = useStableCallback(
+        (event: React.PointerEvent<HTMLDivElement>) => {
             releaseHoverClaim();
-            handleMouseLeave?.(event);
+            handlePointerLeaveProp?.(event);
         }
     );
 
     React.useEffect(() => releaseHoverClaim, [releaseHoverClaim]);
 
+    const contextValue = { collection, isSelected, source };
+
     return (
-        <CollectionsListItemContext value={{ collection, isSelected, source }}>
+        <CollectionsListItemContext value={contextValue}>
             <div
                 {...props}
                 className={cn(
                     "group relative flex select-none items-center",
                     className
                 )}
-                onMouseEnter={onMouseEnter}
-                onMouseLeave={onMouseLeave}
+                onPointerEnter={onPointerEnter}
+                onPointerLeave={onPointerLeave}
                 style={{ ...style, ...styleProp }}
             />
         </CollectionsListItemContext>
@@ -3577,7 +3556,7 @@ function CollectionsListItemTrigger({
     ...props
 }: React.ComponentProps<typeof PreviewCardTrigger>) {
     const { onSelectCollection } = useCollectionsContext();
-    const { collectionPreviewThumbnailUrlsById } = useLibraryItemsContext();
+    const { collectionPreviewThumbnailUrlsById } = useItemsContext();
     const { collection, isSelected } = useCollectionsListItemContext();
     const [isHoverIntent, setIsHoverIntent] = React.useState(false);
     const [isPointerOver, setIsPointerOver] = React.useState(false);
@@ -3623,7 +3602,7 @@ function CollectionsListItemTrigger({
         <PreviewCard onOpenChange={handleOpenChange} open={isOpen}>
             <PreviewCardTrigger
                 {...props}
-                {...(isSelected ? { "data-active": true } : {})}
+                data-active={isSelected || undefined}
                 onClick={handleClick}
                 onPointerEnter={handlePointerEnter}
                 onPointerLeave={handlePointerLeave}
@@ -3642,7 +3621,7 @@ function CollectionsListItemTrigger({
                 {activeSlide ? (
                     <CollectionsListItemPreviewImage
                         activeSlide={activeSlide}
-                        collectionName={collection.name}
+                        name={collection.name}
                         onSlideError={reportSlideError}
                     />
                 ) : null}
@@ -3653,98 +3632,42 @@ function CollectionsListItemTrigger({
 
 interface CollectionsListItemPreviewImageProps {
     activeSlide: ReadyPreviewSlide;
-    collectionName: string;
+    name: string;
     onSlideError: (src: string) => void;
 }
 
 function CollectionsListItemPreviewImage({
     activeSlide,
-    collectionName,
+    name,
     onSlideError,
 }: CollectionsListItemPreviewImageProps) {
-    const [currentSlide, setCurrentSlide] = React.useState(activeSlide);
-    const [outgoingSlide, setOutgoingSlide] =
-        React.useState<ReadyPreviewSlide | null>(null);
-    const [isFading, setIsFading] = React.useState(false);
-    const fadeTimeout = useTimeout();
-    const rootRef = React.useRef<HTMLDivElement>(null);
-
-    if (!Object.is(currentSlide.src, activeSlide.src)) {
-        setOutgoingSlide(currentSlide);
-        setCurrentSlide(activeSlide);
-        setIsFading(false);
-    }
-
-    useIsoLayoutEffect(() => {
-        if (outgoingSlide === null) {
-            return;
-        }
-
-        // Commit prepare styles (outgoing @1, incoming @0) before flipping to
-        // the fade classes. Without this forced reflow, React can paint only
-        // the end state and the opacity transition never runs.
-        const root = rootRef.current;
-        if (root) {
-            root.getBoundingClientRect();
-        }
-        setIsFading(true);
-
-        fadeTimeout.start(PREVIEW_CROSSFADE_MS, () => {
-            setOutgoingSlide(null);
-            setIsFading(false);
-        });
-
-        return () => {
-            fadeTimeout.clear();
-        };
-    }, [currentSlide.src, fadeTimeout, outgoingSlide]);
-
-    const handleCurrentError = useStableCallback(() => {
-        onSlideError(currentSlide.src);
+    const handleError = useStableCallback(() => {
+        onSlideError(activeSlide.src);
     });
-
-    const isCurrentSlideVisible = outgoingSlide === null || isFading;
-
-    const crossfadeStyle = {
-        transitionDuration: `${PREVIEW_CROSSFADE_MS}ms`,
-    } satisfies React.CSSProperties;
 
     return (
         <div
             className="relative w-full"
-            ref={rootRef}
-            style={{ aspectRatio: String(currentSlide.aspectRatio) }}
+            style={{ aspectRatio: String(activeSlide.aspectRatio) }}
         >
-            {outgoingSlide ? (
-                // biome-ignore lint/correctness/useImageSize: parent aspect-ratio drives layout
-                <img
-                    alt=""
-                    aria-hidden
-                    className={cn(
-                        "drag-none absolute inset-0 size-full object-cover transition-opacity ease-out",
-                        isFading ? "opacity-0" : "opacity-100"
-                    )}
+            <AnimatePresence initial={false}>
+                {/* biome-ignore lint/correctness/useImageSize: parent aspect-ratio drives layout */}
+                <motion.img
+                    alt={`${name} preview`}
+                    animate={{ opacity: 1 }}
+                    className="drag-none absolute inset-0 size-full object-cover"
                     decoding="async"
-                    draggable="false"
-                    key={outgoingSlide.src}
-                    src={outgoingSlide.src}
-                    style={crossfadeStyle}
+                    draggable={false}
+                    exit={{ opacity: 0 }}
+                    initial={{ opacity: 0 }}
+                    onError={handleError}
+                    src={activeSlide.src}
+                    transition={{
+                        duration: PREVIEW_CROSSFADE_MS / 1000,
+                        ease: "easeOut",
+                    }}
                 />
-            ) : null}
-            {/* biome-ignore lint/correctness/useImageSize: parent aspect-ratio drives layout */}
-            <img
-                alt={`${collectionName} preview`}
-                className={cn(
-                    "drag-none absolute inset-0 size-full object-cover transition-opacity ease-out",
-                    isCurrentSlideVisible ? "opacity-100" : "opacity-0"
-                )}
-                decoding="async"
-                draggable="false"
-                key={currentSlide.src}
-                onError={handleCurrentError}
-                src={currentSlide.src}
-                style={crossfadeStyle}
-            />
+            </AnimatePresence>
         </div>
     );
 }
@@ -3759,16 +3682,8 @@ function CollectionsListItemValue() {
                 className="max-w-full shrink-0 truncate font-medium text-sm tracking-tight"
                 title={collection.description ?? undefined}
             >
-                <SearchMatchText
-                    query={textMatchQuery}
-                    text={collection.name}
-                />
+                <TextMatch query={textMatchQuery}>{collection.name}</TextMatch>
             </span>
-            {isSelected ? (
-                <span className="max-w-full flex-1 truncate py-px text-[11px] text-muted-foreground opacity-100">
-                    <T>Unselect</T>
-                </span>
-            ) : null}
             {isSelected || collection.sources.length === 0 ? null : (
                 <span className="max-w-full flex-1 truncate py-px text-[11px] text-muted-foreground opacity-0 group-hover:opacity-80">
                     {collection.sources.map(getSourceLabel).join(", ")}
@@ -3783,13 +3698,21 @@ function CollectionsListItemPriorityCombobox() {
     const { onUpdatePriority, setPendingPriorityComboboxOpen } =
         useCollectionsListActionsContext();
     const { collection, source } = useCollectionsListItemContext();
+    const { isCollectionActionPending } = useCollectionsPendingActionsContext();
 
     const SelectedPriorityIcon = getPriorityOption(collection.priority).icon;
     const isOpen =
         pendingPriorityComboboxOpen?.collectionId === collection.id &&
         pendingPriorityComboboxOpen.source === source;
+    const isPriorityPending = isCollectionActionPending(
+        "priority",
+        collection.id
+    );
 
     const handleOpenChange = useStableCallback((nextOpen: boolean) => {
+        if (isPriorityPending) {
+            return;
+        }
         if (nextOpen) {
             setPendingPriorityComboboxOpen({
                 collectionId: collection.id,
@@ -3810,6 +3733,7 @@ function CollectionsListItemPriorityCombobox() {
     return (
         <Combobox
             autoHighlight
+            disabled={isPriorityPending}
             items={PRIORITIES}
             onOpenChange={handleOpenChange}
             onValueChange={handleValueChange}
@@ -3821,6 +3745,7 @@ function CollectionsListItemPriorityCombobox() {
                     <Button
                         aria-label={`Change priority for ${collection.name}`}
                         className="absolute top-1/2 left-1.25 z-10 -translate-y-1/2 border-none bg-(--collection-background) text-(--accent-color)"
+                        disabled={isPriorityPending}
                         size="icon-xs"
                         title="Organize collections by relevance level"
                         variant="ghost"
@@ -3838,8 +3763,8 @@ function CollectionsListItemPriorityCombobox() {
                     endAddon={<Kbd>P</Kbd>}
                     placeholder={
                         collection.priority === "none"
-                            ? "Set priority to..."
-                            : "Change priority to..."
+                            ? "Set priority to…"
+                            : "Change priority to…"
                     }
                 />
                 <ComboboxEmpty>No matching priorities</ComboboxEmpty>
@@ -3883,9 +3808,14 @@ function CollectionsListItemControls({
     const { onRename, onDelete, onDuplicate, onUpdatePriority } =
         useCollectionsListActionsContext();
     const { collection } = useCollectionsListItemContext();
+    const { isCollectionActionPending } = useCollectionsPendingActionsContext();
 
     const isFavorite = favoriteCollectionIdSet.has(collection.id);
     const isArchived = collection.priority === "archive";
+    const isArchivePending = isCollectionActionPending(
+        "priority",
+        collection.id
+    );
     const updatedAt = dayjs(collection.updatedAt);
 
     const handleRename = useStableCallback(() => onRename(collection));
@@ -3987,7 +3917,10 @@ function CollectionsListItemControls({
                             />
                             Make a copy
                         </MenuItem>
-                        <MenuItem onClick={handleArchiveToggle}>
+                        <MenuItem
+                            disabled={isArchivePending}
+                            onClick={handleArchiveToggle}
+                        >
                             {isArchived ? (
                                 <ArchiveX
                                     aria-hidden
@@ -4011,7 +3944,7 @@ function CollectionsListItemControls({
                     <MenuSeparator />
                     <MenuGroup>
                         <CollectionsListItemShareSubmenu />
-                        <CollectionsListItemExportSubMenu />
+                        <CollectionsListItemExportSubmenu />
                     </MenuGroup>
                     <MenuSeparator />
                     <MenuGroup>
@@ -4038,10 +3971,10 @@ function CollectionsListItemShareSubmenu() {
     const { collection } = useCollectionsListItemContext();
     const { isCollectionActionPending } = useCollectionsPendingActionsContext();
     const { syncCollectionShare } = useCollectionsContext();
-    const { showError, showSuccess } = useCollectionFeedback();
+    const { showError, showSuccess } = useCollectionStatus();
     const copyWithFeedback = useCopyWithFeedback();
     const { copyToClipboard } = useCopyToClipboard();
-    const { isPending, runCollectionAction } = useRunCollectionAction();
+    const { isPending, runCollectionAction } = useCollectionActionRunner();
 
     const isShared = !!collection.shareId;
     const isShareActionPending =
@@ -4061,24 +3994,32 @@ function CollectionsListItemShareSubmenu() {
     });
 
     const handleDisableShare = useStableCallback(() => {
-        runCollectionAction("share", async () => {
-            const result = await disableCollectionSharingSafely({
-                collectionId: collection.id,
-            });
+        runCollectionAction({
+            action: "share",
+            collection,
+            run: async () => {
+                const result = await disableCollectionSharingSafely({
+                    collectionId: collection.id,
+                });
 
-            if (result.status === ACTION_STATUS.DISABLED) {
-                syncCollectionShare(result.collection);
-                showSuccess(`${collection.name} is no longer publicly shared.`);
-            } else {
-                showError(result.message);
-            }
+                if (result.status === ACTION_STATUS.DISABLED) {
+                    syncCollectionShare(result.collection);
+                    showSuccess(
+                        `${collection.name} is no longer publicly shared.`
+                    );
+                } else {
+                    showError(result.message);
+                }
+            },
         });
     });
 
     const handleEnableShare = useStableCallback(() => {
-        runCollectionAction(
-            "share",
-            async () => {
+        runCollectionAction({
+            accessAction: "share",
+            action: "share",
+            collection,
+            run: async () => {
                 const result = await shareCollectionPubliclySafely({
                     collectionId: collection.id,
                 });
@@ -4095,8 +4036,7 @@ function CollectionsListItemShareSubmenu() {
                     showError(result.message);
                 }
             },
-            "share"
-        );
+        });
     });
 
     return (
@@ -4164,13 +4104,13 @@ function CollectionsListItemShareSubmenu() {
     );
 }
 
-function CollectionsListItemExportSubMenu() {
+function CollectionsListItemExportSubmenu() {
     const { onCopyLinks, onCopyTitle, onExportCsv, onOpenLinks } =
         useCollectionsListActionsContext();
     const { collection } = useCollectionsListItemContext();
     const { isCollectionActionPending } = useCollectionsPendingActionsContext();
-    const { showError, showSuccess } = useCollectionFeedback();
-    const { isPending, runCollectionAction } = useRunCollectionAction();
+    const { showError, showSuccess } = useCollectionStatus();
+    const { isPending, runCollectionAction } = useCollectionActionRunner();
 
     const hasItems = collection.itemCount > 0;
     const isNotionPending =
@@ -4181,9 +4121,11 @@ function CollectionsListItemExportSubMenu() {
     const handleExportCsv = useStableCallback(() => onExportCsv(collection));
     const handleOpenLinks = useStableCallback(() => onOpenLinks(collection));
     const handleSendToNotion = useStableCallback(() => {
-        runCollectionAction(
-            "notion",
-            async () => {
+        runCollectionAction({
+            accessAction: "send to Notion",
+            action: "notion",
+            collection,
+            run: async () => {
                 const result = await sendCollectionToNotionSafely({
                     collectionId: collection.id,
                 });
@@ -4194,8 +4136,7 @@ function CollectionsListItemExportSubMenu() {
                     showError(result.message);
                 }
             },
-            "send to Notion"
-        );
+        });
     });
 
     return (
@@ -4218,7 +4159,7 @@ function CollectionsListItemExportSubMenu() {
                     Copy title
                 </MenuItem>
                 <MenuItem disabled={!hasItems} onClick={handleCopyLinks}>
-                    <CopyIcon
+                    <CopyCheck
                         aria-hidden
                         className="size-4 text-muted-foreground"
                         focusable="false"
@@ -4233,6 +4174,7 @@ function CollectionsListItemExportSubMenu() {
                     />
                     Open all links
                 </MenuItem>
+                <MenuSeparator />
                 <MenuItem disabled={!hasItems} onClick={handleExportCsv}>
                     <FileSpreadsheetIcon
                         aria-hidden
@@ -4250,183 +4192,21 @@ function CollectionsListItemExportSubMenu() {
                         className="size-4 text-muted-foreground"
                         focusable="false"
                     />
-                    {isNotionPending
-                        ? "Sending to Notion..."
-                        : "Send to Notion"}
+                    {isNotionPending ? "Sending to Notion…" : "Send to Notion"}
                 </MenuItem>
             </MenuSubPopup>
         </MenuSub>
     );
 }
 
-function CollectionsListRecommendations({
-    children,
-}: CollectionsListChildrenProps<CollectionTemplateOption>) {
-    const { collectionSummaries } = useCollectionsContext();
-    const { isRecommendationsOpen, setIsRecommendationsOpen } =
-        useCollectionsListStore();
-    const { items, isLoading } = useCollectionRecommendations();
-
-    if (!(collectionSummaries.length && items.length) || isLoading) {
-        return null;
-    }
-
-    return (
-        <Collapsible
-            className="ml-1.25 flex flex-col gap-1 pt-0.5"
-            onOpenChange={setIsRecommendationsOpen}
-            open={isRecommendationsOpen}
-        >
-            <CollapsibleTrigger
-                className="flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground"
-                title={
-                    isRecommendationsOpen
-                        ? "Hide suggested collections"
-                        : "Show suggested collections"
-                }
-            >
-                {isRecommendationsOpen ? (
-                    <T>Hide suggestions</T>
-                ) : (
-                    <T>Show suggestions</T>
-                )}
-            </CollapsibleTrigger>
-            <CollapsiblePanel>
-                <div className="flex flex-col gap-1">{items.map(children)}</div>
-            </CollapsiblePanel>
-        </Collapsible>
-    );
-}
-
-interface CollectionsListRecommendationItemProps {
-    template: CollectionTemplateOption;
-}
-
-function CollectionsListRecommendationItem({
-    template,
-}: CollectionsListRecommendationItemProps) {
-    const { showError, showSuccess } = useCollectionFeedback();
-    const { syncCreated } = useCollectionsListActionsContext();
-    const { mutate: mutateRecommendations } = useCollectionRecommendations();
-    const [isPending, startTransition] = React.useTransition();
-
-    const handleClick = useStableCallback((event: React.SyntheticEvent) => {
-        if (isPending) {
-            event.preventDefault();
-            return;
-        }
-        startTransition(async () => {
-            const result = await createCollectionAndSync({
-                description: template.description,
-                name: template.name,
-                syncCreated,
-            });
-            if (result.status !== ACTION_STATUS.CREATED) {
-                showError(result.message);
-                return;
-            }
-            await refreshCollectionRecommendations(
-                mutateRecommendations,
-                "Failed to refresh collection recommendations after creating from template"
-            );
-            showSuccess(`${template.name} created from template.`);
-        });
-    });
-
-    return (
-        <div className="group relative flex select-none items-center">
-            <PreviewCard>
-                <PreviewCardTrigger
-                    render={
-                        <SidebarItem
-                            className="w-full min-w-0 flex-1 justify-start rounded-lg pr-8 pl-9.5 text-left hover:bg-transparent"
-                            render={
-                                <button
-                                    disabled={isPending}
-                                    onClick={handleClick}
-                                    type="button"
-                                />
-                            }
-                        />
-                    }
-                >
-                    <span className="absolute top-1/2 left-1.25 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-md border-none bg-muted text-muted-foreground sm:size-6">
-                        <PlusIcon
-                            aria-hidden
-                            className="size-4"
-                            focusable="false"
-                        />
-                    </span>
-                    <div className="flex min-w-0 flex-1 items-center gap-3 leading-none">
-                        <span className="max-w-full shrink-0 truncate font-medium text-sm">
-                            {template.name}
-                        </span>
-                    </div>
-                    {isPending ? (
-                        <Spinner className="absolute right-3 size-3.5" />
-                    ) : (
-                        <span className="absolute right-3 text-muted-foreground text-xs opacity-0 group-hover:opacity-100">
-                            <T>Add</T>
-                        </span>
-                    )}
-                </PreviewCardTrigger>
-                <PreviewCardPopup
-                    align="start"
-                    className="p-3"
-                    positionMethod="fixed"
-                    side="right"
-                >
-                    <div className="flex max-w-64 flex-col gap-1">
-                        <p className="font-medium text-xs leading-tight">
-                            {template.name}
-                        </p>
-                        <p className="text-muted-foreground text-xs leading-snug">
-                            {template.description}
-                        </p>
-                    </div>
-                </PreviewCardPopup>
-            </PreviewCard>
-        </div>
-    );
-}
-
-interface CollectionsListBreakdownProps {
-    entries: PriorityBreakdownEntry[];
-}
-
-function CollectionsListBreakdown({ entries }: CollectionsListBreakdownProps) {
-    return (
-        <DataList>
-            <DataListSection>
-                {entries.map(({ count, icon: Icon, label, value }) => (
-                    <DataListItem
-                        icon={
-                            <Icon
-                                aria-hidden
-                                className="size-3.5 shrink-0 text-muted-foreground"
-                                focusable="false"
-                            />
-                        }
-                        key={value}
-                        label={label}
-                        value={count}
-                    />
-                ))}
-            </DataListSection>
-        </DataList>
-    );
-}
-
 function CollectionsCreateDialog() {
-    const { createItemId, isCreateOpen } = useCollectionsCreateDialogContext();
-    const { showSuccess } = useCollectionFeedback();
+    const { createItemId, isCreateOpen } = useCollectionsListStore();
+    const { showSuccess } = useCollectionStatus();
     const { closeCreateDialog, createSubmissionPendingRef, syncCreated } =
         useCollectionsListActionsContext();
-    const { disabled, setEnabled } = useSmartCollectionsToggle();
-    const { mutate: mutateRecommendations } = useCollectionRecommendations();
+    const { isEnabled, setEnabled } = useSmartCollectionsToggle();
+    const { mutate: mutateSuggestions } = useCollectionsSuggestions();
 
-    const [isDescriptionTransitionPending, startDescription] =
-        React.useTransition();
     const {
         handleOpenChange: handleSubmissionOpenChange,
         isSubmitting,
@@ -4442,10 +4222,6 @@ function CollectionsCreateDialog() {
     const descriptionErrorId = React.useId();
 
     const [formState, setFormState] = React.useState(INITIAL_CREATE_FORM_STATE);
-    const descriptionRequestRef = React.useRef({
-        activeVersion: null as number | null,
-        version: 0,
-    });
 
     const {
         descriptionDraft,
@@ -4453,24 +4229,18 @@ function CollectionsCreateDialog() {
         errorMessage,
         nameDraft,
     } = formState;
-    const isDescriptionPending =
-        isDescriptionTransitionPending &&
-        descriptionRequestRef.current.activeVersion ===
-            descriptionRequestRef.current.version;
+    const isDescriptionPending = formState.pendingDescription !== null;
     const isNameValid = normalizeWhitespace(nameDraft).length > 0;
 
     const handleNameDraftChange = useStableCallback((draft: string) => {
-        descriptionRequestRef.current.version += 1;
-        setFormState((current) =>
-            current.errorMessage || current.descriptionErrorMessage
-                ? {
-                      ...current,
-                      descriptionErrorMessage: null,
-                      errorMessage: null,
-                      nameDraft: draft,
-                  }
-                : { ...current, nameDraft: draft }
-        );
+        // Editing the name invalidates any in-flight description request.
+        setFormState((current) => ({
+            ...current,
+            descriptionErrorMessage: null,
+            errorMessage: null,
+            nameDraft: draft,
+            pendingDescription: null,
+        }));
     });
 
     const handleOpenChange = useStableCallback((nextOpen: boolean) => {
@@ -4480,7 +4250,11 @@ function CollectionsCreateDialog() {
         if (createSubmissionPendingRef.current) {
             return;
         }
-        descriptionRequestRef.current.version += 1;
+        setFormState((current) =>
+            current.pendingDescription === null
+                ? current
+                : { ...current, pendingDescription: null }
+        );
         handleSubmissionOpenChange(nextOpen);
     });
 
@@ -4489,13 +4263,10 @@ function CollectionsCreateDialog() {
             description: string | undefined;
             name: string;
             onStart?: () => void;
-            shouldRefreshRecommendations: boolean;
+            shouldRefreshSuggestions: boolean;
             successMessage: (collectionName: string) => string;
         }) => {
-            if (
-                isDescriptionPending ||
-                descriptionRequestRef.current.activeVersion !== null
-            ) {
+            if (formState.pendingDescription !== null) {
                 return;
             }
             input.onStart?.();
@@ -4514,10 +4285,10 @@ function CollectionsCreateDialog() {
                     }));
                     return;
                 }
-                if (input.shouldRefreshRecommendations) {
-                    await refreshCollectionRecommendations(
-                        mutateRecommendations,
-                        "Failed to refresh collection recommendations after creation"
+                if (input.shouldRefreshSuggestions) {
+                    await refreshCollectionSuggestions(
+                        mutateSuggestions,
+                        "Failed to refresh collection suggestions after creation"
                     );
                 }
                 showSuccess(input.successMessage(result.collection.name));
@@ -4539,7 +4310,7 @@ function CollectionsCreateDialog() {
         runCreate({
             description: normalizeWhitespace(descriptionDraft) || undefined,
             name,
-            shouldRefreshRecommendations: false,
+            shouldRefreshSuggestions: false,
             successMessage: (collectionName) => `${collectionName} created.`,
         });
     });
@@ -4559,60 +4330,62 @@ function CollectionsCreateDialog() {
     const handleDescriptionChange = useStableCallback(
         (event: React.ChangeEvent<HTMLTextAreaElement>) => {
             const nextDescriptionDraft = event.currentTarget.value;
-            descriptionRequestRef.current.version += 1;
+            // Editing the description invalidates any in-flight request.
             setFormState((current) => ({
                 ...current,
                 descriptionDraft: nextDescriptionDraft,
                 descriptionErrorMessage: null,
+                pendingDescription: null,
             }));
         }
     );
 
-    const handleGenerateDescription = useStableCallback(() => {
+    const handleGenerateDescription = useStableCallback(async () => {
         const title = normalizeWhitespace(nameDraft);
         if (
             title.length === 0 ||
-            isDescriptionPending ||
-            createSubmissionPendingRef.current ||
-            descriptionRequestRef.current.activeVersion !== null
+            formState.pendingDescription !== null ||
+            createSubmissionPendingRef.current
         ) {
             return;
         }
 
-        const requestVersion = descriptionRequestRef.current.version + 1;
-        descriptionRequestRef.current.version = requestVersion;
-        descriptionRequestRef.current.activeVersion = requestVersion;
+        const request = { title };
+
         setFormState((current) => ({
             ...current,
             descriptionErrorMessage: null,
+            pendingDescription: request,
         }));
 
-        startDescription(async () => {
-            try {
-                const result = await getCollectionDescriptionSafely({
-                    title,
-                });
-                if (requestVersion !== descriptionRequestRef.current.version) {
-                    return;
+        try {
+            const result = await getCollectionDescriptionSafely({ title });
+            // Apply only if this exact request is still current; an edit or a
+            // regenerated request invalidates this one.
+            setFormState((current) => {
+                if (current.pendingDescription !== request) {
+                    return current;
                 }
-
-                if (result.status !== ACTION_STATUS.SUCCESS) {
-                    setFormState((current) => ({
-                        ...current,
-                        descriptionErrorMessage: result.message,
-                    }));
-                    return;
-                }
-
-                setFormState((current) => ({
-                    ...current,
-                    descriptionDraft: result.description,
-                    descriptionErrorMessage: null,
-                }));
-            } finally {
-                descriptionRequestRef.current.activeVersion = null;
-            }
-        });
+                return result.status === ACTION_STATUS.SUCCESS
+                    ? {
+                          ...current,
+                          descriptionDraft: result.description,
+                          descriptionErrorMessage: null,
+                          pendingDescription: null,
+                      }
+                    : {
+                          ...current,
+                          descriptionErrorMessage: result.message,
+                          pendingDescription: null,
+                      };
+            });
+        } finally {
+            setFormState((current) =>
+                current.pendingDescription === request
+                    ? { ...current, pendingDescription: null }
+                    : current
+            );
+        }
     });
 
     const handleEnableSmartCollections = useStableCallback(async () => {
@@ -4637,7 +4410,7 @@ function CollectionsCreateDialog() {
                             ? { ...current, errorMessage: null }
                             : current
                     ),
-                shouldRefreshRecommendations: true,
+                shouldRefreshSuggestions: true,
                 successMessage: () => `${template.name} created from template.`,
             });
         }
@@ -4646,7 +4419,6 @@ function CollectionsCreateDialog() {
     // Reset before paint so reopening never shows the previous draft.
     useIsoLayoutEffect(() => {
         if (isCreateOpen) {
-            descriptionRequestRef.current.version += 1;
             setFormState(INITIAL_CREATE_FORM_STATE);
         }
     }, [isCreateOpen]);
@@ -4726,7 +4498,7 @@ function CollectionsCreateDialog() {
                                     isUnstyled
                                     maxLength={DESCRIPTION_MAX_LENGTH}
                                     onChange={handleDescriptionChange}
-                                    placeholder="Describe what belongs here..."
+                                    placeholder="Describe what belongs here…"
                                     size="lg"
                                     value={descriptionDraft}
                                 />
@@ -4750,15 +4522,18 @@ function CollectionsCreateDialog() {
                                 ) : null}
                             </div>
                             {descriptionErrorMessage ? (
-                                <DialogFieldError id={descriptionErrorId}>
+                                <ErrorMessage
+                                    className="pt-2"
+                                    id={descriptionErrorId}
+                                >
                                     {descriptionErrorMessage}
-                                </DialogFieldError>
+                                </ErrorMessage>
                             ) : null}
                         </div>
                         {errorMessage ? (
-                            <DialogFieldError id={errorId}>
+                            <ErrorMessage className="pt-2" id={errorId}>
                                 {errorMessage}
-                            </DialogFieldError>
+                            </ErrorMessage>
                         ) : null}
                         <Alert>
                             <Lightbulb aria-hidden focusable="false" />
@@ -4769,7 +4544,7 @@ function CollectionsCreateDialog() {
                                     just to keep things tidy. Smart Collections
                                     can auto-assign matching entries to it – no
                                     extra work for you.{" "}
-                                    {disabled === true ? (
+                                    {isEnabled === false ? (
                                         <Button
                                             className="inline-flex h-fit! w-fit px-0 text-inherit! leading-tight"
                                             onClick={
@@ -4810,7 +4585,7 @@ function CollectionsCreateDialog() {
                                 Explore Templates
                             </ComboboxTrigger>
                             <ComboboxPopup align="start" className="max-w-80">
-                                <ComboboxInput placeholder="Create collection from template..." />
+                                <ComboboxInput placeholder="Create collection from template…" />
                                 <ComboboxEmpty>
                                     No matching templates
                                 </ComboboxEmpty>
@@ -4871,27 +4646,16 @@ function CollectionsCreateDialog() {
 }
 
 function CollectionsRenameDialog() {
-    const { collections } = useCollectionsContext();
-    const { pendingRenameId } = useCollectionsListStateContext();
-    const { showSuccess } = useCollectionFeedback();
+    const { pendingRename } = useCollectionsListStateContext();
+    const { showSuccess } = useCollectionStatus();
     const { closePendingRename, syncName } = useCollectionsListActionsContext();
 
-    const pendingRename =
-        collections.find((collection) => collection.id === pendingRenameId) ??
-        null;
     const isOpen = pendingRename !== null;
 
-    const [nameDraft, setNameDraft] = React.useState(
-        () => pendingRename?.name ?? ""
-    );
+    const [nameDraft, setNameDraft] = React.useState("");
     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-    const renameTargetRef = React.useRef<LibraryCollectionSummary | null>(null);
-    const {
-        handleOpenChange,
-        isSubmitting,
-        runSubmission,
-        submissionPendingRef,
-    } = useSubmissionDialog({ onClose: closePendingRename });
+    const { handleOpenChange, isSubmitting, runSubmission } =
+        useSubmissionDialog({ onClose: closePendingRename });
 
     const inputId = React.useId();
     const errorId = React.useId();
@@ -4909,12 +4673,8 @@ function CollectionsRenameDialog() {
     );
 
     const handleSubmit = useStableCallback(() => {
-        if (submissionPendingRef.current) {
-            return;
-        }
-
-        const target = renameTargetRef.current;
-        if (!target || target.id !== pendingRenameId) {
+        const target = pendingRename;
+        if (!target) {
             return;
         }
 
@@ -4950,26 +4710,21 @@ function CollectionsRenameDialog() {
         });
     });
 
+    // Sync draft before paint so the input never flashes empty on open.
+    useIsoLayoutEffect(() => {
+        if (!pendingRename) {
+            return;
+        }
+        setNameDraft(pendingRename.name);
+        setErrorMessage(null);
+    }, [pendingRename]);
+
     const handleFormSubmit = useStableCallback(
         (event: React.SubmitEvent<HTMLFormElement>) => {
             event.preventDefault();
             handleSubmit();
         }
     );
-
-    // Sync draft before paint so the input never flashes empty on open.
-    useIsoLayoutEffect(() => {
-        if (!pendingRename) {
-            renameTargetRef.current = null;
-            return;
-        }
-        if (renameTargetRef.current?.id === pendingRename.id) {
-            return;
-        }
-        renameTargetRef.current = pendingRename;
-        setNameDraft(pendingRename.name);
-        setErrorMessage(null);
-    }, [pendingRename]);
 
     return (
         <Dialog onOpenChange={handleOpenChange} open={isOpen}>
@@ -5005,9 +4760,9 @@ function CollectionsRenameDialog() {
                                 value={nameDraft}
                             />
                             {errorMessage ? (
-                                <DialogFieldError id={errorId}>
+                                <ErrorMessage className="pt-2" id={errorId}>
                                     {errorMessage}
-                                </DialogFieldError>
+                                </ErrorMessage>
                             ) : null}
                         </div>
                     </DialogPanel>
@@ -5033,21 +4788,13 @@ function CollectionsRenameDialog() {
 }
 
 function CollectionsDeleteDialog() {
-    const { collections } = useCollectionsContext();
-    const { pendingDeleteId } = useCollectionsListStateContext();
-    const { showSuccess } = useCollectionFeedback();
+    const { pendingDelete } = useCollectionsListStateContext();
+    const { showSuccess } = useCollectionStatus();
     const { closePendingDelete, syncDeleted } =
         useCollectionsListActionsContext();
-    const {
-        handleOpenChange,
-        isSubmitting,
-        runSubmission,
-        submissionPendingRef,
-    } = useSubmissionDialog({ onClose: closePendingDelete });
+    const { handleOpenChange, isSubmitting, runSubmission } =
+        useSubmissionDialog({ onClose: closePendingDelete });
 
-    const pendingDelete =
-        collections.find((collection) => collection.id === pendingDeleteId) ??
-        null;
     const isOpen = pendingDelete !== null;
 
     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -5061,7 +4808,7 @@ function CollectionsDeleteDialog() {
 
     const handleSubmit = useStableCallback(() => {
         const target = pendingDelete;
-        if (!target || submissionPendingRef.current) {
+        if (!target) {
             return;
         }
 
@@ -5102,7 +4849,9 @@ function CollectionsDeleteDialog() {
                     </DialogHeader>
                     <DialogPanel>
                         {errorMessage ? (
-                            <DialogFieldError>{errorMessage}</DialogFieldError>
+                            <ErrorMessage className="pt-2">
+                                {errorMessage}
+                            </ErrorMessage>
                         ) : null}
                     </DialogPanel>
                     <DialogFooter>

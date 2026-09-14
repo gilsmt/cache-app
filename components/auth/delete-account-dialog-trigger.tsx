@@ -4,7 +4,6 @@ import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T } from "gt-next";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { AuthErrorMessage } from "@/components/auth/auth-error-message";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -16,6 +15,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { ErrorMessage } from "@/components/ui/error-message";
 import { deleteAccountAction } from "@/lib/account/actions";
 import { authClient } from "@/lib/auth/client";
 import { createLogger } from "@/lib/common/logs/console/logger";
@@ -121,9 +121,9 @@ export function DeleteAccountDialogTrigger(
                     </Button>
                 </DialogFooter>
                 {errorMessage ? (
-                    <AuthErrorMessage className="px-6 pb-6 text-xs">
+                    <ErrorMessage className="px-6 pb-6 underline decoration-dotted underline-offset-4">
                         {errorMessage}
-                    </AuthErrorMessage>
+                    </ErrorMessage>
                 ) : null}
             </DialogPopup>
         </Dialog>

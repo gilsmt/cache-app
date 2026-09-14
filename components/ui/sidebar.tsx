@@ -5,12 +5,12 @@ import type { BaseUIEvent } from "@base-ui/react/types";
 import { useRender } from "@base-ui/react/use-render";
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { cn } from "cn";
 import { useGT } from "gt-next";
 import { PanelLeft, PanelLeftOpen } from "lucide-react";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/common/cn";
 import {
     getOwnerDocument,
     getOwnerWindow,
@@ -114,7 +114,6 @@ export function SidebarProvider({
                 setUncontrolledOpen(nextOpen);
             }
 
-            // This sets the cookie to keep the sidebar state.
             getOwnerDocument().cookie = `${SIDEBAR_COOKIE_NAME}=${nextOpen}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
         }
     );
@@ -144,8 +143,6 @@ export function SidebarProvider({
         description: gt("Expand or collapse sidebar"),
     });
 
-    // We add a state so that we can do data-state="expanded" or "collapsed".
-    // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? "expanded" : "collapsed";
     const contextValue = {
         open,
@@ -169,7 +166,7 @@ export function Sidebar({ className, side = "left", ...props }: SidebarProps) {
         <aside
             {...props}
             className={cn(
-                "peer group/sidebar relative inset-y-0 flex min-h-full w-full shrink-0 flex-col gap-8 overscroll-contain px-8 py-7 transition-[left,right,width,padding] duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] data-[side=right]:right-0 data-[side=left]:left-0 motion-reduce:transition-none lg:w-[400px] lg:max-w-[400px] lg:justify-between lg:data-[state=collapsed]:w-16 lg:data-[state=collapsed]:px-3 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-[opacity,display] lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-discrete lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:duration-150 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:ease-out motion-reduce:lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-none lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:hidden lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:opacity-0 lg:[&_[data-sidebar-label]]:min-w-0 lg:[&_[data-sidebar-label]]:overflow-hidden lg:[&_[data-sidebar-label]]:text-nowrap lg:data-[state=collapsed]:[&_[data-sidebar=item]]:justify-center lg:data-[state=collapsed]:[&_[data-sidebar=item]]:px-0",
+                "peer group/sidebar relative inset-y-0 flex min-h-full w-full shrink-0 flex-col gap-8 overscroll-contain px-8 py-7 transition-[left,right,width,padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] data-[side=right]:right-0 data-[side=left]:left-0 motion-reduce:transition-none lg:w-[400px] lg:max-w-[400px] lg:justify-between lg:data-[state=collapsed]:w-16 lg:data-[state=collapsed]:px-3 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-[opacity,display] lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-discrete lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:duration-150 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:ease-out motion-reduce:lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-none lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:hidden lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:opacity-0 lg:[&_[data-sidebar-label]]:min-w-0 lg:[&_[data-sidebar-label]]:overflow-hidden lg:[&_[data-sidebar-label]]:text-nowrap lg:data-[state=collapsed]:[&_[data-sidebar=item]]:justify-center lg:data-[state=collapsed]:[&_[data-sidebar=item]]:px-0",
                 className
             )}
             data-collapsible="icon"
@@ -180,40 +177,12 @@ export function Sidebar({ className, side = "left", ...props }: SidebarProps) {
     );
 }
 
-export function SidebarRail({
-    className,
-    ...props
-}: React.ComponentProps<"button">) {
-    const gt = useGT();
-    const { toggleSidebar, open } = useSidebarContext();
-
-    return (
-        <button
-            {...props}
-            className={cn(
-                "absolute inset-y-0 z-20 hidden w-2 transition-all ease-linear after:absolute after:inset-s-1/2 after:inset-y-0 after:w-[2px] hover:after:bg-muted! group-data-[side=left]/sidebar:right-0 group-data-[side=right]/sidebar:left-0 lg:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
-                "in-data-[side=left]:cursor-w-resize! in-data-[side=right]:cursor-e-resize!",
-                "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize! [[data-side=right][data-state=collapsed]_&]:cursor-w-resize!",
-                "group-data-[collapsible=offcanvas]/sidebar:translate-x-0 hover:group-data-[collapsible=offcanvas]/sidebar:bg-muted group-data-[collapsible=offcanvas]/sidebar:after:left-full",
-                "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
-                "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
-                className
-            )}
-            data-sidebar="rail"
-            data-slot="sidebar-rail"
-            onClick={toggleSidebar}
-            tabIndex={-1}
-            title={getSidebarToggleTitle(gt, open)}
-        />
-    );
-}
-
 export function SidebarContent({
     className,
     ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"section">) {
     return (
-        <div
+        <section
             {...props}
             className={cn(
                 "no-scrollbar -mx-1 flex max-h-full min-h-0 w-full flex-col gap-6 overflow-auto p-1 lg:sticky lg:top-8 lg:max-h-[calc(100vh-(var(--spacing)*8))]",
@@ -339,5 +308,33 @@ export function SidebarItemValue({ children }: React.PropsWithChildren) {
         >
             <span className="truncate">{children}</span>
         </div>
+    );
+}
+
+export function SidebarRail({
+    className,
+    ...props
+}: React.ComponentProps<"button">) {
+    const gt = useGT();
+    const { toggleSidebar, open } = useSidebarContext();
+
+    return (
+        <button
+            {...props}
+            className={cn(
+                "absolute inset-y-0 z-20 hidden w-2 transition-all ease-linear after:absolute after:inset-s-1/2 after:inset-y-0 after:w-[2px] hover:after:bg-muted! group-data-[side=left]/sidebar:right-0 group-data-[side=right]/sidebar:left-0 lg:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
+                "in-data-[side=left]:cursor-w-resize! in-data-[side=right]:cursor-e-resize!",
+                "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize! [[data-side=right][data-state=collapsed]_&]:cursor-w-resize!",
+                "group-data-[collapsible=offcanvas]/sidebar:translate-x-0 hover:group-data-[collapsible=offcanvas]/sidebar:bg-muted group-data-[collapsible=offcanvas]/sidebar:after:left-full",
+                "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
+                "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
+                className
+            )}
+            data-sidebar="rail"
+            data-slot="sidebar-rail"
+            onClick={toggleSidebar}
+            tabIndex={-1}
+            title={getSidebarToggleTitle(gt, open)}
+        />
     );
 }

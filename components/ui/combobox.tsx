@@ -2,12 +2,12 @@
 
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
 import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
+import { cn } from "cn";
 import { XIcon } from "lucide-react";
 import * as React from "react";
 import { CheckmarkIcon } from "@/components/ui/icons";
 import { Input, type InputSize } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/common/cn";
 
 interface ComboboxContextValue {
     chipsRef: React.RefObject<HTMLDivElement | null> | null;
@@ -126,7 +126,7 @@ export function ComboboxInput({
                 data-slot="combobox-input"
                 render={
                     <Input
-                        className="has-disabled:opacity-100"
+                        className="rounded-b-none before:rounded-b-none has-disabled:opacity-100"
                         shouldUseNativeInput
                         size={size}
                     />
@@ -136,7 +136,7 @@ export function ComboboxInput({
                 <div
                     aria-hidden
                     className={cn(
-                        "pointer-events-none absolute inset-e-px inset-y-0 z-10 flex items-center pe-[calc(--spacing(3)-1px)] opacity-80 has-[+[data-size=sm]]:pe-[calc(--spacing(2.5)-1px)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:-mx-0.5",
+                        "pointer-events-none absolute inset-e-px inset-y-0 z-10 flex items-center pe-[calc(--spacing(2)-1px)] opacity-80 has-[+[data-size=sm]]:pe-[calc(--spacing(2.5)-1px)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:-mx-0.5",
                         shouldShowClear &&
                             (size === "sm" ? "inset-e-7" : "inset-e-8.5")
                     )}
@@ -196,7 +196,7 @@ export function ComboboxPopup({
                 align={align}
                 alignOffset={alignOffset}
                 anchor={anchor}
-                className="z-50 select-none"
+                className="z-50 select-none outline-none"
                 data-slot="combobox-positioner"
                 positionMethod={positionMethod}
                 side={side}
@@ -204,7 +204,7 @@ export function ComboboxPopup({
             >
                 <span
                     className={cn(
-                        "relative flex max-h-full min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) rounded-lg border bg-popover not-dark:bg-clip-padding shadow-lg/5 transition-[scale,opacity] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "relative flex max-h-full min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) rounded-[calc(var(--radius-lg)+1px)] border bg-popover not-dark:bg-clip-padding shadow-lg/5 transition-[scale,opacity] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                 >
@@ -233,7 +233,7 @@ export function ComboboxItem({
         <ComboboxPrimitive.Item
             {...props}
             className={cn(
-                "grid min-h-8 in-data-[side=none]:min-w-[calc(var(--anchor-width)+1.25rem)] cursor-default grid-cols-[1rem_1fr] items-center gap-2 rounded-sm py-1 ps-2 pe-4 text-base outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+                "grid min-h-8 cursor-default grid-cols-[1rem_1fr] items-center gap-2 rounded-sm py-1 ps-2 pe-2 text-base outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
                 shouldShowIndicatorLast && "grid-cols-[1fr_1rem]",
                 className
             )}

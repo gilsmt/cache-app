@@ -2,21 +2,95 @@
 
 import type { BaseUIEvent } from "@base-ui/react";
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
+import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
+import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
-import { T } from "gt-next";
+import {
+    AriaLiveRegionExtension,
+    FocusManagerExtension,
+    HistoryAnnounceExtension,
+    RovingTabIndexExtension,
+} from "@lexical/a11y";
+import {
+    configExtension,
+    defineExtension,
+    type InitialEditorStateType,
+} from "@lexical/extension";
+import { HistoryExtension } from "@lexical/history";
+import { $generateNodesFromDOM } from "@lexical/html";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { ContentEditable } from "@lexical/react/LexicalContentEditable";
+import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
+import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
+import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
+import { useLexicalFocusManagerRef } from "@lexical/react/useLexicalFocusManagerRef";
+import { useLexicalIsTextContentEmpty } from "@lexical/react/useLexicalIsTextContentEmpty";
+import { useLexicalRovingTabIndexRef } from "@lexical/react/useLexicalRovingTabIndexRef";
+import {
+    $createHeadingNode,
+    $isHeadingNode,
+    RichTextExtension,
+} from "@lexical/rich-text";
+import { $setBlocksType } from "@lexical/selection";
+import { Calligraph } from "calligraph";
+import { cn } from "cn";
+import { T, useGT, Var } from "gt-next";
+import {
+    $createParagraphNode,
+    $getRoot,
+    $getSelection,
+    $isRangeSelection,
+    $isRootNode,
+    COMMAND_PRIORITY_LOW,
+    type EditorState,
+    FORMAT_TEXT_COMMAND,
+    type LexicalEditor,
+    mergeRegister,
+    PASTE_COMMAND,
+    type PasteCommandType,
+    type RangeSelection,
+    SELECTION_CHANGE_COMMAND,
+    type TextFormatType,
+} from "lexical";
 import {
     AlertCircleIcon,
+    BoldIcon,
+    CheckIcon,
+    ChevronDownIcon,
+    Copy,
+    DownloadIcon,
     ExternalLinkIcon,
+    FileTextIcon,
     Globe,
+    ItalicIcon,
+    type LucideIcon,
+    MessageCircleIcon,
     PanelRight,
-    PanelRightOpen,
+    PlusIcon,
+    RotateCcwIcon,
+    StrikethroughIcon,
+    UnderlineIcon,
     XIcon,
 } from "lucide-react";
 import * as React from "react";
+import {
+    type ComponentType,
+    createContext,
+    type ReactNode,
+    type SVGProps,
+    use,
+    useDeferredValue,
+    useEffect,
+    useRef,
+    useState,
+    useTransition,
+} from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import useSWR from "swr";
+import { useItemsContext } from "@/components/library/items";
 import { Button } from "@/components/ui/button";
 import {
     Drawer,
@@ -24,16 +98,63 @@ import {
     DrawerHeader,
     DrawerPanel,
     DrawerPopup,
+    DrawerSwipeArea,
     DrawerTitle,
     DrawerTrigger,
     DrawerViewport,
 } from "@/components/ui/drawer";
-import { MediaPlaceholder } from "@/components/ui/media-placeholder";
+import {
+    ClaudeIcon,
+    CursorIcon,
+    GoogleDocsIcon,
+    NotionIcon,
+    OpenAIIcon,
+    V0Icon,
+} from "@/components/ui/icons";
+import {
+    Menu,
+    MenuGroup,
+    MenuGroupLabel,
+    MenuItem,
+    MenuPopup,
+    MenuSeparator,
+    MenuTrigger,
+} from "@/components/ui/menu";
+import { Placeholder } from "@/components/ui/placeholder";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/common/cn";
+import { type SaveStatus, useAutosave } from "@/hooks/use-autosave";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { useLastVisited } from "@/hooks/use-last-visited";
+import type { LibraryItemWithCollections } from "@/lib/collections/utils";
+import { ITEM_KIND_BOOKMARK } from "@/lib/common/constants";
+import { getOwnerDocument, isTextEntryTarget } from "@/lib/common/dom";
+import { saveFile } from "@/lib/common/file";
+import { getSystemAltKey, getSystemControlKey } from "@/lib/common/keyboard";
+import { createLogger } from "@/lib/common/logs/console/logger";
 import { clamp } from "@/lib/common/number";
-import { type Oembed, OembedSchema } from "@/lib/common/oembed";
-import { parseValidUrl } from "@/lib/common/url";
+import { isRecord } from "@/lib/common/object";
+import {
+    hasOembedSupport,
+    type Oembed,
+    OembedSchema,
+} from "@/lib/common/oembed";
+import { slugify, truncateLabel } from "@/lib/common/string";
+import {
+    openExternalUrl,
+    parseDisplayUrl,
+    parseStandaloneUrl,
+    parseValidUrl,
+} from "@/lib/common/url";
+import {
+    convertNoteHtmlToMarkdown,
+    extractNoteText,
+    isNoteSerializedEditorState,
+    NOTE_EMPTY_HTML,
+    type NoteSerializedEditorState,
+    normalizeNoteHtml,
+    serializeNoteEditorStateToHtml,
+} from "@/lib/integrations/notes/utils";
+import { sendNoteToNotion } from "@/lib/integrations/notion/actions";
 
 const QUICK_LOOK_BLOCKED_URL = "about:blank";
 const DEFAULT_TITLE = "Preview";
@@ -42,14 +163,18 @@ const ACTIVE_INDEX_STORAGE_KEY = "cache:quick-look:active-index";
 const ITEMS_STORAGE_KEY = "cache:quick-look:items";
 const OPEN_STORAGE_KEY = "cache:quick-look:open";
 const QUEUE_LIMIT = 12;
+const QUICK_LOOK_RECENT_ITEMS_LIMIT = 3;
+const QUICK_LOOK_KEYBOARD_SHORTCUT = "KeyB";
 
 const OEMBED_IFRAME_SANDBOX =
     "allow-scripts allow-popups allow-popups-to-escape-sandbox allow-presentation";
-const OEMBED_DIRECT_IFRAME_SANDBOX = `${OEMBED_IFRAME_SANDBOX} allow-same-origin`;
+const OEMBED_DIRECT_IFRAME_SANDBOX = `${OEMBED_IFRAME_SANDBOX} allow-same-origin allow-forms allow-modals allow-downloads`;
 const OEMBED_IFRAME_ALLOW =
     "accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share";
 const QUICK_LOOK_IFRAME_SANDBOX =
-    "allow-scripts allow-popups allow-popups-to-escape-sandbox";
+    "allow-scripts allow-popups allow-popups-to-escape-sandbox allow-presentation";
+const OEMBED_SRCDOC_CSP =
+    "default-src 'none'; img-src https: data:; font-src https: data:; style-src 'unsafe-inline' https:; script-src 'unsafe-inline' https:; connect-src https:; media-src https: data: blob:; frame-src https:; object-src 'none'; form-action 'none';";
 
 const YOUTUBE_IFRAME_HOSTS = new Set([
     "youtube.com",
@@ -58,9 +183,155 @@ const YOUTUBE_IFRAME_HOSTS = new Set([
     "www.youtube-nocookie.com",
 ]);
 
+const INITIAL_FORMAT_STATE: FormatState = {
+    blockType: "paragraph",
+    bold: false,
+    italic: false,
+    strikeThrough: false,
+    underline: false,
+};
+
+const NOTE_EDITOR_THEME = {
+    heading: {
+        h1: "mb-3 mt-0 text-[2rem] font-semibold leading-tight tracking-tight",
+        h2: "mb-3 mt-6 text-[1.5rem] font-semibold leading-tight tracking-tight",
+        h3: "mb-2 mt-5 text-[1.2rem] font-semibold leading-tight tracking-tight",
+    },
+    paragraph: "my-0 min-h-[1.75rem] leading-7",
+    text: {
+        bold: "font-semibold",
+        highlight: "rounded-sm bg-amber-200/90 px-0.5",
+        italic: "italic",
+        strikethrough: "line-through",
+        underline: "underline",
+    },
+};
+
+const NOTE_EDITOR_NAMESPACE = "cache-library-note";
+const NOTE_READING_WORDS_PER_MINUTE = 250;
+const NOTE_WORD_SEPARATOR = /\s+/;
+
+const NOTE_HISTORY_ANNOUNCE_UNDONE = "Undone";
+const NOTE_HISTORY_ANNOUNCE_REDONE = "Redone";
+
+const NOTE_NON_EMPTY_BLOCK_TAG_REGEX =
+    /<(h[1-3]|p)>(?!(?:\s|<br\s*\/?>)*<\/\1>)[\s\S]*?<\/\1>/gi;
+
+const NOTE_BLOCK_OPTIONS = [
+    {
+        ariaLabel: (gt: Translate) => gt("Paragraph"),
+        label: (gt: Translate) => gt("Text"),
+        value: "paragraph",
+    },
+    {
+        ariaLabel: (gt: Translate) => gt("Heading 1"),
+        label: (gt: Translate) => gt("H1"),
+        value: "h1",
+    },
+    {
+        ariaLabel: (gt: Translate) => gt("Heading 2"),
+        label: (gt: Translate) => gt("H2"),
+        value: "h2",
+    },
+    {
+        ariaLabel: (gt: Translate) => gt("Heading 3"),
+        label: (gt: Translate) => gt("H3"),
+        value: "h3",
+    },
+] satisfies ReadonlyArray<{
+    ariaLabel: (gt: Translate) => string;
+    label: (gt: Translate) => string;
+    value: NoteBlockType;
+}>;
+
+const NOTE_TEXT_FORMAT_OPTIONS = [
+    {
+        ariaLabel: (gt: Translate) => gt("Bold"),
+        format: "bold",
+        icon: BoldIcon,
+        stateKey: "bold",
+    },
+    {
+        ariaLabel: (gt: Translate) => gt("Italic"),
+        format: "italic",
+        icon: ItalicIcon,
+        stateKey: "italic",
+    },
+    {
+        ariaLabel: (gt: Translate) => gt("Underline"),
+        format: "underline",
+        icon: UnderlineIcon,
+        stateKey: "underline",
+    },
+    {
+        ariaLabel: (gt: Translate) => gt("Strikethrough"),
+        format: "strikethrough",
+        icon: StrikethroughIcon,
+        stateKey: "strikeThrough",
+    },
+] satisfies ReadonlyArray<{
+    ariaLabel: (gt: Translate) => string;
+    format: TextFormatType;
+    icon: LucideIcon;
+    stateKey: NoteInlineFormatStateKey;
+}>;
+
+const EXPORT_CONTENT_PROVIDERS: readonly ExportContentProvider[] = [
+    {
+        createUrl: (query) =>
+            `https://chatgpt.com/?${new URLSearchParams({ hints: "search", prompt: query })}`,
+        getTitle: (gt) => gt("Open in ChatGPT"),
+        icon: OpenAIIcon,
+        id: "chatgpt",
+    },
+    {
+        createUrl: (query) =>
+            `https://claude.ai/new?${new URLSearchParams({ q: query })}`,
+        getTitle: (gt) => gt("Open in Claude"),
+        icon: ClaudeIcon,
+        id: "claude",
+    },
+    {
+        createUrl: (query) =>
+            `https://cursor.com/link/prompt?${new URLSearchParams({ text: query })}`,
+        getTitle: (gt) => gt("Open in Cursor"),
+        icon: CursorIcon,
+        id: "cursor",
+    },
+    {
+        createUrl: (query) =>
+            `codex://new?${new URLSearchParams({ prompt: query })}`,
+        getTitle: (gt) => gt("Open in Codex"),
+        icon: OpenAIIcon,
+        id: "codex",
+    },
+    {
+        createUrl: (query) =>
+            `https://t3.chat/new?${new URLSearchParams({ q: query })}`,
+        getTitle: (gt) => gt("Open in T3 Chat"),
+        icon: MessageCircleIcon,
+        id: "t3-chat",
+    },
+    {
+        createUrl: (query) =>
+            `https://v0.app?${new URLSearchParams({ q: query })}`,
+        getTitle: (gt) => gt("Open in v0"),
+        icon: V0Icon,
+        id: "v0",
+    },
+    {
+        createUrl: (_query) => "https://docs.new",
+        getTitle: (gt) => gt("Open in Google Docs"),
+        icon: GoogleDocsIcon,
+        id: "google-docs",
+    },
+];
+
 type IframeStatus = "pending" | "loaded" | "blocked";
 
 type OembedStatus = "blocked" | "loaded" | "loading" | "oembed";
+
+type Translate = ReturnType<typeof useGT>;
 
 type OembedResolution =
     | {
@@ -71,11 +342,44 @@ type OembedResolution =
           resolution: "not-found" | "unsupported";
       };
 
-interface QuickLookEntry {
+export interface QuickLookUrlInput {
     description?: string;
-    title: string;
+    title?: string;
     url: string;
 }
+
+export interface QuickLookNote {
+    id: string;
+    noteContentHtml: string | null;
+    noteContentState: unknown;
+    noteContentText: string | null;
+}
+
+interface QuickLookUrlEntry {
+    description?: string;
+    id: string;
+    title: string;
+    type: "url";
+    url: string;
+}
+
+interface QuickLookNoteEntry {
+    id: string;
+    note: QuickLookNote | null;
+    type: "note";
+}
+
+type QuickLookEntry = QuickLookNoteEntry | QuickLookUrlEntry;
+
+export interface NoteDraft {
+    contentHtml: string;
+    contentState: NoteSerializedEditorState | null;
+}
+
+type NoteSaveHandler = (
+    draft: NoteDraft,
+    noteId: string | null
+) => Promise<LibraryItemWithCollections | null>;
 
 interface QuickLookQueueState {
     activeIndex: number;
@@ -83,8 +387,16 @@ interface QuickLookQueueState {
 }
 
 interface QuickLookContextValue {
-    entry: QuickLookEntry;
-    triggerId: string;
+    onSaveNote: NoteSaveHandler;
+    onUrlPaste: (url: string) => Promise<void> | void;
+}
+
+interface QuickLookTabsContextValue {
+    onKeyDown: (
+        index: number,
+        event: React.KeyboardEvent<HTMLButtonElement>
+    ) => void;
+    registerTab: (itemId: string, element: HTMLButtonElement | null) => void;
 }
 
 interface QuickLookStore {
@@ -94,10 +406,18 @@ interface QuickLookStore {
     triggerId: string | null;
 }
 
+interface QuickLookStorage<T> {
+    getSnapshot: (key: string) => T | Promise<T>;
+    subscribe?: (update: (value: T) => void, key: string) => void;
+    update: (value: T, key: string) => void;
+    value: T;
+}
+
 interface QuickLookActions {
-    openWithEntry: (entry: QuickLookEntry, triggerId: string) => void;
+    openWithEntry: (entry: QuickLookEntry, triggerId: string | null) => void;
     removeQueueItem: (index: number) => void;
     selectQueueIndex: (index: number) => void;
+    updateNoteEntry: (id: string, note: QuickLookNote) => void;
 }
 
 type QuickLookStoreActions = QuickLookActions &
@@ -105,15 +425,51 @@ type QuickLookStoreActions = QuickLookActions &
 
 const QUICK_LOOK_DRAWER_HANDLE = DrawerCreateHandle<QuickLookEntry>();
 
-const QuickLookContext = React.createContext<QuickLookContextValue | null>(
+const log = createLogger("library:quick-look");
+
+const NOTE_EDITOR_EXTENSION = defineExtension({
+    dependencies: [
+        RichTextExtension,
+        HistoryExtension,
+        configExtension(AriaLiveRegionExtension, {
+            owner: null,
+            politeness: "polite",
+        }),
+        configExtension(HistoryAnnounceExtension, {
+            redone: NOTE_HISTORY_ANNOUNCE_REDONE,
+            undone: NOTE_HISTORY_ANNOUNCE_UNDONE,
+        }),
+        RovingTabIndexExtension,
+        FocusManagerExtension,
+    ],
+    name: NOTE_EDITOR_NAMESPACE,
+    namespace: NOTE_EDITOR_NAMESPACE,
+    onError(error: Error) {
+        log.error("Unexpected note editor error", error);
+    },
+    theme: NOTE_EDITOR_THEME,
+});
+
+const QuickLookContext = createContext<QuickLookContextValue | null>(null);
+const QuickLookTabsContext = createContext<QuickLookTabsContextValue | null>(
     null
 );
 
 function useQuickLookContext(): QuickLookContextValue {
-    const context = React.use(QuickLookContext);
+    const context = use(QuickLookContext);
     if (!context) {
         throw new Error(
-            "QuickLook components must be used inside <QuickLookDrawer>."
+            "QuickLook components must be used inside <QuickLook.Root>."
+        );
+    }
+    return context;
+}
+
+function useQuickLookTabsContext(): QuickLookTabsContextValue {
+    const context = use(QuickLookTabsContext);
+    if (!context) {
+        throw new Error(
+            "Quick Look tabs must be rendered inside <QuickLookList>."
         );
     }
     return context;
@@ -125,46 +481,65 @@ export function useIsQuickLookOpen(): boolean {
 }
 
 function useQuickLookStatus(url: string | null, timeoutMs: number) {
-    const oembedUrl = isQuickLookBlockedUrl(url) ? null : url;
+    const oembedUrl =
+        url !== null && !isQuickLookBlockedUrl(url) && hasOembedSupport(url)
+            ? url
+            : null;
 
-    const { data, error } = useSWR(oembedUrl, resolveOembed, {
+    const { data, error, mutate } = useSWR(oembedUrl, resolveOembed, {
         revalidateIfStale: false,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
         shouldRetryOnError: false,
     });
-
-    const [iframeStatus, setIframeStatus] =
-        React.useState<IframeStatus>("pending");
-
     const timeout = useTimeout();
+    const statusCacheRef = useRefWithInit(
+        () => new Map<string, IframeStatus>()
+    ).current;
+    const [iframeStatus, setIframeStatus] = React.useState<IframeStatus>(() =>
+        url ? (statusCacheRef.get(url) ?? "pending") : "pending"
+    );
+    const [attempt, setAttempt] = useState(0);
 
-    // `loaded` is terminal: a late internal navigation failure must not
-    // flicker the blocked view over a working preview.
     const markAsBlocked = useStableCallback(() => {
         setIframeStatus((current) =>
-            current === "loaded" ? "loaded" : "blocked"
+            current === "pending" ? "blocked" : current
         );
     });
 
-    // A late `onLoad` may resurrect a timeout-induced blocked state.
     const markAsLoaded = useStableCallback(() => {
-        setIframeStatus("loaded");
+        setIframeStatus((current) =>
+            current === "pending" ? "loaded" : current
+        );
     });
 
-    // Reset the iframe lifecycle before the first paint of a new URL so it
-    // never inherits the previous URL's terminal status.
-    useIsoLayoutEffect(() => {
+    const retry = useStableCallback(() => {
+        if (url) {
+            statusCacheRef.delete(url);
+        }
         setIframeStatus("pending");
+        setAttempt((current) => current + 1);
+        mutate();
+    });
+
+    useIsoLayoutEffect(() => {
+        setIframeStatus(
+            url ? (statusCacheRef.get(url) ?? "pending") : "pending"
+        );
+        setAttempt(0);
     }, [url]);
 
     React.useEffect(() => {
-        if (isQuickLookBlockedUrl(url)) {
+        if (url && (iframeStatus === "loaded" || iframeStatus === "blocked")) {
+            statusCacheRef.set(url, iframeStatus);
+        }
+    }, [url, iframeStatus, statusCacheRef]);
+
+    React.useEffect(() => {
+        if (isQuickLookBlockedUrl(url) || iframeStatus !== "pending") {
             timeout.clear();
             return;
         }
-        // Bounds the whole wait for the URL — oEmbed fetch plus iframe load.
-        // It only ever moves the iframe from `pending` to `blocked`.
         timeout.start(timeoutMs, () => {
             setIframeStatus((current) =>
                 current === "pending" ? "blocked" : current
@@ -173,54 +548,50 @@ function useQuickLookStatus(url: string | null, timeoutMs: number) {
         return () => {
             timeout.clear();
         };
-    }, [timeout, timeoutMs, url]);
+    }, [timeout, timeoutMs, url, iframeStatus]);
 
-    // Once SWR settles on an outcome that bypasses the iframe, the timer has
-    // no useful work left. `unsupported` is the exception: no oEmbed provider
-    // means the vanilla iframe is still the preview, so the timer keeps
-    // bounding its load.
     React.useEffect(() => {
-        if (
-            data?.resolution === "found" ||
-            data?.resolution === "not-found" ||
-            error
-        ) {
+        if (data?.resolution === "found") {
             timeout.clear();
         }
-    }, [timeout, data, error]);
+    }, [timeout, data]);
+
+    React.useEffect(() => {
+        if (error && url) {
+            log.warn(
+                "Quick Look oEmbed fetch failed; trying iframe fallback.",
+                {
+                    host: parseDisplayUrl(url),
+                }
+            );
+        }
+    }, [error, url]);
+
+    React.useEffect(() => {
+        if (iframeStatus === "blocked" && url) {
+            log.warn("Quick Look preview did not load; showing fallback.", {
+                host: parseDisplayUrl(url),
+            });
+        }
+    }, [iframeStatus, url]);
 
     const oembed = data?.resolution === "found" ? data.oembed : null;
-    const status = parseOembedStatus(url, data, error, iframeStatus);
+    const status = parseOembedStatus(url, data, iframeStatus);
 
-    return { markAsBlocked, markAsLoaded, oembed, status };
+    return { attempt, markAsBlocked, markAsLoaded, oembed, retry, status };
 }
 
 function parseOembedStatus(
     url: string | null,
     data: OembedResolution | undefined,
-    error: Error | undefined,
     iframeStatus: IframeStatus
 ): OembedStatus {
     if (isQuickLookBlockedUrl(url)) {
         return "blocked";
     }
 
-    // A resolved oEmbed always wins over any parallel iframe state.
     if (data?.resolution === "found") {
         return "oembed";
-    }
-
-    // `not-found`: the server answered but couldn't produce an oEmbed (non-404
-    // error, malformed payload). Fail fast — such URLs rarely render as an
-    // iframe either, so don't make the user wait to find out.
-    if (data?.resolution === "not-found") {
-        return "blocked";
-    }
-
-    // SWR `error` is a genuine network failure (HTTP statuses route to
-    // resolutions). A working iframe stays loaded, matching `markAsBlocked`.
-    if (error && iframeStatus !== "loaded") {
-        return "blocked";
     }
 
     if (iframeStatus === "blocked") {
@@ -231,8 +602,6 @@ function parseOembedStatus(
         return "loaded";
     }
 
-    // SWR is still loading, or resolved `unsupported` and we're waiting on the
-    // parallel iframe's onLoad/onError. Show the spinner either way.
     return "loading";
 }
 
@@ -256,21 +625,25 @@ function addQuickLookQueueEntry(
     items: QuickLookEntry[],
     entry: QuickLookEntry
 ): QuickLookQueueState {
-    const existingIndex = items.findIndex((item) => item.url === entry.url);
+    const existingIndex = items.findIndex((item) =>
+        areQuickLookEntriesSameTab(item, entry)
+    );
     const existingEntry = items[existingIndex];
 
     if (existingEntry) {
-        // Re-triggering an unchanged entry is a no-op; only an updated entry
-        // replaces its queue item.
-        if (
-            existingEntry.title === entry.title &&
-            existingEntry.description === entry.description
-        ) {
+        if (areQuickLookEntriesEqual(existingEntry, entry)) {
             return { activeIndex: existingIndex, items };
         }
+        const nextEntry =
+            existingEntry.type === "note" && entry.type === "note"
+                ? { ...entry, id: existingEntry.id }
+                : entry;
+
         return {
             activeIndex: existingIndex,
-            items: items.map((item, i) => (i === existingIndex ? entry : item)),
+            items: items.map((item, i) =>
+                i === existingIndex ? nextEntry : item
+            ),
         };
     }
 
@@ -279,8 +652,239 @@ function addQuickLookQueueEntry(
     return { activeIndex: nextItems.length - 1, items: nextItems };
 }
 
+function areQuickLookEntriesSameTab(
+    left: QuickLookEntry,
+    right: QuickLookEntry
+): boolean {
+    if (left.type !== right.type) {
+        return false;
+    }
+    if (left.type === "note" && right.type === "note") {
+        if (left.note !== null && right.note !== null) {
+            return left.note.id === right.note.id;
+        }
+        return left.id === right.id;
+    }
+    return left.id === right.id;
+}
+
+function areQuickLookEntriesEqual(
+    left: QuickLookEntry,
+    right: QuickLookEntry
+): boolean {
+    if (left.type !== right.type || left.id !== right.id) {
+        return false;
+    }
+    if (left.type === "url" && right.type === "url") {
+        return (
+            left.title === right.title &&
+            left.description === right.description &&
+            left.url === right.url
+        );
+    }
+    if (left.type === "note" && right.type === "note") {
+        return areQuickLookNotesEqual(left.note, right.note);
+    }
+    return false;
+}
+
+function areQuickLookNotesEqual(
+    left: QuickLookNote | null,
+    right: QuickLookNote | null
+): boolean {
+    if (left === null || right === null) {
+        return left === right;
+    }
+
+    return (
+        left.id === right.id &&
+        left.noteContentHtml === right.noteContentHtml &&
+        left.noteContentText === right.noteContentText &&
+        JSON.stringify(left.noteContentState) ===
+            JSON.stringify(right.noteContentState)
+    );
+}
+
+function createQuickLookUrlEntry(input: QuickLookUrlInput): QuickLookUrlEntry {
+    return {
+        description: input.description,
+        id: `url:${input.url}`,
+        title: input.title ?? DEFAULT_TITLE,
+        type: "url",
+        url: input.url,
+    };
+}
+
+function getRecentQuickLookItems(
+    items: LibraryItemWithCollections[],
+    lastVisitedItemIds: string[]
+): LibraryItemWithCollections[] {
+    const itemsById = new Map(items.map((item) => [item.id, item]));
+
+    return lastVisitedItemIds
+        .map((itemId) => itemsById.get(itemId))
+        .filter(
+            (item): item is LibraryItemWithCollections =>
+                item?.kind === ITEM_KIND_BOOKMARK
+        )
+        .slice(0, QUICK_LOOK_RECENT_ITEMS_LIMIT);
+}
+
+function createQuickLookNoteEntry(
+    note: QuickLookNote | null
+): QuickLookNoteEntry {
+    return {
+        id: note?.id ?? `new-note:${crypto.randomUUID()}`,
+        note,
+        type: "note",
+    };
+}
+
+function deserializeQuickLookItems(value: string): QuickLookEntry[] {
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(value);
+    } catch {
+        log.warn("Failed to restore quick look tabs from storage.");
+        return [];
+    }
+
+    if (!Array.isArray(parsed)) {
+        return [];
+    }
+
+    return parsed.flatMap((rawItem): QuickLookEntry[] => {
+        if (!isRecord(rawItem)) {
+            return [];
+        }
+
+        if (typeof rawItem.url === "string") {
+            return [
+                createQuickLookUrlEntry({
+                    description:
+                        typeof rawItem.description === "string"
+                            ? rawItem.description
+                            : undefined,
+                    title:
+                        typeof rawItem.title === "string"
+                            ? rawItem.title
+                            : undefined,
+                    url: rawItem.url,
+                }),
+            ];
+        }
+
+        if (rawItem.type !== "note" || typeof rawItem.id !== "string") {
+            return [];
+        }
+
+        if (!isRecord(rawItem.note) || typeof rawItem.note.id !== "string") {
+            return [];
+        }
+
+        return [
+            {
+                id: rawItem.id,
+                note: {
+                    id: rawItem.note.id,
+                    noteContentHtml:
+                        typeof rawItem.note.noteContentHtml === "string"
+                            ? rawItem.note.noteContentHtml
+                            : null,
+                    noteContentState: rawItem.note.noteContentState ?? null,
+                    noteContentText:
+                        typeof rawItem.note.noteContentText === "string"
+                            ? rawItem.note.noteContentText
+                            : null,
+                },
+                type: "note",
+            } satisfies QuickLookNoteEntry,
+        ];
+    });
+}
+
+function serializeQuickLookItems(items: QuickLookEntry[]): string {
+    return JSON.stringify(
+        items.filter((item) => item.type === "url" || item.note !== null)
+    );
+}
+
+function isStorageQuotaExceededError(error: unknown): boolean {
+    if (!isRecord(error)) {
+        return false;
+    }
+
+    return (
+        error.name === "QuotaExceededError" ||
+        error.code === 22 ||
+        error.code === 1014
+    );
+}
+
+function createQuickLookItemsStorage() {
+    // stan-js's browser runtime returns a synchronizer object here, although
+    // its published Storage type describes the callable factory result as T.
+    const persistedStorage = storage<QuickLookEntry[]>([], {
+        deserialize: deserializeQuickLookItems,
+        serialize: serializeQuickLookItems,
+        storageKey: ITEMS_STORAGE_KEY,
+    }) as unknown as QuickLookStorage<QuickLookEntry[]>;
+
+    return {
+        ...persistedStorage,
+        update(value: QuickLookEntry[], key: string) {
+            try {
+                persistedStorage.update(value, key);
+            } catch (error) {
+                if (!isStorageQuotaExceededError(error)) {
+                    throw error;
+                }
+
+                log.warn(
+                    "Quick Look tabs exceeded local storage quota; keeping the current tabs in memory.",
+                    error
+                );
+            }
+        },
+    } as unknown as QuickLookEntry[];
+}
+
+function getQuickLookEntryTitle(entry: QuickLookEntry): string | null {
+    if (entry.type === "url") {
+        return entry.title;
+    }
+
+    const firstLine = entry.note?.noteContentText
+        ?.split("\n")
+        .map((line) => line.trim())
+        .find((line) => line.length > 0);
+
+    return firstLine ?? null;
+}
+
+function getQuickLookTabId(entry: QuickLookEntry): string {
+    return `quick-look-tab-${entry.type}-${encodeURIComponent(entry.id)}`;
+}
+
+function getQuickLookPanelId(entry: QuickLookEntry): string {
+    return `quick-look-panel-${entry.type}-${encodeURIComponent(entry.id)}`;
+}
+
 function isQuickLookBlockedUrl(url: string | null): boolean {
-    return url === null || url === QUICK_LOOK_BLOCKED_URL;
+    if (url === null || url === QUICK_LOOK_BLOCKED_URL) {
+        return true;
+    }
+    const parsed = parseValidUrl(url);
+    return parsed?.protocol !== "http:" && parsed?.protocol !== "https:";
+}
+
+function isQuickLookKeyboardShortcut(event: KeyboardEvent): boolean {
+    return (
+        event.code === QUICK_LOOK_KEYBOARD_SHORTCUT &&
+        event.altKey &&
+        (event.metaKey || event.ctrlKey) &&
+        !event.getModifierState("AltGraph")
+    );
 }
 
 function getOembedIframeSrc(oembed: Oembed): string | null {
@@ -326,7 +930,7 @@ function buildOembedSrcDocument(html: string): string {
 <base target="_blank">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data:; style-src 'unsafe-inline' https:; script-src 'unsafe-inline' https:; frame-src https:;">
+<meta http-equiv="Content-Security-Policy" content="${OEMBED_SRCDOC_CSP}">
 <style>
 html,
 body {
@@ -368,6 +972,8 @@ function clampActiveIndex(index: number, itemsLength: number): number {
     return clamp(index, 0, itemsLength - 1);
 }
 
+const QUICK_LOOK_ITEMS_STORAGE = createQuickLookItemsStorage();
+
 const { actions: quickLookStoreActions, useStore: useQuickLookStore } =
     createStore<QuickLookStore, QuickLookStoreActions>(
         {
@@ -377,13 +983,11 @@ const { actions: quickLookStoreActions, useStore: useQuickLookStore } =
             isOpen: storage(false, {
                 storageKey: OPEN_STORAGE_KEY,
             }),
-            items: storage<QuickLookEntry[]>([], {
-                storageKey: ITEMS_STORAGE_KEY,
-            }),
+            items: QUICK_LOOK_ITEMS_STORAGE,
             triggerId: null,
         },
         ({ actions, getState }) => ({
-            openWithEntry(entry: QuickLookEntry, triggerId: string) {
+            openWithEntry(entry: QuickLookEntry, triggerId: string | null) {
                 const { isOpen, items } = getState();
                 const queue = addQuickLookQueueEntry(items, entry);
 
@@ -420,37 +1024,80 @@ const { actions: quickLookStoreActions, useStore: useQuickLookStore } =
                 }
                 actions.setActiveIndex(index);
             },
+            updateNoteEntry(id: string, note: QuickLookNote) {
+                const { items } = getState();
+                const index = items.findIndex(
+                    (item) => item.type === "note" && item.id === id
+                );
+                if (index === -1) {
+                    return;
+                }
+
+                const currentEntry = items[index];
+                if (currentEntry?.type !== "note") {
+                    return;
+                }
+
+                const nextEntry: QuickLookNoteEntry = { ...currentEntry, note };
+                if (areQuickLookEntriesEqual(currentEntry, nextEntry)) {
+                    return;
+                }
+
+                actions.setItems(
+                    items.map((item, itemIndex) =>
+                        itemIndex === index ? nextEntry : item
+                    )
+                );
+            },
         })
     );
 
-export function openQuickLook(entry: QuickLookEntry, triggerId: string) {
-    quickLookStoreActions.openWithEntry(entry, triggerId);
+export function openQuickLook(
+    input: QuickLookUrlInput,
+    triggerId: string | null = null
+) {
+    quickLookStoreActions.openWithEntry(
+        createQuickLookUrlEntry(input),
+        triggerId
+    );
 }
 
-interface QuickLookDrawerProps extends React.PropsWithChildren {
-    description?: string;
-    title?: string;
-    url: string;
+export function openQuickLookNote(
+    note: LibraryItemWithCollections | null,
+    triggerId: string | null = null
+) {
+    quickLookStoreActions.openWithEntry(
+        createQuickLookNoteEntry(note ? toQuickLookNote(note) : null),
+        triggerId
+    );
 }
 
-export function QuickLookDrawer({
-    description,
-    title = DEFAULT_TITLE,
-    url,
+interface QuickLookRootProps extends React.PropsWithChildren {
+    onSaveNote: NoteSaveHandler;
+    onUrlPaste: (url: string) => Promise<void> | void;
+}
+
+export function QuickLookRoot({
     children,
-}: QuickLookDrawerProps) {
-    const entry = { description, title, url };
-    const triggerId = `quick-look-drawer-${React.useId()}`;
-    const contextValue = { entry, triggerId };
+    onSaveNote,
+    onUrlPaste,
+}: QuickLookRootProps) {
+    const contextValue = { onSaveNote, onUrlPaste };
 
     return <QuickLookContext value={contextValue}>{children}</QuickLookContext>;
 }
 
-export function QuickLookDrawerTrigger({
+export function QuickLookTrigger({
+    description,
     onClick: onClickProp,
+    title,
+    url,
     ...props
-}: React.ComponentProps<typeof DrawerTrigger>) {
-    const { entry, triggerId } = useQuickLookContext();
+}: Omit<React.ComponentProps<typeof DrawerTrigger>, "id" | "payload"> &
+    QuickLookUrlInput) {
+    useQuickLookContext();
+    const triggerId = `quick-look-trigger-${React.useId()}`;
+    const entry = createQuickLookUrlEntry({ description, title, url });
 
     const handleClick = useStableCallback(
         (event: BaseUIEvent<React.MouseEvent<HTMLButtonElement>>) => {
@@ -458,7 +1105,7 @@ export function QuickLookDrawerTrigger({
             if (event.defaultPrevented) {
                 return;
             }
-            openQuickLook(entry, triggerId);
+            quickLookStoreActions.openWithEntry(entry, triggerId);
             event.preventDefault();
         }
     );
@@ -474,13 +1121,13 @@ export function QuickLookDrawerTrigger({
     );
 }
 
-interface QuickLookDrawerContentProps {
+interface QuickLookContentProps {
     container: HTMLDivElement | React.RefObject<HTMLDivElement | null> | null;
 }
 
-export function QuickLookDrawerContent({
-    container,
-}: QuickLookDrawerContentProps) {
+export function QuickLookContent({ container }: QuickLookContentProps) {
+    const gt = useGT();
+    const { onSaveNote, onUrlPaste } = useQuickLookContext();
     const {
         activeIndex,
         isOpen,
@@ -494,6 +1141,23 @@ export function QuickLookDrawerContent({
 
     const safeActiveIndex = clampActiveIndex(activeIndex, items.length);
     const activeEntry = items[safeActiveIndex] ?? null;
+    // Keep note editor sessions alive while the drawer is hidden so drafts and
+    // Lexical history survive closing and reopening Quick Look.
+    const hasOpenNote = items.some((item) => item.type === "note");
+    const noteCloseHandlersRef = useRefWithInit(
+        () => new Map<string, () => void | Promise<void>>()
+    ).current;
+
+    const registerNoteCloseHandler = useStableCallback(
+        (id: string, close: () => void | Promise<void>) => {
+            noteCloseHandlersRef.set(id, close);
+            return () => {
+                if (noteCloseHandlersRef.get(id) === close) {
+                    noteCloseHandlersRef.delete(id);
+                }
+            };
+        }
+    );
 
     const handleOpenChange = useStableCallback((nextIsOpen: boolean) => {
         setIsOpen(nextIsOpen);
@@ -501,6 +1165,44 @@ export function QuickLookDrawerContent({
             setTriggerId(null);
         }
     });
+
+    const handleToggleShortcut = useStableCallback((event: KeyboardEvent) => {
+        if (
+            event.defaultPrevented ||
+            event.isComposing ||
+            !isQuickLookKeyboardShortcut(event) ||
+            isTextEntryTarget(event.target)
+        ) {
+            return;
+        }
+        setIsOpen((prev) => !prev);
+    });
+
+    useHotkeys("mod+alt+b", handleToggleShortcut, {
+        description: gt("Open or close preview"),
+        preventDefault: true,
+    });
+
+    const handleRemoveItem = useStableCallback(
+        (item: QuickLookEntry, index: number) => {
+            if (item.type === "note") {
+                noteCloseHandlersRef.get(item.id)?.();
+                return;
+            }
+            removeQueueItem(index);
+        }
+    );
+
+    const handleCloseNote = useStableCallback((id: string) => {
+        const index = items.findIndex(
+            (item) => item.type === "note" && item.id === id
+        );
+        if (index !== -1) {
+            removeQueueItem(index);
+        }
+    });
+
+    const collapsed = hasOpenNote && !isOpen;
 
     return (
         <Drawer
@@ -513,12 +1215,15 @@ export function QuickLookDrawerContent({
             swipeDirection="right"
             triggerId={triggerId}
         >
+            <DrawerSwipeArea />
             <QuickLookDrawerToggle />
             <DrawerViewport
                 className="lg:sticky lg:h-dvh"
                 portalProps={{
-                    className: "lg:flex-1",
+                    className: cn("lg:flex-1", { "sr-only": collapsed }),
                     container,
+                    inert: collapsed,
+                    keepMounted: hasOpenNote,
                 }}
                 shouldShowBackdrop={false}
             >
@@ -532,22 +1237,36 @@ export function QuickLookDrawerContent({
                         })}
                     >
                         <DrawerTitle className="sr-only">
-                            Quick Look
+                            <T>Quick Look</T>
                         </DrawerTitle>
-                        <QuickLookList items={items}>
-                            {(item, index) => (
-                                <QuickLookListItem
-                                    index={index}
-                                    isActive={index === safeActiveIndex}
-                                    item={item}
-                                    key={item.url}
-                                    onRemove={removeQueueItem}
-                                    onSelect={selectQueueIndex}
-                                />
-                            )}
-                        </QuickLookList>
+                        <div className="flex max-w-full items-center gap-1">
+                            <QuickLookList
+                                items={items}
+                                onTabSelect={selectQueueIndex}
+                            >
+                                {(item, index) => (
+                                    <QuickLookListItem
+                                        index={index}
+                                        isActive={index === safeActiveIndex}
+                                        item={item}
+                                        key={item.id}
+                                        onRemove={handleRemoveItem}
+                                        onSelect={selectQueueIndex}
+                                    />
+                                )}
+                            </QuickLookList>
+                            {activeEntry ? <QuickLookNewTabMenu /> : null}
+                        </div>
                     </DrawerHeader>
-                    <QuickLookDrawerPanel activeEntry={activeEntry} />
+                    <QuickLookDrawerPanel
+                        activeEntry={activeEntry}
+                        isOpen={isOpen}
+                        items={items}
+                        onCloseNote={handleCloseNote}
+                        onRegisterNoteClose={registerNoteCloseHandler}
+                        onSaveNote={onSaveNote}
+                        onUrlPaste={onUrlPaste}
+                    />
                 </DrawerPopup>
             </DrawerViewport>
         </Drawer>
@@ -556,62 +1275,203 @@ export function QuickLookDrawerContent({
 
 interface QuickLookDrawerPanelProps {
     activeEntry: QuickLookEntry | null;
+    isOpen: boolean;
+    items: QuickLookEntry[];
+    onCloseNote: (id: string) => void;
+    onRegisterNoteClose: (
+        id: string,
+        close: () => void | Promise<void>
+    ) => () => void;
+    onSaveNote: NoteSaveHandler;
+    onUrlPaste: (url: string) => Promise<void> | void;
 }
 
-function QuickLookDrawerPanel({ activeEntry }: QuickLookDrawerPanelProps) {
-    const { markAsBlocked, markAsLoaded, oembed, status } = useQuickLookStatus(
-        activeEntry?.url ?? null,
-        DEFAULT_TIMEOUT_MS
+function QuickLookDrawerPanel({
+    activeEntry,
+    isOpen,
+    items,
+    onCloseNote,
+    onRegisterNoteClose,
+    onSaveNote,
+    onUrlPaste,
+}: QuickLookDrawerPanelProps) {
+    const visibleActiveEntry = isOpen ? activeEntry : null;
+    const { attempt, markAsBlocked, markAsLoaded, oembed, retry, status } =
+        useQuickLookStatus(
+            visibleActiveEntry?.type === "url" ? visibleActiveEntry.url : null,
+            DEFAULT_TIMEOUT_MS
+        );
+
+    return (
+        <>
+            {visibleActiveEntry?.type === "url" ? (
+                <QuickLookUrlPanel
+                    attempt={attempt}
+                    entry={visibleActiveEntry}
+                    markAsBlocked={markAsBlocked}
+                    markAsLoaded={markAsLoaded}
+                    oembed={oembed}
+                    onRetry={retry}
+                    status={status}
+                />
+            ) : null}
+            {/* Keep every note session mounted so tab switches preserve editor history. */}
+            {items.map((item) =>
+                item.type === "note" ? (
+                    <QuickLookNotePanel
+                        entry={item}
+                        isActive={
+                            isOpen &&
+                            activeEntry?.type === "note" &&
+                            activeEntry.id === item.id
+                        }
+                        key={item.id}
+                        onClose={onCloseNote}
+                        onRegisterClose={onRegisterNoteClose}
+                        onSave={onSaveNote}
+                        onUrlPaste={onUrlPaste}
+                    />
+                ) : null
+            )}
+            {visibleActiveEntry === null && isOpen ? (
+                <QuickLookPanelEmpty />
+            ) : null}
+        </>
     );
+}
+
+interface QuickLookUrlPanelProps {
+    attempt: number;
+    entry: QuickLookUrlEntry;
+    markAsBlocked: () => void;
+    markAsLoaded: () => void;
+    oembed: Oembed | null;
+    onRetry: () => void;
+    status: OembedStatus;
+}
+
+function QuickLookUrlPanel({
+    attempt,
+    entry,
+    markAsBlocked,
+    markAsLoaded,
+    oembed,
+    onRetry,
+    status,
+}: QuickLookUrlPanelProps) {
+    const gt = useGT();
 
     const isLoading = status === "loading";
-    const isLoaded = status === "loaded";
     const isBlocked = status === "blocked";
     const isOembed = status === "oembed";
 
     return (
         <DrawerPanel
             aria-busy={isLoading}
+            aria-labelledby={getQuickLookTabId(entry)}
             className="relative p-0 pt-0!"
+            id={getQuickLookPanelId(entry)}
             isScrollable={false}
+            role="tabpanel"
+            tabIndex={0}
         >
-            {activeEntry ? (
-                <>
-                    {isLoading ? <QuickLookLoading /> : null}
-                    {isBlocked ? (
-                        <QuickLookBlocked url={activeEntry.url} />
-                    ) : null}
-                    {isOembed && oembed ? (
-                        <QuickLookOembedPreview oembed={oembed} />
-                    ) : null}
-                    {isLoaded && !isOembed ? (
-                        <iframe
-                            className="size-full border-0 bg-background"
-                            key={activeEntry.url}
-                            onError={markAsBlocked}
-                            onLoad={markAsLoaded}
-                            referrerPolicy="strict-origin-when-cross-origin"
-                            sandbox={QUICK_LOOK_IFRAME_SANDBOX}
-                            src={activeEntry.url}
-                            title={`Preview of ${activeEntry.title}`}
-                        />
-                    ) : null}
-                </>
-            ) : (
-                <QuickLookPanelEmpty />
+            {isLoading ? <QuickLookLoading /> : null}
+            {isBlocked ? (
+                <QuickLookBlocked onRetry={onRetry} url={entry.url} />
+            ) : null}
+            {isOembed && oembed ? (
+                <QuickLookOembedPreview oembed={oembed} />
+            ) : null}
+            {isBlocked || isOembed ? null : (
+                // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts iframe onError/onLoad
+                <iframe
+                    allow={OEMBED_IFRAME_ALLOW}
+                    allowFullScreen
+                    className="size-full border-0 bg-background"
+                    key={`${entry.url}:${attempt}`}
+                    loading="lazy"
+                    onError={markAsBlocked}
+                    onLoad={markAsLoaded}
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    sandbox={QUICK_LOOK_IFRAME_SANDBOX}
+                    src={entry.url}
+                    title={gt("Preview of {title}", { title: entry.title })}
+                />
             )}
         </DrawerPanel>
     );
 }
 
 function QuickLookPanelEmpty() {
+    const { items } = useItemsContext();
+    const { lastVisitedItemIds } = useLastVisited();
+
+    const recentItems = getRecentQuickLookItems(items, lastVisitedItemIds);
+
     return (
-        <MediaPlaceholder className="bg-background">
-            <Globe aria-hidden className="size-6" focusable="false" />
-            <span className="text-center font-medium text-base">
-                Quick Look
-            </span>
-        </MediaPlaceholder>
+        <DrawerPanel
+            className="flex flex-col gap-0 p-0 pt-0!"
+            isScrollable={false}
+        >
+            <div className="min-h-0 flex-1">
+                <Placeholder className="bg-background">
+                    <Globe
+                        aria-hidden
+                        className="z-20 size-5.5 text-muted-foreground"
+                        focusable="false"
+                    />
+                    <span className="z-20 text-center font-medium text-muted-foreground text-sm">
+                        Quick Look
+                    </span>
+                </Placeholder>
+            </div>
+            {recentItems.length > 0 ? (
+                <section className="shrink-0 border-t p-4">
+                    <h2 className="font-medium text-foreground text-sm">
+                        <T>Recently visited</T>
+                    </h2>
+                    <ul className="mt-2 flex flex-col gap-1">
+                        {recentItems.map((item) => (
+                            <QuickLookRecentItem item={item} key={item.id} />
+                        ))}
+                    </ul>
+                </section>
+            ) : null}
+        </DrawerPanel>
+    );
+}
+
+interface QuickLookRecentItemProps {
+    item: LibraryItemWithCollections;
+}
+
+function QuickLookRecentItem({ item }: QuickLookRecentItemProps) {
+    const gt = useGT();
+    const title = item.caption?.trim() || item.url;
+    const label = item.caption?.trim() || parseDisplayUrl(item.url);
+
+    const handleOpen = useStableCallback(() => {
+        openQuickLook({
+            description: parseDisplayUrl(item.url),
+            title,
+            url: item.url,
+        });
+    });
+
+    return (
+        <li>
+            <Button
+                aria-label={gt("Open {title} in Quick Look", { title })}
+                className="w-full justify-start text-left"
+                onClick={handleOpen}
+                size="sm"
+                title={item.url}
+                variant="ghost"
+            >
+                <Globe aria-hidden className="size-3.5" focusable="false" />
+                <span className="min-w-0 truncate">{label}</span>
+            </Button>
+        </li>
     );
 }
 
@@ -620,41 +1480,125 @@ interface QuickLookOembedPreviewProps {
 }
 
 function QuickLookOembedPreview({ oembed }: QuickLookOembedPreviewProps) {
+    const gt = useGT();
     const src = getOembedIframeSrc(oembed);
+    const [hasDirectError, setHasDirectError] = useState(false);
+
+    useIsoLayoutEffect(() => {
+        setHasDirectError(false);
+    }, [oembed.html, oembed.provider]);
+
+    const handleDirectError = useStableCallback(() => {
+        log.warn(
+            "Quick Look direct embed failed; falling back to widget document.",
+            { provider: oembed.provider }
+        );
+        setHasDirectError(true);
+    });
+
+    const directSrc = hasDirectError ? null : src;
 
     return (
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts iframe onError/onLoad
         <iframe
-            allow={src ? OEMBED_IFRAME_ALLOW : undefined}
-            allowFullScreen={!!src}
+            allow={directSrc ? OEMBED_IFRAME_ALLOW : undefined}
+            allowFullScreen={!!directSrc}
             className="size-full border-0 bg-background"
+            key={directSrc ?? oembed.html}
+            loading="lazy"
+            onError={directSrc ? handleDirectError : undefined}
             referrerPolicy="strict-origin-when-cross-origin"
-            sandbox={src ? OEMBED_DIRECT_IFRAME_SANDBOX : OEMBED_IFRAME_SANDBOX}
-            src={src ?? undefined}
-            srcDoc={src ? undefined : buildOembedSrcDocument(oembed.html)}
-            title={oembed.title ?? `${oembed.provider} preview`}
+            sandbox={
+                directSrc ? OEMBED_DIRECT_IFRAME_SANDBOX : OEMBED_IFRAME_SANDBOX
+            }
+            src={directSrc ?? undefined}
+            srcDoc={directSrc ? undefined : buildOembedSrcDocument(oembed.html)}
+            title={
+                oembed.title ??
+                gt("{provider} preview", { provider: oembed.provider })
+            }
         />
     );
 }
 
 interface QuickLookListProps
-    extends Omit<React.ComponentProps<"ul">, "children"> {
+    extends Omit<React.ComponentProps<"div">, "children"> {
     children: (item: QuickLookEntry, index: number) => React.ReactNode;
     items: QuickLookEntry[];
+    onTabSelect: (index: number) => void;
 }
 
 function QuickLookList({
     items,
     className,
     children,
+    onTabSelect,
     ...props
 }: QuickLookListProps) {
+    const gt = useGT();
+    const tabRefs = useRefWithInit(
+        () => new Map<string, HTMLButtonElement>()
+    ).current;
+
+    const registerTab = useStableCallback(
+        (itemId: string, element: HTMLButtonElement | null) => {
+            if (element) {
+                tabRefs.set(itemId, element);
+            } else {
+                tabRefs.delete(itemId);
+            }
+        }
+    );
+
+    const focusTab = useStableCallback((itemId: string) => {
+        tabRefs.get(itemId)?.focus();
+    });
+
+    const handleKeyDown = useStableCallback(
+        (index: number, event: React.KeyboardEvent<HTMLButtonElement>) => {
+            let nextIndex: number | null = null;
+
+            if (event.key === "ArrowLeft") {
+                nextIndex = index === 0 ? items.length - 1 : index - 1;
+            } else if (event.key === "ArrowRight") {
+                nextIndex = index === items.length - 1 ? 0 : index + 1;
+            } else if (event.key === "Home") {
+                nextIndex = 0;
+            } else if (event.key === "End") {
+                nextIndex = items.length - 1;
+            }
+
+            if (nextIndex === null) {
+                return;
+            }
+
+            const nextItem = items[nextIndex];
+            if (!nextItem) {
+                return;
+            }
+
+            event.preventDefault();
+            onTabSelect(nextIndex);
+            focusTab(nextItem.id);
+        }
+    );
+
+    const contextValue = { onKeyDown: handleKeyDown, registerTab };
+
     return (
-        <ul
-            {...props}
-            className={cn("flex max-w-full items-center gap-1.5", className)}
-        >
-            {items.map(children)}
-        </ul>
+        <QuickLookTabsContext value={contextValue}>
+            <div
+                {...props}
+                aria-label={gt("Open quick look tabs")}
+                className={cn(
+                    "flex min-w-0 max-w-full flex-1 items-center gap-1.5 overflow-x-auto",
+                    className
+                )}
+                role="tablist"
+            >
+                {items.map(children)}
+            </div>
+        </QuickLookTabsContext>
     );
 }
 
@@ -662,7 +1606,7 @@ interface QuickLookListItemProps {
     index: number;
     isActive: boolean;
     item: QuickLookEntry;
-    onRemove: (index: number) => void;
+    onRemove: (item: QuickLookEntry, index: number) => void;
     onSelect: (index: number) => void;
 }
 
@@ -673,44 +1617,160 @@ function QuickLookListItem({
     onRemove,
     onSelect,
 }: QuickLookListItemProps) {
+    const gt = useGT();
+    const { onKeyDown, registerTab } = useQuickLookTabsContext();
+
+    const entryTitle = getQuickLookEntryTitle(item);
+
+    let title: string;
+    if (entryTitle === DEFAULT_TITLE) {
+        title = gt("Preview");
+    } else if (entryTitle !== null) {
+        title = truncateLabel(entryTitle);
+    } else if (item.type === "note") {
+        title = item.note ? gt("Untitled note") : gt("New note");
+    } else {
+        title = gt("Preview");
+    }
+    const closeLabel = gt("Close {title}", { title });
+
+    const handleKeyDown = useStableCallback(
+        (event: React.KeyboardEvent<HTMLButtonElement>) => {
+            onKeyDown(index, event);
+        }
+    );
+
+    const handleTabRef = useStableCallback(
+        (element: HTMLButtonElement | null) => {
+            registerTab(item.id, element);
+        }
+    );
+
     const handleClick = useStableCallback(() => {
         onSelect(index);
     });
 
     const handleRemove = useStableCallback(() => {
-        onRemove(index);
+        onRemove(item, index);
     });
 
     return (
-        <li
+        <div
             className={cn(
-                "flex h-fit w-full min-w-0 max-w-48 items-center rounded-lg",
+                "relative inline-flex min-w-0 shrink-0 items-center rounded-lg",
                 isActive ? "bg-secondary" : "hover:bg-accent"
             )}
+            role="presentation"
         >
             <Button
-                aria-current={isActive ? "page" : undefined}
-                className="min-w-0 flex-1 hover:bg-transparent"
+                aria-controls={getQuickLookPanelId(item)}
+                aria-selected={isActive}
+                id={getQuickLookTabId(item)}
                 onClick={handleClick}
+                onKeyDown={handleKeyDown}
+                ref={handleTabRef}
+                role="tab"
                 size="sm"
-                title={item.title}
+                tabIndex={isActive ? 0 : -1}
+                title={title}
                 variant="ghost"
             >
-                <Globe aria-hidden className="size-3.5" focusable="false" />
-                <span className="min-w-0 truncate font-medium">
-                    {item.title}
-                </span>
+                {item.type === "note" ? null : (
+                    <Globe aria-hidden className="size-3.5" focusable="false" />
+                )}
+                <Calligraph className="min-w-0 truncate font-medium">
+                    {title}
+                </Calligraph>
             </Button>
             <Button
-                aria-label={`Close ${item.title}`}
+                aria-label={closeLabel}
                 onClick={handleRemove}
                 size="icon-sm"
-                title={`Close ${item.title}`}
+                title={closeLabel}
                 variant="ghost"
             >
                 <XIcon className="size-3.5 shrink-0" />
             </Button>
-        </li>
+        </div>
+    );
+}
+
+function QuickLookNewTabMenu() {
+    const gt = useGT();
+    const { items } = useItemsContext();
+    const { lastVisitedItemIds } = useLastVisited();
+
+    const recentItems = getRecentQuickLookItems(items, lastVisitedItemIds);
+    const triggerLabel = gt("Open recent tabs");
+
+    return (
+        <Menu>
+            <MenuTrigger
+                render={
+                    <Button
+                        aria-label={triggerLabel}
+                        size="icon-sm"
+                        title={triggerLabel}
+                        variant="ghost"
+                    />
+                }
+            >
+                <PlusIcon aria-hidden className="size-4" focusable="false" />
+            </MenuTrigger>
+            <MenuPopup align="end" className="w-72">
+                <MenuGroup>
+                    <MenuGroupLabel>
+                        <T>Recently visited</T>
+                    </MenuGroupLabel>
+                    {recentItems.length > 0 ? (
+                        recentItems.map((item) => (
+                            <QuickLookNewTabMenuItem
+                                item={item}
+                                key={item.id}
+                            />
+                        ))
+                    ) : (
+                        <MenuItem disabled>
+                            <span className="flex-1 text-muted-foreground">
+                                <T>No recent tabs</T>
+                            </span>
+                        </MenuItem>
+                    )}
+                </MenuGroup>
+            </MenuPopup>
+        </Menu>
+    );
+}
+
+interface QuickLookNewTabMenuItemProps {
+    item: LibraryItemWithCollections;
+}
+
+function QuickLookNewTabMenuItem({ item }: QuickLookNewTabMenuItemProps) {
+    const gt = useGT();
+    const title = item.caption?.trim() || item.url;
+    const label = item.caption?.trim() || parseDisplayUrl(item.url);
+
+    const handleOpen = useStableCallback(() => {
+        openQuickLook({
+            description: parseDisplayUrl(item.url),
+            title,
+            url: item.url,
+        });
+    });
+
+    return (
+        <MenuItem onClick={handleOpen} title={item.url}>
+            <Globe
+                aria-hidden
+                className="size-4 shrink-0 text-muted-foreground"
+                focusable="false"
+            />
+            <span className="min-w-0 flex-1 truncate">{label}</span>
+            <span className="sr-only">
+                {gt("Open {title} in Quick Look", { title })}
+            </span>
+        </MenuItem>
     );
 }
 
@@ -734,8 +1794,13 @@ function QuickLookLoading() {
     );
 }
 
-function QuickLookBlocked({ url }: { url: string }) {
-    const canOpenUrlExternally = !isQuickLookBlockedUrl(url);
+function QuickLookBlocked({
+    onRetry,
+    url,
+}: {
+    onRetry: () => void;
+    url: string;
+}) {
     return (
         <div
             aria-live="polite"
@@ -753,7 +1818,11 @@ function QuickLookBlocked({ url }: { url: string }) {
                     <T>This site can't be previewed.</T>
                 </p>
             </div>
-            {canOpenUrlExternally ? (
+            <div className="flex items-center gap-2">
+                <Button onClick={onRetry} size="sm" variant="outline">
+                    <RotateCcwIcon className="size-4" />
+                    <T>Try again</T>
+                </Button>
                 <Button
                     nativeButton={false}
                     render={
@@ -768,7 +1837,7 @@ function QuickLookBlocked({ url }: { url: string }) {
                     <ExternalLinkIcon className="size-4" />
                     <T>Open in new tab</T>
                 </Button>
-            ) : null}
+            </div>
         </div>
     );
 }
@@ -778,7 +1847,8 @@ function QuickLookDrawerToggle({
     onClick,
     ...props
 }: React.ComponentProps<typeof Button>) {
-    const { isOpen, items, setIsOpen } = useQuickLookStore();
+    const gt = useGT();
+    const { isOpen, setIsOpen } = useQuickLookStore();
 
     const handleClick = useStableCallback(
         (event: BaseUIEvent<React.MouseEvent<HTMLButtonElement>>) => {
@@ -790,37 +1860,1071 @@ function QuickLookDrawerToggle({
         }
     );
 
-    const toggleLabel = isOpen ? "Close preview" : "Open preview";
-
-    if (!isOpen && items.length === 0) {
-        return null;
-    }
+    const toggleLabel = isOpen ? gt("Close preview") : gt("Open preview");
+    const toggleShortcut = `${getSystemControlKey()}${getSystemAltKey()}B`;
+    const toggleTitle = isOpen
+        ? gt("Close preview ({shortcut})", { shortcut: toggleShortcut })
+        : gt("Open preview ({shortcut})", { shortcut: toggleShortcut });
 
     return (
         <Button
             {...props}
             aria-label={toggleLabel}
             className={cn(
-                "fixed top-2 right-2 z-60 hidden shrink-0 opacity-50 hover:opacity-100 lg:inline-flex",
-                { "opacity-100": isOpen },
+                "fixed top-2 right-0.5 z-60 lg:right-2",
+                { "text-muted-foreground": !isOpen },
                 className
             )}
             data-quick-look="toggle"
             data-slot="quick-look-toggle"
             onClick={handleClick}
             size="icon-sm"
-            title={toggleLabel}
+            title={toggleTitle}
+            variant={isOpen ? "secondary" : "ghost"}
+        >
+            <PanelRight aria-hidden className="size-4" focusable="false" />
+        </Button>
+    );
+}
+
+interface QuickLookNotePanelProps {
+    entry: QuickLookNoteEntry;
+    isActive: boolean;
+    onClose: (id: string) => void;
+    onRegisterClose: (
+        id: string,
+        close: () => void | Promise<void>
+    ) => () => void;
+    onSave: NoteSaveHandler;
+    onUrlPaste: (url: string) => Promise<void> | void;
+}
+
+function QuickLookNotePanel({
+    entry,
+    isActive,
+    onClose,
+    onRegisterClose,
+    onSave,
+    onUrlPaste,
+}: QuickLookNotePanelProps) {
+    const contentEditableRef = useRef<HTMLDivElement | null>(null);
+
+    const handleClose = useStableCallback(() => {
+        onClose(entry.id);
+    });
+
+    const handleSave = useStableCallback(
+        async (draft: NoteDraft, noteId: string | null) => {
+            const savedNote = await onSave(draft, noteId);
+            if (savedNote) {
+                const nextNote = toQuickLookNote(savedNote);
+                if (!areQuickLookNotesEqual(entry.note, nextNote)) {
+                    quickLookStoreActions.updateNoteEntry(entry.id, nextNote);
+                }
+            }
+            return savedNote;
+        }
+    );
+
+    useIsoLayoutEffect(
+        () => onRegisterClose(entry.id, handleClose),
+        [entry.id, handleClose, onRegisterClose]
+    );
+
+    useIsoLayoutEffect(() => {
+        if (isActive) {
+            contentEditableRef.current?.focus({ preventScroll: true });
+        }
+    }, [isActive]);
+
+    return (
+        <NoteRoot
+            contentEditableRef={contentEditableRef}
+            isActive={isActive}
+            note={entry.note}
+            onClose={handleClose}
+            onSave={handleSave}
+            onUrlPaste={onUrlPaste}
+        >
+            <div
+                aria-hidden={!isActive}
+                aria-labelledby={getQuickLookTabId(entry)}
+                className={cn(
+                    "min-h-0 flex-1 flex-col",
+                    isActive ? "flex" : "hidden"
+                )}
+                id={getQuickLookPanelId(entry)}
+                role="tabpanel"
+                tabIndex={isActive ? 0 : -1}
+            >
+                <DrawerPanel allowSelection className="p-4">
+                    <NoteEditor />
+                    <NoteMetrics />
+                </DrawerPanel>
+            </div>
+        </NoteRoot>
+    );
+}
+
+function toQuickLookNote(note: LibraryItemWithCollections): QuickLookNote {
+    return {
+        id: note.id,
+        noteContentHtml: note.noteContentHtml,
+        noteContentState: note.noteContentState,
+        noteContentText: note.noteContentText,
+    };
+}
+
+interface NoteContextValue {
+    contentEditableRef?: React.RefObject<HTMLDivElement | null>;
+    contentHtml: string;
+    editorKey: number;
+    initialDraft: NoteDraft;
+    isDirty: boolean;
+    onClose: () => void | Promise<void>;
+    onDraftChange: (draft: NoteDraft) => void;
+    onUrlPaste: (url: string) => Promise<void> | void;
+    query: string;
+    saveStatus: SaveStatus;
+    sessionId: string;
+    shouldCreateBookmarkFromUrlPaste: () => boolean;
+    textMetrics: NoteTextMetrics;
+}
+
+interface FormatState {
+    blockType: NoteBlockType;
+    bold: boolean;
+    italic: boolean;
+    strikeThrough: boolean;
+    underline: boolean;
+}
+
+interface NoteTextMetrics {
+    characterCount: number;
+    paragraphCount: number;
+    plainText: string;
+    readMinuteCount: number;
+    wordCount: number;
+}
+
+type NoteBlockType = "h1" | "h2" | "h3" | "paragraph";
+
+type NoteInlineFormatStateKey = Exclude<keyof FormatState, "blockType">;
+
+interface ExportContentProvider {
+    createUrl: (query: string) => string;
+    getTitle: (gt: Translate) => string;
+    icon: ComponentType<SVGProps<SVGSVGElement>>;
+    id: string;
+}
+
+interface EditorSession {
+    editorKey: number;
+    extension: ReturnType<typeof createNoteSessionExtension>;
+}
+
+const NoteContext = createContext<NoteContextValue | null>(null);
+
+function useNoteContext(): NoteContextValue {
+    const context = use(NoteContext);
+    if (!context) {
+        throw new Error(
+            "Quick look note components must be rendered inside a note tab."
+        );
+    }
+    return context;
+}
+
+function normalizeDraft(draft: NoteDraft): NoteDraft {
+    return {
+        contentHtml: normalizeNoteHtml(draft.contentHtml),
+        contentState: draft.contentState,
+    };
+}
+
+function noteDraftFromEditorState(
+    contentState: NoteSerializedEditorState
+): NoteDraft {
+    return normalizeDraft({
+        contentHtml: serializeNoteEditorStateToHtml(contentState),
+        contentState,
+    });
+}
+
+function noteDraftFromItem(note: QuickLookNote | null): NoteDraft {
+    const contentState = isNoteSerializedEditorState(note?.noteContentState)
+        ? note.noteContentState
+        : null;
+
+    if (contentState) {
+        return noteDraftFromEditorState(contentState);
+    }
+
+    return normalizeDraft({
+        contentHtml: note?.noteContentHtml ?? NOTE_EMPTY_HTML,
+        contentState: null,
+    });
+}
+
+function getNoteTextMetrics(contentHtml: string): NoteTextMetrics {
+    const plainText = extractNoteText(contentHtml);
+    const matchedBlocks = contentHtml.match(NOTE_NON_EMPTY_BLOCK_TAG_REGEX);
+    const wordCount =
+        plainText.length === 0
+            ? 0
+            : plainText.split(NOTE_WORD_SEPARATOR).filter(Boolean).length;
+    const paragraphCount =
+        plainText.length === 0 ? 0 : Math.max(1, matchedBlocks?.length ?? 0);
+
+    return {
+        characterCount: plainText.length,
+        paragraphCount,
+        plainText,
+        readMinuteCount: Math.ceil(wordCount / NOTE_READING_WORDS_PER_MINUTE),
+        wordCount,
+    };
+}
+
+function haveDraftsChanged(left: NoteDraft, right: NoteDraft): boolean {
+    return (
+        normalizeNoteHtml(left.contentHtml) !==
+        normalizeNoteHtml(right.contentHtml)
+    );
+}
+
+function isDraftEmpty(draft: NoteDraft): boolean {
+    return extractNoteText(draft.contentHtml).length === 0;
+}
+
+function shouldCloseWithoutSaving(
+    currentDraft: NoteDraft,
+    initialDraft: NoteDraft,
+    hasPersistedNote: boolean
+): boolean {
+    if (!haveDraftsChanged(currentDraft, initialDraft)) {
+        return true;
+    }
+    return !hasPersistedNote && isDraftEmpty(currentDraft);
+}
+
+function getNotionNoteTitle(plainText: string): string {
+    for (const line of plainText.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed.length > 0) {
+            return trimmed;
+        }
+    }
+    return "";
+}
+
+async function downloadMarkdownFile(
+    contentHtml: string,
+    plainText: string,
+    description: string
+) {
+    const markdown = convertNoteHtmlToMarkdown(contentHtml);
+    const blob = new Blob([markdown], { type: "text/markdown" });
+    await saveFile(blob, {
+        description,
+        extension: "md",
+        name: slugify(getNotionNoteTitle(plainText)) || "note",
+    });
+}
+
+function areFormatStatesEqual(left: FormatState, right: FormatState): boolean {
+    return (
+        left.blockType === right.blockType &&
+        left.bold === right.bold &&
+        left.italic === right.italic &&
+        left.strikeThrough === right.strikeThrough &&
+        left.underline === right.underline
+    );
+}
+
+function getSelectionBlockType(selection: RangeSelection): NoteBlockType {
+    const anchorNode = selection.anchor.getNode();
+    const topLevelNode = $isRootNode(anchorNode)
+        ? anchorNode
+        : anchorNode.getTopLevelElement();
+
+    if (!(topLevelNode && $isHeadingNode(topLevelNode))) {
+        return "paragraph";
+    }
+
+    const headingTag = topLevelNode.getTag();
+    if (headingTag === "h1" || headingTag === "h2" || headingTag === "h3") {
+        return headingTag;
+    }
+    return "paragraph";
+}
+
+function parseNoteBlockType(value: string | undefined): NoteBlockType | null {
+    for (const option of NOTE_BLOCK_OPTIONS) {
+        if (option.value === value) {
+            return option.value;
+        }
+    }
+    return null;
+}
+
+function parseTextFormat(value: string | undefined): TextFormatType | null {
+    for (const option of NOTE_TEXT_FORMAT_OPTIONS) {
+        if (option.format === value) {
+            return option.format;
+        }
+    }
+    return null;
+}
+
+function getInitialEditorState(
+    initialDraft: NoteDraft
+): InitialEditorStateType {
+    if (initialDraft.contentState) {
+        return JSON.stringify(initialDraft.contentState);
+    }
+
+    if (normalizeNoteHtml(initialDraft.contentHtml) === NOTE_EMPTY_HTML) {
+        return null;
+    }
+
+    return (editor: LexicalEditor) => {
+        const dom = new DOMParser().parseFromString(
+            initialDraft.contentHtml,
+            "text/html"
+        );
+        const nodes = $generateNodesFromDOM(editor, dom);
+        const root = $getRoot();
+
+        root.clear();
+        root.append(...nodes);
+
+        if (root.getChildrenSize() === 0) {
+            root.append($createParagraphNode());
+        }
+    };
+}
+
+function createNoteSessionExtension(
+    sessionId: string,
+    editorKey: number,
+    initialDraft: NoteDraft
+) {
+    return defineExtension({
+        $initialEditorState: getInitialEditorState(initialDraft),
+        dependencies: [NOTE_EDITOR_EXTENSION],
+        name: `${NOTE_EDITOR_NAMESPACE}-${sessionId}-${editorKey}`,
+        namespace: NOTE_EDITOR_NAMESPACE,
+    });
+}
+
+interface NoteRootProps {
+    children: ReactNode;
+    contentEditableRef?: React.RefObject<HTMLDivElement | null>;
+    isActive: boolean;
+    note: QuickLookNote | null;
+    onClose: () => void | Promise<void>;
+    onSave: NoteSaveHandler;
+    onUrlPaste: (url: string) => Promise<void> | void;
+}
+
+function NoteRoot({
+    children,
+    contentEditableRef,
+    isActive,
+    note,
+    onClose,
+    onSave,
+    onUrlPaste,
+}: NoteRootProps) {
+    const sessionId = React.useId();
+    const [initialDraft, setInitialDraft] = useState<NoteDraft>(() =>
+        noteDraftFromItem(note)
+    );
+    const [draft, setDraft] = useState<NoteDraft>(initialDraft);
+    const [editorKey, setEditorKey] = useState(0);
+    const isClosingRef = useRef(false);
+
+    const initialDraftRef = useRef<NoteDraft>(draft);
+    const latestDraftRef = useRef<NoteDraft>(draft);
+
+    const noteId = note?.id ?? null;
+    const savedNoteIdRef = useRef<string | null>(noteId);
+
+    const [prevNote, setPrevNote] = useState(note);
+    if (!Object.is(note, prevNote)) {
+        setPrevNote(note);
+        const nextDraft = noteDraftFromItem(note);
+        const shouldPreserveLocalDraft =
+            noteId !== null &&
+            noteId === savedNoteIdRef.current &&
+            haveDraftsChanged(
+                latestDraftRef.current,
+                initialDraftRef.current
+            ) &&
+            haveDraftsChanged(nextDraft, latestDraftRef.current);
+
+        setInitialDraft(nextDraft);
+
+        if (
+            !shouldPreserveLocalDraft &&
+            haveDraftsChanged(nextDraft, latestDraftRef.current)
+        ) {
+            setDraft(nextDraft);
+            setEditorKey((key) => key + 1);
+        }
+    }
+
+    useIsoLayoutEffect(() => {
+        savedNoteIdRef.current = noteId;
+        initialDraftRef.current = initialDraft;
+        latestDraftRef.current = draft;
+    }, [noteId, initialDraft, draft]);
+
+    const handleDraftChange = useStableCallback((nextDraft: NoteDraft) => {
+        const normalizedDraft = normalizeDraft(nextDraft);
+        if (!haveDraftsChanged(normalizedDraft, latestDraftRef.current)) {
+            return;
+        }
+        latestDraftRef.current = normalizedDraft;
+        setDraft(normalizedDraft);
+    });
+
+    const handleUrlPaste = useStableCallback(async (url: string) => {
+        await onUrlPaste(url);
+        await onClose();
+    });
+
+    const shouldCreateBookmarkFromUrlPaste = useStableCallback(
+        () => !savedNoteIdRef.current && isDraftEmpty(latestDraftRef.current)
+    );
+
+    const saveLatestDraft = useStableCallback(async () => {
+        const draftToSave = latestDraftRef.current;
+        if (
+            shouldCloseWithoutSaving(
+                draftToSave,
+                initialDraftRef.current,
+                savedNoteIdRef.current !== null
+            )
+        ) {
+            return true;
+        }
+
+        const savedNote = await onSave(draftToSave, savedNoteIdRef.current);
+        if (!savedNote) {
+            return false;
+        }
+
+        savedNoteIdRef.current = savedNote.id;
+        initialDraftRef.current = draftToSave;
+        setInitialDraft(draftToSave);
+
+        return draftToSave.contentHtml;
+    });
+
+    const { isDirty, saveImmediately, saveStatus } = useAutosave({
+        content: draft.contentHtml,
+        onSave: saveLatestDraft,
+        savedContent: initialDraft.contentHtml,
+    });
+
+    const handleSaveShortcut = useStableCallback((event: KeyboardEvent) => {
+        if (
+            event.defaultPrevented ||
+            !(event.metaKey || event.ctrlKey) ||
+            event.key.toLowerCase() !== "s"
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+        saveImmediately().catch((error: unknown) => {
+            log.error("Unexpected note shortcut save failure", error);
+        });
+    });
+
+    useEffect(() => {
+        if (!isActive) {
+            return;
+        }
+
+        const ownerDocument = getOwnerDocument(contentEditableRef?.current);
+        ownerDocument.addEventListener("keydown", handleSaveShortcut);
+        return () => {
+            ownerDocument.removeEventListener("keydown", handleSaveShortcut);
+        };
+    }, [contentEditableRef, handleSaveShortcut, isActive]);
+
+    const handleClose = useStableCallback(async () => {
+        if (isClosingRef.current) {
+            return;
+        }
+
+        const currentDraft = latestDraftRef.current;
+        const shouldSkipSave = shouldCloseWithoutSaving(
+            currentDraft,
+            initialDraftRef.current,
+            savedNoteIdRef.current !== null
+        );
+
+        if (shouldSkipSave) {
+            await onClose();
+            return;
+        }
+
+        isClosingRef.current = true;
+        try {
+            const isSaved = await saveImmediately();
+            if (isSaved) {
+                await onClose();
+            }
+        } finally {
+            isClosingRef.current = false;
+        }
+    });
+
+    const deferredContentHtml = useDeferredValue(draft.contentHtml);
+    const textMetrics = getNoteTextMetrics(deferredContentHtml);
+    const query = textMetrics.plainText;
+
+    return (
+        <NoteContext
+            value={{
+                contentEditableRef,
+                contentHtml: draft.contentHtml,
+                editorKey,
+                initialDraft,
+                isDirty,
+                onClose: handleClose,
+                onDraftChange: handleDraftChange,
+                onUrlPaste: handleUrlPaste,
+                query,
+                saveStatus,
+                sessionId,
+                shouldCreateBookmarkFromUrlPaste,
+                textMetrics,
+            }}
+        >
+            {children}
+        </NoteContext>
+    );
+}
+
+function NoteToolbarControls() {
+    const gt = useGT();
+    const { contentHtml, query } = useNoteContext();
+    const { copyToClipboard, isCopied } = useCopyToClipboard();
+
+    const [isSendingToNotion, startSendToNotion] = useTransition();
+    const [notionStatus, setNotionStatus] = useState<{
+        message: string;
+        tone: "error" | "success";
+    } | null>(null);
+
+    const hasQuery = query.length > 0;
+
+    const handleCopyNote = useStableCallback(() => {
+        if (!hasQuery) {
+            return;
+        }
+        copyToClipboard(query);
+    });
+
+    const handleExportMarkdown = useStableCallback(() => {
+        downloadMarkdownFile(contentHtml, query, gt("Markdown file")).catch(
+            (error: unknown) => {
+                log.error("Unexpected Markdown export failure", error);
+            }
+        );
+    });
+
+    const handleSendToNotion = useStableCallback(() => {
+        if (!hasQuery || isSendingToNotion) {
+            return;
+        }
+
+        setNotionStatus(null);
+        startSendToNotion(async () => {
+            const result = await sendNoteToNotion({
+                contentHtml,
+                title: getNotionNoteTitle(query),
+            });
+
+            if (result.status === "SUCCESS") {
+                setNotionStatus({
+                    message: gt("Sent to Notion."),
+                    tone: "success",
+                });
+                openExternalUrl(result.pageUrl);
+                return;
+            }
+
+            setNotionStatus({
+                message: result.message,
+                tone: "error",
+            });
+        });
+    });
+
+    return (
+        <div className="inline-flex items-center justify-end gap-1">
+            <NoteSaveStatus />
+            <Button
+                aria-label={gt("Copy note")}
+                disabled={!hasQuery}
+                onClick={handleCopyNote}
+                size="icon-xs"
+                variant="ghost"
+            >
+                {isCopied ? (
+                    <CheckIcon
+                        aria-hidden
+                        className="size-3"
+                        focusable="false"
+                    />
+                ) : (
+                    <Copy aria-hidden className="size-3" focusable="false" />
+                )}
+            </Button>
+            <Menu>
+                <MenuTrigger
+                    render={
+                        <Button
+                            disabled={!hasQuery}
+                            size="xs"
+                            variant="ghost"
+                        />
+                    }
+                >
+                    <T>Open in</T>
+                    <ChevronDownIcon className="size-3.5 opacity-50" />
+                </MenuTrigger>
+                <MenuPopup align="start" className="w-60">
+                    {EXPORT_CONTENT_PROVIDERS.map((provider) => (
+                        <ExportProviderMenuItem
+                            hasQuery={hasQuery}
+                            key={provider.id}
+                            provider={provider}
+                            query={query}
+                        />
+                    ))}
+                    <MenuItem
+                        disabled={!hasQuery || isSendingToNotion}
+                        onClick={handleSendToNotion}
+                    >
+                        <NotionIcon className="size-4 text-muted-foreground" />
+                        <Calligraph className="flex-1">
+                            {isSendingToNotion
+                                ? gt("Sending to Notion…")
+                                : gt("Send to Notion")}
+                        </Calligraph>
+                        <ExternalLinkIcon className="size-4 text-muted-foreground" />
+                    </MenuItem>
+                    {notionStatus ? (
+                        <p
+                            aria-live={
+                                notionStatus.tone === "error"
+                                    ? "assertive"
+                                    : "polite"
+                            }
+                            className={cn(
+                                "px-2 py-1 text-xs leading-tight",
+                                notionStatus.tone === "error"
+                                    ? "text-destructive"
+                                    : "text-muted-foreground"
+                            )}
+                            role={
+                                notionStatus.tone === "error"
+                                    ? "alert"
+                                    : "status"
+                            }
+                        >
+                            {notionStatus.message}
+                        </p>
+                    ) : null}
+                    <MenuSeparator />
+                    <MenuItem
+                        disabled={!hasQuery}
+                        onClick={handleExportMarkdown}
+                    >
+                        <FileTextIcon className="size-4 text-muted-foreground" />
+                        <span className="flex-1">
+                            <T>Export to Markdown</T>
+                        </span>
+                        <DownloadIcon className="size-4 text-muted-foreground" />
+                    </MenuItem>
+                </MenuPopup>
+            </Menu>
+        </div>
+    );
+}
+
+function NoteEditor() {
+    const {
+        contentEditableRef,
+        editorKey,
+        initialDraft,
+        onDraftChange,
+        onUrlPaste,
+        sessionId,
+        shouldCreateBookmarkFromUrlPaste,
+    } = useNoteContext();
+    const sessionRef = useRef<EditorSession | null>(null);
+
+    if (
+        sessionRef.current === null ||
+        sessionRef.current.editorKey !== editorKey
+    ) {
+        sessionRef.current = {
+            editorKey,
+            extension: createNoteSessionExtension(
+                sessionId,
+                editorKey,
+                initialDraft
+            ),
+        };
+    }
+
+    return (
+        <LexicalExtensionComposer
+            contentEditable={null}
+            extension={sessionRef.current.extension}
+            key={editorKey}
+        >
+            <ContentPlugin
+                contentEditableRef={contentEditableRef}
+                onDraftChange={onDraftChange}
+                onUrlPaste={onUrlPaste}
+                shouldCreateBookmarkFromUrlPaste={
+                    shouldCreateBookmarkFromUrlPaste
+                }
+            />
+        </LexicalExtensionComposer>
+    );
+}
+
+function NoteMetrics() {
+    const { textMetrics } = useNoteContext();
+
+    const shouldShowReadTime = textMetrics.readMinuteCount >= 2;
+
+    return (
+        <div className="mt-3 flex items-center justify-end gap-4 border-border/60 border-t pt-3 text-muted-foreground text-xs">
+            {shouldShowReadTime ? (
+                <T>
+                    <span>
+                        <Var>{textMetrics.readMinuteCount}</Var> minute read
+                    </span>
+                </T>
+            ) : null}
+            <T>
+                <span>
+                    <Var>{textMetrics.wordCount}</Var> words
+                </span>
+            </T>
+            <T>
+                <span>
+                    <Var>{textMetrics.paragraphCount}</Var> paragraphs
+                </span>
+            </T>
+            <T>
+                <span>
+                    <Var>{textMetrics.characterCount}</Var> characters
+                </span>
+            </T>
+        </div>
+    );
+}
+
+function NoteSaveStatus() {
+    const gt = useGT();
+    const { isDirty, saveStatus } = useNoteContext();
+
+    let message = "";
+    let isError = false;
+
+    if (saveStatus === "saving") {
+        message = gt("Saving...");
+    } else if (saveStatus === "error") {
+        message = gt("Not saved");
+        isError = true;
+    } else if (saveStatus === "saved") {
+        message = gt("Saved");
+    } else if (isDirty) {
+        message = gt("Unsaved");
+    }
+
+    if (!message) {
+        return null;
+    }
+
+    return (
+        <Button
+            nativeButton={false}
+            render={
+                <span
+                    aria-live="polite"
+                    className={cn(
+                        isError ? "text-destructive" : "text-muted-foreground"
+                    )}
+                />
+            }
+            size="xs"
             variant="ghost"
         >
-            {isOpen ? (
-                <PanelRight aria-hidden className="size-4" focusable="false" />
-            ) : (
-                <PanelRightOpen
-                    aria-hidden
-                    className="size-4"
-                    focusable="false"
-                />
-            )}
+            <Calligraph>{message}</Calligraph>
         </Button>
+    );
+}
+
+function ExportProviderMenuItem({
+    hasQuery,
+    provider,
+    query,
+}: {
+    hasQuery: boolean;
+    provider: ExportContentProvider;
+    query: string;
+}) {
+    const gt = useGT();
+    const ProviderIcon = provider.icon;
+    const title = provider.getTitle(gt);
+    const href = provider.createUrl(query);
+
+    return (
+        <MenuItem
+            disabled={!hasQuery}
+            render={<a href={href} rel="noopener noreferrer" target="_blank" />}
+        >
+            <ProviderIcon className="size-4 text-muted-foreground" />
+            <span className="flex-1">{title}</span>
+            <ExternalLinkIcon className="size-4 text-muted-foreground" />
+        </MenuItem>
+    );
+}
+
+function FormattingToolbarControls() {
+    const gt = useGT();
+    const [editor] = useLexicalComposerContext();
+    const [formats, setFormats] = useState<FormatState>(INITIAL_FORMAT_STATE);
+
+    const rovingTabIndexRef = useLexicalRovingTabIndexRef();
+    const focusManagerRef = useLexicalFocusManagerRef();
+    const mergedRef = useMergedRefs(rovingTabIndexRef, focusManagerRef);
+
+    const commitFormats = useStableCallback((nextFormats: FormatState) => {
+        setFormats((current) =>
+            areFormatStatesEqual(current, nextFormats) ? current : nextFormats
+        );
+    });
+
+    const updateToolbarState = useStableCallback(() => {
+        editor.getEditorState().read(() => {
+            const selection = $getSelection();
+            if (!$isRangeSelection(selection)) {
+                commitFormats(INITIAL_FORMAT_STATE);
+                return;
+            }
+
+            commitFormats({
+                blockType: getSelectionBlockType(selection),
+                bold: selection.hasFormat("bold"),
+                italic: selection.hasFormat("italic"),
+                strikeThrough: selection.hasFormat("strikethrough"),
+                underline: selection.hasFormat("underline"),
+            });
+        });
+    });
+
+    useEffect(() => {
+        updateToolbarState();
+
+        return mergeRegister(
+            editor.registerUpdateListener(updateToolbarState),
+            editor.registerCommand(
+                SELECTION_CHANGE_COMMAND,
+                () => {
+                    updateToolbarState();
+                    return false;
+                },
+                COMMAND_PRIORITY_LOW
+            )
+        );
+    }, [editor, updateToolbarState]);
+
+    const setBlockType = useStableCallback((blockType: NoteBlockType) => {
+        editor.update(() => {
+            const selection = $getSelection();
+            if (!$isRangeSelection(selection)) {
+                return;
+            }
+
+            if (blockType === "paragraph") {
+                $setBlocksType(selection, () => $createParagraphNode());
+                return;
+            }
+
+            $setBlocksType(selection, () => $createHeadingNode(blockType));
+        });
+    });
+
+    const handleBlockTypeMouseDown = useStableCallback(
+        (event: React.MouseEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+            const blockType = parseNoteBlockType(
+                event.currentTarget.dataset.blockType
+            );
+            if (blockType) {
+                setBlockType(blockType);
+            }
+        }
+    );
+
+    const handleFormatMouseDown = useStableCallback(
+        (event: React.MouseEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+            const format = parseTextFormat(event.currentTarget.dataset.format);
+            if (format) {
+                editor.dispatchCommand(FORMAT_TEXT_COMMAND, format);
+            }
+        }
+    );
+
+    return (
+        <div
+            aria-label={gt("Text formatting")}
+            aria-orientation="horizontal"
+            className="inline-flex items-center justify-start gap-3"
+            ref={mergedRef}
+            role="toolbar"
+        >
+            {NOTE_BLOCK_OPTIONS.map((option) => (
+                <Button
+                    aria-label={option.ariaLabel(gt)}
+                    data-block-type={option.value}
+                    key={option.value}
+                    onMouseDown={handleBlockTypeMouseDown}
+                    size="xs"
+                    variant={
+                        formats.blockType === option.value
+                            ? "secondary"
+                            : "ghost"
+                    }
+                >
+                    {option.label(gt)}
+                </Button>
+            ))}
+            {NOTE_TEXT_FORMAT_OPTIONS.map((option) => {
+                const Icon = option.icon;
+
+                return (
+                    <Button
+                        aria-label={option.ariaLabel(gt)}
+                        className={cn(formats[option.stateKey] && "bg-accent")}
+                        data-format={option.format}
+                        key={option.format}
+                        onMouseDown={handleFormatMouseDown}
+                        size="icon-xs"
+                        variant="ghost"
+                    >
+                        <Icon className="size-4" />
+                    </Button>
+                );
+            })}
+        </div>
+    );
+}
+
+interface ContentPluginProps {
+    contentEditableRef?: React.RefObject<HTMLDivElement | null>;
+    onDraftChange: (draft: NoteDraft) => void;
+    onUrlPaste: (url: string) => Promise<void> | void;
+    shouldCreateBookmarkFromUrlPaste: () => boolean;
+}
+
+function ContentPlugin({
+    contentEditableRef,
+    onDraftChange,
+    onUrlPaste,
+    shouldCreateBookmarkFromUrlPaste,
+}: ContentPluginProps) {
+    const [editor] = useLexicalComposerContext();
+
+    const handlePaste = useStableCallback((event: PasteCommandType) => {
+        if (!shouldCreateBookmarkFromUrlPaste()) {
+            return false;
+        }
+
+        if (!("clipboardData" in event && event.clipboardData)) {
+            return false;
+        }
+
+        const pastedText = event.clipboardData.getData("text/plain");
+        const parsedUrl = parseStandaloneUrl(pastedText);
+        if (!parsedUrl) {
+            return false;
+        }
+
+        event.preventDefault();
+        const pasteResult = onUrlPaste(parsedUrl.href);
+        pasteResult?.catch((error: unknown) => {
+            log.error("Unexpected note URL paste failure", error);
+        });
+        return true;
+    });
+
+    useEffect(
+        () =>
+            editor.registerCommand(
+                PASTE_COMMAND,
+                handlePaste,
+                COMMAND_PRIORITY_LOW
+            ),
+        [editor, handlePaste]
+    );
+
+    const handleChange = useStableCallback((editorState: EditorState) => {
+        onDraftChange(noteDraftFromEditorState(editorState.toJSON()));
+    });
+
+    return (
+        <>
+            <div className="mt-2 mb-3 flex items-center justify-between">
+                <FormattingToolbarControls />
+                <NoteToolbarControls />
+            </div>
+            <div className="relative min-h-96 flex-1">
+                <ContentEditable
+                    className={cn(
+                        "prose prose-stone h-full min-h-96 max-w-none overflow-y-auto text-[15px] leading-7 outline-none",
+                        "prose-p:my-0 prose-p:min-h-[1.75rem]",
+                        "prose-mark:rounded-sm prose-mark:bg-amber-200/90 prose-mark:px-0.5",
+                        "prose-strong:font-semibold prose-em:italic prose-u:underline prose-s:line-through"
+                    )}
+                    ref={contentEditableRef}
+                />
+                <NotePlaceholder />
+                <OnChangePlugin ignoreSelectionChange onChange={handleChange} />
+            </div>
+        </>
+    );
+}
+
+function NotePlaceholder() {
+    const [editor] = useLexicalComposerContext();
+    const isEmpty = useLexicalIsTextContentEmpty(editor, true);
+    const isEditable = useLexicalEditable();
+
+    if (!(isEditable && isEmpty)) {
+        return null;
+    }
+
+    return (
+        <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 text-base text-muted-foreground"
+        >
+            <T>Start typing or paste a link to add...</T>
+        </div>
     );
 }

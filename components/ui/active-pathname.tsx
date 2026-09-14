@@ -6,8 +6,35 @@ import { usePathname } from "next/navigation";
 import type * as React from "react";
 import { normalizePathname } from "@/lib/common/url";
 
-/** Splits a route href from its query or hash. */
 const HREF_SUFFIX_RE = /[?#]/;
+
+function isPathnameActive(
+    pathname: string,
+    href: string,
+    match: "exact" | "prefix"
+): boolean {
+    const separatorIndex = href.search(HREF_SUFFIX_RE);
+    const bareHref =
+        separatorIndex === -1 ? href : href.slice(0, separatorIndex);
+    if (bareHref === "") {
+        // A query- or hash-only value (`#section`) does not address a route.
+        return false;
+    }
+    const normalizedPathname = normalizePathname(pathname);
+    const normalizedHref = normalizePathname(bareHref);
+
+    if (match === "prefix") {
+        if (normalizedHref === "/") {
+            return normalizedPathname === "/";
+        }
+        return (
+            normalizedPathname === normalizedHref ||
+            normalizedPathname.startsWith(`${normalizedHref}/`)
+        );
+    }
+
+    return normalizedPathname === normalizedHref;
+}
 
 interface ActivePathnameProps extends useRender.ComponentProps<"div"> {
     /**
@@ -61,32 +88,4 @@ export function ActivePathname({
         props: mergeProps<"div">(defaultProps, props),
         render,
     });
-}
-
-function isPathnameActive(
-    pathname: string,
-    href: string,
-    match: "exact" | "prefix"
-): boolean {
-    const separatorIndex = href.search(HREF_SUFFIX_RE);
-    const bareHref =
-        separatorIndex === -1 ? href : href.slice(0, separatorIndex);
-    if (bareHref === "") {
-        // A query- or hash-only value (`#section`) does not address a route.
-        return false;
-    }
-    const normalizedPathname = normalizePathname(pathname);
-    const normalizedHref = normalizePathname(bareHref);
-
-    if (match === "prefix") {
-        if (normalizedHref === "/") {
-            return normalizedPathname === "/";
-        }
-        return (
-            normalizedPathname === normalizedHref ||
-            normalizedPathname.startsWith(`${normalizedHref}/`)
-        );
-    }
-
-    return normalizedPathname === normalizedHref;
 }

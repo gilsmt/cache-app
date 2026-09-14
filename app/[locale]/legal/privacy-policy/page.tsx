@@ -78,9 +78,9 @@ export default function PrivacyPolicyPage() {
                 </p>
             </header>
             <section className="flex flex-col gap-3">
-                <h2 className="font-semibold text-2xl text-foreground tracking-tight">
+                <h1 className="font-semibold text-2xl text-foreground tracking-tight">
                     Privacy Policy
-                </h2>
+                </h1>
                 <p>
                     This Privacy Policy explains how CachdApp, Inc.
                     (&quot;Cache,&quot; &quot;we,&quot; &quot;us,&quot; or

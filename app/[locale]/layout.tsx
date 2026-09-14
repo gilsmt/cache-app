@@ -5,7 +5,14 @@ import { GTProvider, getLocales } from "gt-next";
 import { getGT, getLocale } from "gt-next/server";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import type * as React from "react";
+import {
+    buildLocaleAlternates,
+    DEFAULT_OG_IMAGE,
+    DEFAULT_OG_IMAGE_ALT,
+    toOpenGraphLocale,
+} from "@/app/metadata";
 import { ConsoleBanner } from "@/components/ui/console-banner";
 import { ShortcutsProvider } from "@/components/ui/shortcuts";
 import { ThemeHotkey } from "@/components/ui/theme";
@@ -22,30 +29,52 @@ export function generateStaticParams() {
 export async function generateMetadata(): Promise<Metadata> {
     const locale = await getLocale();
     const gt = await getGT();
+    const description = gt(
+        "The AI bookmark manager for busy people. View, manage, and organize bookmarks across platforms."
+    );
+    const title = gt("Bookmark manager | {appName}", { appName: APP_NAME });
 
     return {
+        alternates: buildLocaleAlternates("/", locale),
         applicationName: APP_NAME,
         authors: [{ name: APP_NAME }],
-        category: "technology",
-        classification: "AI Development Tools",
+        category: "productivity",
         creator: APP_NAME,
+        description,
         formatDetection: {
             address: false,
             email: false,
             telephone: false,
         },
-        keywords: ["bookmarks", "bookmark manager"],
+        keywords: [
+            "bookmark manager",
+            "bookmarks",
+            "unify bookmarks",
+            "save content",
+            "personal knowledge library",
+            "AI bookmark organizer",
+        ],
         metadataBase: new URL(BASE_URL),
         openGraph: {
-            locale,
+            description,
+            images: [
+                {
+                    alt: DEFAULT_OG_IMAGE_ALT,
+                    height: 630,
+                    url: DEFAULT_OG_IMAGE,
+                    width: 1200,
+                },
+            ],
+            locale: toOpenGraphLocale(locale),
             siteName: APP_NAME,
+            title,
             type: "website",
-            url: BASE_URL,
+            url: `${BASE_URL}/${locale}`,
         },
         other: {
             "llm:content-type": "web application",
             "llm:integrations": INTEGRATIONS.map((int) => int.label).join(", "),
-            "llm:languages": "en",
+            "llm:languages": getLocales().join(", "),
             "llm:pricing": "free tier available, pro 8€/month",
             "llm:region": "global",
             "llm:use-cases":
@@ -62,18 +91,32 @@ export async function generateMetadata(): Promise<Metadata> {
             index: true,
         },
         title: {
-            default: gt("Bookmark manager | {appName}", { appName: APP_NAME }),
+            default: title,
             template: `%s | ${APP_NAME}`,
         },
         twitter: {
             card: "summary_large_image",
+            description,
+            images: [
+                {
+                    alt: DEFAULT_OG_IMAGE_ALT,
+                    height: 630,
+                    url: DEFAULT_OG_IMAGE,
+                    width: 1200,
+                },
+            ],
+            title,
         },
     };
 }
 
 export const viewport: Viewport = {
+    colorScheme: "light dark",
     initialScale: 1,
-    maximumScale: 1,
+    themeColor: [
+        { color: "#ffffff", media: "(prefers-color-scheme: light)" },
+        { color: "#000000", media: "(prefers-color-scheme: dark)" },
+    ],
     viewportFit: "cover",
     width: "device-width",
 };
@@ -116,8 +159,10 @@ export default async function LocaleLayout(props: React.PropsWithChildren) {
                     </a>
                 </div>
                 <GTProvider>
-                    <ThemeHotkey />
-                    <ShortcutsProvider>{props.children}</ShortcutsProvider>
+                    <NuqsAdapter>
+                        <ThemeHotkey />
+                        <ShortcutsProvider>{props.children}</ShortcutsProvider>
+                    </NuqsAdapter>
                 </GTProvider>
             </body>
         </html>

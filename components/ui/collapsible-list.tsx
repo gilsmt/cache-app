@@ -1,7 +1,9 @@
 "use client";
 
 import { Calligraph } from "calligraph";
-import { useGT } from "gt-next";
+import { cn } from "cn";
+import { T, Var } from "gt-next";
+import { ChevronUp } from "lucide-react";
 import * as React from "react";
 import {
     Collapsible,
@@ -9,25 +11,24 @@ import {
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Popover, PopoverPopup, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/common/cn";
 
 const MAX_VISIBLE_VERTICAL_DEFAULT = 15;
 const MAX_VISIBLE_HORIZONTAL_DEFAULT = 5;
 
-interface DisclosureListVerticalProps extends React.ComponentProps<"div"> {
+interface CollapsibleListVerticalProps extends React.ComponentProps<"div"> {
     /** Items rendered inline before the rest collapse behind the overflow trigger. */
     maxVisible?: number;
     /** Props forwarded to the overflow trigger. */
-    triggerProps?: Omit<DisclosureListOverflowProps, "items">;
+    triggerProps?: React.ComponentProps<typeof CollapsibleTrigger>;
 }
 
-export function DisclosureListVertical({
+export function CollapsibleListVertical({
     maxVisible = MAX_VISIBLE_VERTICAL_DEFAULT,
     children,
     className,
     triggerProps,
     ...props
-}: DisclosureListVerticalProps) {
+}: CollapsibleListVerticalProps) {
     const childrenArray = React.Children.toArray(children);
 
     if (childrenArray.length === 0) {
@@ -41,31 +42,32 @@ export function DisclosureListVertical({
         <div
             {...props}
             className={cn("flex flex-col gap-1", className)}
-            data-slot="disclosure-list"
+            data-slot="collapsible-list"
         >
             {visible}
             {hidden.length > 0 ? (
-                <DisclosureListOverflow {...triggerProps} items={hidden} />
+                <CollapsibleListOverflowTrigger {...triggerProps}>
+                    {hidden}
+                </CollapsibleListOverflowTrigger>
             ) : null}
         </div>
     );
 }
 
-interface DisclosureListHorizontalProps extends React.ComponentProps<"div"> {
+interface CollapsibleListHorizontalProps extends React.ComponentProps<"div"> {
     /** Element rendered as the overflow trigger; must resolve to an interactive element (e.g. pass `render={<button type="button" />}`) so the popover stays keyboard accessible. */
     badgeRender?: React.ReactElement;
     /** Items rendered inline before the rest move into the overflow popover. */
     maxVisible?: number;
 }
 
-export function DisclosureListHorizontal({
+export function CollapsibleListHorizontal({
     maxVisible = MAX_VISIBLE_HORIZONTAL_DEFAULT,
     children,
     className,
     badgeRender,
     ...props
-}: DisclosureListHorizontalProps) {
-    const gt = useGT();
+}: CollapsibleListHorizontalProps) {
     const childrenArray = React.Children.toArray(children);
 
     if (childrenArray.length === 0) {
@@ -79,7 +81,7 @@ export function DisclosureListHorizontal({
         <div
             {...props}
             className={cn("flex items-center gap-1", className)}
-            data-slot="disclosure-list"
+            data-slot="collapsible-list"
         >
             {visible}
             {hidden.length > 0 ? (
@@ -92,9 +94,15 @@ export function DisclosureListHorizontal({
                         }
                         render={badgeRender}
                     >
-                        <Calligraph className="-mx-0.5">
-                            {gt("+{count} more", { count: hidden.length })}
-                        </Calligraph>
+                        <T>
+                            +
+                            <Var>
+                                <Calligraph className="-mx-0.5">
+                                    {hidden.length}
+                                </Calligraph>
+                            </Var>{" "}
+                            more
+                        </T>
                     </PopoverTrigger>
                     <PopoverPopup>
                         <div className="flex flex-col gap-2">{hidden}</div>
@@ -105,19 +113,13 @@ export function DisclosureListHorizontal({
     );
 }
 
-interface DisclosureListOverflowProps
-    extends Omit<React.ComponentProps<typeof CollapsibleTrigger>, "children"> {
-    /** Items revealed by the overflow trigger. */
-    items: React.ReactNode[];
-}
-
-function DisclosureListOverflow({
-    items,
+function CollapsibleListOverflowTrigger({
+    children,
     className,
     ...props
-}: DisclosureListOverflowProps) {
-    const gt = useGT();
+}: React.ComponentProps<typeof CollapsibleTrigger>) {
     const [isOpen, setIsOpen] = React.useState(false);
+    const count = React.Children.count(children);
 
     return (
         <Collapsible className="gap-1" onOpenChange={setIsOpen} open={isOpen}>
@@ -128,11 +130,18 @@ function DisclosureListOverflow({
                     className
                 )}
             >
-                {isOpen
-                    ? gt("Show less")
-                    : gt("Show {count} more", { count: items.length })}
+                {isOpen ? (
+                    <>
+                        <T>Show less</T>
+                        <ChevronUp className="ml-1 size-3.5" />
+                    </>
+                ) : (
+                    <T>
+                        Show <Var>{count}</Var> more
+                    </T>
+                )}
             </CollapsibleTrigger>
-            <CollapsiblePanel>{items}</CollapsiblePanel>
+            <CollapsiblePanel>{children}</CollapsiblePanel>
         </Collapsible>
     );
 }

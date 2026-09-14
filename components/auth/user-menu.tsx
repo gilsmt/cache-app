@@ -1,6 +1,7 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { cn } from "cn";
 import { LocaleSelector, T, useGT, Var } from "gt-next";
 import {
     ArrowUpRight,
@@ -51,7 +52,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeSelector } from "@/components/ui/theme";
 import { authClient, useSession } from "@/lib/auth/client";
 import type { Session } from "@/lib/auth/session";
-import { cn } from "@/lib/common/cn";
 import { ACTION_STATUS } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { getInitials } from "@/lib/common/string";
@@ -396,12 +396,12 @@ export function UserMenuContent() {
                 </SubscribedOnly>
                 <UnsubscribedOnly>
                     <SubscriptionUpgradeButton
-                        className="w-full justify-start font-normal"
+                        className="w-full justify-start font-normal *:w-full"
                         nativeButton={false}
                         render={<MenuItem closeOnClick={false} />}
                     >
-                        <T>Upgrade to premium</T>
-                        <div className="ml-auto inline-flex items-center justify-end gap-1">
+                        <T>Upgrade to Pro</T>
+                        <div className="ml-auto inline-flex flex-1 items-center justify-end gap-1">
                             <Image
                                 alt=""
                                 height={12}
@@ -596,7 +596,7 @@ function UserMenuAccountSwitcherContent() {
     return (
         <>
             <MenuRadioGroup
-                disabled={Boolean(pendingSessionToken)}
+                disabled={!!pendingSessionToken}
                 onValueChange={handleAccountChange}
                 value={activeSession.session.token}
             >

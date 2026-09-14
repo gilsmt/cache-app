@@ -1,7 +1,7 @@
 "use client";
 
+import { cn } from "cn";
 import type * as React from "react";
-import { cn } from "@/lib/common/cn";
 import { formatSharePercent } from "@/lib/common/number";
 
 export interface StackedBarChartSegment {

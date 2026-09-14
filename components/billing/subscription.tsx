@@ -1,6 +1,7 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { cn } from "cn";
 import { T, Var } from "gt-next";
 import * as React from "react";
 import useSWR from "swr";
@@ -12,12 +13,14 @@ import { CrownFilledIcon } from "@/components/ui/icons";
 import { authClient, useSession } from "@/lib/auth/client";
 import { isActiveSubscriptionStatus } from "@/lib/billing/subscription-status";
 import { getActiveSubscription } from "@/lib/billing/subscriptions";
-import { cn } from "@/lib/common/cn";
 
 const PERIOD_END_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
     day: "numeric",
     month: "short",
 });
+
+export const UPGRADED_SEARCH_PARAM = "upgraded";
+export const UPGRADED_SEARCH_VALUE = "true";
 
 const SubscriptionRedirectResultSchema = z.object({
     data: z.object({ url: z.string() }).nullish(),
@@ -164,6 +167,16 @@ function getReturnUrl() {
         : `${window.location.origin}/library`;
 }
 
+function getSuccessfulUpgradeReturnUrl() {
+    const returnUrl = getReturnUrl();
+    if (typeof window === "undefined") {
+        return `${returnUrl}?${UPGRADED_SEARCH_PARAM}=${UPGRADED_SEARCH_VALUE}`;
+    }
+    const url = new URL(returnUrl);
+    url.searchParams.set(UPGRADED_SEARCH_PARAM, UPGRADED_SEARCH_VALUE);
+    return url.toString();
+}
+
 /**
  * Renders the compact account-menu status badge. Consolidates Stripe subscription
  * states (free, cancelling, trialing, active) into concise labels to ensure they
@@ -259,7 +272,7 @@ export function SubscriptionUpgradeButton({
                 annual: isAnnual,
                 cancelUrl: getReturnUrl(),
                 plan: "pro",
-                successUrl: getReturnUrl(),
+                successUrl: getSuccessfulUpgradeReturnUrl(),
             }),
         <T>We couldn't open checkout right now.</T>
     );

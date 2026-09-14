@@ -2,6 +2,7 @@ import "server-only";
 
 import { templateDescriptionForNameKey } from "@/lib/collections/templates";
 import {
+    deduplicateLibraryItems,
     LIBRARY_COLLECTION_TAG_SELECT,
     LIBRARY_ITEM_COLLECTIONS_INCLUDE,
     LIBRARY_ITEM_COLLECTIONS_SELECT,
@@ -13,6 +14,7 @@ import {
     toLibraryCollectionSummaryFromTagRecord,
     toLibraryCollectionTag,
     toLibraryItemWithCollections,
+    uniqueLibraryItemSources,
 } from "@/lib/collections/utils";
 import {
     FREE_LIBRARY_PREVIEW_ITEMS,
@@ -1114,14 +1116,10 @@ export function purgeAllRecentlyDeletedItems({
             return { purgedItemIds: [] };
         }
 
-        await tx.libraryItem.deleteMany({
-            where: {
-                deletedAt: { not: null },
-                id: { in: itemIds },
-                userId,
-            },
-        });
-
+        // Create activity events BEFORE the delete. The FK on
+        // libraryItemId references libraryItem.id, so events must be
+        // written while items still exist — otherwise the constraint
+        // rejects rows pointing at already-deleted items.
         await tx.libraryActivityEvent.createMany({
             data: itemIds.map((id) => ({
                 kind: "item_purged" as const,
@@ -1131,7 +1129,39 @@ export function purgeAllRecentlyDeletedItems({
             })),
         });
 
-        return { purgedItemIds: itemIds };
+        // deleteMany includes `deletedAt` so a concurrent restore that sets
+        // `deletedAt = null` between the read above and this delete is
+        // excluded — a restored item must survive.
+        await tx.libraryItem.deleteMany({
+            where: {
+                deletedAt: { not: null },
+                id: { in: itemIds },
+                userId,
+            },
+        });
+
+        // Remove premature events for survivors (concurrently restored items
+        // that the delete excluded). A restored item was never purged.
+        const survivors = new Set(
+            (
+                await tx.libraryItem.findMany({
+                    select: { id: true },
+                    where: { id: { in: itemIds }, userId },
+                })
+            ).map((item) => item.id)
+        );
+
+        if (survivors.size > 0) {
+            await tx.libraryActivityEvent.deleteMany({
+                where: {
+                    kind: "item_purged",
+                    libraryItemId: { in: [...survivors] },
+                    userId,
+                },
+            });
+        }
+
+        return { purgedItemIds: itemIds.filter((id) => !survivors.has(id)) };
     });
 }
 
@@ -1555,7 +1585,37 @@ export async function getLibrary(args: {
         ? limit
         : Math.min(limit, FREE_LIBRARY_PREVIEW_ITEMS);
 
-    const [items, totalItemCount, itemSources] = await Promise.all([
+    if (!args.hasAccess) {
+        const [items, totalItemCount, itemSources] = await Promise.all([
+            prisma.libraryItem.findMany({
+                include: LIBRARY_ITEM_COLLECTIONS_INCLUDE,
+                orderBy: [
+                    { scrapedAt: SORT_DESC },
+                    { updatedAt: SORT_DESC },
+                    { id: SORT_DESC },
+                ],
+                take: effectiveLimit,
+                where: itemWhere,
+            }),
+            prisma.libraryItem.count({ where: itemWhere }),
+            prisma.libraryItem.findMany({
+                distinct: ["source"],
+                select: { source: true },
+                where: itemWhere,
+            }),
+        ]);
+
+        return {
+            itemSources,
+            items: deduplicateLibraryItems(
+                items.map(toLibraryItemWithCollections)
+            ),
+            lockedItemCount: Math.max(totalItemCount - items.length, 0),
+            totalItemCount,
+        };
+    }
+
+    const [items, totalItemCount] = await Promise.all([
         prisma.libraryItem.findMany({
             include: LIBRARY_ITEM_COLLECTIONS_INCLUDE,
             orderBy: [
@@ -1567,16 +1627,30 @@ export async function getLibrary(args: {
             where: itemWhere,
         }),
         prisma.libraryItem.count({ where: itemWhere }),
-        prisma.libraryItem.findMany({
-            distinct: ["source"],
-            select: { source: true },
-            where: itemWhere,
-        }),
     ]);
+
+    if (totalItemCount <= effectiveLimit) {
+        const derivedSources = uniqueLibraryItemSources(items);
+
+        return {
+            itemSources: derivedSources.map((source) => ({ source })),
+            items: deduplicateLibraryItems(
+                items.map(toLibraryItemWithCollections)
+            ),
+            lockedItemCount: 0,
+            totalItemCount,
+        };
+    }
+
+    const itemSources = await prisma.libraryItem.findMany({
+        distinct: ["source"],
+        select: { source: true },
+        where: itemWhere,
+    });
 
     return {
         itemSources,
-        items: items.map(toLibraryItemWithCollections),
+        items: deduplicateLibraryItems(items.map(toLibraryItemWithCollections)),
         lockedItemCount: Math.max(totalItemCount - items.length, 0),
         totalItemCount,
     };

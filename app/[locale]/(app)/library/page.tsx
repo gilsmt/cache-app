@@ -3,9 +3,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { buildPageMetadata } from "@/app/metadata";
-import { BrowserProvider } from "@/components/library/browser";
-import { Collections } from "@/components/library/collections";
+import { BrowserContent } from "@/components/library/browser";
+import {
+    Collections,
+    CollectionsProvider,
+} from "@/components/library/collections";
+import { DimensionsCacheProvider } from "@/components/library/dimensions";
 import { Integrations } from "@/components/library/integrations";
+import { ItemsStateProvider } from "@/components/library/items";
 import { ApplicationSidebar } from "@/components/sidebar/application-sidebar";
 import { getServerSession } from "@/lib/auth/session";
 import { userHasActiveSubscription } from "@/lib/billing/service";
@@ -26,14 +31,20 @@ export async function generateMetadata({
     const { locale } = await params;
     const gt = await getGT();
 
-    return buildPageMetadata({
-        description: gt(
-            "Saved items from your connected accounts and extension imports appear below by source."
-        ),
-        locale,
-        path: "/library",
-        title: gt("Library"),
-    });
+    return {
+        ...buildPageMetadata({
+            description: gt(
+                "Saved items from your connected accounts and extension imports appear below by source."
+            ),
+            locale,
+            path: "/library",
+            title: gt("Library"),
+        }),
+        robots: {
+            follow: false,
+            index: false,
+        },
+    };
 }
 
 export default async function LibraryPage() {
@@ -72,18 +83,23 @@ export default async function LibraryPage() {
     ]);
 
     return (
-        <BrowserProvider
-            connectedIntegrationCount={connectedIntegrations.size}
-            initialCollections={collections}
-            initialItems={items}
-            key={userId}
-            lockedItemCount={lockedItemCount}
-            totalItemCount={totalItemCount}
-        >
-            <ApplicationSidebar>
-                <Integrations connectedIntegrations={connectedIntegrations} />
-                <Collections />
-            </ApplicationSidebar>
-        </BrowserProvider>
+        <DimensionsCacheProvider>
+            <ItemsStateProvider initialItems={items} key={userId}>
+                <CollectionsProvider initialCollections={collections}>
+                    <BrowserContent
+                        connectedIntegrationCount={connectedIntegrations.size}
+                        lockedItemCount={lockedItemCount}
+                        totalItemCount={totalItemCount}
+                    >
+                        <ApplicationSidebar>
+                            <Integrations
+                                connectedIntegrations={connectedIntegrations}
+                            />
+                            <Collections />
+                        </ApplicationSidebar>
+                    </BrowserContent>
+                </CollectionsProvider>
+            </ItemsStateProvider>
+        </DimensionsCacheProvider>
     );
 }

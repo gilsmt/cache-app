@@ -3,6 +3,7 @@
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
+import { cn } from "cn";
 import { T, useGT, Var } from "gt-next";
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
@@ -24,7 +25,7 @@ import {
     CollapsiblePanel,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { DisclosureListVertical } from "@/components/ui/disclosure-list";
+import { CollapsibleListVertical } from "@/components/ui/collapsible-list";
 import { HighlightIn } from "@/components/ui/highlight-in";
 import { ChevronDownFilledIcon } from "@/components/ui/icons";
 import { CmdKbd, Kbd } from "@/components/ui/kbd";
@@ -35,7 +36,6 @@ import {
 } from "@/components/ui/preview-card";
 import { SidebarItem } from "@/components/ui/sidebar";
 import { useIsExtensionInstalled } from "@/hooks/use-extension-installed";
-import { cn } from "@/lib/common/cn";
 import { getErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
@@ -61,6 +61,8 @@ const INTEGRATIONS_DISCLAIMER_VISIBLE_STORAGE_KEY =
     "cache:integrations:disclaimer-visible";
 
 const ACTION_STATUS_DISMISS_MS = 6000;
+
+const INTEGRATIONS_LIST_MAX_VISIBLE = 6;
 
 const NO_ACTION_FEEDBACK: IntegrationActionResult = {
     refresh: false,
@@ -134,17 +136,12 @@ function useIntegrationActions({
 
     const statusDismissTimeout = useTimeout();
 
-    React.useEffect(() => {
-        if (!actionStatus) {
-            return;
-        }
+    function showActionStatus(status: IntegrationActionStatus) {
         statusDismissTimeout.start(ACTION_STATUS_DISMISS_MS, () =>
             setActionStatus(null)
         );
-        return () => {
-            statusDismissTimeout.clear();
-        };
-    }, [actionStatus, statusDismissTimeout]);
+        setActionStatus(status);
+    }
 
     const handleIntegrationAction = useStableCallback(
         async (role: IntegrationActionRole) => {
@@ -169,7 +166,7 @@ function useIntegrationActions({
                 }
 
                 if (result.successMessage) {
-                    setActionStatus({
+                    showActionStatus({
                         message: result.successMessage,
                         tone: "success",
                     });
@@ -182,7 +179,7 @@ function useIntegrationActions({
                     role,
                 });
 
-                setActionStatus({
+                showActionStatus({
                     message: getErrorMessage(
                         error,
                         gt("Could not complete this integration action.")
@@ -377,11 +374,8 @@ export function Integrations({ connectedIntegrations }: IntegrationsProps) {
             >
                 <T>Integrations</T>
             </IntegrationsListTrigger>
-            <CollapsiblePanel>
-                <DisclosureListVertical
-                    maxVisible={6}
-                    triggerProps={{ className: "ml-1.25" }}
-                >
+            <IntegrationsListPanel>
+                <IntegrationsListContent>
                     {INTEGRATIONS.map((integration) => (
                         <IntegrationsListItem
                             direction={
@@ -394,11 +388,11 @@ export function Integrations({ connectedIntegrations }: IntegrationsProps) {
                             key={integration.id}
                         />
                     ))}
-                </DisclosureListVertical>
+                </IntegrationsListContent>
                 <IntegrationsListDisclaimer />
                 <RssManageDialog />
                 <MarkdownImportDialog />
-            </CollapsiblePanel>
+            </IntegrationsListPanel>
         </IntegrationsList>
     );
 }
@@ -506,6 +500,29 @@ function IntegrationsListTrigger({
                 </div>
             </PreviewCardPopup>
         </PreviewCard>
+    );
+}
+
+function IntegrationsListPanel({
+    ...props
+}: React.ComponentProps<typeof CollapsiblePanel>) {
+    return <CollapsiblePanel {...props} />;
+}
+
+function IntegrationsListContent({
+    maxVisible = INTEGRATIONS_LIST_MAX_VISIBLE,
+    triggerProps,
+    ...props
+}: React.ComponentProps<typeof CollapsibleListVertical>) {
+    return (
+        <CollapsibleListVertical
+            {...props}
+            maxVisible={maxVisible}
+            triggerProps={{
+                ...triggerProps,
+                className: cn("ml-1.25", triggerProps?.className),
+            }}
+        />
     );
 }
 

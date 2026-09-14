@@ -1,9 +1,9 @@
 "use client";
 
 import { useAnimationFrame } from "@base-ui/utils/useAnimationFrame";
+import { cn } from "cn";
 import { useReducedMotion } from "motion/react";
 import * as React from "react";
-import { cn } from "@/lib/common/cn";
 
 const DEFAULT_COLORS = [
     "#ff3b30",

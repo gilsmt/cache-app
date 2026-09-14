@@ -1,5 +1,5 @@
+import { cn } from "cn";
 import type * as React from "react";
-import { cn } from "@/lib/common/cn";
 
 interface PageShellProps extends React.ComponentProps<"main"> {
     as?: React.ElementType;

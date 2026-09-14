@@ -1,6 +1,7 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { cn } from "cn";
 import { T } from "gt-next";
 import { DownloadIcon } from "lucide-react";
 import type { StaticImageData } from "next/image";
@@ -14,7 +15,6 @@ import {
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { isAbortError } from "@/lib/common/abort";
-import { cn } from "@/lib/common/cn";
 import { APP_NAME, IMAGE_MIME_TYPES } from "@/lib/common/constants";
 import { saveFile } from "@/lib/common/file";
 import { createLogger } from "@/lib/common/logs/console/logger";

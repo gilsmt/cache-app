@@ -119,6 +119,52 @@ export const TEMPLATES = [
         name: "Courses & Learning",
         value: "courses_learning",
     },
+    {
+        description:
+            "Recipes, meal ideas, and cooking references to try in the kitchen.",
+        name: "Recipes",
+        value: "recipes",
+    },
+    {
+        description:
+            "Bills, forms, warranties, and everyday paperwork to handle when needed.",
+        name: "Life Admin",
+        value: "life_admin",
+    },
+    {
+        description:
+            "Podcasts, albums, playlists, and audio to catch up on later.",
+        name: "Listen Later",
+        value: "listen_later",
+    },
+    {
+        description: "Books, authors, and reading lists to pick up next.",
+        name: "Books to Read",
+        value: "books_to_read",
+    },
+    {
+        description:
+            "Newsletters, blogs, and subscriptions to read on your own schedule.",
+        name: "Newsletters",
+        value: "newsletters",
+    },
+    {
+        description: "Creators, writers, and profiles worth keeping up with.",
+        name: "People to Follow",
+        value: "people_to_follow",
+    },
+    {
+        description:
+            "Models, prompts, and AI workflows to reuse and experiment with.",
+        name: "AI Tools & Prompts",
+        value: "ai_tools_prompts",
+    },
+    {
+        description:
+            "Games, demos, and interactive experiences to try when you have time.",
+        name: "Games to Play",
+        value: "games_to_play",
+    },
 ] as const satisfies readonly CollectionTemplateOption[];
 
 export type TemplateValue = (typeof TEMPLATES)[number]["value"];

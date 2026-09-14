@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { LocaleSelector, T } from "gt-next";
 import { getGT } from "gt-next/server";
 import {
@@ -49,7 +50,6 @@ import {
     SidebarFooter,
 } from "@/components/ui/sidebar";
 import { getServerSession } from "@/lib/auth/session";
-import { cn } from "@/lib/common/cn";
 import {
     APP_NAME,
     BASE_URL,
@@ -74,6 +74,7 @@ const HOME_JSON_LD: Record<string, unknown> = {
     "@graph": [
         {
             "@type": "WebSite",
+            inLanguage: ["en-US", "es-ES"],
             name: APP_NAME,
             url: BASE_URL,
         },
@@ -101,13 +102,18 @@ const HOME_JSON_LD: Record<string, unknown> = {
         {
             "@type": "SoftwareApplication",
             applicationCategory: "ProductivityApplication",
+            description:
+                "Cache is the AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms.",
             name: APP_NAME,
             offers: {
                 "@type": "Offer",
+                availability: "https://schema.org/InStock",
                 price: "8",
                 priceCurrency: "USD",
+                url: BASE_URL,
             },
             operatingSystem: "Any",
+            url: BASE_URL,
         },
     ],
 };
@@ -240,7 +246,7 @@ export default async function Home() {
                         </div>
                     </SidebarFooter>
                 </Sidebar>
-                <div className="flex w-full max-w-5xl flex-col gap-12 p-8 pb-0 2xl:mx-auto">
+                <div className="flex w-full max-w-5xl flex-col gap-12 p-8 pb-0 lg:gap-16 2xl:mx-auto">
                     <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-muted">
                         <div aria-live="polite" className="sr-only">
                             <T>
@@ -261,17 +267,16 @@ export default async function Home() {
                             src={HeroImage}
                         />
                     </div>
-                    <div className="mx-auto -mt-2 mb-3 flex max-w-prose flex-col items-center justify-center gap-1 text-center">
-                        <p className="text-sm">
+                    <div className="mx-auto -mt-2 mb-3 flex flex-col gap-2 md:max-w-prose md:pl-24">
+                        <h2 className="font-normal text-lg leading-snug">
                             <T>
                                 Save hours every week with a smarter way to
-                                handle everything you save online.
-                                <br />
-                                Make sense of the noise — from $8/month.
+                                handle everything you save online — from
+                                $8/month.
                             </T>
-                        </p>
+                        </h2>
                         <Button
-                            className="mt-0.5 text-muted-foreground"
+                            className="w-fit px-0 text-muted-foreground"
                             nativeButton={false}
                             render={
                                 <a
@@ -286,13 +291,13 @@ export default async function Home() {
                         >
                             <GithubIcon
                                 aria-hidden
-                                className="size-3.5"
+                                className="size-4"
                                 focusable="false"
                             />
                             &nbsp;<T>Open-source. Truly yours</T>
                         </Button>
                     </div>
-                    <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-[40px]">
+                    <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-10">
                         <div className="flex max-w-[340px] flex-col gap-3 py-5 md:gap-4">
                             <T context="Library">
                                 <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
@@ -316,8 +321,8 @@ export default async function Home() {
                                     <li className="flex items-center gap-2">
                                         <Lightbulb className="inline-block size-4 shrink-0" />
                                         <span>
-                                            Brainstorm your most interesting
-                                            ideas with Cache's AI agent
+                                            Discuss your bookmarks in context
+                                            with AI
                                         </span>
                                     </li>
                                 </T>
@@ -337,7 +342,7 @@ export default async function Home() {
                             </figure>
                         </div>
                     </section>
-                    <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-[40px]">
+                    <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-10">
                         <div className="flex max-w-[340px] flex-col gap-3 py-5 md:gap-4">
                             <T context="Integrations">
                                 <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
@@ -435,7 +440,7 @@ export default async function Home() {
                             </figure>
                         </div>
                     </section>
-                    <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-[40px]">
+                    <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-10">
                         <div className="flex max-w-[340px] flex-col gap-3 py-5 md:gap-4">
                             <T context="Habits">
                                 <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
@@ -481,7 +486,7 @@ export default async function Home() {
                             </figure>
                         </div>
                     </section>
-                    <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-[40px]">
+                    <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-10">
                         <div className="flex max-w-[340px] flex-col gap-3 py-5 md:gap-4">
                             <T context="Feed">
                                 <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
@@ -525,17 +530,17 @@ export default async function Home() {
                             </figure>
                         </div>
                     </section>
-                    <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-[40px]">
+                    <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-10">
                         <div className="flex max-w-[340px] flex-col gap-3 py-5 md:gap-4">
                             <T>
                                 <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
                                     Spot the stale, keep the useful
                                 </h2>
                                 <p className="text-pretty font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
-                                    Build a knowledge base from the content
-                                    you've already marked as important. Import
-                                    scattered saves once and Cache organizes
-                                    them in minutes.
+                                    Build a knowledge base from the saved
+                                    content you've already marked as important
+                                    to you. Import once and Cache organizes them
+                                    in minutes.
                                 </p>
                             </T>
                             <ul className="mt-2 flex flex-col space-y-2 text-xs">
@@ -650,20 +655,22 @@ export default async function Home() {
                             </figure>
                         </div>
                     </section>
-                    <section className="flex w-full flex-col gap-8 md:gap-12">
-                        <T>
-                            <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
-                                You save with a click,
-                                <br />
-                                <span className="text-muted-foreground">
-                                    and AI agents do the rest
-                                </span>
-                            </h2>
-                            <p className="text-pretty font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
-                                Summarize, research, compare, or draft with the
-                                relevant bookmarks already in context.
-                            </p>
-                        </T>
+                    <section className="flex w-full flex-col gap-8 md:gap-10">
+                        <div className="flex flex-col gap-3 py-5 md:gap-4">
+                            <T>
+                                <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
+                                    Save with a click,
+                                    <br />
+                                    <span className="text-muted-foreground">
+                                        and AI agents do the rest
+                                    </span>
+                                </h2>
+                                <p className="text-pretty font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
+                                    Summarize, research, compare, or draft with
+                                    the relevant bookmarks already in context.
+                                </p>
+                            </T>
+                        </div>
                         <div className="relative mx-auto h-[300px] w-full max-w-[640px] sm:h-[360px] sm:max-w-[700px] md:h-[420px]">
                             <div
                                 aria-hidden
@@ -743,7 +750,7 @@ export default async function Home() {
                             </div>
                         </div>
                     </section>
-                    <section className="flex w-full flex-col gap-8">
+                    <section className="flex w-full flex-col gap-8 md:gap-10">
                         <Carousel>
                             <div className="flex items-center justify-between">
                                 <h2
@@ -832,7 +839,7 @@ export default async function Home() {
                             </CarouselPanel>
                         </Carousel>
                     </section>
-                    <section className="flex w-full flex-col gap-8">
+                    <section className="flex w-full flex-col gap-8 md:gap-10">
                         <div className="flex max-w-prose items-center gap-5">
                             <T>
                                 <p className="font-medium text-lg text-muted-foreground tracking-tighter">
@@ -873,12 +880,12 @@ export default async function Home() {
                     </section>
                     <div className="flex flex-col items-center gap-4 pb-10 md:flex-row md:gap-4 md:pb-0">
                         <p className="select-none font-normal font-sans text-base text-muted-foreground">
-                            <T>Ask about Cache on</T>
+                            <T>Ask about the Cache App on</T>
                         </p>
                         <div className="flex items-center gap-2">
                             {ASK_CACHE_PROVIDERS.map(({ Icon, label, url }) => (
                                 <Button
-                                    aria-label={`Ask about Cache on ${label}`}
+                                    aria-label={`Ask about the Cache App on ${label}`}
                                     key={label}
                                     nativeButton={false}
                                     render={

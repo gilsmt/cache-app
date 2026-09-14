@@ -1,5 +1,12 @@
+import { cn } from "cn";
 import { T } from "gt-next";
-import { Compass, Ellipsis, History, Workflow } from "lucide-react";
+import {
+    ClockFading,
+    Compass,
+    Ellipsis,
+    History,
+    MessageSquare,
+} from "lucide-react";
 import type * as React from "react";
 import {
     UserMenu,
@@ -9,11 +16,16 @@ import {
     UserMenuPopup,
     UserMenuTrigger,
 } from "@/components/auth/user-menu";
-import { SidebarNavigationItem } from "@/components/sidebar/sidebar-navigation-item";
+import {
+    SidebarNavigationItem,
+    SidebarNavigationShortcut,
+} from "@/components/sidebar/sidebar-navigation-item";
+import { KbdCombo } from "@/components/ui/kbd";
 import {
     Menu,
     MenuLinkItem,
     MenuPopup,
+    MenuShortcut,
     MenuTrigger,
 } from "@/components/ui/menu";
 import { OfflineBadge } from "@/components/ui/offline";
@@ -26,7 +38,9 @@ import {
     SidebarRail,
     SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/common/cn";
+
+const COMMENTS_SHORTCUT_KEYS = "mod+alt+c";
+const RECENTLY_DELETED_SHORTCUT_KEYS = "mod+alt+r";
 
 export function ApplicationSidebar({
     children,
@@ -63,14 +77,14 @@ export function ApplicationSidebar({
                             />
                         }
                         label="Library"
-                        shortcutKeys="mod+alt+l"
+                        shortcutKeys="mod+alt+h"
                     >
                         <T>Library</T>
                     </SidebarNavigationItem>
                     <SidebarNavigationItem
                         href="/automations"
                         icon={
-                            <Workflow
+                            <ClockFading
                                 aria-hidden
                                 className="inline-block size-4 shrink-0"
                                 focusable="false"
@@ -81,12 +95,24 @@ export function ApplicationSidebar({
                     >
                         <T>Automations</T>
                     </SidebarNavigationItem>
+                    <SidebarNavigationShortcut
+                        href="/comments"
+                        label="Comments"
+                        shortcutKeys={COMMENTS_SHORTCUT_KEYS}
+                    />
+                    <SidebarNavigationShortcut
+                        href="/recently-deleted"
+                        label="Recently deleted"
+                        shortcutKeys={RECENTLY_DELETED_SHORTCUT_KEYS}
+                    />
                     <li>
                         <Menu>
                             <MenuTrigger
+                                aria-label="More"
                                 nativeButton={false}
                                 openOnHover
                                 render={<SidebarItem />}
+                                title="More"
                             >
                                 <Ellipsis
                                     aria-hidden
@@ -98,6 +124,21 @@ export function ApplicationSidebar({
                                 </SidebarItemValue>
                             </MenuTrigger>
                             <MenuPopup side="right">
+                                <MenuLinkItem href="/comments">
+                                    <MessageSquare
+                                        aria-hidden
+                                        className="inline-block size-4 shrink-0"
+                                        focusable="false"
+                                    />
+                                    <span className="truncate">
+                                        <T>Comments</T>
+                                    </span>
+                                    <MenuShortcut>
+                                        <KbdCombo
+                                            keys={COMMENTS_SHORTCUT_KEYS}
+                                        />
+                                    </MenuShortcut>
+                                </MenuLinkItem>
                                 <MenuLinkItem href="/recently-deleted">
                                     <History
                                         aria-hidden
@@ -107,6 +148,13 @@ export function ApplicationSidebar({
                                     <span className="truncate">
                                         <T>Recently deleted</T>
                                     </span>
+                                    <MenuShortcut>
+                                        <KbdCombo
+                                            keys={
+                                                RECENTLY_DELETED_SHORTCUT_KEYS
+                                            }
+                                        />
+                                    </MenuShortcut>
                                 </MenuLinkItem>
                             </MenuPopup>
                         </Menu>

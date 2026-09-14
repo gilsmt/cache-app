@@ -5,22 +5,20 @@ import { FileText, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { createStore } from "stan-js";
-import {
-    useCollectionsContext,
-    useLibraryItemsContext,
-} from "@/components/library/collections";
+import { useCollectionsContext } from "@/components/library/collections";
+import { useItemsContext } from "@/components/library/items";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogClose,
     DialogDescription,
-    DialogFieldError,
     DialogFooter,
     DialogHeader,
     DialogPanel,
     DialogPopup,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { ErrorMessage } from "@/components/ui/error-message";
 import { Input } from "@/components/ui/input";
 import type { LibraryCollectionSummary } from "@/lib/collections/utils";
 import { type FILE_EXTENSION, fileOpen } from "@/lib/common/file";
@@ -63,7 +61,7 @@ const STEP_TITLES: Record<ImportStep, string> = {
     choose: "Import Markdown files",
     "create-new": "New import",
     done: "Import complete",
-    importing: "Importing...",
+    importing: "Importing…",
     "pick-files": "Select files",
 };
 
@@ -297,7 +295,7 @@ export function MarkdownImportDialog() {
     const [isLoading, startLoading] = React.useTransition();
     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
     const { replaceCollections } = useCollectionsContext();
-    const { mergeImportedItems: mergeLibraryItems } = useLibraryItemsContext();
+    const { mergeImportedItems: mergeLibraryItems } = useItemsContext();
     const router = useRouter();
     const importSessionIdRef = React.useRef(0);
     const isCreateSubmissionPendingRef = React.useRef(false);
@@ -585,7 +583,7 @@ export function MarkdownImportDialog() {
                 value={newImportName}
             />
             {errorMessage ? (
-                <DialogFieldError>{errorMessage}</DialogFieldError>
+                <ErrorMessage className="pt-2">{errorMessage}</ErrorMessage>
             ) : null}
             <Button
                 disabled={isLoading || !newImportName.trim()}
@@ -607,7 +605,7 @@ export function MarkdownImportDialog() {
                 Choose folder
             </Button>
             {errorMessage ? (
-                <DialogFieldError>{errorMessage}</DialogFieldError>
+                <ErrorMessage className="pt-2">{errorMessage}</ErrorMessage>
             ) : null}
         </div>
     );

@@ -1,11 +1,11 @@
 "use client";
 
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
+import { cn } from "cn";
 import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
 import type * as React from "react";
 import { CheckmarkIcon } from "@/components/ui/icons";
-import { cn } from "@/lib/common/cn";
 
 export const Menu: typeof MenuPrimitive.Root = MenuPrimitive.Root;
 
@@ -52,7 +52,7 @@ export function MenuPopup({
                 <MenuPrimitive.Popup
                     {...props}
                     className={cn(
-                        "relative not-[class*='w-']:min-w-52 origin-(--transform-origin) overflow-hidden rounded-2xl border bg-popover not-dark:bg-clip-padding text-popover-foreground shadow-lg/8 outline-none transition-[scale,opacity] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-2xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "relative not-[class*='w-']:min-w-52 origin-(--transform-origin) overflow-hidden rounded-2xl border bg-popover not-dark:bg-clip-padding text-popover-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-2xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot={dataSlot}
@@ -104,7 +104,7 @@ export function MenuShortcut({
         <kbd
             {...props}
             className={cn(
-                "ms-auto font-medium font-sans text-muted-foreground/72 text-xs tracking-widest",
+                "ms-auto font-medium font-sans text-muted-foreground/72 text-xs uppercase tracking-widest",
                 className
             )}
             data-slot="menu-shortcut"
@@ -267,10 +267,10 @@ export function MenuCheckboxItem({
             {...props}
             checked={checked}
             className={cn(
-                "grid min-h-8 in-data-[side=none]:min-w-[calc(var(--anchor-width)+1.25rem)] cursor-default items-center gap-2 rounded-sm py-1 ps-2 text-base text-foreground outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+                "grid min-h-8 cursor-default items-center gap-2 rounded-sm py-1 ps-2 text-base text-foreground outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
                 variant === "switch"
                     ? "grid-cols-[1fr_auto] gap-4 pe-1.5"
-                    : "grid-cols-[.75rem_1fr] pe-4",
+                    : "grid-cols-[.75rem_1fr] pe-2",
                 className
             )}
             data-slot="menu-checkbox-item"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { cn } from "cn";
 import { T, Var } from "gt-next";
 import { RotateCcw, Trash } from "lucide-react";
 import * as React from "react";
@@ -9,12 +10,12 @@ import {
     Dialog,
     DialogClose,
     DialogDescription,
-    DialogFieldError,
     DialogFooter,
     DialogHeader,
     DialogPopup,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { ErrorMessage } from "@/components/ui/error-message";
 import type { LibraryItemPurgeAllResult } from "@/lib/collections/items";
 import {
     purgeAllRecentlyDeletedItems,
@@ -25,7 +26,6 @@ import type {
     LibraryCollectionTag,
     LibraryItemWithCollections,
 } from "@/lib/collections/utils";
-import { cn } from "@/lib/common/cn";
 import { ACTION_STATUS, ITEM_KIND_NOTE } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { parseDisplayUrl } from "@/lib/common/url";
@@ -48,8 +48,6 @@ interface PendingAction {
     kind: Exclude<ActionFailureKind, "purge-all">;
 }
 
-// Mirrors getLibraryItemPrimaryText in components/library/browser.tsx; falls
-// back to a parsed display URL because tombstone rows should not print raw hrefs.
 function displayTitle(item: LibraryItemWithCollections): string {
     if (item.kind === ITEM_KIND_NOTE) {
         return item.noteContentText?.trim() || "Untitled note";
@@ -297,11 +295,11 @@ export function RecentlyDeletedList({
                             </DialogHeader>
                             {failure ? (
                                 <div className="px-6">
-                                    <DialogFieldError>
+                                    <ErrorMessage className="pt-2">
                                         <ActionFailureMessage
                                             failure={failure}
                                         />
-                                    </DialogFieldError>
+                                    </ErrorMessage>
                                 </div>
                             ) : null}
                             <DialogFooter>
@@ -351,9 +349,9 @@ export function RecentlyDeletedList({
                     </DialogHeader>
                     {failure && showDeleteAllDialog ? (
                         <div className="px-6">
-                            <DialogFieldError>
+                            <ErrorMessage className="pt-2">
                                 <ActionFailureMessage failure={failure} />
-                            </DialogFieldError>
+                            </ErrorMessage>
                         </div>
                     ) : null}
                     <DialogFooter>
@@ -464,8 +462,7 @@ function ActionFailureMessage({ failure }: { failure: ActionFailure }) {
         case "restore":
             return <T>We couldn't restore this saved item right now.</T>;
         default: {
-            // Exhaustive over ActionFailureKind; fails to compile if a kind
-            // is added without a fallback message.
+            // Exhaustive over ActionFailureKind;
             const unreachable: never = failure.kind;
             return unreachable;
         }

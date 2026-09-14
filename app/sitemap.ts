@@ -1,9 +1,10 @@
-import { getDefaultLocale, getLocales } from "gt-next";
+import { getDefaultLocale, getLocales, resolveCanonicalLocale } from "gt-next";
 import type { MetadataRoute } from "next";
 import { BASE_URL } from "@/lib/common/constants";
 import { normalizeURL } from "@/lib/common/url";
 
 interface SitemapRoute {
+    changeFrequency?: MetadataRoute.Sitemap[number]["changeFrequency"];
     path: `/${string}`;
     priority: number;
 }
@@ -12,15 +13,23 @@ interface SitemapRoute {
  * Public static routes that do not require authentication.
  * Authenticated-only routes (e.g. /library) are intentionally excluded
  * because they redirect anonymous users and should not be indexed.
+ * Redirect-only paths (/changelog, /security → docs.cachd.app) are also
+ * excluded to avoid sitemap redirect chains.
  */
 const PUBLIC_STATIC_ROUTES = [
-    { path: "/", priority: 1 },
-    { path: "/library", priority: 0.85 },
-    { path: "/changelog", priority: 0.7 },
-    { path: "/security", priority: 0.7 },
-    { path: "/legal", priority: 0.7 },
-    { path: "/legal/terms-of-service", priority: 0.7 },
-    { path: "/legal/privacy-policy", priority: 0.7 },
+    { changeFrequency: "weekly", path: "/", priority: 1 },
+    { changeFrequency: "monthly", path: "/legal", priority: 0.7 },
+    {
+        changeFrequency: "yearly",
+        path: "/legal/terms-of-service",
+        priority: 0.5,
+    },
+    {
+        changeFrequency: "yearly",
+        path: "/legal/privacy-policy",
+        priority: 0.5,
+    },
+    { changeFrequency: "yearly", path: "/legal/dpa", priority: 0.3 },
 ] satisfies SitemapRoute[];
 
 function getLocalizedUrl(locale: string, path: SitemapRoute["path"]) {
@@ -35,15 +44,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
     return PUBLIC_STATIC_ROUTES.map((entry) => ({
         alternates: {
-            languages: Object.fromEntries(
-                locales.map((locale) => [
-                    locale,
-                    getLocalizedUrl(locale, entry.path),
-                ])
-            ),
+            languages: {
+                ...Object.fromEntries(
+                    locales.map((locale) => [
+                        resolveCanonicalLocale(locale),
+                        getLocalizedUrl(locale, entry.path),
+                    ])
+                ),
+                "x-default": getLocalizedUrl(defaultLocale, entry.path),
+            },
         },
-        changeFrequency: "weekly",
-        lastModified: new Date(),
+        changeFrequency: entry.changeFrequency ?? "weekly",
         priority: entry.priority,
         url: getLocalizedUrl(defaultLocale, entry.path),
     }));

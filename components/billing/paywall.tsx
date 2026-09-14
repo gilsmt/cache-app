@@ -31,7 +31,7 @@ interface BlockPaywallBannerProps {
 export function BlockPaywallBanner({ length }: BlockPaywallBannerProps) {
     return (
         <aside className="sticky top-20 z-20 -mx-2 sm:-mx-4">
-            <div className="overflow-clip rounded-lg bg-background px-6 py-10 shadow-xl/10 sm:px-10">
+            <div className="rounded-lg bg-background px-6 py-10 shadow-xl/10 sm:px-10">
                 <div className="mx-auto flex max-w-2xl flex-col items-center justify-center gap-y-10 text-center">
                     <div className="flex flex-col items-center gap-y-5">
                         <h1 className="font-semibold text-3xl md:text-4xl">

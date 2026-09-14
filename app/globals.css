@@ -200,10 +200,18 @@
     a,
     button,
     select,
+    summary,
     img,
+    picture,
     video,
+    audio,
     canvas,
+    svg,
+    iframe,
+    embed,
+    object,
     [type="button"],
+    [type="file"],
     [type="image"],
     [type="reset"],
     [type="submit"],
@@ -214,6 +222,15 @@
     [draggable] {
         @apply indent-0 align-middle select-none;
         -webkit-user-drag: none;
+    }
+
+    img,
+    picture,
+    video,
+    canvas,
+    iframe,
+    embed,
+    object {
         dynamic-range-limit: standard;
     }
 

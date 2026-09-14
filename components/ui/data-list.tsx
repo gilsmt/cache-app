@@ -2,12 +2,12 @@
 
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
+import { cn } from "cn";
 import type * as React from "react";
 import {
     StackedBarChart,
     type StackedBarChartSegment,
 } from "@/components/ui/stacked-bar-chart";
-import { cn } from "@/lib/common/cn";
 
 export function DataList({
     className,

@@ -1,6 +1,5 @@
 "use client";
 
-import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T, useGT } from "gt-next";
 import * as React from "react";
 import { useHotkeys, useHotkeysContext } from "react-hotkeys-hook";
@@ -30,6 +29,7 @@ export { HotkeysProvider as ShortcutsProvider } from "react-hotkeys-hook";
 interface ShortcutItem {
     description: string;
     hotkey: string;
+    id: number;
     label: string;
 }
 
@@ -43,19 +43,20 @@ export function KeyboardShortcutsDialogTrigger(
     const [isOpen, setIsOpen] = React.useState(false);
     const { hotkeys } = useHotkeysContext();
 
-    const handleOpen = useStableCallback(() => {
-        setIsOpen(true);
-    });
-
-    useHotkeys("mod+/, ?", handleOpen, {
+    useHotkeys("mod+/, shift+?", () => setIsOpen(true), {
         description: gt("Open keyboard shortcuts panel"),
+        useKey: true,
     });
 
-    const shortcutItems: ShortcutItem[] = hotkeys.map((shortcut) => ({
-        description: shortcut.description ?? "",
-        hotkey: shortcut.hotkey,
-        label: `${shortcut.description ?? ""} ${shortcut.hotkey}`,
-    }));
+    const shortcutItems: ShortcutItem[] = hotkeys.map((shortcut, index) => {
+        const description = shortcut.description ?? "";
+        return {
+            description,
+            hotkey: shortcut.hotkey,
+            id: index,
+            label: `${description} ${shortcut.hotkey}`,
+        };
+    });
 
     return (
         <Drawer onOpenChange={setIsOpen} open={isOpen} position="right">
@@ -84,7 +85,7 @@ export function KeyboardShortcutsDialogTrigger(
                                 <CommandCollection>
                                     {(item: ShortcutItem) => (
                                         <CommandItem
-                                            key={`${item.description}:${item.hotkey}`}
+                                            key={item.id}
                                             value={item.label}
                                         >
                                             <div className="flex w-full items-center justify-between">

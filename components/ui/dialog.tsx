@@ -3,11 +3,10 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
+import { cn } from "cn";
 import { XIcon } from "lucide-react";
-import type * as React from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/common/cn";
 
 export const Dialog: typeof DialogPrimitive.Root = DialogPrimitive.Root;
 
@@ -34,7 +33,7 @@ export function DialogPopup({
                 <DialogPrimitive.Popup
                     {...props}
                     className={cn(
-                        "relative row-start-2 flex max-h-full min-h-0 w-full min-w-0 max-w-lg flex-col rounded-xl bg-popover not-dark:bg-clip-padding text-popover-foreground opacity-[calc(1-var(--nested-dialogs))] shadow-lg/5 outline-none transition-[translate,opacity] duration-250 ease-out will-change-transform before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:translate-y-5 data-starting-style:translate-y-4 data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-100 data-ending-style:ease-in dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "relative row-start-2 flex max-h-full min-h-0 w-full min-w-0 max-w-lg flex-col rounded-xl bg-popover not-dark:bg-clip-padding text-popover-foreground opacity-[calc(1-var(--nested-dialogs))] shadow-lg/5 outline-none transition-[translate,opacity] duration-200 ease-out will-change-transform before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:translate-y-5 data-starting-style:translate-y-4 data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-100 data-ending-style:ease-in dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot="dialog-popup"
@@ -134,20 +133,6 @@ export function DialogClose(props: DialogPrimitive.Close.Props) {
     return <DialogPrimitive.Close {...props} data-slot="dialog-close" />;
 }
 
-export function DialogFieldError({
-    className,
-    ...props
-}: React.ComponentProps<"p">) {
-    return (
-        <p
-            {...props}
-            aria-atomic="true"
-            className={cn("pt-2 text-destructive text-xs", className)}
-            role="alert"
-        />
-    );
-}
-
 export function DialogFooter({
     className,
     render,
@@ -177,7 +162,7 @@ function DialogBackdrop({
         <DialogPrimitive.Backdrop
             {...props}
             className={cn(
-                "fixed inset-0 z-50 bg-black/32 transition-all duration-250 data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-100",
+                "fixed inset-0 z-50 bg-black/32 transition-all duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-100",
                 className
             )}
             data-slot="dialog-backdrop"

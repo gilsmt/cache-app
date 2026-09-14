@@ -2,9 +2,9 @@
 
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
+import { cn } from "cn";
 import { useReducedMotion } from "motion/react";
 import * as React from "react";
-import { cn } from "@/lib/common/cn";
 
 const DEFAULT_DURATION_SECONDS = 5;
 const MAX_SPEED_PX_PER_SECOND = 92;
@@ -35,8 +35,8 @@ export function Ticker({
     ref,
     ...props
 }: TickerProps) {
-    const [contentWidthPx, setContentWidthPx] = React.useState(0);
     const prefersReducedMotion = useReducedMotion();
+    const [contentWidthPx, setContentWidthPx] = React.useState(0);
 
     const containerRef = React.useRef<HTMLSpanElement | null>(null);
     const mergedRef = useMergedRefs(ref, containerRef);
@@ -55,17 +55,9 @@ export function Ticker({
         let _containerWidthPx = 0;
         let _contentWidthPx = 0;
 
-        const getWidth = (target: Element, entry: ResizeObserverEntry) => {
-            const borderBox = entry.borderBoxSize?.[0]?.inlineSize;
-            if (typeof borderBox === "number" && Number.isFinite(borderBox)) {
-                return borderBox;
-            }
-            return target.getBoundingClientRect().width; // Fallback path
-        };
-
         const resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                const sizePx = getWidth(entry.target, entry);
+                const sizePx = entry.borderBoxSize[0].inlineSize;
 
                 if (entry.target === container) {
                     _containerWidthPx = sizePx;

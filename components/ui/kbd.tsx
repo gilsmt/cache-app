@@ -1,8 +1,8 @@
 "use client";
 
+import { cn } from "cn";
 import type * as React from "react";
 import { useClientOnlyValue } from "@/components/ui/client-only";
-import { cn } from "@/lib/common/cn";
 import {
     getSystemAltKey,
     getSystemControlKey,

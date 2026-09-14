@@ -3,6 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_ALT } from "@/app/metadata";
 import {
     PublicShareGrid,
     type PublicShareGridItem,
@@ -60,20 +61,49 @@ async function getCachedShareMetadata(shareId: string): Promise<Metadata> {
 
     const collection = await getPublicCollectionShareById(shareId);
 
+    const title = collection
+        ? `${collection.name} shared collection`
+        : "Shared collection";
+    const description = `${
+        collection?.description ??
+        (collection
+            ? `A read-only collection shared by ${collection.ownerName} on Cache.`
+            : "A shared collection on Cache.")
+    } Create your own.`;
+    const images = [
+        {
+            alt: DEFAULT_OG_IMAGE_ALT,
+            height: 630,
+            url: DEFAULT_OG_IMAGE,
+            width: 1200,
+        },
+    ];
+
     return {
-        description: `${
-            collection?.description ??
-            (collection
-                ? `A read-only collection shared by ${collection.ownerName} on Cache.`
-                : "A shared collection on Cache.")
-        } Create your own.`,
+        description,
+        openGraph: {
+            description,
+            images,
+            title,
+            type: "website",
+        },
         robots: {
             follow: false,
+            googleBot: {
+                follow: false,
+                index: false,
+            },
             index: false,
+            noarchive: true,
+            noimageindex: true,
         },
-        title: collection
-            ? `${collection.name} shared collection`
-            : "Shared collection",
+        title,
+        twitter: {
+            card: "summary_large_image",
+            description,
+            images,
+            title,
+        },
     };
 }
 

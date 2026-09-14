@@ -9,13 +9,13 @@ import {
     BlossomNext,
     BlossomPrev,
 } from "@blossom-carousel/react";
-import "@blossom-carousel/react/style.css";
+import { cn } from "cn";
 import { useGT } from "gt-next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Group } from "@/components/ui/group";
-import { cn } from "@/lib/common/cn";
+import "@blossom-carousel/react/style.css";
 
 type CarouselHandle = React.ComponentRef<typeof BlossomCarousel> | null;
 
@@ -35,17 +35,17 @@ function useCarouselContext() {
     return context;
 }
 
-interface useCarouselScrollOverflowProps {
+interface UseCarouselScrollOverflowOptions {
     handleRef: React.RefObject<CarouselHandle>;
     isEnabled: boolean;
     resetKey: unknown;
 }
 
 function useCarouselScrollOverflow({
-    resetKey,
-    isEnabled,
     handleRef,
-}: useCarouselScrollOverflowProps) {
+    isEnabled,
+    resetKey,
+}: UseCarouselScrollOverflowOptions) {
     const animationFrame = useAnimationFrame();
 
     const updateOverflow = useStableCallback(() => {
@@ -107,7 +107,11 @@ function useCarouselScrollOverflow({
     }, [isEnabled, resetKey]);
 }
 
-export function Carousel({ children }: React.PropsWithChildren) {
+interface CarouselProps {
+    children: React.ReactNode;
+}
+
+export function Carousel({ children }: CarouselProps) {
     const id = React.useId();
     const contextValue = { id };
 

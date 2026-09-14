@@ -2,6 +2,7 @@
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import type { FileUIPart, SourceDocumentUIPart } from "ai";
+import { cn } from "cn";
 import {
     FileTextIcon,
     GlobeIcon,
@@ -18,7 +19,6 @@ import {
     PreviewCardPopup,
     PreviewCardTrigger,
 } from "@/components/ui/preview-card";
-import { cn } from "@/lib/common/cn";
 
 const MEDIA_CATEGORY_ICON_BY_CATEGORY: Record<
     AttachmentMediaCategory,
@@ -71,7 +71,7 @@ export function getMediaCategory(
         return "source";
     }
 
-    const mediaType = data.mediaType;
+    const mediaType = data.mediaType ?? "";
 
     if (mediaType.startsWith("image/")) {
         return "image";
@@ -181,7 +181,7 @@ export function Attachment({
             <div
                 {...props}
                 className={cn(
-                    "group relative flex h-8 cursor-pointer items-center gap-1",
+                    "group relative flex h-8 cursor-pointer select-none items-center gap-1",
                     "rounded-md border border-border px-1.5",
                     "font-medium text-sm transition-all",
                     "hover:bg-accent hover:text-accent-foreground",

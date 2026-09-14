@@ -1,13 +1,13 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { cn } from "cn";
 import { useGT } from "gt-next";
 import { type LucideIcon, Monitor, Moon, Sun } from "lucide-react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Button } from "@/components/ui/button";
 import { Group } from "@/components/ui/group";
 import { type Theme, useTheme } from "@/hooks/use-theme";
-import { cn } from "@/lib/common/cn";
 
 const THEME_OPTIONS = [
     { icon: Sun, value: "light" },
