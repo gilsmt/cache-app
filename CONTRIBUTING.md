@@ -109,7 +109,7 @@ chore(deps): upgrade Prisma to v7
 
 ```bash
 git clone https://github.com/rortan134/cache-app.git
-cd cache
+cd cache-app
 bun install
 
 cp .env.example .env

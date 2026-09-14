@@ -1,10 +1,10 @@
-[Cache](https://www.cachd.app) is a modern well-crafted purpose-built personal bookmark knowledge web application powertool that unifies user bookmarks across many platforms into a single, searchable, actionable library. Read [README.md](README.md) for more.
-
-## Development workflow
+[README.md](README.md) for project overview.
 
 Cache has a zero technical debt policy. Do it right the first time: the design that lands in the codebase should be the correct one, with no intentional debt in that surface. A problem solved in design costs less than one solved in implementation, which costs less than one solved in production. "Right the first time" describes the landed output, not the exploration that produced it — see simplicity below.
 
 When rules conflict, prefer in order: correctness and safety of the change surface, then local coherence in files you already touch, then YAGNI, then style. If a tradeoff is required, choose correctness and robustness over short-term convenience or shortcuts.
+
+Remove all mannered prose.
 
 Leave the codebase better than you found it. Do not preserve complexity just because it already exists. Do not introduce machinery because it looks architecturally impressive. Understand the real constraint, then fight for the smallest model that makes the correct behavior unsurprising.
 
@@ -15,8 +15,6 @@ Study and plan before implementing. Identify recurring patterns and design influ
 Trace how parts connect, such as data flow between functions, stage dependencies, or what module owns what.
 
 Read the full implementation of what you change and its direct callers/callees, not just the signatures, and not the whole repo.
-
-Define success criteria. Loop until verified.
 
 It is not about formatting or syntax. Linters handle that. It is about how to think, how to make decisions, and what to value when building software.
 
@@ -30,7 +28,7 @@ Strive for writing fully functional, bug-free code by using best practices and m
 
 Prohibit over-encapsulation and over-abstraction of code.
 
-Avoid unnecessary code indirection. Extract when the same reason to change applies in two or more modules and the name is obvious; similar code with different futures may stay duplicated. Extracting a className string into a constant just because it is used twice is not justified.
+Avoid unnecessary code indirection. Extract when the same reason to change applies in two or more modules and the name is obvious; similar code with different futures may stay duplicated. Extracting a className string into a constant just because it is used twice is not justified. Keep logic in one function unless composable or reusable. Do not extract single-use helpers preemptively; inline at the call site unless reused, hiding a genuinely complex boundary, or carrying a clear independent name that improves the caller.
 
 Follow YAGNI. Prefer the smallest clear unit, not the fewest lines — one-liners only for pure expressions with no branching, I/O, or error paths.
 
@@ -38,7 +36,7 @@ Control flow: Reduce nesting. Avoid else statements. Prefer early returns.
 
 Handle errors at the appropriate scopes. Never silently swallow exceptions. If you think an error cannot happen, assert that assumption explicitly.
 
-Never compromise type safety: avoid `any`, `!` (non-null assertion), and `as Type` casting as they usually indicate wrong assumptions or bad implementation. A cast is allowed only at a trust boundary (SDK, ORM, framework) when the invariant is runtime-checked or guaranteed by a typed wrapper one layer in. Prefer narrowing (`zod`, predicates, exhaustiveness). If you need a cast deeper than the boundary, fix the model.
+Never compromise type safety: avoid `any`, `!` (non-null assertion), and `as Type` casting as they usually indicate wrong assumptions or bad implementation. A cast is allowed only at a trust boundary (SDK, ORM, framework) when the invariant is runtime-checked or guaranteed by a typed wrapper one layer in. Prefer narrowing (`zod`, predicates, exhaustiveness). If you need a cast deeper than the boundary, fix the model. Validate unknown values once at the boundary that owns them. Pass typed values inward instead of repeating `typeof value === "object"` and property-existence checks. Do not defensively revalidate values already guaranteed by a schema, constructor, or internal type.
 
 Declare variables at the smallest possible scope. Minimize the number of variables in play at any point. This reduces the probability of using the wrong variable and makes code easier to reason about. Calculate or check variables close to where they are used. Do not introduce variables before they are needed or leave them around when they are not.
 
@@ -56,7 +54,7 @@ Constants are module-level and UPPER_SNAKE_CASE: Physics constants, selectors, a
 
 Inline single-use values when the expression is obvious in place. Keep a name when it encodes units, domain meaning, or a non-obvious intermediate — even if used once.
 
-Before adding a new utility, check if a similar one exists in the `lib/common` directory or nearby module scope as utils.
+Before adding a new utility, check if a similar one exists in the `lib/common` directory or nearby module scope as utils. Keep the utility at the smallest scope that uses it: file-private, then `lib/{module}/utils.ts` for domain logic. Promote to `lib/common` only when two or more unrelated modules share the same reason to change under a domain-free name with no domain imports.
 
 ## React
 
@@ -151,3 +149,15 @@ Use these in services and actions to propagate domain failures with structured m
 ## Data model
 
 The data model and schemas can be found at `prisma/schema.prisma`
+
+## Git safety
+
+Never discard or hide user work with a git command. `git restore`, `git checkout --`, `git reset`, `git clean`, and `git stash` (including `drop` and `clear`) destroy or hide staged and worktree changes. Stashed work leaves the normal status and diff flow and gets forgotten. Use them only when the user explicitly asks to discard to HEAD, and then ask for the deny to be lifted first.
+
+Before any git write, inspect `git status --short`, `git diff`, and `git diff --cached` for the named paths. Touch only those paths. Keep edits in the worktree. Do not change the index (`--staged`) unless the user explicitly asks. Do not revert changes you didn't author.
+
+## Branch Names
+
+Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`.
+
+Examples: `session-recovery`, `fix-scroll-state`, `regenerate-sdk`.
