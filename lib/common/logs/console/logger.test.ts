@@ -7,34 +7,33 @@ import {
     spyOn,
     test,
 } from "bun:test";
+import type { RuntimeName } from "@/lib/common/environment";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
 const logger = createLogger("logger-test");
 
 /**
- * The std-env flags that drive the logger's environment detection. std-env
- * computes its exports once at import time, so each scenario is applied with
- * mock.module, which rewrites the live bindings of the already-loaded logger.
+ * The environment flags that drive the logger's environment detection. The
+ * flags are computed once at import time, so each scenario is applied with
+ * mock.module, which rewrites the live bindings of the already-loaded modules.
  */
-interface StdEnvFlags {
+interface EnvironmentFlags {
     hasWindow: boolean;
-    isDevelopment: boolean;
-    isEdgeLight: boolean;
     isProduction: boolean;
     isTest: boolean;
+    runtime: RuntimeName | "";
 }
 
 /** Flags for a Node development runtime. */
-const DEV_ENV_FLAGS: StdEnvFlags = {
+const DEV_ENV_FLAGS: EnvironmentFlags = {
     hasWindow: false,
-    isDevelopment: true,
-    isEdgeLight: false,
     isProduction: false,
     isTest: false,
+    runtime: "node",
 };
 
-function mockEnvFlags(overrides: Partial<StdEnvFlags> = {}) {
-    mock.module("std-env", () => ({
+function mockEnvFlags(overrides: Partial<EnvironmentFlags> = {}) {
+    mock.module("@/lib/common/environment", () => ({
         ...DEV_ENV_FLAGS,
         ...overrides,
     }));
@@ -215,14 +214,12 @@ describe("Logger environment suppression", () => {
     }
 
     test("logs nothing in the test environment", () => {
-        logsNothingInDisabledEnvironment(() =>
-            mockEnvFlags({ isDevelopment: false, isTest: true })
-        );
+        logsNothingInDisabledEnvironment(() => mockEnvFlags({ isTest: true }));
     });
 
     test("logs nothing in the production environment", () => {
         logsNothingInDisabledEnvironment(() =>
-            mockEnvFlags({ isDevelopment: false, isProduction: true })
+            mockEnvFlags({ isProduction: true })
         );
     });
 

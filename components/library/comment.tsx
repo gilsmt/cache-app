@@ -11,11 +11,11 @@ import type { LibraryItemWithCollections } from "@/lib/collections/utils";
 import {
     getLibraryItemComment,
     updateLibraryItemComment,
-} from "@/lib/comments/actions";
+} from "@/lib/comment/actions";
 import {
     COMMENT_TEXT_MAX_LENGTH,
     normalizeCommentText,
-} from "@/lib/comments/utils";
+} from "@/lib/comment/utils";
 import { ACTION_STATUS } from "@/lib/common/constants";
 import { stopPropagationForMenuTextInputKeys } from "@/lib/common/dom";
 
@@ -104,6 +104,8 @@ function ItemCommentTextarea({ isOpen, item }: ItemCommentTextareaProps) {
 
         if (editVersionRef.current === saveVersion) {
             hasBeenEditedRef.current = false;
+            setContent(next);
+            return next;
         }
         return true;
     });

@@ -1,15 +1,21 @@
+import "server-only";
+import type { EmailAttachment } from "@opencoredev/email-sdk";
+import { renderEmail } from "@opencoredev/email-sdk/react";
 import type * as React from "react";
-import { type Attachment, Resend } from "resend";
 import { serverEnv } from "@/env/server";
+import { getErrorMessage } from "@/lib/common/error";
+import { createLogger } from "@/lib/common/logs/console/logger";
+import { buildEmailClient } from "@/lib/email/client";
+import { EmailError } from "@/lib/email/error";
 
-const resend = new Resend(serverEnv.EMAIL_SERVER_PASSWORD);
+const log = createLogger("email:send");
 
 interface SendEmailOptions {
-    attachments?: Attachment[];
-    body: React.ReactNode;
+    attachments?: readonly EmailAttachment[];
+    body: React.ReactElement;
     cc?: readonly string[];
     from?: string;
-    scheduledAt?: string;
+    scheduledAt?: Date | string;
     subject: string;
     to: string | string[];
 }
@@ -25,20 +31,61 @@ export async function sendEmail({
 }: SendEmailOptions) {
     const from = fromParam ?? serverEnv.EMAIL_FROM;
     if (!from) {
-        throw new Error("Missing sender email address");
+        throw new EmailError({
+            message: "Missing sender email address",
+            operation: "sendEmail",
+        });
     }
 
-    const { error } = await resend.emails.send({
-        attachments,
-        cc: cc && cc.length > 0 ? [...cc] : undefined,
-        from,
-        react: body,
-        scheduledAt,
-        subject,
-        to,
-    });
+    const sendAt = resolveSendAt(scheduledAt);
 
-    if (error) {
-        throw new Error(error.message);
+    try {
+        const { html, text } = await renderEmail(body);
+        const email = buildEmailClient();
+        await email.send(
+            {
+                attachments:
+                    attachments && attachments.length > 0
+                        ? attachments
+                        : undefined,
+                cc: cc && cc.length > 0 ? cc : undefined,
+                from,
+                html,
+                sendAt,
+                subject,
+                text,
+                to,
+            },
+            attachments?.length || sendAt
+                ? { fallback: { adapters: [] } }
+                : undefined
+        );
+    } catch (error) {
+        if (EmailError.isInstance(error)) {
+            throw error;
+        }
+        log.error("Failed to send email", error);
+        throw new EmailError(
+            {
+                message: getErrorMessage(error, "Failed to send email"),
+                operation: "sendEmail",
+            },
+            { cause: error }
+        );
     }
+}
+
+function resolveSendAt(scheduledAt: Date | string | undefined) {
+    if (!scheduledAt) {
+        return;
+    }
+    const sendAt =
+        scheduledAt instanceof Date ? scheduledAt : new Date(scheduledAt);
+    if (Number.isNaN(sendAt.getTime())) {
+        throw new EmailError({
+            message: `Invalid scheduledAt: "${String(scheduledAt)}"`,
+            operation: "sendEmail",
+        });
+    }
+    return sendAt;
 }

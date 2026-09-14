@@ -101,6 +101,9 @@ export const MIME_TYPES = {
     ...VIDEO_MIME_TYPES,
 } as const;
 
+export const USER_AGENT =
+    "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)";
+
 export const EXPORT_IMAGE_TYPES = {
     clipboard: "clipboard",
     png: "png",

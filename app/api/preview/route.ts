@@ -1,7 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
+import * as z from "zod";
 import { getSessionUserId } from "@/lib/auth/session";
-import { abortAfterAny, isAbortError } from "@/lib/common/abort";
-import { MIME_TYPES } from "@/lib/common/constants";
+import {
+    abortAfter,
+    abortAfterAny,
+    isAbortError,
+    raceAbort,
+} from "@/lib/common/abort";
+import { MIME_TYPES, USER_AGENT } from "@/lib/common/constants";
+import { NamedError } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
     fetchPublicRedirect,
@@ -43,12 +50,7 @@ const MAX_IMAGE_CONTENT_LENGTH_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_CONTENT_LENGTH_BYTES = 200 * 1024 * 1024;
 const COBALT_CACHE_TTL_SECONDS = 5 * 60;
 const COBALT_CACHE_KEY_PREFIX = "cobalt-preview:";
-// og:image values are effectively static (sites change them on the order of
-// weeks), and every cache read re-checks signed-URL expiry via
-// isSignedUrlExpired, so a long positive TTL is safe: expired entries re-resolve
-// on demand, and an upstream image that dies surfaces only until the next
-// negative-cache cycle (60s) triggers a fresh resolution.
-const PREVIEW_IMAGE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
+const PREVIEW_IMAGE_CACHE_TTL_SECONDS = 4 * 24 * 60 * 60; // 4 d
 const PREVIEW_IMAGE_CACHE_KEY_PREFIX = "preview-image:";
 const PREVIEW_NEGATIVE_CACHE_TTL_SECONDS = 60;
 const PREVIEW_NEGATIVE_CACHE_KEY_PREFIX = "preview-negative:";
@@ -59,8 +61,13 @@ const PREVIEW_RESOLUTION_WAIT_MS = 12_000;
 const PREVIEW_RESOLUTION_POLL_MS = 250;
 // Process-local L1 in front of Redis. Bench (remote Redis ~500ms RTT): cache-hit
 // redirect p50 614ms → sub-ms on warm L1; load-test p99 collapses when the same
-// URLs repeat within an isolate. Cap entries to bound memory; TTL matches Redis.
+// URLs repeat within an isolate. Cap entries to bound memory. The L1 TTL is
+// short and independent of the Redis TTL: a Redis delete/update in another
+// isolate is invisible to this process's Map, so a brief L1 lifetime bounds how
+// long a stale target can be served (signed-URL expiry is still re-checked on
+// every hit).
 const MEMORY_CACHE_MAX_ENTRIES = 256;
+const PREVIEW_IMAGE_MEMORY_CACHE_TTL_SECONDS = 5 * 60;
 // Upstream-controlled content-types we will proxy. Anything outside these lists
 // (notably image/svg+xml and application/octet-stream) is rejected: SVGs execute
 // in the browser and would let a hostile upstream use our Referer to hit abuse
@@ -80,8 +87,6 @@ const SUPPORTED_PREVIEW_VIDEO_MIME_TYPES = new Set<string>([
     "video/quicktime",
     "video/webm",
 ]);
-const USER_AGENT =
-    "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)";
 const GOOGLEBOT_USER_AGENT =
     "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
 // const BROWSER_USER_AGENT =
@@ -89,8 +94,17 @@ const GOOGLEBOT_USER_AGENT =
 const HTTP_SINGLE_RANGE_HEADER_PATTERN = /^bytes=(\d*)-(\d*)$/;
 const XHTML_CONTENT_TYPE_PATTERN = /^application\/xhtml\+xml/i;
 const ABORTED_RESPONSE = new Response(null, { status: 499 });
-const INSTAGRAM_HOSTS = new Set(["instagram.com", ".instagram.com"]);
+const INSTAGRAM_HOST = "instagram.com";
 const GOOGLE_PHOTOS_CDN_HOST = "lh3.googleusercontent.com";
+
+const PreviewRedirectLoopError = NamedError.create(
+    "PreviewRedirectLoop",
+    z.object({ message: z.string() })
+);
+// Sentinel errorCode for "no isolate finished resolving before the deadline".
+// Distinct from every real Cobalt error code so the response can be a
+// transient 503 instead of a cacheable 404. Never written to any cache.
+const PREVIEW_RESOLUTION_TIMEOUT_ERROR_CODE = "preview.resolution_timeout";
 
 type PreviewType = "image" | "video";
 
@@ -118,30 +132,25 @@ type VideoPreviewWaitResult =
     | { status: "failure"; errorCode: string | null }
     | { status: "miss" };
 
-interface ResolvedImagePreview {
-    imageResponse: Response | null;
-    preview: ResolvedImage;
-}
-
 type ImagePreviewResolution =
-    | { status: "resolved"; value: ResolvedImagePreview }
+    | { status: "resolved"; value: ResolvedImage }
     | { status: "not_found" }
     | { status: "unresolved" };
 
 // Lazy-loaded only on the HTML cache-miss path (not cache-hit / video).
 // On import failure, clear the cached promise so the next request can retry.
-let extractPreviewImageUrlsPromise: Promise<
-    typeof import("@/lib/og/extract").extractPreviewImageUrls
+let extractPreviewMetadataPromise: Promise<
+    typeof import("@/lib/common/extract").extractPreviewMetadata
 > | null = null;
 
-function loadExtractPreviewImageUrls() {
-    extractPreviewImageUrlsPromise ??= import("@/lib/og/extract")
-        .then((mod) => mod.extractPreviewImageUrls)
+function loadExtractPreviewMetadata() {
+    extractPreviewMetadataPromise ??= import("@/lib/common/extract")
+        .then((mod) => mod.extractPreviewMetadata)
         .catch((error: unknown) => {
-            extractPreviewImageUrlsPromise = null;
+            extractPreviewMetadataPromise = null;
             throw error;
         });
-    return extractPreviewImageUrlsPromise;
+    return extractPreviewMetadataPromise;
 }
 
 // Lazy-loaded only on the video cache-miss path.
@@ -235,6 +244,36 @@ function memoryCacheSet<T>(
         expiresAtMs: Date.now() + ttlSeconds * 1000,
         value,
     });
+}
+
+function trackInFlightResolution<T>(
+    map: Map<string, Promise<T>>,
+    key: string,
+    resolution: Promise<T>
+): Promise<T> {
+    const tracked = resolution.finally(() => {
+        if (map.get(key) === tracked) {
+            map.delete(key);
+        }
+    });
+    tracked.catch(() => undefined);
+    map.set(key, tracked);
+    return tracked;
+}
+
+async function awaitSharedResolution<T>(
+    promise: Promise<T>,
+    externalSignal: AbortSignal | undefined,
+    onSharedTimeout: () => T
+): Promise<T> {
+    try {
+        return await raceAbort(promise, externalSignal);
+    } catch (error) {
+        if (isAbortError(error) && !externalSignal?.aborted) {
+            return onSharedTimeout();
+        }
+        throw error;
+    }
 }
 
 function parseResolvedImage(value: unknown): ResolvedImage | null {
@@ -337,7 +376,6 @@ export async function GET(request: Request): Promise<Response> {
 
         const resolution = await resolveImagePreviewWithCoordination(
             publicTargetUrl,
-            delivery === "proxy",
             request.signal
         );
         if (resolution.status === "not_found") {
@@ -345,24 +383,17 @@ export async function GET(request: Request): Promise<Response> {
             return previewNotFoundResponse(targetUrl.href, "image");
         }
         if (resolution.status === "unresolved") {
-            return previewNotFoundResponse(targetUrl.href, "image");
+            return textResponse("Preview temporarily unavailable", 503);
         }
         const { value: preview } = resolution;
         if (delivery === "redirect") {
             return redirectToPreview(
-                preview.preview.imageUrl,
+                preview.imageUrl,
                 publicTargetUrl.href,
                 "image"
             );
         }
-        if (preview.imageResponse) {
-            return streamImageResponse(
-                preview.imageResponse,
-                publicTargetUrl.href,
-                preview.preview.imageUrl
-            );
-        }
-        return proxyImageResponse(preview.preview, publicTargetUrl, request);
+        return proxyImageResponse(preview, publicTargetUrl, request);
     } catch (error) {
         return handlePreviewError(
             error,
@@ -406,9 +437,8 @@ function parsePreviewDelivery(delivery: string | null): PreviewDelivery | null {
 
 async function resolveImagePreview(
     targetUrl: URL,
-    shouldRetainDirectImageResponse: boolean,
     signal?: AbortSignal
-): Promise<ResolvedImagePreview | null> {
+): Promise<ResolvedImage | null> {
     const targetHref = targetUrl.href;
 
     const oembedUrl = tiktokOembedUrl(targetHref);
@@ -420,7 +450,7 @@ async function resolveImagePreview(
         );
         if (preview) {
             writeCachedImagePreview(targetHref, preview);
-            return { imageResponse: null, preview };
+            return preview;
         }
         return null;
     }
@@ -430,9 +460,6 @@ async function resolveImagePreview(
         {
             headers: {
                 Accept: "text/html,application/xhtml+xml,image/*",
-                // When this turns out to be a direct image, retaining this
-                // response avoids a second request while preserving the
-                // referer the former image-proxy fetch supplied.
                 Referer: targetHref,
                 "User-Agent": getUserAgent(targetHref),
             },
@@ -459,13 +486,10 @@ async function resolveImagePreview(
             pageUrl: targetHref,
         };
         writeCachedImagePreview(targetHref, result);
-        if (shouldRetainDirectImageResponse) {
-            return { imageResponse: pageResponse, preview: result };
-        }
-        // Redirect delivery has no use for the body. Release the connection
-        // before returning its location to the client.
+        // Resolution returns a URL; the caller proxies it. Release the
+        // upstream connection before returning.
         await pageResponse.body?.cancel().catch(() => undefined);
-        return { imageResponse: null, preview: result };
+        return result;
     }
 
     const previewContentType =
@@ -484,15 +508,10 @@ async function resolveImagePreview(
         return null;
     }
 
-    // extractPreviewImageUrls replaces link-preview-js's cheerio/parse5 DOM
-    // parse with an htmlparser2 streaming scan (~10x faster on a 150 KiB page).
-    // Lazy-imported so cache-hit / video cold starts skip htmlparser2.
-    // baseUrl is the final post-redirect URL (or the original target) so
-    // relative og:image/<img> resolve identically.
     const baseUrl = pageResponse.url || targetHref;
-    const extractPreviewImageUrls = await loadExtractPreviewImageUrls();
+    const extractPreviewMetadata = await loadExtractPreviewMetadata();
     const imageUrl = getFirstHttpUrl(
-        extractPreviewImageUrls(previewBody, baseUrl)
+        extractPreviewMetadata(previewBody, baseUrl).images
     );
     if (!imageUrl) {
         return null;
@@ -503,67 +522,47 @@ async function resolveImagePreview(
         pageUrl: parseHttpUrl(baseUrl)?.href ?? targetHref,
     };
     writeCachedImagePreview(targetHref, result);
-    return { imageResponse: null, preview: result };
+    return result;
 }
 
 async function resolveImagePreviewWithCoordination(
     targetUrl: URL,
-    shouldRetainDirectImageResponse: boolean,
     externalSignal?: AbortSignal
 ): Promise<ImagePreviewResolution> {
     const key = previewImageCacheKey(targetUrl.href);
     const inFlight = inFlightImagePreviewResolutions.get(key);
     if (inFlight) {
-        const resolution = await inFlight;
+        const resolution = await awaitSharedResolution(
+            inFlight,
+            externalSignal,
+            (): ImagePreviewResolution => ({ status: "unresolved" })
+        );
         if (resolution.status !== "resolved") {
             return resolution;
         }
-        return {
-            status: "resolved",
-            value: { imageResponse: null, preview: resolution.value.preview },
-        };
+        return { status: "resolved", value: resolution.value };
     }
 
-    const resolution = resolveImagePreviewAfterLease(
+    const resolution = trackInFlightResolution(
+        inFlightImagePreviewResolutions,
         key,
-        targetUrl,
-        shouldRetainDirectImageResponse,
-        externalSignal
+        resolveImagePreviewAfterLease(key, targetUrl)
     );
-    inFlightImagePreviewResolutions.set(key, resolution);
-    try {
-        return await resolution;
-    } finally {
-        inFlightImagePreviewResolutions.delete(key);
-    }
+    return awaitSharedResolution(resolution, externalSignal, () => ({
+        status: "unresolved",
+    }));
 }
 
 async function resolveImagePreviewAfterLease(
     key: string,
-    targetUrl: URL,
-    shouldRetainDirectImageResponse: boolean,
-    externalSignal?: AbortSignal
+    targetUrl: URL
 ): Promise<ImagePreviewResolution> {
-    if (externalSignal?.aborted) {
-        throw new DOMException("Aborted", "AbortError");
-    }
-
     const deadlineMs = Date.now() + PREVIEW_RESOLUTION_WAIT_MS;
     let lease = await acquirePreviewResolutionLease(key);
     while (lease.status === "held" && Date.now() < deadlineMs) {
-        if (externalSignal?.aborted) {
-            throw new DOMException("Aborted", "AbortError");
-        }
-        const cached = await waitForImagePreview(
-            targetUrl.href,
-            deadlineMs,
-            externalSignal
-        );
+        const cached = await waitForImagePreview(targetUrl.href, deadlineMs);
         if (cached.status === "hit") {
-            return {
-                status: "resolved",
-                value: { imageResponse: null, preview: cached.value },
-            };
+            return { status: "resolved", value: cached.value };
         }
         if (cached.status === "negative") {
             return { status: "not_found" };
@@ -575,11 +574,7 @@ async function resolveImagePreviewAfterLease(
     }
 
     try {
-        const preview = await resolveImagePreviewWithTimeout(
-            targetUrl,
-            shouldRetainDirectImageResponse,
-            externalSignal
-        );
+        const preview = await resolveImagePreviewWithTimeout(targetUrl);
         if (!preview) {
             await writeCachedNegativePreview(targetUrl.href, "image");
             return { status: "not_found" };
@@ -595,20 +590,11 @@ async function resolveImagePreviewAfterLease(
 }
 
 async function resolveImagePreviewWithTimeout(
-    targetUrl: URL,
-    shouldRetainDirectImageResponse: boolean,
-    externalSignal?: AbortSignal
-): Promise<ResolvedImagePreview | null> {
-    const { signal, clearTimeout } = abortAfterAny(
-        FETCH_TIMEOUT_MS,
-        ...(externalSignal ? [externalSignal] : [])
-    );
+    targetUrl: URL
+): Promise<ResolvedImage | null> {
+    const { signal, clearTimeout } = abortAfter(FETCH_TIMEOUT_MS);
     try {
-        return await resolveImagePreview(
-            targetUrl,
-            shouldRetainDirectImageResponse,
-            signal
-        );
+        return await resolveImagePreview(targetUrl, signal);
     } finally {
         clearTimeout();
     }
@@ -670,27 +656,26 @@ async function proxyImageResponse(
         request.signal
     );
 
-    return streamImageResponse(
-        imageResponse,
-        targetUrl.href,
-        imageResponse.url || preview.imageUrl
-    );
+    return streamImageResponse(imageResponse, targetUrl.href, preview);
 }
 
 function streamImageResponse(
     imageResponse: Response,
     targetHref: string,
-    previewUrl: string
+    preview: ResolvedImage
 ): Response {
     if (!imageResponse.ok) {
         if (imageResponse.status === 404 || imageResponse.status === 410) {
-            deleteCachedImagePreview(targetHref);
+            deleteCachedImagePreview(targetHref, preview);
             writeCachedNegativePreview(targetHref, "image").catch(
                 () => undefined
             );
             return previewNotFoundResponse(targetHref, "image");
         }
-        return textResponse("Preview not found", 404);
+        return textResponse(
+            "Preview not found",
+            toSafeUpstreamStatus(imageResponse.status)
+        );
     }
 
     const imageContentType = imageResponse.headers.get("content-type") ?? "";
@@ -707,7 +692,9 @@ function streamImageResponse(
         return textResponse("Preview too large", 413);
     }
 
-    const signedUrlLifetimeSeconds = getSignedUrlLifetimeSeconds(previewUrl);
+    const signedUrlLifetimeSeconds = getSignedUrlLifetimeSeconds(
+        imageResponse.url || preview.imageUrl
+    );
     releaseResponseBodyBudget(imageResponse);
     return new Response(imageResponse.body, {
         headers: {
@@ -769,6 +756,14 @@ async function resolveVideoPreview(
             signal
         );
         if (!videoResult?.videoUrl) {
+            if (
+                videoResult?.errorCode === PREVIEW_RESOLUTION_TIMEOUT_ERROR_CODE
+            ) {
+                return textResponse(
+                    "Video preview temporarily unavailable",
+                    503
+                );
+            }
             const { classifyCobaltError } = await loadCobaltService();
             const errorCategory = classifyCobaltError(videoResult?.errorCode);
             if (errorCategory === "rate_limited") {
@@ -831,45 +826,38 @@ async function resolveVideo(
     return { errorCode, videoUrl: null };
 }
 
-async function resolveVideoWithCoordination(
+function resolveVideoWithCoordination(
     targetUrl: URL,
     externalSignal?: AbortSignal
 ): Promise<{ errorCode: string | null; videoUrl: string | null }> {
     const key = cobaltCacheKey(targetUrl.href);
     const inFlight = inFlightVideoPreviewResolutions.get(key);
     if (inFlight) {
-        return inFlight;
+        return awaitSharedResolution(inFlight, externalSignal, () => ({
+            errorCode: PREVIEW_RESOLUTION_TIMEOUT_ERROR_CODE,
+            videoUrl: null,
+        }));
     }
 
-    const resolution = resolveVideoAfterLease(key, targetUrl, externalSignal);
-    inFlightVideoPreviewResolutions.set(key, resolution);
-    try {
-        return await resolution;
-    } finally {
-        inFlightVideoPreviewResolutions.delete(key);
-    }
+    const resolution = trackInFlightResolution(
+        inFlightVideoPreviewResolutions,
+        key,
+        resolveVideoAfterLease(key, targetUrl)
+    );
+    return awaitSharedResolution(resolution, externalSignal, () => ({
+        errorCode: PREVIEW_RESOLUTION_TIMEOUT_ERROR_CODE,
+        videoUrl: null,
+    }));
 }
 
 async function resolveVideoAfterLease(
     key: string,
-    targetUrl: URL,
-    externalSignal?: AbortSignal
+    targetUrl: URL
 ): Promise<{ errorCode: string | null; videoUrl: string | null }> {
-    if (externalSignal?.aborted) {
-        throw new DOMException("Aborted", "AbortError");
-    }
-
     const deadlineMs = Date.now() + PREVIEW_RESOLUTION_WAIT_MS;
     let lease = await acquirePreviewResolutionLease(key);
     while (lease.status === "held" && Date.now() < deadlineMs) {
-        if (externalSignal?.aborted) {
-            throw new DOMException("Aborted", "AbortError");
-        }
-        const cached = await waitForVideoPreview(
-            targetUrl.href,
-            deadlineMs,
-            externalSignal
-        );
+        const cached = await waitForVideoPreview(targetUrl.href, deadlineMs);
         if (cached.status === "preview") {
             return { errorCode: null, videoUrl: cached.videoUrl };
         }
@@ -882,11 +870,14 @@ async function resolveVideoAfterLease(
         lease = await acquirePreviewResolutionLease(key);
     }
     if (lease.status === "held") {
-        return { errorCode: null, videoUrl: null };
+        return {
+            errorCode: PREVIEW_RESOLUTION_TIMEOUT_ERROR_CODE,
+            videoUrl: null,
+        };
     }
 
     try {
-        const result = await resolveVideoWithTimeout(targetUrl, externalSignal);
+        const result = await resolveVideoWithTimeout(targetUrl);
         if (!result.videoUrl) {
             await writeCachedVideoResolutionError(
                 targetUrl.href,
@@ -904,13 +895,9 @@ async function resolveVideoAfterLease(
 }
 
 async function resolveVideoWithTimeout(
-    targetUrl: URL,
-    externalSignal?: AbortSignal
+    targetUrl: URL
 ): Promise<{ errorCode: string | null; videoUrl: string | null }> {
-    const { signal, clearTimeout } = abortAfterAny(
-        FETCH_TIMEOUT_MS,
-        ...(externalSignal ? [externalSignal] : [])
-    );
+    const { signal, clearTimeout } = abortAfter(FETCH_TIMEOUT_MS);
     try {
         return await resolveVideo(targetUrl, signal);
     } finally {
@@ -959,21 +946,37 @@ async function proxyVideoResponse(
             return textResponse("Video preview too large", 413);
         }
 
+        const isPartialResponse = tunnelResponse.status === 206;
         const headers = new Headers();
         headers.set("content-type", contentType);
         const contentLength = tunnelResponse.headers.get("content-length");
         if (contentLength) {
             headers.set("content-length", contentLength);
         }
+        // Only a 206 body is known to start at rangeRequest.startByte; a 200
+        // means the upstream ignored the Range and returned the full body,
+        // which must never be described with a synthesized Content-Range.
         const contentRange =
             tunnelResponse.headers.get("content-range") ??
-            createContentRangeHeader(rangeRequest, contentLength);
+            (isPartialResponse
+                ? createContentRangeHeader(rangeRequest, contentLength)
+                : null);
         if (contentRange) {
             headers.set("content-range", contentRange);
         }
         headers.set("accept-ranges", "bytes");
-        headers.set("cache-control", CACHE_CONTROL_HEADER);
+        // A byte range is only valid for the request that produced it: never
+        // let a shared cache store a 206 under the bare URL.
+        headers.set(
+            "cache-control",
+            isPartialResponse ? NO_STORE_HEADER : CACHE_CONTROL_HEADER
+        );
         setPreviewCacheHeaders(headers, targetUrl.href, "video");
+        if (isPartialResponse) {
+            // setPreviewCacheHeaders assumes a full-body response; keep the
+            // partial body out of the CDN cache too.
+            headers.set(VERCEL_CDN_CACHE_CONTROL_HEADER_NAME, NO_STORE_HEADER);
+        }
 
         releaseResponseBodyBudget(tunnelResponse);
         return new Response(tunnelResponse.body, {
@@ -996,7 +999,7 @@ async function fetchWithRedirects(
     signal?: AbortSignal
 ): Promise<Response> {
     if (!initialUrl) {
-        return textResponse("Invalid URL", 400);
+        throw new Error("Preview fetch requires a parsed HTTP URL");
     }
 
     const result = await fetchPublicRedirect(initialUrl, {
@@ -1011,22 +1014,24 @@ async function fetchWithRedirects(
         return result.response;
     }
     if (result.status === "too_many_redirects") {
-        return textResponse("Too many redirects", 508);
-    }
-    // Local/private/unresolvable host at any hop, or a redirect to a
-    // non-HTTP(S) target: fail closed.
-    if (result.status === "blocked") {
-        log.warn("Preview fetch blocked by SSRF policy", {
-            targetUrl: initialUrl.href,
+        throw new PreviewRedirectLoopError({
+            message: "Preview fetch exceeded the redirect limit",
         });
     }
-    return textResponse("Invalid URL", 400);
+    // Local/private/unresolvable host at any hop, or a redirect hop without a
+    // Location header: fail closed. SSRF blocks are already logged with host
+    // context inside fetchPublicRedirect; the client only sees a 404 so the
+    // block reason is never disclosed.
+    throw new Error(`Preview fetch failed: ${result.status}`);
 }
 
 function getUserAgent(url: string): string {
     try {
         const hostname = new URL(url).hostname.toLowerCase();
-        if (INSTAGRAM_HOSTS.has(hostname)) {
+        if (
+            hostname === INSTAGRAM_HOST ||
+            hostname.endsWith(`.${INSTAGRAM_HOST}`)
+        ) {
             return GOOGLEBOT_USER_AGENT;
         }
     } catch {
@@ -1244,6 +1249,27 @@ async function writeToRedis(
         });
     }
 }
+
+/**
+ * Deletes the key only while it still holds `expectedValue` (atomic
+ * compare-and-delete), so an invalidation decided against a stale value
+ * cannot remove a newer SET written by another isolate.
+ */
+async function deleteFromRedisIfValueMatches(
+    key: string,
+    expectedValue: string
+): Promise<void> {
+    const { getRedisClient } = await loadRedisModule();
+    const redis = getRedisClient();
+    if (!redis) {
+        return;
+    }
+    await redis.eval(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0",
+        { arguments: [expectedValue], keys: [key] }
+    );
+}
+
 function hashTargetUrl(targetHref: string): string {
     return createHash("sha256").update(targetHref).digest("hex").slice(0, 16);
 }
@@ -1386,11 +1412,18 @@ async function readCachedImagePreview(
             memoryImagePreviewCache,
             key,
             parsed,
-            PREVIEW_IMAGE_CACHE_TTL_SECONDS
+            PREVIEW_IMAGE_MEMORY_CACHE_TTL_SECONDS
         );
         return { status: "hit", value: parsed };
     }
     return readCachedNegativePreview(targetHref, "image");
+}
+
+function serializeCachedImagePreview(preview: ResolvedImage): string {
+    return JSON.stringify({
+        imageUrl: preview.imageUrl,
+        pageUrl: preview.pageUrl,
+    });
 }
 
 function writeCachedImagePreview(
@@ -1402,41 +1435,48 @@ function writeCachedImagePreview(
         memoryImagePreviewCache,
         key,
         preview,
-        PREVIEW_IMAGE_CACHE_TTL_SECONDS
+        PREVIEW_IMAGE_MEMORY_CACHE_TTL_SECONDS
     );
     // Fire-and-forget Redis write: miss-path p50 was ~1.5s with remote Redis
     // (~500ms write RTT). Response bytes/headers unchanged; a concurrent miss
     // before the write lands re-resolves (same as a cold L1).
     writeToRedis(
         key,
-        JSON.stringify({
-            imageUrl: preview.imageUrl,
-            pageUrl: preview.pageUrl,
-        }),
+        serializeCachedImagePreview(preview),
         PREVIEW_IMAGE_CACHE_TTL_SECONDS
     ).catch(() => undefined);
 }
 
-async function deleteFromRedis(key: string): Promise<void> {
+/**
+ * Forgets the preview that upstream 404'd. The in-memory entry goes
+ * unconditionally (it is the value this request served); the Redis entry is
+ * compare-and-deleted against that stale value so a newer SET from a
+ * concurrent resolve survives an invalidation decided without it.
+ */
+function deleteCachedImagePreview(
+    targetHref: string,
+    stalePreview: ResolvedImage
+): void {
+    const key = previewImageCacheKey(targetHref);
+    memoryImagePreviewCache.delete(key);
+    deleteCachedImagePreviewFromRedis(key, stalePreview).catch(() => undefined);
+}
+
+async function deleteCachedImagePreviewFromRedis(
+    key: string,
+    stalePreview: ResolvedImage
+): Promise<void> {
     try {
-        const { getRedisClient } = await loadRedisModule();
-        const redis = getRedisClient();
-        if (!redis) {
-            return;
-        }
-        await redis.del(key);
+        await deleteFromRedisIfValueMatches(
+            key,
+            serializeCachedImagePreview(stalePreview)
+        );
     } catch (error) {
-        log.debug("Redis delete failed", {
+        log.debug("Redis preview delete failed", {
             error: error instanceof Error ? error.message : String(error),
             key,
         });
     }
-}
-
-function deleteCachedImagePreview(targetHref: string): void {
-    const key = previewImageCacheKey(targetHref);
-    memoryImagePreviewCache.delete(key);
-    deleteFromRedis(key).catch(() => undefined);
 }
 
 async function readCachedNegativePreview<T>(
@@ -1476,20 +1516,12 @@ function writeCachedNegativePreview(
 
 async function waitForImagePreview(
     targetHref: string,
-    deadlineMs: number,
-    externalSignal?: AbortSignal
+    deadlineMs: number
 ): Promise<CacheLookup<ResolvedImage>> {
     do {
-        if (externalSignal?.aborted) {
-            throw new DOMException("Aborted", "AbortError");
-        }
         await wait(
-            Math.min(PREVIEW_RESOLUTION_POLL_MS, deadlineMs - Date.now()),
-            externalSignal
+            Math.min(PREVIEW_RESOLUTION_POLL_MS, deadlineMs - Date.now())
         );
-        if (externalSignal?.aborted) {
-            throw new DOMException("Aborted", "AbortError");
-        }
         const cached = await readCachedImagePreview(targetHref);
         if (cached.status !== "miss") {
             return cached;
@@ -1500,20 +1532,12 @@ async function waitForImagePreview(
 
 async function waitForVideoPreview(
     targetHref: string,
-    deadlineMs: number,
-    externalSignal?: AbortSignal
+    deadlineMs: number
 ): Promise<VideoPreviewWaitResult> {
     do {
-        if (externalSignal?.aborted) {
-            throw new DOMException("Aborted", "AbortError");
-        }
         await wait(
-            Math.min(PREVIEW_RESOLUTION_POLL_MS, deadlineMs - Date.now()),
-            externalSignal
+            Math.min(PREVIEW_RESOLUTION_POLL_MS, deadlineMs - Date.now())
         );
-        if (externalSignal?.aborted) {
-            throw new DOMException("Aborted", "AbortError");
-        }
         const cached = await readCachedVideoPreview(targetHref);
         if (cached.status === "hit") {
             return { status: "preview", videoUrl: cached.value };
@@ -1529,22 +1553,9 @@ async function waitForVideoPreview(
     return { status: "miss" };
 }
 
-function wait(timeoutMs: number, signal?: AbortSignal): Promise<void> {
-    if (signal?.aborted) {
-        return Promise.resolve();
-    }
+function wait(timeoutMs: number): Promise<void> {
     return new Promise((resolve) => {
-        const id = setTimeout(resolve, timeoutMs);
-        if (signal) {
-            signal.addEventListener(
-                "abort",
-                () => {
-                    clearTimeout(id);
-                    resolve();
-                },
-                { once: true }
-            );
-        }
+        setTimeout(resolve, timeoutMs);
     });
 }
 
@@ -1590,17 +1601,9 @@ async function releasePreviewResolutionLease(
     token: string
 ): Promise<void> {
     try {
-        const { getRedisClient } = await loadRedisModule();
-        const redis = getRedisClient();
-        if (!redis) {
-            return;
-        }
-        await redis.eval(
-            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0",
-            {
-                arguments: [token],
-                keys: [previewResolutionLeaseKey(cacheKey)],
-            }
+        await deleteFromRedisIfValueMatches(
+            previewResolutionLeaseKey(cacheKey),
+            token
         );
     } catch (error) {
         log.debug("Preview resolution lease release failed", {
@@ -1838,6 +1841,9 @@ function handlePreviewError(
 ): Response {
     if (isAbortError(error)) {
         return ABORTED_RESPONSE;
+    }
+    if (PreviewRedirectLoopError.isInstance(error)) {
+        return textResponse("Too many redirects", 508);
     }
     log.warn(`Failed to ${operation}`, {
         error: error instanceof Error ? error.message : String(error),

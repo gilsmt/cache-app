@@ -8,6 +8,7 @@ const log = createLogger("feedback:submit");
 
 interface SubmitFeedbackInput {
     context: string | null;
+    email: string | null;
     message: string;
     pagePath: string;
     userId: string | null;
@@ -17,12 +18,14 @@ export async function submitFeedback({
     message,
     pagePath,
     context,
+    email,
     userId,
 }: SubmitFeedbackInput): Promise<void> {
     try {
         await prisma.feedback.create({
             data: {
                 context,
+                email,
                 message,
                 pagePath,
                 userId,

@@ -4,7 +4,7 @@ import {
     isTest,
     type RuntimeName,
     runtime,
-} from "std-env";
+} from "@/lib/common/environment";
 import { formatLogValue } from "@/lib/common/logs/format";
 
 /**
@@ -85,7 +85,7 @@ const getNodeEnvironment = (): NodeEnvironment => {
     return "development";
 };
 
-function getEnvironmentRuntime(): RuntimeName | "browser" {
+function getEnvironmentRuntime(): RuntimeName | "" | "browser" {
     if (hasWindow) {
         return "browser";
     }

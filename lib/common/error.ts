@@ -6,10 +6,10 @@ import { asRecord, isRecord } from "@/lib/common/object";
 
 export abstract class NamedError extends Error {
     abstract readonly data: unknown;
-    abstract schema(): z.ZodSchema;
+    abstract schema(): z.ZodType;
     abstract toObject(): { name: string; data: unknown };
 
-    static create<Name extends string, Data extends z.ZodSchema>(
+    static create<Name extends string, Data extends z.ZodType>(
         name: Name,
         data: Data
     ) {
@@ -39,7 +39,7 @@ export abstract class NamedError extends Error {
             static isInstance(
                 error: unknown
             ): error is InstanceType<typeof result> {
-                return schema.safeParse(error).success;
+                return z.validate(schema, error);
             }
 
             schema() {
@@ -47,10 +47,7 @@ export abstract class NamedError extends Error {
             }
 
             toObject() {
-                return {
-                    data: this.data,
-                    name,
-                };
+                return { data: this.data, name };
             }
         };
 

@@ -89,7 +89,7 @@ export async function updateLibraryItemComment(input: {
         return {
             message: getValidationErrorMessage(
                 parsed,
-                "Enter a comment before saving."
+                "Enter a valid comment to save."
             ),
             status: ACTION_STATUS.INVALID,
         };
@@ -116,6 +116,7 @@ export async function updateLibraryItemComment(input: {
             codeToStatus: {
                 invalid_kind: ACTION_STATUS.INVALID,
                 not_found: ACTION_STATUS.NOT_FOUND,
+                too_long: ACTION_STATUS.INVALID,
             },
             error,
             errorFactory: CommentError,

@@ -45,3 +45,38 @@ export function isAbortError(error: unknown): boolean {
         error.name === "AbortError"
     );
 }
+
+/**
+ * Awaits `promise` but settles early with an AbortError when `signal` aborts.
+ *
+ * Unlike threading the signal into the underlying work, aborting here never
+ * cancels that work: `promise` keeps running and other consumers are
+ * unaffected. Without a signal this returns `promise` unchanged.
+ */
+export function raceAbort<T>(
+    promise: Promise<T>,
+    signal?: AbortSignal
+): Promise<T> {
+    if (!signal) {
+        return promise;
+    }
+    if (signal.aborted) {
+        return Promise.reject(new DOMException("Aborted", "AbortError"));
+    }
+    return new Promise<T>((resolve, reject) => {
+        const onAbort = () => {
+            reject(new DOMException("Aborted", "AbortError"));
+        };
+        signal.addEventListener("abort", onAbort, { once: true });
+        promise.then(
+            (value) => {
+                signal.removeEventListener("abort", onAbort);
+                resolve(value);
+            },
+            (error: unknown) => {
+                signal.removeEventListener("abort", onAbort);
+                reject(error);
+            }
+        );
+    });
+}

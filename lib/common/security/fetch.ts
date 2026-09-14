@@ -298,6 +298,12 @@ export async function readBodyText(
             }
         }
         text += decoder.decode();
+        if (text.length > options.maxChars) {
+            return {
+                text: sliceToUtf16Boundary(text, options.maxChars),
+                truncated: true,
+            };
+        }
         return { text, truncated: false };
     } catch (error) {
         await reader.cancel().catch(() => undefined);

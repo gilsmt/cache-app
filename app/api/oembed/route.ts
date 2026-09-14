@@ -1,9 +1,12 @@
-import { fetchOembed, hasOembedSupport } from "openlink";
 import * as z from "zod";
 import { abortAfterAny, isAbortError } from "@/lib/common/abort";
 import { MIME_TYPES } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { OembedSchema } from "@/lib/common/oembed";
+import {
+    fetchOembed,
+    hasOembedSupport,
+    OembedSchema,
+} from "@/lib/common/oembed";
 import { parsePublicHttpUrl } from "@/lib/common/security/ssrf-url";
 
 const log = createLogger("api:oembed");
@@ -31,7 +34,8 @@ const SPOTIFY_HOST = "open.spotify.com";
 const SOUNDCLOUD_HOSTS = new Set(["soundcloud.com", "www.soundcloud.com"]);
 const TIKTOK_HOSTS = new Set(["tiktok.com", "www.tiktok.com"]);
 const INSTAGRAM_HOSTS = new Set(["instagram.com", "www.instagram.com"]);
-// openlink@0.3 still targets the retired api.instagram.com/oembed endpoint.
+// lib/common/oembed only detects Instagram URLs; its oEmbed response requires
+// the Graph API, so Instagram is fetched here via the Graph endpoint instead.
 const INSTAGRAM_OEMBED_ENDPOINT =
     "https://graph.facebook.com/v26.0/instagram_oembed";
 const CODEPEN_HOST = "codepen.io";
