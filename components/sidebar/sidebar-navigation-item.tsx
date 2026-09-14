@@ -1,7 +1,7 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
-import { useGT } from "gt-next";
+import { msg, useGT, useMessages } from "gt-next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type * as React from "react";
@@ -11,10 +11,19 @@ import { Kbd, KbdCombo } from "@/components/ui/kbd";
 import { SidebarItem, SidebarItemValue } from "@/components/ui/sidebar";
 import { normalizePathname } from "@/lib/common/url";
 
+const NAVIGATION_LABELS = {
+    Automations: msg("Automations"),
+    Comments: msg("Comments"),
+    Library: msg("Library"),
+    "Recently deleted": msg("Recently deleted"),
+} as const;
+
+type NavigationLabel = keyof typeof NAVIGATION_LABELS;
+
 interface SidebarNavigationShortcutProps {
     href: string;
     /** Item name used to build the localized hotkey description. */
-    label: string;
+    label: NavigationLabel;
     shortcutKeys: string;
 }
 
@@ -22,7 +31,7 @@ interface SidebarNavigationItemProps extends React.ComponentProps<typeof Link> {
     href: string;
     icon: React.ReactNode;
     /** Item name used to build the localized hotkey description. */
-    label: string;
+    label: NavigationLabel;
     shortcutKeys?: string;
 }
 
@@ -32,6 +41,7 @@ export function SidebarNavigationShortcut({
     shortcutKeys,
 }: SidebarNavigationShortcutProps) {
     const gt = useGT();
+    const m = useMessages();
     const router = useRouter();
 
     const pathname = usePathname();
@@ -44,8 +54,10 @@ export function SidebarNavigationShortcut({
         router.push(href);
     });
 
+    const translatedLabel = m(NAVIGATION_LABELS[label]);
+
     useHotkeys(shortcutKeys, handleShortcut, {
-        description: gt("Navigate to {label}", { label }),
+        description: gt("Navigate to {label}", { label: translatedLabel }),
         preventDefault: true,
     });
 
@@ -62,9 +74,9 @@ export function SidebarNavigationItem({
     title: titleProp,
     ...props
 }: SidebarNavigationItemProps) {
-    const gt = useGT();
+    const m = useMessages();
 
-    const ariaLabel = ariaLabelProp ?? gt(label);
+    const ariaLabel = ariaLabelProp ?? m(NAVIGATION_LABELS[label]);
     const title = titleProp ?? ariaLabel;
 
     return (
