@@ -32,7 +32,7 @@ Cache exists because that signal is too valuable to waste. It treats the act of 
 - **Collaboration** — Share a live view of any collection with anyone, even if they don't use Cache.
 - **Browser extension** — Capture and sync saved content from anywhere on the web.
 - **Export & integrate** — Pipe results into other tools you already use.
-- **Simple and low maintenance** — Cache is designed to be simple, low-maintenance, and portable.
+- **Simple and low maintenance** — Cache is designed to be simple, low-maintenance, and highly portable.
 
 ---
 

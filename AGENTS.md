@@ -154,10 +154,18 @@ The data model and schemas can be found at `prisma/schema.prisma`
 
 Never discard or hide user work with a git command. `git restore`, `git checkout --`, `git reset`, `git clean`, and `git stash` (including `drop` and `clear`) destroy or hide staged and worktree changes. Stashed work leaves the normal status and diff flow and gets forgotten. Use them only when the user explicitly asks to discard to HEAD, and then ask for the deny to be lifted first.
 
-Before any git write, inspect `git status --short`, `git diff`, and `git diff --cached` for the named paths. Touch only those paths. Keep edits in the worktree. Do not change the index (`--staged`) unless the user explicitly asks. Do not revert changes you didn't author.
+Before any git write, inspect `git status --short`, `git diff`, and `git diff --cached` for the named paths. Touch only those paths. Keep edits in the worktree. Do not change the index (`--staged`) unless the user explicitly asks. Do not modify or revert changes you didn't author.
+
+If rebase conflicts occur: Resolve conflicts only in files you modified. If a conflict is in a file you did not modify, abort and ask the user.
+
+Never force push.
 
 ## Branch Names
 
 Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`.
 
 Examples: `session-recovery`, `fix-scroll-state`, `regenerate-sdk`.
+
+## User Override
+
+If the user's instructions conflict with any rule in this document, ask for explicit confirmation before overriding. Only then execute their instructions.
