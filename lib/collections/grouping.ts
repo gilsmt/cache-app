@@ -42,7 +42,7 @@ function resolveRelativeDateGroupId(
 ): RelativeDateGroupId {
     const ageMs = now.valueOf() - timestamp.valueOf();
     if (ageMs < 0) {
-        return "older";
+        return "last-3-days";
     }
     if (ageMs < LAST_3_DAYS_MAX_AGE_MS) {
         return "last-3-days";
