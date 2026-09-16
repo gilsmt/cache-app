@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { T } from "gt-next";
 import {
+    ChevronRight,
     ClockFading,
     Compass,
     Ellipsis,
@@ -19,7 +20,7 @@ import {
 import {
     SidebarNavigationItem,
     SidebarNavigationShortcut,
-} from "@/components/sidebar/sidebar-navigation-item";
+} from "@/components/sidebar/navigation-item";
 import { KbdCombo } from "@/components/ui/kbd";
 import {
     Menu,
@@ -42,7 +43,7 @@ import {
 const COMMENTS_SHORTCUT_KEYS = "mod+alt+c";
 const RECENTLY_DELETED_SHORTCUT_KEYS = "mod+alt+r";
 
-export function ApplicationSidebar({
+export function SidebarNavigation({
     children,
     className,
     ...props
@@ -122,9 +123,23 @@ export function ApplicationSidebar({
                                 <SidebarItemValue>
                                     <T context="sidebar.more-menu">More</T>
                                 </SidebarItemValue>
+                                <ChevronRight
+                                    aria-hidden
+                                    className="invisible ml-auto inline-block size-4 shrink-0 text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
+                                    data-sidebar-label=""
+                                    focusable="false"
+                                />
                             </MenuTrigger>
-                            <MenuPopup side="right">
-                                <MenuLinkItem href="/comments">
+                            <MenuPopup
+                                align="start"
+                                collisionAvoidance={{ fallbackAxisSide: "end" }}
+                                positionMethod="fixed"
+                                side="inline-end"
+                            >
+                                <MenuLinkItem
+                                    className="group"
+                                    href="/comments"
+                                >
                                     <MessageSquare
                                         aria-hidden
                                         className="inline-block size-4 shrink-0"
@@ -133,13 +148,16 @@ export function ApplicationSidebar({
                                     <span className="truncate">
                                         <T>Comments</T>
                                     </span>
-                                    <MenuShortcut>
+                                    <MenuShortcut className="invisible text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-highlighted:visible">
                                         <KbdCombo
                                             keys={COMMENTS_SHORTCUT_KEYS}
                                         />
                                     </MenuShortcut>
                                 </MenuLinkItem>
-                                <MenuLinkItem href="/recently-deleted">
+                                <MenuLinkItem
+                                    className="group"
+                                    href="/recently-deleted"
+                                >
                                     <History
                                         aria-hidden
                                         className="inline-block size-4 shrink-0"
@@ -148,7 +166,7 @@ export function ApplicationSidebar({
                                     <span className="truncate">
                                         <T>Recently deleted</T>
                                     </span>
-                                    <MenuShortcut>
+                                    <MenuShortcut className="invisible text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-highlighted:visible">
                                         <KbdCombo
                                             keys={
                                                 RECENTLY_DELETED_SHORTCUT_KEYS

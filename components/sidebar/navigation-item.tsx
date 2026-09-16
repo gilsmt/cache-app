@@ -105,7 +105,7 @@ export function SidebarNavigationItem({
                         <SidebarItemValue>{children}</SidebarItemValue>
                         {shortcutKeys ? (
                             <Kbd
-                                className="ml-auto bg-transparent opacity-0 transition-none! group-hover:opacity-50 group-focus-visible:opacity-50"
+                                className="invisible ml-auto bg-transparent opacity-80 group-hover:visible group-focus-visible:visible"
                                 data-sidebar-label=""
                             >
                                 <KbdCombo keys={shortcutKeys} />

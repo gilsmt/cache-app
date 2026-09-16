@@ -17,6 +17,7 @@ interface MenuPopupProps extends MenuPrimitive.Popup.Props {
     align?: MenuPrimitive.Positioner.Props["align"];
     alignOffset?: MenuPrimitive.Positioner.Props["alignOffset"];
     anchor?: MenuPrimitive.Positioner.Props["anchor"];
+    collisionAvoidance?: MenuPrimitive.Positioner.Props["collisionAvoidance"];
     "data-slot"?: string;
     portalProps?: MenuPrimitive.Portal.Props;
     positionMethod?: MenuPrimitive.Positioner.Props["positionMethod"];
@@ -31,6 +32,7 @@ export function MenuPopup({
     align = "center",
     alignOffset,
     anchor,
+    collisionAvoidance,
     positionMethod,
     side = "bottom",
     sideOffset = 4,
@@ -44,6 +46,7 @@ export function MenuPopup({
                 alignOffset={alignOffset}
                 anchor={anchor}
                 className="z-50"
+                collisionAvoidance={collisionAvoidance}
                 data-slot="menu-positioner"
                 positionMethod={positionMethod}
                 side={side}
@@ -104,7 +107,7 @@ export function MenuShortcut({
         <kbd
             {...props}
             className={cn(
-                "ms-auto font-medium font-sans text-muted-foreground/72 text-xs uppercase tracking-widest",
+                "ms-auto font-medium font-sans text-muted-foreground/72 text-xs uppercase tracking-widest max-sm:hidden",
                 className
             )}
             data-slot="menu-shortcut"
@@ -207,7 +210,7 @@ export function MenuSubTrigger({
             {children}
             <ChevronRightIcon
                 aria-hidden
-                className="ms-auto -me-0.5 size-4 opacity-80 group-data-popup-open/trigger:opacity-30"
+                className="ms-auto -me-0.5 size-4 text-muted-foreground group-data-popup-open/trigger:opacity-50"
                 focusable="false"
             />
         </MenuPrimitive.SubmenuTrigger>
@@ -218,6 +221,7 @@ interface MenuSubPopupProps extends MenuPrimitive.Popup.Props {
     align?: MenuPrimitive.Positioner.Props["align"];
     alignOffset?: MenuPrimitive.Positioner.Props["alignOffset"];
     anchor?: MenuPrimitive.Positioner.Props["anchor"];
+    collisionAvoidance?: MenuPrimitive.Positioner.Props["collisionAvoidance"];
     portalProps?: MenuPrimitive.Portal.Props;
     positionMethod?: MenuPrimitive.Positioner.Props["positionMethod"];
     sideOffset?: MenuPrimitive.Positioner.Props["sideOffset"];
@@ -228,6 +232,7 @@ export function MenuSubPopup({
     align = "start",
     alignOffset,
     anchor,
+    collisionAvoidance,
     positionMethod,
     sideOffset = 0,
     portalProps,
@@ -242,6 +247,7 @@ export function MenuSubPopup({
             alignOffset={alignOffset ?? defaultAlignOffset}
             anchor={anchor}
             className={className}
+            collisionAvoidance={collisionAvoidance}
             data-slot="menu-sub-popup"
             portalProps={portalProps}
             positionMethod={positionMethod}
