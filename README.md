@@ -126,16 +126,14 @@ Endpoint: `https://www.cachd.app/mcp`
 ## Roadmap
 
 - **Remind me** — Set up unique reminders when saving or browsing on items to come back to later.
-- **Inbox view** — Triage view for reviewing entries.
 - **Smart collection controls** — Review suggestions and control automatic assignment for each collection.
-- **Raycast integration** — Capture and search Cache from Raycast.
 - **Substack integration** — Import and save Substack posts and newsletters.
 
 ---
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
 Open an [issue](https://github.com/gilsmt/cache-app/issues?q=sort%3Aupdated-desc+is%3Aissue+state%3Aopen+) if you believe you've encountered a bug.
 

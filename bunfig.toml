@@ -1,4 +1,5 @@
 [install]
 exact = true
 # Supply-chain gate: only install package versions published at least 3 days ago
-# minimumReleaseAge = 259200
+# Emergency override for 0-day fixes: bun install --minimum-release-age 0
+minimumReleaseAge = 259200
