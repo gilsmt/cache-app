@@ -1,15 +1,10 @@
 # Cache App
 
 <a href="https://www.cachd.app" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/cachd.app-000000?logo=vercel&logoColor=white" alt="cachd.app"></a>
-<a href="https://docs.cachd.app" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/Docs-33c482.svg" alt="Documentation"></a>
-<a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-<a href="https://github.com/gilsmt/cache-app/releases"><img src="https://img.shields.io/github/v/release/gilsmt/cache-app" alt="Release"></a>
-<a href="./CODE_OF_CONDUCT.md"><img src="https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg" alt="Code of Conduct"></a>
-<a href="https://twitter.com/gsmmtt" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/twitter/follow/gsmmtt" alt="Twitter Follow"></a>
+<a href="https://docs.cachd.app" target="_blank" rel="noopener noreferrer"><img src="Docs-Read-E6E6E6?labelColor=C3C3C3&color=E6E6E6" alt="Documentation"></a>
+<a href="https://github.com/gilsmt/cache-app/releases" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/v/release/gilsmt/cache-app" alt="Release"></a>
 
 Cache is the AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms.
-
-[cachd.app](https://cachd.app) · [Issues](https://github.com/gilsmt/cache-app/issues)
 
 [![Cache App Preview](app/opengraph-image.png)](https://www.cachd.app)
 
@@ -32,7 +27,7 @@ Cache exists because that signal is too valuable to waste. It treats the act of 
 - **Collaboration** — Share a live view of any collection with anyone, even if they don't use Cache.
 - **Browser extension** — Capture and sync saved content from anywhere on the web.
 - **Export & integrate** — Pipe results into other tools you already use.
-- **Simple and low maintenance** — Cache is designed to be simple, low-maintenance, and highly portable.
+- **Minimal** — Cache is designed to be simple, low-maintenance, and highly portable.
 
 ---
 
@@ -48,8 +43,7 @@ You can self-host Cache for total control over your data and design. Cache has z
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) v1.3.14
-- [Node.js](https://nodejs.org/) 24.x
+- [Node.js 24+](https://nodejs.org/)
 - PostgreSQL 12+ (local or remote)
 - A [Google Gemini API](https://aistudio.google.com/apikey) or an [AI Gateway](https://vercel.com/docs/ai-gateway) key to route any provider (`CACHE_AI_MODEL` selects a different model; see `.env.example`)
 - Docker (optional)
