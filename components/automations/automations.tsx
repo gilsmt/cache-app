@@ -21,7 +21,7 @@ import {
     type AutomationCollectionOption,
     type AutomationComposerAutomation,
     AutomationComposerDialog,
-} from "@/components/automations/automation-composer-dialog";
+} from "@/components/automations/composer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
