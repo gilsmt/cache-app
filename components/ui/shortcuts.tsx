@@ -33,9 +33,6 @@ interface ShortcutItem {
     label: string;
 }
 
-/**
- * Button that opens a read-only drawer listing all library keyboard shortcuts.
- */
 export function KeyboardShortcutsDialogTrigger(
     props: React.ComponentProps<typeof DrawerTrigger>
 ) {

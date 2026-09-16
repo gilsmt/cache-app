@@ -109,11 +109,9 @@ export function SidebarNavigation({
                     <li>
                         <Menu>
                             <MenuTrigger
-                                aria-label="More"
                                 nativeButton={false}
                                 openOnHover
                                 render={<SidebarItem />}
-                                title="More"
                             >
                                 <Ellipsis
                                     aria-hidden
