@@ -90,6 +90,7 @@ export const STRING_MIME_TYPES = {
     csv: "text/csv",
     html: "text/html",
     json: "application/json",
+    log: "text/plain",
     markdown: "text/markdown",
     md: "text/markdown",
     text: "text/plain",
