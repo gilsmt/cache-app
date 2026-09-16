@@ -1071,6 +1071,8 @@ export function QuickLookContent() {
     const safeActiveIndex = clampActiveIndex(activeIndex, items.length);
     const activeEntry = items[safeActiveIndex] ?? null;
     const asideRef = useRef<HTMLElement | null>(null);
+    const invokerRef = useRef<HTMLElement | null>(null);
+    const prevIsOpenRef = useRef(isOpen);
     const noteCloseHandlersRef = useRefWithInit(
         () => new Map<string, () => void | Promise<void>>()
     ).current;
@@ -1116,16 +1118,66 @@ export function QuickLookContent() {
             return;
         }
         const aside = asideRef.current;
+        const doc = aside?.ownerDocument ?? document;
+        const trackInvoker = (target: EventTarget | null) => {
+            if (target instanceof HTMLElement && !aside?.contains(target)) {
+                invokerRef.current = target;
+            }
+        };
+        trackInvoker(doc.activeElement);
+        const handleFocusIn = (event: FocusEvent) => {
+            trackInvoker(event.target);
+        };
+        doc.addEventListener("focusin", handleFocusIn);
+        return () => {
+            doc.removeEventListener("focusin", handleFocusIn);
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
+        const prevIsOpen = prevIsOpenRef.current;
+        prevIsOpenRef.current = isOpen;
+        if (prevIsOpen === isOpen) {
+            return;
+        }
+        const aside = asideRef.current;
         if (!aside) {
             return;
         }
-        const activeElement = aside.ownerDocument.activeElement;
-        if (activeElement && aside.contains(activeElement)) {
-            aside.ownerDocument
-                .querySelector<HTMLElement>('[data-quick-look="toggle"]')
-                ?.focus({ preventScroll: true });
+        const doc = aside.ownerDocument;
+        if (isOpen) {
+            // Notes move focus to the editor in QuickLookNotePanel. Only move
+            // focus here for URL tabs so Escape on the aside stays reachable
+            // and mobile screen readers enter the fixed panel.
+            if (activeEntry?.type === "url") {
+                const tab = doc.getElementById(getQuickLookTabId(activeEntry));
+                if (tab) {
+                    tab.focus({ preventScroll: true });
+                } else {
+                    doc.getElementById(getQuickLookPanelId(activeEntry))?.focus(
+                        { preventScroll: true }
+                    );
+                }
+            }
+            return;
         }
-    }, [isOpen]);
+        const invoker = invokerRef.current;
+        invokerRef.current = null;
+        const activeElement = doc.activeElement;
+        if (activeElement && aside.contains(activeElement)) {
+            if (
+                invoker?.isConnected &&
+                invoker !== doc.body &&
+                invoker !== doc.documentElement
+            ) {
+                invoker.focus({ preventScroll: true });
+            } else {
+                doc.querySelector<HTMLElement>(
+                    '[data-quick-look="toggle"]'
+                )?.focus({ preventScroll: true });
+            }
+        }
+    }, [isOpen, activeEntry]);
 
     const handleRemoveItem = useStableCallback(
         (item: QuickLookEntry, index: number) => {
