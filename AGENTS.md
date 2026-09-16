@@ -14,7 +14,7 @@ Study and plan before implementing. Identify recurring patterns and design influ
 
 Trace how parts connect, such as data flow between functions, stage dependencies, or what module owns what.
 
-Read the full implementation of what you change and its direct callers/callees, not just the signatures, and not the whole repo.
+Read the full implementation of what you change and its direct callers/callees, not just the signatures, and not the whole repo. Do not rely on search snippets for broad changes.
 
 It is not about formatting or syntax. Linters handle that. It is about how to think, how to make decisions, and what to value when building software.
 
