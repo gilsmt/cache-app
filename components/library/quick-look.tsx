@@ -93,17 +93,6 @@ import useSWR from "swr";
 import { useItemsContext } from "@/components/library/items";
 import { Button } from "@/components/ui/button";
 import {
-    Drawer,
-    DrawerCreateHandle,
-    DrawerHeader,
-    DrawerPanel,
-    DrawerPopup,
-    DrawerSwipeArea,
-    DrawerTitle,
-    DrawerTrigger,
-    DrawerViewport,
-} from "@/components/ui/drawer";
-import {
     ClaudeIcon,
     CursorIcon,
     GoogleDocsIcon,
@@ -121,6 +110,7 @@ import {
     MenuTrigger,
 } from "@/components/ui/menu";
 import { Placeholder } from "@/components/ui/placeholder";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { type SaveStatus, useAutosave } from "@/hooks/use-autosave";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
@@ -164,7 +154,6 @@ const ITEMS_STORAGE_KEY = "cache:quick-look:items";
 const OPEN_STORAGE_KEY = "cache:quick-look:open";
 const QUEUE_LIMIT = 12;
 const QUICK_LOOK_RECENT_ITEMS_LIMIT = 3;
-const QUICK_LOOK_KEYBOARD_SHORTCUT = "KeyB";
 
 const OEMBED_IFRAME_SANDBOX =
     "allow-scripts allow-popups allow-popups-to-escape-sandbox allow-presentation";
@@ -403,7 +392,6 @@ interface QuickLookStore {
     activeIndex: number;
     isOpen: boolean;
     items: QuickLookEntry[];
-    triggerId: string | null;
 }
 
 interface QuickLookStorage<T> {
@@ -414,7 +402,7 @@ interface QuickLookStorage<T> {
 }
 
 interface QuickLookActions {
-    openWithEntry: (entry: QuickLookEntry, triggerId: string | null) => void;
+    openWithEntry: (entry: QuickLookEntry) => void;
     removeQueueItem: (index: number) => void;
     selectQueueIndex: (index: number) => void;
     updateNoteEntry: (id: string, note: QuickLookNote) => void;
@@ -422,8 +410,6 @@ interface QuickLookActions {
 
 type QuickLookStoreActions = QuickLookActions &
     Record<string, (...args: never[]) => void>;
-
-const QUICK_LOOK_DRAWER_HANDLE = DrawerCreateHandle<QuickLookEntry>();
 
 const log = createLogger("library:quick-look");
 
@@ -880,7 +866,7 @@ function isQuickLookBlockedUrl(url: string | null): boolean {
 
 function isQuickLookKeyboardShortcut(event: KeyboardEvent): boolean {
     return (
-        event.code === QUICK_LOOK_KEYBOARD_SHORTCUT &&
+        event.code === "KeyB" &&
         event.altKey &&
         (event.metaKey || event.ctrlKey) &&
         !event.getModifierState("AltGraph")
@@ -984,22 +970,15 @@ const { actions: quickLookStoreActions, useStore: useQuickLookStore } =
                 storageKey: OPEN_STORAGE_KEY,
             }),
             items: QUICK_LOOK_ITEMS_STORAGE,
-            triggerId: null,
         },
         ({ actions, getState }) => ({
-            openWithEntry(entry: QuickLookEntry, triggerId: string | null) {
-                const { isOpen, items } = getState();
+            openWithEntry(entry: QuickLookEntry) {
+                const { items } = getState();
                 const queue = addQuickLookQueueEntry(items, entry);
 
                 actions.setItems(queue.items);
                 actions.setActiveIndex(queue.activeIndex);
-                actions.setTriggerId(triggerId);
                 actions.setIsOpen(true);
-                // While the drawer is already open, the store update above
-                // already switched the active queue item.
-                if (!isOpen) {
-                    QUICK_LOOK_DRAWER_HANDLE.open(triggerId);
-                }
             },
             removeQueueItem(index: number) {
                 const { activeIndex, items } = getState();
@@ -1052,23 +1031,13 @@ const { actions: quickLookStoreActions, useStore: useQuickLookStore } =
         })
     );
 
-export function openQuickLook(
-    input: QuickLookUrlInput,
-    triggerId: string | null = null
-) {
-    quickLookStoreActions.openWithEntry(
-        createQuickLookUrlEntry(input),
-        triggerId
-    );
+export function openQuickLook(input: QuickLookUrlInput) {
+    quickLookStoreActions.openWithEntry(createQuickLookUrlEntry(input));
 }
 
-export function openQuickLookNote(
-    note: LibraryItemWithCollections | null,
-    triggerId: string | null = null
-) {
+export function openQuickLookNote(note: LibraryItemWithCollections | null) {
     quickLookStoreActions.openWithEntry(
-        createQuickLookNoteEntry(note ? toQuickLookNote(note) : null),
-        triggerId
+        createQuickLookNoteEntry(note ? toQuickLookNote(note) : null)
     );
 }
 
@@ -1087,45 +1056,7 @@ export function QuickLookRoot({
     return <QuickLookContext value={contextValue}>{children}</QuickLookContext>;
 }
 
-export function QuickLookTrigger({
-    description,
-    onClick: onClickProp,
-    title,
-    url,
-    ...props
-}: Omit<React.ComponentProps<typeof DrawerTrigger>, "id" | "payload"> &
-    QuickLookUrlInput) {
-    useQuickLookContext();
-    const triggerId = `quick-look-trigger-${React.useId()}`;
-    const entry = createQuickLookUrlEntry({ description, title, url });
-
-    const handleClick = useStableCallback(
-        (event: BaseUIEvent<React.MouseEvent<HTMLButtonElement>>) => {
-            onClickProp?.(event);
-            if (event.defaultPrevented) {
-                return;
-            }
-            quickLookStoreActions.openWithEntry(entry, triggerId);
-            event.preventDefault();
-        }
-    );
-
-    return (
-        <DrawerTrigger
-            {...props}
-            handle={QUICK_LOOK_DRAWER_HANDLE}
-            id={triggerId}
-            onClick={handleClick}
-            payload={entry}
-        />
-    );
-}
-
-interface QuickLookContentProps {
-    container: HTMLDivElement | React.RefObject<HTMLDivElement | null> | null;
-}
-
-export function QuickLookContent({ container }: QuickLookContentProps) {
+export function QuickLookContent() {
     const gt = useGT();
     const { onSaveNote, onUrlPaste } = useQuickLookContext();
     const {
@@ -1135,15 +1066,11 @@ export function QuickLookContent({ container }: QuickLookContentProps) {
         removeQueueItem,
         selectQueueIndex,
         setIsOpen,
-        setTriggerId,
-        triggerId,
     } = useQuickLookStore();
 
     const safeActiveIndex = clampActiveIndex(activeIndex, items.length);
     const activeEntry = items[safeActiveIndex] ?? null;
-    // Keep note editor sessions alive while the drawer is hidden so drafts and
-    // Lexical history survive closing and reopening Quick Look.
-    const hasOpenNote = items.some((item) => item.type === "note");
+    const asideRef = useRef<HTMLElement | null>(null);
     const noteCloseHandlersRef = useRefWithInit(
         () => new Map<string, () => void | Promise<void>>()
     ).current;
@@ -1158,13 +1085,6 @@ export function QuickLookContent({ container }: QuickLookContentProps) {
             };
         }
     );
-
-    const handleOpenChange = useStableCallback((nextIsOpen: boolean) => {
-        setIsOpen(nextIsOpen);
-        if (!nextIsOpen) {
-            setTriggerId(null);
-        }
-    });
 
     const handleToggleShortcut = useStableCallback((event: KeyboardEvent) => {
         if (
@@ -1182,6 +1102,30 @@ export function QuickLookContent({ container }: QuickLookContentProps) {
         description: gt("Open or close preview"),
         preventDefault: true,
     });
+
+    const handleAsideKeyDown = useStableCallback(
+        (event: React.KeyboardEvent<HTMLElement>) => {
+            if (event.key === "Escape" && !event.defaultPrevented) {
+                setIsOpen(false);
+            }
+        }
+    );
+
+    useEffect(() => {
+        if (isOpen) {
+            return;
+        }
+        const aside = asideRef.current;
+        if (!aside) {
+            return;
+        }
+        const activeElement = aside.ownerDocument.activeElement;
+        if (activeElement && aside.contains(activeElement)) {
+            aside.ownerDocument
+                .querySelector<HTMLElement>('[data-quick-look="toggle"]')
+                ?.focus({ preventScroll: true });
+        }
+    }, [isOpen]);
 
     const handleRemoveItem = useStableCallback(
         (item: QuickLookEntry, index: number) => {
@@ -1202,43 +1146,43 @@ export function QuickLookContent({ container }: QuickLookContentProps) {
         }
     });
 
-    const collapsed = hasOpenNote && !isOpen;
-
     return (
-        <Drawer
-            disablePointerDismissal
-            handle={QUICK_LOOK_DRAWER_HANDLE}
-            modal={false}
-            onOpenChange={handleOpenChange}
-            open={isOpen}
-            position="right"
-            swipeDirection="right"
-            triggerId={triggerId}
-        >
-            <DrawerSwipeArea />
-            <QuickLookDrawerToggle />
-            <DrawerViewport
-                className="lg:sticky lg:h-dvh"
-                portalProps={{
-                    className: cn("lg:flex-1", { "sr-only": collapsed }),
-                    container,
-                    inert: collapsed,
-                    keepMounted: hasOpenNote,
-                }}
-                shouldShowBackdrop={false}
+        <>
+            <QuickLookToggle />
+            <aside
+                aria-hidden={!isOpen}
+                aria-label={gt("Preview")}
+                className={cn(
+                    "group/quick-look relative z-50 flex min-h-0 shrink-0 flex-col overflow-hidden border-s bg-background transition-[width,transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+                    "fixed inset-y-0 right-0 w-[calc(100%-3rem)] max-w-md data-[state=collapsed]:translate-x-full",
+                    "lg:w-[400px]",
+                    "lg:sticky lg:top-0 lg:right-auto lg:h-dvh lg:max-h-dvh lg:translate-x-0 lg:data-[state=collapsed]:w-0 lg:data-[state=collapsed]:border-transparent lg:data-[state=collapsed]:opacity-0"
+                )}
+                data-side="right"
+                data-slot="quick-look"
+                data-state={isOpen ? "expanded" : "collapsed"}
+                inert={!isOpen}
+                onKeyDown={handleAsideKeyDown}
+                ref={asideRef}
             >
-                <DrawerPopup
-                    className="max-w-full bg-background"
-                    variant="straight"
+                <div
+                    className={cn(
+                        "flex h-full min-h-0 w-[calc(100vw-3rem)] min-w-0 max-w-md flex-1 flex-col",
+                        "lg:w-[400px]",
+                        "lg:max-w-[400px]"
+                    )}
                 >
-                    <DrawerHeader
-                        className={cn("p-2 pr-11 pb-2!", {
-                            "p-0 pb-0!": !activeEntry,
-                        })}
+                    <div
+                        className={cn(
+                            "flex shrink-0 flex-col gap-2 p-2 pr-11",
+                            {
+                                "p-0": !activeEntry,
+                            }
+                        )}
                     >
-                        <DrawerTitle className="sr-only">
+                        <h2 className="sr-only">
                             <T>Quick Look</T>
-                        </DrawerTitle>
+                        </h2>
                         <div className="flex max-w-full items-center gap-1">
                             <QuickLookList
                                 items={items}
@@ -1257,8 +1201,8 @@ export function QuickLookContent({ container }: QuickLookContentProps) {
                             </QuickLookList>
                             {activeEntry ? <QuickLookNewTabMenu /> : null}
                         </div>
-                    </DrawerHeader>
-                    <QuickLookDrawerPanel
+                    </div>
+                    <QuickLookPanel
                         activeEntry={activeEntry}
                         isOpen={isOpen}
                         items={items}
@@ -1267,13 +1211,13 @@ export function QuickLookContent({ container }: QuickLookContentProps) {
                         onSaveNote={onSaveNote}
                         onUrlPaste={onUrlPaste}
                     />
-                </DrawerPopup>
-            </DrawerViewport>
-        </Drawer>
+                </div>
+            </aside>
+        </>
     );
 }
 
-interface QuickLookDrawerPanelProps {
+interface QuickLookPanelProps {
     activeEntry: QuickLookEntry | null;
     isOpen: boolean;
     items: QuickLookEntry[];
@@ -1286,7 +1230,7 @@ interface QuickLookDrawerPanelProps {
     onUrlPaste: (url: string) => Promise<void> | void;
 }
 
-function QuickLookDrawerPanel({
+function QuickLookPanel({
     activeEntry,
     isOpen,
     items,
@@ -1294,7 +1238,7 @@ function QuickLookDrawerPanel({
     onRegisterNoteClose,
     onSaveNote,
     onUrlPaste,
-}: QuickLookDrawerPanelProps) {
+}: QuickLookPanelProps) {
     const visibleActiveEntry = isOpen ? activeEntry : null;
     const { attempt, markAsBlocked, markAsLoaded, oembed, retry, status } =
         useQuickLookStatus(
@@ -1366,13 +1310,13 @@ function QuickLookUrlPanel({
     const isOembed = status === "oembed";
 
     return (
-        <DrawerPanel
+        <div
             aria-busy={isLoading}
             aria-labelledby={getQuickLookTabId(entry)}
-            className="relative p-0 pt-0!"
+            className="relative min-h-0 flex-1"
             id={getQuickLookPanelId(entry)}
-            isScrollable={false}
             role="tabpanel"
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: tabpanel needs keyboard focus per ARIA tabs pattern; matches previous DrawerPanel behavior
             tabIndex={0}
         >
             {isLoading ? <QuickLookLoading /> : null}
@@ -1398,7 +1342,7 @@ function QuickLookUrlPanel({
                     title={gt("Preview of {title}", { title: entry.title })}
                 />
             )}
-        </DrawerPanel>
+        </div>
     );
 }
 
@@ -1409,10 +1353,7 @@ function QuickLookPanelEmpty() {
     const recentItems = getRecentQuickLookItems(items, lastVisitedItemIds);
 
     return (
-        <DrawerPanel
-            className="flex flex-col gap-0 p-0 pt-0!"
-            isScrollable={false}
-        >
+        <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1">
                 <Placeholder className="bg-background">
                     <Globe
@@ -1437,7 +1378,7 @@ function QuickLookPanelEmpty() {
                     </ul>
                 </section>
             ) : null}
-        </DrawerPanel>
+        </div>
     );
 }
 
@@ -1842,7 +1783,7 @@ function QuickLookBlocked({
     );
 }
 
-function QuickLookDrawerToggle({
+function QuickLookToggle({
     className,
     onClick,
     ...props
@@ -1957,10 +1898,12 @@ function QuickLookNotePanel({
                 role="tabpanel"
                 tabIndex={isActive ? 0 : -1}
             >
-                <DrawerPanel allowSelection className="p-4">
-                    <NoteEditor />
-                    <NoteMetrics />
-                </DrawerPanel>
+                <ScrollArea className="min-h-0 flex-1">
+                    <div className="p-4">
+                        <NoteEditor />
+                        <NoteMetrics />
+                    </div>
+                </ScrollArea>
             </div>
         </NoteRoot>
     );

@@ -116,7 +116,6 @@ import {
     openQuickLookNote,
     QuickLookContent,
     QuickLookRoot,
-    QuickLookTrigger,
 } from "@/components/library/quick-look";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -264,7 +263,12 @@ import {
     truncateLabel,
 } from "@/lib/common/string";
 import { fetchWithTimeout } from "@/lib/common/timeout";
-import { normalizeURL, openExternalUrl, toValidUrl } from "@/lib/common/url";
+import {
+    normalizeURL,
+    openExternalUrl,
+    toValidUrl,
+    tryParseUrl,
+} from "@/lib/common/url";
 import {
     type CreateChromeBookmarkFromUrlResult,
     createChromeBookmarkFromUrl,
@@ -959,8 +963,6 @@ function useCardHoverHotkeys({
     onItemFavoriteToggle: (item: LibraryItemWithCollections) => void;
     pendingDeleteItemIdRef: React.RefObject<string | null>;
 }) {
-    const quickLookTriggerId = React.useId();
-
     const resolveHoveredItem = useStableCallback(() => {
         if (hoverHotkeySurface.isClaimed()) {
             return null;
@@ -1002,21 +1004,18 @@ function useCardHoverHotkeys({
                 return;
             }
             event.preventDefault();
-            openQuickLook(
-                {
-                    description: getLibraryItemDomain(item.url),
-                    title: getLibraryItemTitle(item),
-                    url: item.url,
-                },
-                quickLookTriggerId
-            );
+            openQuickLook({
+                description: getLibraryItemDomain(item.url),
+                title: getLibraryItemTitle(item),
+                url: item.url,
+            });
         },
         {
             description: "Quick look on hovered item",
             enableOnContentEditable: false,
             enableOnFormTags: false,
         },
-        [quickLookTriggerId, resolveHoveredItem]
+        [resolveHoveredItem]
     );
 
     useHotkeys(
@@ -1820,10 +1819,8 @@ function getMediaDownloadFileExtension(
         return contentTypeExtension;
     }
 
-    let pathname: string;
-    try {
-        pathname = new URL(url).pathname;
-    } catch {
+    const pathname = tryParseUrl(url)?.pathname;
+    if (!pathname) {
         return null;
     }
 
@@ -2096,7 +2093,7 @@ function BrowserEmpty() {
 
     return (
         <>
-            <div className="mx-4 flex flex-col gap-1 px-1">
+            <BrowserGroupHeader>
                 <h3 className="font-medium text-foreground text-sm">
                     <GradientWaveText
                         ariaLabel="Welcome to your Cache"
@@ -2113,7 +2110,7 @@ function BrowserEmpty() {
                     purpose-built bookmark manager designed to find what matters
                     to you. Images, videos, and links you add will appear here.
                 </p>
-            </div>
+            </BrowserGroupHeader>
             <MasonryRoot
                 gap={16}
                 items={EMPTY_LIBRARY_PEEK_PLACEHOLDERS}
@@ -2211,14 +2208,29 @@ function BrowserGroup({
         <section
             {...props}
             className={cn(
-                "flex w-full flex-col gap-3 contain-layout contain-style",
+                "flex w-full flex-col gap-4 contain-layout contain-style",
                 className
             )}
         />
     );
 }
 
-function BrowserGroupHeader() {
+function BrowserGroupHeader({
+    className,
+    ...props
+}: React.ComponentProps<"div">) {
+    return (
+        <div
+            {...props}
+            className={cn(
+                "mx-4 flex w-full flex-1 flex-col gap-1 p-1",
+                className
+            )}
+        />
+    );
+}
+
+function BrowserGroupResults() {
     const group = useBrowserGroupContext();
     const {
         enableSectionCollapse,
@@ -2246,7 +2258,7 @@ function BrowserGroupHeader() {
         <ContextMenu>
             <ContextMenuTrigger render={<div className="contents" />}>
                 <div
-                    className="sticky z-10 flex items-center justify-between gap-3 rounded-xl bg-muted pr-3 shadow-[0_8px_20px_-14px_rgba(0,0,0,0.18)]"
+                    className="sticky z-10 flex items-center justify-between gap-3 rounded-xl bg-muted pr-1 shadow-[0_8px_20px_-14px_rgba(0,0,0,0.18)]"
                     style={{
                         background: getColorGradientFromName(group.accentKey),
                         top: "var(--library-section-sticky-top)",
@@ -2428,7 +2440,6 @@ function BrowserGroupEmpty({ className, ...props }: React.ComponentProps<"p">) {
 }
 
 function BrowserGroupAIOverview({
-    className,
     children,
     ...props
 }: React.ComponentProps<"div">) {
@@ -2439,13 +2450,7 @@ function BrowserGroupAIOverview({
     }
 
     return (
-        <div
-            {...props}
-            className={cn(
-                "flex w-full flex-1 flex-col pt-1 pr-3 pb-3 pl-4",
-                className
-            )}
-        >
+        <BrowserGroupHeader {...props}>
             <div className="flex items-center gap-1.5">
                 <Astroid
                     aria-hidden
@@ -2460,7 +2465,7 @@ function BrowserGroupAIOverview({
                 </GradientWaveText>
             </div>
             {children}
-        </div>
+        </BrowserGroupHeader>
     );
 }
 
@@ -2506,7 +2511,7 @@ function BrowserGroupAIOverviewContent() {
     return (
         <div
             aria-busy={isPending}
-            className="fade-in-0 flex w-full animate-in items-start gap-2 text-xs leading-snug motion-reduce:animate-none"
+            className="fade-in-0 flex w-full animate-in items-start gap-1 text-xs leading-snug motion-reduce:animate-none"
             id={contentId}
         >
             <Streamdown
@@ -2659,14 +2664,17 @@ function MediaCardEmptyCell({
     data: (typeof EMPTY_LIBRARY_PEEK_PLACEHOLDERS)[number];
     index: number;
 }) {
-    const opacity = Math.max(0.06, 1 - index * 0.095);
+    const opacity = Math.max(0.25, 1 - index * 0.06);
 
     return (
-        <div className="flex flex-col bg-card/40" style={{ opacity }}>
+        <div className="flex flex-col" style={{ opacity }}>
             <Skeleton
-                className={cn("squircle w-full rounded-xl", data.aspect)}
+                className={cn(
+                    "squircle w-full rounded-xl [background:var(--color-muted)]",
+                    data.aspect
+                )}
             />
-            <Skeleton className="mt-2 h-3 w-[92%]" />
+            <Skeleton className="mt-2 h-3 w-11/12 [background:var(--color-muted)]" />
         </div>
     );
 }
@@ -3505,11 +3513,14 @@ function MediaCardQuickLookAction({
     variant: "menu" | "contextMenu";
 }) {
     const { displayTitle, item } = useMediaCardDataContext();
-    const triggerProps = {
-        description: getLibraryItemDomain(item.url),
-        title: displayTitle,
-        url: item.url,
-    };
+
+    const handleOpen = useStableCallback(() => {
+        openQuickLook({
+            description: getLibraryItemDomain(item.url),
+            title: displayTitle,
+            url: item.url,
+        });
+    });
     const content = (
         <>
             <EyeIcon className="size-4.5 text-muted-foreground" />
@@ -3520,21 +3531,9 @@ function MediaCardQuickLookAction({
         </>
     );
     return variant === "menu" ? (
-        <QuickLookTrigger
-            {...triggerProps}
-            nativeButton={false}
-            render={<MenuItem />}
-        >
-            {content}
-        </QuickLookTrigger>
+        <MenuItem onClick={handleOpen}>{content}</MenuItem>
     ) : (
-        <QuickLookTrigger
-            {...triggerProps}
-            nativeButton={false}
-            render={<ContextMenuItem />}
-        >
-            {content}
-        </QuickLookTrigger>
+        <ContextMenuItem onClick={handleOpen}>{content}</ContextMenuItem>
     );
 }
 
@@ -5373,9 +5372,6 @@ export function BrowserContent({
             isUnreachableProbePending && filteredItems.length === 0,
     };
 
-    const [containerElement, setContainerElement] =
-        React.useState<HTMLDivElement | null>(null);
-
     return (
         <ItemsContext value={itemsContextValue}>
             <QuickLookRoot
@@ -5384,15 +5380,12 @@ export function BrowserContent({
             >
                 <BrowserContext value={browserContextValue}>
                     {children}
-                    <div
-                        className="z-0 flex min-h-0 w-full flex-1 items-stretch"
-                        ref={setContainerElement}
-                    >
+                    <div className="z-0 flex min-h-0 w-full flex-1 items-stretch">
                         <div
                             className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-8"
                             style={
                                 {
-                                    "--library-section-sticky-top": "96px",
+                                    "--library-section-sticky-top": "108px",
                                 } as React.CSSProperties
                             }
                         >
@@ -5476,7 +5469,7 @@ export function BrowserContent({
                                     <BrowserGroup>
                                         {enableSectionCollapse ? (
                                             <>
-                                                <BrowserGroupHeader />
+                                                <BrowserGroupResults />
                                                 {group.title ? null : (
                                                     <BrowserGroupAIOverview>
                                                         <BrowserGroupAIOverviewContent />
@@ -5544,7 +5537,7 @@ export function BrowserContent({
                                 </div>
                             ) : null}
                         </div>
-                        <QuickLookContent container={containerElement} />
+                        <QuickLookContent />
                     </div>
                     <DeleteItemDialog
                         isDeletePending={isDeletePending}

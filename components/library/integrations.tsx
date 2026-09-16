@@ -470,7 +470,7 @@ function IntegrationsListTrigger({
                         <Var>{connectedCount}</Var> connected
                     </T>
                 </HighlightIn>
-                <Kbd className="ml-auto bg-transparent opacity-0 group-hover:opacity-50 group-has-data-open/collapsible:hidden">
+                <Kbd className="invisible ml-auto bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
                     <CmdKbd />I
                 </Kbd>
             </PreviewCardTrigger>

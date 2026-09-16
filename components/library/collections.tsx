@@ -286,9 +286,9 @@ const PRIORITY_RANK: Record<CollectionPriority, number> = {
 };
 
 const GROUP_LABELS: Record<ComboboxGroupData["group"], string> = {
-    sort: "Sort by",
+    sort: "Sort",
     "text-match": "Match collection name",
-    view: "View",
+    view: "Visibility",
 };
 
 const COLLECTIONS_LIST_GROUP_LABELS: Record<string, React.ReactNode> = {
@@ -2089,7 +2089,7 @@ export function Collections() {
                         <T>Favorites</T>
                     </CollectionsListFavoritesTrigger>
                     <CollectionsListToolbarGroup>
-                        <Kbd className="bg-transparent opacity-0 group-hover:opacity-50 group-has-data-open/collapsible:hidden">
+                        <Kbd className="invisible bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
                             <ShiftKbd />
                             <CmdKbd />F
                         </Kbd>
@@ -2132,7 +2132,7 @@ export function Collections() {
                         <T>Collections</T>
                     </CollectionsListTrigger>
                     <CollectionsListToolbarGroup>
-                        <Kbd className="bg-transparent opacity-0 group-hover:opacity-50 group-has-data-open/collapsible:hidden">
+                        <Kbd className="invisible bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
                             <ShiftKbd />
                             <CmdKbd />C
                         </Kbd>
@@ -3414,7 +3414,7 @@ function CollectionsListSuggestionItem({
                         />
                     }
                 >
-                    <span className="absolute top-1/2 left-1.25 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-md border-none bg-muted text-muted-foreground sm:size-6">
+                    <span className="absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border-none bg-muted text-muted-foreground">
                         <PlusIcon
                             aria-hidden
                             className="size-4"
@@ -3608,7 +3608,7 @@ function CollectionsListItemTrigger({
                 onPointerLeave={handlePointerLeave}
                 render={
                     <SidebarItem
-                        className="w-full min-w-0 flex-1 justify-start pr-8 pl-8.5 text-left before:bg-(--collection-background) hover:bg-transparent focus-visible:ring-(--accent-color)"
+                        className="w-full min-w-0 flex-1 justify-start pointer-fine:pr-8 pr-15 pl-8.5 text-left before:bg-(--collection-background) hover:bg-transparent focus-visible:ring-(--accent-color)"
                         render={<Button variant="ghost" />}
                     />
                 }
@@ -3685,7 +3685,7 @@ function CollectionsListItemValue() {
                 <TextMatch query={textMatchQuery}>{collection.name}</TextMatch>
             </span>
             {isSelected || collection.sources.length === 0 ? null : (
-                <span className="max-w-full flex-1 truncate py-px text-[11px] text-muted-foreground opacity-0 group-hover:opacity-80">
+                <span className="invisible max-w-full flex-1 truncate py-px text-[11px] text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible">
                     {collection.sources.map(getSourceLabel).join(", ")}
                 </span>
             )}
@@ -3744,7 +3744,7 @@ function CollectionsListItemPriorityCombobox() {
                 render={
                     <Button
                         aria-label={`Change priority for ${collection.name}`}
-                        className="absolute top-1/2 left-1.25 z-10 -translate-y-1/2 border-none bg-(--collection-background) text-(--accent-color)"
+                        className="absolute top-1/2 left-1.25 z-10 size-6 -translate-y-1/2 border-none bg-(--collection-background) text-(--accent-color)"
                         disabled={isPriorityPending}
                         size="icon-xs"
                         title="Organize collections by relevance level"
@@ -3832,11 +3832,11 @@ function CollectionsListItemControls({
     );
 
     return (
-        <div className="absolute top-1/2 right-0 flex size-9 -translate-y-1/2 items-center justify-center">
+        <div className="absolute top-1/2 pointer-fine:right-0 right-1 flex pointer-fine:size-9 h-9 -translate-y-1/2 items-center justify-end pointer-fine:justify-center gap-1 pointer-fine:gap-0">
             <span
                 {...props}
                 className={cn(
-                    "pointer-events-none text-nowrap text-(--text-muted-color) text-xs tabular-nums focus-visible:opacity-0 group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0",
+                    "pointer-events-none shrink-0 text-nowrap text-(--text-muted-color) text-xs tabular-nums pointer-fine:focus-visible:opacity-0 pointer-fine:group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0",
                     className
                 )}
             />
@@ -3845,7 +3845,7 @@ function CollectionsListItemControls({
                     render={
                         <Button
                             aria-label={`Collection actions for ${collection.name}`}
-                            className="absolute text-(--accent-color) pointer-fine:opacity-0 focus-visible:opacity-100 group-focus-within:opacity-100 pointer-fine:group-hover:opacity-100 group-focus:opacity-100 data-popup-open:bg-muted data-popup-open:opacity-100"
+                            className="pointer-fine:absolute relative size-6 shrink-0 text-(--accent-color) pointer-fine:opacity-0 focus-visible:opacity-100 group-focus-within:opacity-100 pointer-fine:group-hover:opacity-100 group-focus:opacity-100 data-popup-open:bg-muted data-popup-open:opacity-100"
                             size="icon-xs"
                             title={`Collection actions for ${collection.name}`}
                             variant="ghost"
@@ -4616,12 +4616,7 @@ function CollectionsCreateDialog() {
                                     />
                                     <p className="text-[11px] text-muted-foreground leading-tight">
                                         <strong className="font-medium">
-                                            Smart Collections&nbsp;
-                                            <Sparkle
-                                                aria-hidden
-                                                className="mb-px inline-block size-3"
-                                                focusable="false"
-                                            />
+                                            Smart Collections
                                         </strong>{" "}
                                         can automatically assign collections to
                                         saved content that matches these
