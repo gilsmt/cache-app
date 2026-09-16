@@ -17,7 +17,7 @@ import {
 import { parseHttpUrl } from "@/lib/common/security/ssrf";
 import { parsePublicHttpUrl } from "@/lib/common/security/ssrf-url";
 import { fetchWithTimeout } from "@/lib/common/timeout";
-import { parseStandaloneUrl } from "@/lib/common/url";
+import { parseStandaloneUrl, tryParseUrl } from "@/lib/common/url";
 import { resolveProviderAccountAccessToken } from "@/lib/integrations/account";
 import { isCobaltHost } from "@/lib/integrations/cobalt/utils";
 import { GOOGLE_PHOTOS_PICKER_SCOPE } from "@/lib/integrations/google-photos/shared";
@@ -1026,16 +1026,12 @@ async function fetchWithRedirects(
 }
 
 function getUserAgent(url: string): string {
-    try {
-        const hostname = new URL(url).hostname.toLowerCase();
-        if (
-            hostname === INSTAGRAM_HOST ||
-            hostname.endsWith(`.${INSTAGRAM_HOST}`)
-        ) {
-            return GOOGLEBOT_USER_AGENT;
-        }
-    } catch {
-        // fall through
+    const hostname = tryParseUrl(url)?.hostname.toLowerCase();
+    if (
+        hostname === INSTAGRAM_HOST ||
+        hostname?.endsWith(`.${INSTAGRAM_HOST}`) === true
+    ) {
+        return GOOGLEBOT_USER_AGENT;
     }
     return USER_AGENT;
 }
@@ -1631,21 +1627,17 @@ function getSignedUrlLifetimeSeconds(
     if (!imageUrl?.includes(SIGNED_URL_EXPIRY_PARAM)) {
         return null;
     }
-    try {
-        const expirySeconds = new URL(imageUrl).searchParams.get(
-            SIGNED_URL_EXPIRY_PARAM
-        );
-        if (!expirySeconds) {
-            return null;
-        }
-        const expiryMs = Number.parseInt(expirySeconds, 10) * 1000;
-        if (!Number.isFinite(expiryMs)) {
-            return null;
-        }
-        return Math.floor((expiryMs - Date.now()) / 1000);
-    } catch {
+    const expirySeconds = tryParseUrl(imageUrl)?.searchParams.get(
+        SIGNED_URL_EXPIRY_PARAM
+    );
+    if (!expirySeconds) {
         return null;
     }
+    const expiryMs = Number.parseInt(expirySeconds, 10) * 1000;
+    if (!Number.isFinite(expiryMs)) {
+        return null;
+    }
+    return Math.floor((expiryMs - Date.now()) / 1000);
 }
 
 function normalizePreviewContentType(contentType: string): string {

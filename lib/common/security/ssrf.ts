@@ -1,5 +1,6 @@
 import * as ipaddr from "ipaddr.js";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { tryParseUrl } from "@/lib/common/url";
 import {
     isLocalhostAlias,
     normalizeHostname,
@@ -122,15 +123,14 @@ export function isBlockedHostname(hostname: string): boolean {
 }
 
 export function parseHttpUrl(value: string): URL | null {
-    try {
-        const parsed = new URL(value);
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-            return null;
-        }
-        return parsed;
-    } catch {
+    const parsed = tryParseUrl(value);
+    if (!parsed) {
         return null;
     }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return null;
+    }
+    return parsed;
 }
 
 /**

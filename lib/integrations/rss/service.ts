@@ -4,6 +4,7 @@ import { mapConcurrent } from "@/lib/common/array";
 import { ITEM_KIND_BOOKMARK } from "@/lib/common/constants";
 import { getErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { tryParseUrl } from "@/lib/common/url";
 import { upsertLibraryItemImports } from "@/lib/integrations/import";
 import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
@@ -19,14 +20,13 @@ const TRAILING_SLASH_RE = /\/+$/;
 
 function normalizeFeedUrl(url: string): string {
     const trimmed = url.trim();
-    try {
-        const parsed = new URL(trimmed);
-        parsed.protocol = parsed.protocol.toLowerCase();
-        parsed.hostname = parsed.hostname.toLowerCase();
-        return parsed.href.replace(TRAILING_SLASH_RE, "");
-    } catch {
+    const parsed = tryParseUrl(trimmed);
+    if (!parsed) {
         return trimmed.toLowerCase().replace(TRAILING_SLASH_RE, "");
     }
+    parsed.protocol = parsed.protocol.toLowerCase();
+    parsed.hostname = parsed.hostname.toLowerCase();
+    return parsed.href.replace(TRAILING_SLASH_RE, "");
 }
 
 export async function addRssFeed(args: {

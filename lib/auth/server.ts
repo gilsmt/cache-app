@@ -15,6 +15,7 @@ import { APP_NAME, BASE_URL, CACHE_EXTENSION_ID } from "@/lib/common/constants";
 import { getErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { fetchWithTimeout } from "@/lib/common/timeout";
+import { tryParseUrl } from "@/lib/common/url";
 import { GOOGLE_PHOTOS_PICKER_SCOPE } from "@/lib/integrations/google-photos/shared";
 import { NOTION_API_VERSION } from "@/lib/integrations/notion/api";
 import { prisma } from "@/prisma";
@@ -36,23 +37,22 @@ function isChromeExtensionId(value: string): boolean {
  * wildcard values so a mis-set env cannot trust every chrome-extension origin.
  */
 function isExactTrustedOrigin(origin: string): boolean {
-    try {
-        const parsed = new URL(origin);
-        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-            return origin === parsed.origin;
-        }
-        if (parsed.protocol === "chrome-extension:") {
-            return (
-                (parsed.pathname === "" || parsed.pathname === "/") &&
-                parsed.search === "" &&
-                parsed.hash === "" &&
-                isChromeExtensionId(parsed.hostname)
-            );
-        }
-        return false;
-    } catch {
+    const parsed = tryParseUrl(origin);
+    if (!parsed) {
         return false;
     }
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return origin === parsed.origin;
+    }
+    if (parsed.protocol === "chrome-extension:") {
+        return (
+            (parsed.pathname === "" || parsed.pathname === "/") &&
+            parsed.search === "" &&
+            parsed.hash === "" &&
+            isChromeExtensionId(parsed.hostname)
+        );
+    }
+    return false;
 }
 
 function resolveChromeExtensionId(): string {

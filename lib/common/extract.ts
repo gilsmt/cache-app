@@ -1,5 +1,6 @@
 import { decodeHTML, decodeHTMLAttribute } from "entities";
 import { Parser } from "htmlparser2";
+import { tryParseUrl } from "@/lib/common/url";
 
 const HEAD_END_RE = /<\/head\s*>/i;
 const WHITESPACE_RE = /\s+/g;
@@ -28,10 +29,8 @@ export function extractPreviewMetadata(
     html: string,
     baseUrl: string
 ): PreviewMetadata {
-    let base: URL;
-    try {
-        base = new URL(baseUrl);
-    } catch {
+    const base = tryParseUrl(baseUrl);
+    if (!base) {
         return {
             description: null,
             favicons: [],
@@ -78,22 +77,12 @@ export function extractPreviewMetadata(
 }
 
 function resolveImageUrl(value: string, base: URL): string | null {
-    try {
-        const decoded = value.includes("&")
-            ? decodeHTMLAttribute(value)
-            : value;
-        return new URL(decoded, base).href;
-    } catch {
-        return null;
-    }
+    const decoded = value.includes("&") ? decodeHTMLAttribute(value) : value;
+    return tryParseUrl(decoded, base)?.href ?? null;
 }
 
 function tryResolveUrl(value: string, base: URL): string | null {
-    try {
-        return new URL(value, base).href;
-    } catch {
-        return null;
-    }
+    return tryParseUrl(value, base)?.href ?? null;
 }
 
 function decodeMetadataValue(value: string | undefined): string | undefined {

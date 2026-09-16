@@ -1,4 +1,5 @@
 import { parseHttpUrl } from "@/lib/common/security/ssrf";
+import { tryParseUrl } from "@/lib/common/url";
 
 const SAME_ORIGIN_IMAGE_URL_BASE = "https://cache.local";
 
@@ -15,10 +16,6 @@ function isLoadableHttpImageUrl(url: string): boolean {
         return false;
     }
 
-    try {
-        const parsed = new URL(url, SAME_ORIGIN_IMAGE_URL_BASE);
-        return parsed.origin === SAME_ORIGIN_IMAGE_URL_BASE;
-    } catch {
-        return false;
-    }
+    const parsed = tryParseUrl(url, SAME_ORIGIN_IMAGE_URL_BASE);
+    return parsed?.origin === SAME_ORIGIN_IMAGE_URL_BASE;
 }

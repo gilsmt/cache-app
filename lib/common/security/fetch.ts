@@ -3,6 +3,7 @@ import * as ipaddr from "ipaddr.js";
 import undici, { Agent } from "undici";
 import { abortAfterAny } from "@/lib/common/abort";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { tryParseUrl } from "@/lib/common/url";
 import { type ResolvedHost, resolveHostAddresses } from "./dns";
 import { unwrapIpv6Brackets } from "./hostname";
 import { isBlockedHostname, isIpLiteral, parseHttpUrl } from "./ssrf";
@@ -428,10 +429,8 @@ export function resolveRedirectLocation(
     location: string,
     baseUrl: URL
 ): URL | null {
-    let resolved: URL;
-    try {
-        resolved = new URL(location, baseUrl);
-    } catch {
+    const resolved = tryParseUrl(location, baseUrl);
+    if (!resolved) {
         return null;
     }
     if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
@@ -502,11 +501,8 @@ export function crossOriginSafeHeaders(
 }
 
 function refererOrigin(referer: string): string | null {
-    try {
-        return `${new URL(referer).origin}/`;
-    } catch {
-        return null;
-    }
+    const parsed = tryParseUrl(referer);
+    return parsed ? `${parsed.origin}/` : null;
 }
 
 /**
@@ -514,11 +510,9 @@ function refererOrigin(referer: string): string | null {
  * string, so parsing here must never throw.
  */
 function bestEffortHostname(url: string | URL): string | null {
-    try {
-        return new URL(url).hostname;
-    } catch {
-        return null;
-    }
+    return (
+        tryParseUrl(typeof url === "string" ? url : url.href)?.hostname ?? null
+    );
 }
 
 async function discardResponseBody(

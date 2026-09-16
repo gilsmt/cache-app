@@ -3,6 +3,7 @@
  * TikTok, X, YouTube, etc.), its hostnames must also be added here for
  * Cobalt-based media resolution.
  */
+import { tryParseUrl } from "@/lib/common/url";
 export const COBALT_SUPPORTED_HOSTS = new Set([
     "bilibili.com",
     "www.bilibili.com",
@@ -63,9 +64,6 @@ export const COBALT_SUPPORTED_HOSTS = new Set([
 ]);
 
 export function isCobaltHost(url: string): boolean {
-    try {
-        return COBALT_SUPPORTED_HOSTS.has(new URL(url).hostname);
-    } catch {
-        return false;
-    }
+    const parsed = tryParseUrl(url);
+    return parsed ? COBALT_SUPPORTED_HOSTS.has(parsed.hostname) : false;
 }

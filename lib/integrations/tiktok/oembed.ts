@@ -1,4 +1,5 @@
 import { parseHttpUrl } from "@/lib/common/security/ssrf";
+import { tryParseUrl } from "@/lib/common/url";
 
 const TIKTOK_OEMBED_ENDPOINT = "https://www.tiktok.com/oembed";
 
@@ -11,11 +12,8 @@ const TIKTOK_HOSTS = new Set([
 ]);
 
 export function isTikTokUrl(value: string): boolean {
-    try {
-        return TIKTOK_HOSTS.has(new URL(value).hostname.toLowerCase());
-    } catch {
-        return false;
-    }
+    const parsed = tryParseUrl(value);
+    return parsed ? TIKTOK_HOSTS.has(parsed.hostname.toLowerCase()) : false;
 }
 
 export function tiktokOembedUrl(targetUrl: string): string | null {

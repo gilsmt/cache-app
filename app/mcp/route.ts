@@ -17,6 +17,7 @@ import {
     listLibraryItems,
 } from "@/lib/collections/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { tryParseUrl } from "@/lib/common/url";
 import { IntegrationApiError } from "@/lib/integrations/error";
 import {
     MCP_SCOPES,
@@ -539,17 +540,13 @@ function isAllowedOrigin(origin: string): boolean {
     if (!origin) {
         return false;
     }
-    try {
-        const host = new URL(origin).hostname;
-        return (
-            host === "cachd.app" ||
-            host.endsWith(".cachd.app") ||
-            host === "localhost" ||
-            host === "127.0.0.1"
-        );
-    } catch {
-        return false;
-    }
+    const host = tryParseUrl(origin)?.hostname;
+    return (
+        host === "cachd.app" ||
+        host?.endsWith(".cachd.app") === true ||
+        host === "localhost" ||
+        host === "127.0.0.1"
+    );
 }
 
 function applyCorsHeaders(request: Request, headers: Headers): void {

@@ -5,13 +5,24 @@ const URL_WHITESPACE_RE = /\s/;
 const URL_ONLY_PROTOCOLS = new Set(["http:", "https:"]);
 const PROTOCOL_PREFIX_RE = /^[a-zA-Z]+:\/\//;
 
-export const parseValidUrl = (url: string): URL | null => {
+/**
+ * Returns a URL object, or null when the URL parser rejects the value.
+ * Uses `URL.parse` when available to avoid exception handling on invalid
+ * input. Falls back to the URL constructor on older runtimes.
+ */
+export function tryParseUrl(value: string, base?: string | URL): URL | null {
+    const baseHref = typeof base === "string" ? base : base?.href;
     try {
-        return new URL(url);
+        if (typeof URL !== "undefined" && typeof URL.parse === "function") {
+            return URL.parse(value, baseHref);
+        }
+        return new URL(value, baseHref);
     } catch {
         return null;
     }
-};
+}
+
+export const parseValidUrl = (url: string): URL | null => tryParseUrl(url);
 
 export const normalizeURL = (link: string | null | undefined) => {
     if (typeof link !== "string") {
@@ -76,24 +87,19 @@ export const parseStandaloneUrl = (input: string): URL | null => {
 const WWW_REG = /^www\./i;
 
 export const parseDisplayUrl = (url: string): string => {
-    try {
-        const parsed = new URL(url);
-        return parsed.hostname.replace(WWW_REG, "") || parsed.hostname;
-    } catch {
+    const parsed = tryParseUrl(url);
+    if (!parsed) {
         return url;
     }
+    return parsed.hostname.replace(WWW_REG, "") || parsed.hostname;
 };
 
 export function isHttpUrl(value: string | null | undefined): value is string {
     if (!value) {
         return false;
     }
-    try {
-        const url = new URL(value);
-        return url.protocol === "http:" || url.protocol === "https:";
-    } catch {
-        return false;
-    }
+    const parsed = tryParseUrl(value);
+    return parsed?.protocol === "http:" || parsed?.protocol === "https:";
 }
 
 export function normalizePathname(pathname: string): string {
@@ -156,10 +162,8 @@ export function canonicalBookmarkUrl(
         return null;
     }
 
-    let parsed: URL;
-    try {
-        parsed = new URL(trimmed);
-    } catch {
+    const parsed = tryParseUrl(trimmed);
+    if (!parsed) {
         return null;
     }
 
