@@ -9,7 +9,6 @@ import {
     Download,
     Ellipsis,
     LoaderCircle,
-    LogOut,
     Megaphone,
     UserRoundPlus,
 } from "lucide-react";
@@ -23,7 +22,6 @@ import { LogOutDialogTrigger } from "@/components/auth/logout-dialog-trigger";
 import { WithUserSessionOnly } from "@/components/auth/session";
 import {
     SubscribedOnly,
-    SubscriptionErrorMessage,
     SubscriptionLoadingOnly,
     SubscriptionStatusBadge,
     UnsubscribedOnly,
@@ -33,6 +31,7 @@ import {
 import { FeedbackWidget } from "@/components/support/feedback-widget";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ErrorMessage } from "@/components/ui/error-message";
 import { AltKbd, CmdKbd, Kbd } from "@/components/ui/kbd";
 import {
     Menu,
@@ -305,11 +304,11 @@ export function UserMenuTrigger(
             </WithUserSessionOnly>
             <ChevronDown
                 aria-hidden
-                className="pointer-events-none inline-block size-3.5 opacity-0 group-hover:opacity-80 group-data-popup-open:opacity-30"
+                className="pointer-events-none invisible inline-block size-4 shrink-0 text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
                 focusable="false"
             />
             <Kbd
-                className="ml-auto bg-transparent opacity-0 group-hover:opacity-50"
+                className="invisible ml-auto bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible"
                 data-sidebar-label=""
             >
                 <CmdKbd />
@@ -371,7 +370,7 @@ export function UserMenuContent() {
                 render={<MenuItem closeOnClick={false} />}
             >
                 Send feedback
-                <Megaphone className="ml-auto inline-block size-3.5 text-muted-foreground" />
+                <Megaphone className="ml-auto inline-block size-4 text-muted-foreground" />
             </FeedbackWidget>
             <MenuSeparator />
             <MenuGroup>
@@ -387,7 +386,7 @@ export function UserMenuContent() {
                 <SubscriptionLoadingOnly>
                     <MenuItem disabled>
                         <Skeleton className="h-5 w-24" />
-                        <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground/50" />
+                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground/50" />
                     </MenuItem>
                 </SubscriptionLoadingOnly>
                 <SubscribedOnly>
@@ -407,7 +406,6 @@ export function UserMenuContent() {
                     }
                 >
                     <T context="User Log out/Sign out of the app">Log out</T>
-                    <LogOut className="ml-auto inline-block size-3.5 text-muted-foreground" />
                 </LogOutDialogTrigger>
             </MenuGroup>
         </>
@@ -418,14 +416,14 @@ export function UserMenuFooter() {
     return (
         <>
             <MenuSeparator />
-            <div className="flex w-full items-center px-1.5 pt-1 opacity-80">
+            <div className="flex w-full items-center px-1.5 py-1">
                 <LocaleSelector
-                    className="w-full font-normal text-sm"
+                    className="w-full font-normal text-sm opacity-50"
                     id="language-selector"
                     name="language"
                 />
             </div>
-            <div className="flex flex-wrap items-center -space-x-0.5 p-1 opacity-50">
+            <div className="flex flex-wrap items-center px-0.5 py-1 opacity-50">
                 {FOOTER_LINKS.map(({ href, label }) => (
                     <Button
                         key={href}
@@ -703,16 +701,16 @@ function UserMenuAccountActionsSubMenu(
     props: React.ComponentProps<typeof MenuSubTrigger>
 ) {
     const gt = useGT();
-    const accountActionsLabel = gt("Account actions");
+    const label = gt("Account actions");
 
     return (
         <MenuSub>
             <MenuSubTrigger
                 {...props}
-                aria-label={accountActionsLabel}
+                aria-label={label}
                 nativeButton
                 render={<Button size="xs" variant="ghost" />}
-                title={accountActionsLabel}
+                title={label}
             />
             <MenuSubPopup align="end">
                 <MenuGroup>
@@ -728,7 +726,7 @@ function UserMenuAccountActionsSubMenu(
                         }
                     >
                         <T>Changelog</T>
-                        <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground" />
+                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
                     </MenuItem>
                     <MenuItem
                         className="justify-between"
@@ -741,7 +739,7 @@ function UserMenuAccountActionsSubMenu(
                         }
                     >
                         <T>Support</T>
-                        <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground" />
+                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
                     </MenuItem>
                     <MenuItem
                         className="justify-between"
@@ -754,7 +752,7 @@ function UserMenuAccountActionsSubMenu(
                         }
                     >
                         <T>GitHub</T>
-                        <ArrowUpRight className="ml-auto! inline-block size-4 text-muted-foreground" />
+                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
                     </MenuItem>
                     <KeyboardShortcutsDialogTrigger
                         nativeButton={false}
@@ -807,7 +805,7 @@ function UserMenuBillingItem() {
                     <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
                 )}
             </MenuItem>
-            <SubscriptionErrorMessage>{errorMessage}</SubscriptionErrorMessage>
+            <ErrorMessage className="px-2">{errorMessage}</ErrorMessage>
         </>
     );
 }
@@ -829,7 +827,7 @@ function UserMenuUpgradeItem() {
                     <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
                 )}
             </MenuItem>
-            <SubscriptionErrorMessage>{errorMessage}</SubscriptionErrorMessage>
+            <ErrorMessage className="px-2">{errorMessage}</ErrorMessage>
         </>
     );
 }

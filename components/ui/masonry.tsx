@@ -568,6 +568,7 @@ const MasonryItemSlot = React.memo(function MasonryItemSlotInner<T>({
         contain: "layout",
         insetBlockStart: 0,
         insetInlineStart: 0,
+        margin: 0,
         position: "absolute",
         transform: `translateX(${left}px) translateY(${top}px)`,
         width,

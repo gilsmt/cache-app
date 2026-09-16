@@ -23,7 +23,7 @@ export function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
         <kbd
             {...props}
             className={cn(
-                "pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 text-nowrap rounded-xl bg-card/50 px-1.5 font-medium font-sans text-muted-foreground text-xs uppercase [&_svg:not([class*='size-'])]:size-3",
+                "pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 text-nowrap rounded-xl bg-card/50 px-1.5 font-medium font-sans text-muted-foreground text-xs uppercase max-sm:hidden [&_svg:not([class*='size-'])]:size-3",
                 className
             )}
             data-slot="kbd"

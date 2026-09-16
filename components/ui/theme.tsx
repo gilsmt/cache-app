@@ -1,9 +1,10 @@
 "use client";
 
+import { Toggle } from "@base-ui/react/toggle";
+import { ToggleGroup } from "@base-ui/react/toggle-group";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
-import { cn } from "cn";
 import { useGT } from "gt-next";
-import { type LucideIcon, Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Button } from "@/components/ui/button";
 import { Group } from "@/components/ui/group";
@@ -38,20 +39,38 @@ function getNextTheme(current: Theme): Theme {
 
 export function ThemeSelector() {
     const gt = useGT();
-    const { theme } = useTheme();
+    const { setTheme, theme } = useTheme();
+
+    const handleValueChange = useStableCallback((next: Theme[]) => {
+        const [first] = next;
+        if (!first) {
+            return;
+        }
+        setTheme(first);
+    });
 
     return (
-        <Group aria-label={gt("Theme")}>
-            {THEME_OPTIONS.map(({ icon: Icon, value }) => (
-                <ThemeButton
-                    Icon={Icon}
-                    isSelected={theme === value}
-                    key={value}
-                    label={getThemeOptionLabel(gt, value)}
-                    value={value}
-                />
-            ))}
-        </Group>
+        <ToggleGroup
+            aria-label={gt("Theme")}
+            onValueChange={handleValueChange}
+            render={<Group />}
+            value={[theme]}
+        >
+            {THEME_OPTIONS.map(({ icon: Icon, value }) => {
+                const label = getThemeOptionLabel(gt, value);
+                return (
+                    <Toggle
+                        aria-label={label}
+                        key={value}
+                        render={<Button size="icon-sm" variant="secondary" />}
+                        title={label}
+                        value={value}
+                    >
+                        <Icon className="size-4" />
+                    </Toggle>
+                );
+            })}
+        </ToggleGroup>
     );
 }
 
@@ -70,34 +89,4 @@ export function ThemeHotkey() {
     });
 
     return null;
-}
-
-interface ThemeButtonProps {
-    Icon: LucideIcon;
-    isSelected: boolean;
-    label: string;
-    value: Theme;
-}
-
-function ThemeButton({ Icon, isSelected, label, value }: ThemeButtonProps) {
-    const { setTheme } = useTheme();
-
-    const handleClick = useStableCallback(() => {
-        setTheme(value);
-    });
-
-    return (
-        <Button
-            aria-label={label}
-            aria-pressed={isSelected}
-            className={cn(isSelected && "brightness-90")}
-            data-pressed={isSelected ? "" : undefined}
-            onClick={handleClick}
-            size="icon-sm"
-            title={label}
-            variant="secondary"
-        >
-            <Icon className="size-4" />
-        </Button>
-    );
 }

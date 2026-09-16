@@ -8,6 +8,7 @@ import useSWR from "swr";
 import * as z from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ErrorMessage } from "@/components/ui/error-message";
 import { GradientWaveText } from "@/components/ui/gradient-wave-text";
 import { CrownFilledIcon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -313,7 +314,7 @@ export function SubscriptionUpgradeButton({
                 onClick={execute}
                 variant={variant}
             />
-            <SubscriptionErrorMessage>{errorMessage}</SubscriptionErrorMessage>
+            <ErrorMessage className="px-2">{errorMessage}</ErrorMessage>
         </>
     );
 }
@@ -337,7 +338,7 @@ export function SubscriptionBillingPortalButton({
                 onClick={execute}
                 variant={variant}
             />
-            <SubscriptionErrorMessage>{errorMessage}</SubscriptionErrorMessage>
+            <ErrorMessage className="px-2">{errorMessage}</ErrorMessage>
         </>
     );
 }
@@ -437,25 +438,5 @@ function SubscriptionBadge({
             {shouldHideIcon ? null : <CrownFilledIcon />}
             {children}
         </Badge>
-    );
-}
-
-/**
- * Accessible error announcement for billing operations. Avoids layout shift by
- * returning null on the happy path, while exposing proper ARIA alerts if errors occur.
- */
-export function SubscriptionErrorMessage(props: React.ComponentProps<"p">) {
-    if (!props.children) {
-        return null;
-    }
-
-    return (
-        <p
-            {...props}
-            aria-atomic="true"
-            aria-live="assertive"
-            className="px-2 text-destructive text-xs"
-            role="alert"
-        />
     );
 }

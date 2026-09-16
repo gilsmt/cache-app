@@ -162,7 +162,7 @@ export function ContextMenuSubTrigger({
             {children}
             <ChevronRightIcon
                 aria-hidden
-                className="ms-auto -me-0.5 size-4 opacity-80 group-data-popup-open/trigger:opacity-30"
+                className="ms-auto -me-0.5 size-4 text-muted-foreground group-data-popup-open/trigger:opacity-50"
                 focusable="false"
             />
         </ContextMenuPrimitive.SubmenuTrigger>

@@ -15,6 +15,12 @@ export const APP_NAME = "Cache App";
 
 export const SITE_DOMAIN = "www.cachd.app";
 
+export const DOCS_URL = "https://docs.cachd.app";
+
+export const CHANGELOG_URL = `${DOCS_URL}/docs/changelog`;
+
+export const GITHUB_URL = "https://github.com/rortan134/cache-app";
+
 export const CACHE_EXTENSION_ID = "fibhdcjlclheehonialdpealhemmoikn";
 export const CACHE_EXTENSION_DOWNLOAD_URL =
     "https://chromewebstore.google.com/detail/fibhdcjlclheehonialdpealhemmoikn";

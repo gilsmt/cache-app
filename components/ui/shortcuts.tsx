@@ -93,7 +93,8 @@ export function KeyboardShortcutsDialogTrigger(
                                                     {item.description}
                                                 </span>
                                                 <KbdGroup>
-                                                    <Kbd>
+                                                    {/* Reference list, so keep keys visible on small screens. */}
+                                                    <Kbd className="max-sm:inline-flex">
                                                         <KbdCombo
                                                             keys={item.hotkey}
                                                         />

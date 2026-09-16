@@ -1,6 +1,7 @@
 "use client";
 
 import { useOnFirstRender } from "@base-ui/utils/useOnFirstRender";
+import { CHANGELOG_URL, GITHUB_URL } from "@/lib/common/constants";
 
 const ASCII_ART = `
    ______           __
@@ -11,9 +12,6 @@ const ASCII_ART = `
 
 const TAGLINE =
     "Unify your bookmarks across every platform into a single, searchable, actionable library";
-
-const GITHUB_URL = "https://github.com/rortan134/cache-app";
-const CHANGELOG_URL = "https://docs.cachd.app/docs/changelog";
 
 const ART_STYLE =
     "color:#33c482;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;line-height:1.15;";
