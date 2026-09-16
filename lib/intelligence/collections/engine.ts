@@ -383,11 +383,12 @@ async function applyDecisionToItem(args: {
         const currentCollectionIds = new Set(
             item.collections.map((collection) => collection.id)
         );
-        const hasNewCollections = [...desiredCollectionIds].some(
+        const newlyAssignedCollectionIds = [...desiredCollectionIds].filter(
             (id) => !currentCollectionIds.has(id)
         );
 
-        if (hasNewCollections) {
+        if (newlyAssignedCollectionIds.length > 0) {
+            const now = new Date();
             await tx.libraryItem.update({
                 data: {
                     collections: {
@@ -396,9 +397,16 @@ async function applyDecisionToItem(args: {
                             ...desiredCollectionIds,
                         ].map((id) => ({ id })),
                     },
-                    smartCollectedAt: new Date(),
+                    smartCollectedAt: now,
                 },
                 where: { id: item.id },
+            });
+            await tx.collection.updateMany({
+                data: { updatedAt: now },
+                where: {
+                    id: { in: newlyAssignedCollectionIds },
+                    userId: args.userId,
+                },
             });
         }
 

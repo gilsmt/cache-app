@@ -68,6 +68,42 @@ function toIdConnections(ids: readonly string[]): Array<{
     return ids.map((id) => ({ id }));
 }
 
+function getChangedCollectionIds(
+    previousIds: readonly string[],
+    nextIds: readonly string[]
+): string[] {
+    if (previousIds.length === 0 && nextIds.length === 0) {
+        return [];
+    }
+    const nextIdSet = new Set(nextIds);
+    const previousIdSet = new Set(previousIds);
+    const changed: string[] = [];
+    for (const id of previousIdSet) {
+        if (!nextIdSet.has(id)) {
+            changed.push(id);
+        }
+    }
+    for (const id of nextIdSet) {
+        if (!previousIdSet.has(id)) {
+            changed.push(id);
+        }
+    }
+    return changed;
+}
+
+async function touchCollectionsUpdatedAt(
+    tx: CollectionTransaction,
+    args: { collectionIds: readonly string[]; now: Date; userId: string }
+): Promise<void> {
+    if (args.collectionIds.length === 0) {
+        return;
+    }
+    await tx.collection.updateMany({
+        data: { updatedAt: args.now },
+        where: { id: { in: [...args.collectionIds] }, userId: args.userId },
+    });
+}
+
 function createCollectionError(args: {
     code: "duplicate_name" | "not_found" | "not_trashed";
     message: string;
@@ -1308,11 +1344,27 @@ export function updateLibraryItemCollections({
             where: { id: item.id },
         });
 
+        const previousCollectionIds = item.collections.map(
+            (collection) => collection.id
+        );
+        const nextCollectionIds = updatedItem.collections.map(
+            (collection) => collection.id
+        );
+        const changedCollectionIds = getChangedCollectionIds(
+            previousCollectionIds,
+            nextCollectionIds
+        );
+
+        if (changedCollectionIds.length > 0) {
+            await touchCollectionsUpdatedAt(tx, {
+                collectionIds: changedCollectionIds,
+                now: new Date(),
+                userId,
+            });
+        }
+
         const affectedCollectionIds = Array.from(
-            new Set([
-                ...item.collections.map((collection) => collection.id),
-                ...updatedItem.collections.map((collection) => collection.id),
-            ])
+            new Set([...previousCollectionIds, ...nextCollectionIds])
         );
 
         return {
@@ -1343,13 +1395,23 @@ export function updateLibraryItemsCollections({
         itemId: string;
     }>;
 }> {
-    return prisma.$transaction(async (tx) => {
-        await requireLibraryItemsOwnedWithCollections(tx, {
-            itemIds,
-            message: "Some of those saved items are no longer available.",
-            operation: "updateLibraryItemsCollections",
-            userId,
+    if (itemIds.length === 0) {
+        return Promise.resolve({
+            collectionSummaries: [],
+            itemCollections: [],
         });
+    }
+
+    return prisma.$transaction(async (tx) => {
+        const previousItems = await requireLibraryItemsOwnedWithCollections(
+            tx,
+            {
+                itemIds,
+                message: "Some of those saved items are no longer available.",
+                operation: "updateLibraryItemsCollections",
+                userId,
+            }
+        );
 
         const referencedCollectionIds = Array.from(
             new Set([
@@ -1389,6 +1451,34 @@ export function updateLibraryItemsCollections({
                 userId,
             },
         });
+
+        const previousCollectionIdsByItemId = new Map(
+            previousItems.map((item) => [
+                item.id,
+                item.collections.map((collection) => collection.id),
+            ])
+        );
+        const changedCollectionIdSet = new Set<string>();
+        for (const item of updatedItems) {
+            const nextCollectionIds = item.collections.map(
+                (collection) => collection.id
+            );
+            const changedIds = getChangedCollectionIds(
+                previousCollectionIdsByItemId.get(item.id) ?? [],
+                nextCollectionIds
+            );
+            for (const id of changedIds) {
+                changedCollectionIdSet.add(id);
+            }
+        }
+
+        if (changedCollectionIdSet.size > 0) {
+            await touchCollectionsUpdatedAt(tx, {
+                collectionIds: [...changedCollectionIdSet],
+                now: new Date(),
+                userId,
+            });
+        }
 
         const updatedItemById = new Map(
             updatedItems.map((item) => [item.id, item])
