@@ -475,6 +475,20 @@ export async function assignNoteToFolderCollection(args: {
     if (!folderPath) {
         return;
     }
+
+    const item = await prisma.libraryItem.findFirst({
+        select: { collections: { select: { id: true } } },
+        where: { id: itemId, userId },
+    });
+    if (!item) {
+        throw new IntegrationUserError({
+            message:
+                "We saved the note but couldn't assign it to a collection.",
+            operation: "assignNoteToFolderCollection",
+            resource: "note",
+        });
+    }
+
     const collectionName = folderPathToCollectionName(folderPath);
     const collectionId = await ensureCollection(userId, collectionName);
 
@@ -486,17 +500,44 @@ export async function assignNoteToFolderCollection(args: {
         priorCollectionId = await ensureCollection(userId, priorCollectionName);
     }
 
-    await prisma.libraryItem.update({
-        data: {
-            collections: {
-                ...(priorCollectionId
-                    ? { disconnect: { id: priorCollectionId } }
-                    : {}),
-                connect: { id: collectionId },
+    const currentCollectionIds = new Set(
+        item.collections.map((collection) => collection.id)
+    );
+    const changedCollectionIds: string[] = [];
+    if (!currentCollectionIds.has(collectionId)) {
+        changedCollectionIds.push(collectionId);
+    }
+    if (
+        priorCollectionId &&
+        currentCollectionIds.has(priorCollectionId) &&
+        !changedCollectionIds.includes(priorCollectionId)
+    ) {
+        changedCollectionIds.push(priorCollectionId);
+    }
+    if (changedCollectionIds.length === 0) {
+        return;
+    }
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+        await tx.libraryItem.update({
+            data: {
+                collections: {
+                    ...(priorCollectionId
+                        ? { disconnect: { id: priorCollectionId } }
+                        : {}),
+                    connect: { id: collectionId },
+                },
             },
-        },
-        select: { id: true },
-        where: { id: itemId, userId },
+            select: { id: true },
+            where: { id: itemId, userId },
+        });
+        if (changedCollectionIds.length > 0) {
+            await tx.collection.updateMany({
+                data: { updatedAt: now },
+                where: { id: { in: changedCollectionIds }, userId },
+            });
+        }
     });
 }
 
