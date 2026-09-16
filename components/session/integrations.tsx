@@ -16,8 +16,8 @@ import { storage } from "stan-js/storage";
 import {
     MarkdownImportDialog,
     openMarkdownImportDialog,
-} from "@/components/library/markdown";
-import { openRssManageDialog, RssManageDialog } from "@/components/library/rss";
+} from "@/components/session/markdown";
+import { openRssManageDialog, RssManageDialog } from "@/components/session/rss";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {

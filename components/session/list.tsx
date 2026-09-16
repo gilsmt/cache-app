@@ -56,8 +56,8 @@ import {
     replaceMultipleItemCollections,
     sortCollections,
     useCollectionsContext,
-} from "@/components/library/collections";
-import { CommentTextarea } from "@/components/library/comment";
+} from "@/components/session/collections";
+import { CommentTextarea } from "@/components/session/comment";
 import {
     ALL_DOMAIN_FILTER,
     type AskCacheResponseState,
@@ -95,7 +95,7 @@ import {
     removeLastPaletteStackEntry,
     SOURCE_LABEL_BY_VALUE,
     type SortMode,
-} from "@/components/library/composer";
+} from "@/components/session/composer";
 import {
     browserHasActiveFilters,
     type CollectionMembershipFilter,
@@ -103,20 +103,20 @@ import {
     filterComposerItems,
     getLibraryItemDomain,
     UNSPECIFIC_LIBRARY_DOMAIN,
-} from "@/components/library/filters";
+} from "@/components/session/filters";
 import {
     ItemsContext,
     useItemsContext,
     useItemsStateContext,
-} from "@/components/library/items";
-import { OnboardingMenu } from "@/components/library/onboarding";
+} from "@/components/session/items";
+import { OnboardingMenu } from "@/components/session/onboarding";
 import {
     type NoteDraft,
     openQuickLook,
     openQuickLookNote,
     QuickLookContent,
     QuickLookRoot,
-} from "@/components/library/quick-look";
+} from "@/components/session/quick-look";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

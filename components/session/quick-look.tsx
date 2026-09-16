@@ -90,7 +90,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import useSWR from "swr";
-import { useItemsContext } from "@/components/library/items";
+import { useItemsContext } from "@/components/session/items";
 import { Button } from "@/components/ui/button";
 import {
     ClaudeIcon,

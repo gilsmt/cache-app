@@ -17,12 +17,12 @@ import {
     type GroupByMode,
     SORT_MODE_VALUES,
     type SortMode,
-} from "@/components/library/composer";
+} from "@/components/session/composer";
 import {
     COLLECTION_MEMBERSHIP_FILTER_VALUES,
     type CollectionMembershipFilter,
     DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
-} from "@/components/library/filters";
+} from "@/components/session/filters";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
 const COMPOSER_FILTER_PARSERS = {

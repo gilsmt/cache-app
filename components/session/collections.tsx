@@ -56,7 +56,7 @@ import { useSubscriptionAccess } from "@/components/billing/subscription";
 import {
     useItemsContext,
     useItemsStateContext,
-} from "@/components/library/items";
+} from "@/components/session/items";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

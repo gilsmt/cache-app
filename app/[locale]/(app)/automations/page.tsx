@@ -5,9 +5,9 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
-import { AutomationsRuns } from "@/components/automations/automation-runs";
-import { AutomationsList } from "@/components/automations/automations";
+import { AutomationActivity } from "@/components/automations/activity";
 import { AutomationComposerDialog } from "@/components/automations/composer";
+import { AutomationsList } from "@/components/automations/list";
 import { SidebarNavigation } from "@/components/sidebar/navigation";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -91,7 +91,7 @@ async function AutomationsPageBody() {
     return (
         <>
             <SidebarNavigation>
-                <AutomationsRuns automations={automations} />
+                <AutomationActivity automations={automations} />
             </SidebarNavigation>
             <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col gap-6 p-8">
                 <FadeIn>

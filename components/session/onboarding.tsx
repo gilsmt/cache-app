@@ -15,9 +15,9 @@ import {
     useCollectionActionRunner,
     useCollectionsContext,
     useCollectionsPendingActionsContext,
-} from "@/components/library/collections";
-import { openIntegrationsList } from "@/components/library/integrations";
-import { useItemsContext } from "@/components/library/items";
+} from "@/components/session/collections";
+import { openIntegrationsList } from "@/components/session/integrations";
+import { useItemsContext } from "@/components/session/items";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,

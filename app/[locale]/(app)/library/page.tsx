@@ -3,14 +3,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { buildPageMetadata } from "@/app/metadata";
-import { BrowserContent } from "@/components/library/browser";
 import {
     Collections,
     CollectionsProvider,
-} from "@/components/library/collections";
-import { DimensionsCacheProvider } from "@/components/library/dimensions";
-import { Integrations } from "@/components/library/integrations";
-import { ItemsStateProvider } from "@/components/library/items";
+} from "@/components/session/collections";
+import { DimensionsCacheProvider } from "@/components/session/dimensions";
+import { Integrations } from "@/components/session/integrations";
+import { ItemsStateProvider } from "@/components/session/items";
+import { BrowserContent } from "@/components/session/list";
 import { SidebarNavigation } from "@/components/sidebar/navigation";
 import { getServerSession } from "@/lib/auth/session";
 import { userHasActiveSubscription } from "@/lib/billing/service";

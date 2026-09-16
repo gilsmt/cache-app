@@ -38,7 +38,7 @@ import {
     DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
     getLibraryItemDomain,
     UNSPECIFIC_LIBRARY_DOMAIN,
-} from "@/components/library/filters";
+} from "@/components/session/filters";
 import {
     Attachment,
     AttachmentInfo,

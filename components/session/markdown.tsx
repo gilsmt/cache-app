@@ -5,8 +5,8 @@ import { FileText, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { createStore } from "stan-js";
-import { useCollectionsContext } from "@/components/library/collections";
-import { useItemsContext } from "@/components/library/items";
+import { useCollectionsContext } from "@/components/session/collections";
+import { useItemsContext } from "@/components/session/items";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
