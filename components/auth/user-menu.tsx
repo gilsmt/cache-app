@@ -64,12 +64,6 @@ import {
     getStaticDesktopDownloads,
 } from "@/lib/desktop/releases";
 
-const FOOTER_LINKS = [
-    { href: "/legal/privacy-policy", label: "Privacy" },
-    { href: "/legal/terms-of-service", label: "Terms" },
-    { href: "/security", label: "Security" },
-] as const;
-
 const DEVICE_SESSIONS_SWR_KEY = ["auth-user-menu:device-sessions"] as const;
 const DESKTOP_DOWNLOADS_SWR_KEY = ["desktop:downloads"] as const;
 
@@ -424,26 +418,51 @@ export function UserMenuFooter() {
                 />
             </div>
             <div className="flex flex-wrap items-center px-0.5 py-1 opacity-50">
-                {FOOTER_LINKS.map(({ href, label }) => (
-                    <Button
-                        key={href}
-                        nativeButton={false}
-                        render={
-                            <Link
-                                href={href}
-                                prefetch={false}
-                                rel="noopener noreferrer"
-                                target="_blank"
-                            />
-                        }
-                        size="xs"
-                        variant="ghost"
-                    >
-                        <T>
-                            <Var>{label}</Var>
-                        </T>
-                    </Button>
-                ))}
+                <Button
+                    nativeButton={false}
+                    render={
+                        <Link
+                            href="/legal/privacy-policy"
+                            prefetch={false}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        />
+                    }
+                    size="xs"
+                    variant="ghost"
+                >
+                    <T>Privacy</T>
+                </Button>
+                <Button
+                    nativeButton={false}
+                    render={
+                        <Link
+                            href="/legal/terms-of-service"
+                            prefetch={false}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        />
+                    }
+                    size="xs"
+                    variant="ghost"
+                >
+                    <T>Terms</T>
+                </Button>
+                <Button
+                    nativeButton={false}
+                    render={
+                        <Link
+                            href="/security"
+                            prefetch={false}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        />
+                    }
+                    size="xs"
+                    variant="ghost"
+                >
+                    <T>Security</T>
+                </Button>
                 <UserMenuAccountActionsSubMenu className="ml-auto">
                     <Ellipsis
                         aria-hidden

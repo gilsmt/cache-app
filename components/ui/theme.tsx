@@ -18,6 +18,11 @@ const THEME_OPTIONS = [
 
 const THEME_CYCLE = THEME_OPTIONS.map(({ value }) => value);
 
+function getNextTheme(current: Theme): Theme {
+    const index = THEME_CYCLE.indexOf(current);
+    return THEME_CYCLE[(index + 1) % THEME_CYCLE.length] ?? "light";
+}
+
 function getThemeOptionLabel(
     gt: ReturnType<typeof useGT>,
     value: Theme
@@ -30,11 +35,6 @@ function getThemeOptionLabel(
         default:
             return gt("Use system theme");
     }
-}
-
-function getNextTheme(current: Theme): Theme {
-    const index = THEME_CYCLE.indexOf(current);
-    return THEME_CYCLE[(index + 1) % THEME_CYCLE.length] ?? "light";
 }
 
 export function ThemeSelector() {

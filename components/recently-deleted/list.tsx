@@ -16,7 +16,6 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/error-message";
-import type { LibraryItemPurgeAllResult } from "@/lib/collections/items";
 import {
     purgeAllRecentlyDeletedItems,
     purgeLibraryItem,
@@ -121,46 +120,33 @@ export function RecentlyDeletedList({
             return;
         }
 
-        const failureKind: ActionFailure["kind"] =
-            target.kind === "restore" ? "restore" : "purge";
-
         startTransition(async () => {
-            const removeFromList = () => {
-                setHiddenItemIds((current) =>
-                    new Set(current).add(target.item.id)
-                );
-                setIsConfirmOpen(false);
-            };
-
             try {
-                if (target.kind === "restore") {
-                    const response = await restoreLibraryItem(target.item.id);
-                    if (response.status === ACTION_STATUS.RESTORED) {
-                        removeFromList();
-                        return;
-                    }
-                    setFailure({
-                        kind: failureKind,
-                        serverMessage: response.message,
-                    });
-                    return;
-                }
+                const response =
+                    target.kind === "restore"
+                        ? await restoreLibraryItem(target.item.id)
+                        : await purgeLibraryItem(target.item.id);
 
-                const response = await purgeLibraryItem(target.item.id);
-                if (response.status === ACTION_STATUS.DELETED) {
-                    removeFromList();
+                if (
+                    response.status === ACTION_STATUS.RESTORED ||
+                    response.status === ACTION_STATUS.DELETED
+                ) {
+                    setHiddenItemIds((current) =>
+                        new Set(current).add(target.item.id)
+                    );
+                    setIsConfirmOpen(false);
                     return;
                 }
                 setFailure({
-                    kind: failureKind,
+                    kind: target.kind,
                     serverMessage: response.message,
                 });
             } catch (error) {
                 log.error(
-                    `Failed to ${failureKind} recently deleted item`,
+                    `Failed to ${target.kind} recently deleted item`,
                     error
                 );
-                setFailure({ kind: failureKind });
+                setFailure({ kind: target.kind });
             }
         });
     });
@@ -168,23 +154,24 @@ export function RecentlyDeletedList({
     const handleDeleteAll = useStableCallback(() => {
         startDeleteAllTransition(async () => {
             setFailure(null);
-            let response: LibraryItemPurgeAllResult;
             try {
-                response = await purgeAllRecentlyDeletedItems();
+                const response = await purgeAllRecentlyDeletedItems();
+                if (response.status === ACTION_STATUS.DELETED) {
+                    setHiddenItemIds(
+                        (current) =>
+                            new Set([...current, ...response.purgedItemIds])
+                    );
+                    setShowDeleteAllDialog(false);
+                    return;
+                }
+                setFailure({
+                    kind: "purge-all",
+                    serverMessage: response.message,
+                });
             } catch (error) {
                 log.error("Failed to purge all recently deleted items", error);
                 setFailure({ kind: "purge-all" });
-                return;
             }
-            if (response.status === ACTION_STATUS.DELETED) {
-                setHiddenItemIds(
-                    (current) =>
-                        new Set([...current, ...response.purgedItemIds])
-                );
-                setShowDeleteAllDialog(false);
-                return;
-            }
-            setFailure({ kind: "purge-all", serverMessage: response.message });
         });
     });
 

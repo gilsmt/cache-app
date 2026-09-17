@@ -337,22 +337,16 @@ function AutomationActivityItemTitle() {
 }
 
 function AutomationActivityItemPreview() {
-    const { display, entry } = useAutomationActivityItemContext();
+    const { entry } = useAutomationActivityItemContext();
     const output = getActivityPreviewOutput(entry);
 
     return (
         <PreviewCardPopup
             align="start"
-            className="max-h-80 overflow-y-auto p-3"
+            className="max-h-80 flex-col overflow-y-auto p-3"
             positionMethod="fixed"
             side="right"
         >
-            <p className="font-medium text-xs leading-tight">
-                {entry.automationTitle}
-            </p>
-            <p className="text-[11px] text-muted-foreground/60">
-                {display.label}
-            </p>
             <div className="mt-2 text-xs leading-snug">
                 {output ?? (
                     <p className="text-muted-foreground">
