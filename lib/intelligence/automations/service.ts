@@ -5,7 +5,7 @@ import { getRun } from "workflow/api";
 import { userHasActiveSubscription } from "@/lib/billing/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import type { GenerationUsage } from "@/lib/intelligence/generation";
-import { DEFAULT_MODEL_REF } from "@/lib/intelligence/providers/model-refs";
+import { DEFAULT_REGISTERED_MODEL } from "@/lib/intelligence/providers/model-registry";
 import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
 import {
@@ -768,7 +768,7 @@ export async function markAutomationRunRunning(args: {
     return {
         automationId: run.automationId,
         collectionId: run.collectionIdSnapshot,
-        modelId: DEFAULT_MODEL_REF,
+        modelId: DEFAULT_REGISTERED_MODEL,
         payloadScope: run.payloadScopeSnapshot,
         prompt: run.promptSnapshot,
         runId: run.id,

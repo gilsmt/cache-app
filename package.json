@@ -98,7 +98,7 @@
         "tw-animate-css": "1.4.0",
         "undici": "8.10.2",
         "unified": "11.0.5",
-        "workflow": "5.0.0-beta.46",
+        "workflow": "5.0.0-beta.51",
         "zod": "4.6.5",
         "zod-validation-error": "5.0.0"
     },

@@ -6,11 +6,11 @@ import { serverEnv } from "@/env/server";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { GenAiConfigurationError } from "../error";
 import {
-    MODEL_REF_PATTERN,
-    MODEL_REFS,
-    type ModelRef,
-    parseModelRef,
-} from "./model-refs";
+    MODEL_REGISTRY,
+    parseRegisteredModel,
+    REGISTERED_MODEL_PATTERN,
+    type RegisteredModel,
+} from "./model-registry";
 
 const log = createLogger("intelligence:providers");
 
@@ -20,29 +20,33 @@ const google = createGoogleGenerativeAI({ apiKey: serverEnv.GEMINI_API_KEY });
  * Runtime validation for vendor-qualified model references arriving from
  * environment configuration. Returns null for anything malformed.
  */
-function parseModelRefValue(value: string): ModelRef | null {
-    return MODEL_REF_PATTERN.test(value) ? (value as ModelRef) : null;
+function parseRegisteredModelValue(value: string): RegisteredModel | null {
+    return REGISTERED_MODEL_PATTERN.test(value)
+        ? (value as RegisteredModel)
+        : null;
 }
 
-function parseFallbackModelRefs(value: string | undefined): ModelRef[] {
+function parseFallbackRegisteredModels(
+    value: string | undefined
+): RegisteredModel[] {
     if (!value) {
         return [];
     }
     return value
         .split(",")
-        .map((ref) => {
-            const model = parseModelRefValue(ref.trim());
-            if (!model && ref.trim().length > 0) {
+        .map((model) => {
+            const registeredModel = parseRegisteredModelValue(model.trim());
+            if (!registeredModel && model.trim().length > 0) {
                 log.warn(
                     "Ignoring invalid model reference in CACHE_AI_FALLBACK_MODELS",
                     {
-                        value: ref.trim(),
+                        value: model.trim(),
                     }
                 );
             }
-            return model;
+            return registeredModel;
         })
-        .filter((ref): ref is ModelRef => ref !== null);
+        .filter((model): model is RegisteredModel => model !== null);
 }
 
 /**
@@ -50,21 +54,21 @@ function parseFallbackModelRefs(value: string | undefined): ModelRef[] {
  * CACHE_AI_MODEL and CACHE_AI_FALLBACK_MODELS; the cloud deployment uses the
  * hardcoded Gemini chain.
  */
-export function resolveModelRefChain(): ModelRef[] {
+export function resolveRegisteredModelChain(): RegisteredModel[] {
     const override = serverEnv.CACHE_AI_MODEL
-        ? parseModelRefValue(serverEnv.CACHE_AI_MODEL)
+        ? parseRegisteredModelValue(serverEnv.CACHE_AI_MODEL)
         : null;
 
     if (!override) {
-        return [...MODEL_REFS];
+        return [...MODEL_REGISTRY];
     }
 
     const chain = [
         override,
-        ...parseFallbackModelRefs(serverEnv.CACHE_AI_FALLBACK_MODELS),
+        ...parseFallbackRegisteredModels(serverEnv.CACHE_AI_FALLBACK_MODELS),
     ];
     log.debug("Using self-hosted AI model override chain", {
-        modelRefs: chain,
+        registeredModels: chain,
     });
     return chain;
 }
@@ -77,14 +81,14 @@ export function resolveModelRefChain(): ModelRef[] {
  * gateway key, so misconfiguration fails fast with a named error instead of
  * surfacing as a provider error mid-generation.
  */
-export function resolveLanguageModel(
-    ref: ModelRef,
+export function resolveRegisteredModel(
+    registeredModel: RegisteredModel,
     operation: string
 ): LanguageModel {
-    const parsed = parseModelRef(ref);
+    const parsed = parseRegisteredModel(registeredModel);
     if (!parsed) {
         throw new GenAiConfigurationError({
-            message: `Invalid model reference: ${ref}`,
+            message: `Invalid model reference: ${registeredModel}`,
             operation,
         });
     }

@@ -1,91 +1,31 @@
 import "server-only";
 
 import type { ArcjetNextRequest } from "@arcjet/next";
-import { isStepCount, ToolLoopAgent, tool } from "ai";
-import * as z from "zod";
-import { LIBRARY_ITEM_COLLECTIONS_INCLUDE } from "@/lib/collections/utils";
-import { ITEM_KIND_FOLDER, SORT_DESC } from "@/lib/common/constants";
+import { isStepCount, ToolLoopAgent } from "ai";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { truncateText } from "@/lib/common/string";
-import { parseDisplayUrl } from "@/lib/common/url";
-import { prisma } from "@/prisma";
-import type { Prisma } from "@/prisma/client/client";
-import { AUTOMATION_WEB_SEARCH_TIME_RANGES } from "../automations/tool-inputs";
-import { automationWebSearch } from "../automations/web-search";
 import { EmptyGenerationOutputError, summarizeStepUsage } from "../classify";
 import { type GenerationUsage, runModelChain } from "../generation";
 import { normalizeGeneratedMarkdown } from "../markdown";
-import { estimateGenAiTokens, protectGenAiRequest } from "../protection";
-import type { resolveLanguageModel } from "../providers/resolve-model";
+import { protectGenAiRequest } from "../protection";
+import type { resolveRegisteredModel } from "../providers/model-resolver";
+import { createAskCacheAgentTools } from "../tools/agent-tools";
+import { estimateTokens } from "../usage";
 import {
     ASK_CACHE_DOMAIN_FILTER_COUNT_MAX,
-    ASK_CACHE_DOMAIN_FILTER_MAX_LENGTH,
-    ASK_CACHE_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX,
-    ASK_CACHE_OPERATION_LIMIT,
     ASK_CACHE_SEARCH_TERM_COUNT_MAX,
-    ASK_CACHE_SOURCE_FILTER_VALUES,
     type AskCacheComposerPatch,
     type AskCacheRequest,
-    AskCacheToolUpdateInputSchema,
 } from "./ask-cache";
-import {
-    isNoopComposerPatch,
-    normalizeComposerPatchForContext,
-    resolveComposerPatchContradictions,
-} from "./patch";
 
-const ASK_CACHE_OUTPUT_TOKEN_LIMIT = 1200;
+const ASK_CACHE_OUTPUT_TOKEN_LIMIT = 8192;
 const ASK_CACHE_MAX_STEPS = 12;
 const ASK_CACHE_TIMEOUT_MS = 60_000;
-const ASK_CACHE_LIBRARY_SEARCH_LIMIT_MAX = 50;
-const ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX = 10_000;
-const ASK_CACHE_LIBRARY_TEXT_PREVIEW_LENGTH_MAX = 1000;
 const ASK_CACHE_RUNTIME_CONTEXT_LOCALE_DEFAULT = "en-US";
 const ASK_CACHE_RUNTIME_CONTEXT_SURFACE_LABEL_BY_VALUE = {
     library_composer: "Cache library composer",
 } as const;
 
-const WHITESPACE_SPLIT_PATTERN = /\s+/;
-const WWW_DOMAIN_PREFIX_PATTERN = /^www\./;
-
 const log = createLogger("intelligence:ask-cache");
-
-const AskCacheLibrarySearchInputSchema = z.strictObject({
-    collectionIds: z
-        .array(z.string().trim().min(1).max(128))
-        .max(10)
-        .optional(),
-    domainFilters: z
-        .array(z.string().trim().min(1).max(ASK_CACHE_DOMAIN_FILTER_MAX_LENGTH))
-        .max(ASK_CACHE_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX)
-        .optional(),
-    limit: z.int().min(1).max(ASK_CACHE_LIBRARY_SEARCH_LIMIT_MAX).optional(),
-    offset: z
-        .int()
-        .min(0)
-        .max(ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX)
-        .describe(
-            "Skip this many matches before returning results. Use with limit when a previous search_library call returned truncated: true."
-        )
-        .optional(),
-    query: z
-        .string()
-        .trim()
-        .max(200)
-        .describe(
-            "Optional lexical search over captions, note text, and URLs. Words are AND-matched within a single item. For conceptual requests, prefer concrete candidate names, brands, or domains — or use domainFilters — instead of broad category labels."
-        )
-        .optional(),
-    sourceFilters: z
-        .array(z.enum(ASK_CACHE_SOURCE_FILTER_VALUES))
-        .max(ASK_CACHE_SOURCE_FILTER_VALUES.length)
-        .optional(),
-});
-
-const AskCacheWebSearchInputSchema = z.strictObject({
-    query: z.string().trim().min(1).max(500),
-    timeRange: z.enum(AUTOMATION_WEB_SEARCH_TIME_RANGES).optional(),
-});
 
 interface RunAskCacheAgentInput {
     input: AskCacheRequest;
@@ -110,7 +50,7 @@ export async function runAskCacheAgent({
     await protectGenAiRequest({
         feature: "ask_cache_agent",
         request,
-        requestedTokens: estimateGenAiTokens(
+        requestedTokens: estimateTokens(
             `${instructions}\n\n${userMessage}`,
             ASK_CACHE_OUTPUT_TOKEN_LIMIT
         ),
@@ -153,78 +93,25 @@ export async function runAskCacheAgent({
 async function runAskCacheAgentModel(args: {
     input: AskCacheRequest;
     instructions: string;
-    model: Awaited<ReturnType<typeof resolveLanguageModel>>;
+    model: Awaited<ReturnType<typeof resolveRegisteredModel>>;
     userMessage: string;
     userId: string;
 }): Promise<{
     output: { markdown: string; operations: AskCacheComposerPatch[] };
     usage?: GenerationUsage;
 }> {
-    const operations: AskCacheComposerPatch[] = [];
-    const operationSummaries: string[] = [];
+    const { getOperations, getOperationSummaries, tools } =
+        createAskCacheAgentTools({
+            input: args.input,
+            userId: args.userId,
+        });
 
     const agent = new ToolLoopAgent({
         instructions: args.instructions,
         maxOutputTokens: ASK_CACHE_OUTPUT_TOKEN_LIMIT,
         model: args.model,
         stopWhen: isStepCount(ASK_CACHE_MAX_STEPS),
-        tools: {
-            search_library: tool({
-                description:
-                    "Search the user's saved Cache library. Query words are AND-matched across caption, note text, and URL within each item. Prefer concrete names, brands, domains, domainFilters, sourceFilters, or collectionIds over broad category labels. When truncated is true, page with offset to continue the inventory.",
-                execute: (toolInput) =>
-                    searchAskCacheLibrary({
-                        input: toolInput,
-                        userId: args.userId,
-                    }),
-                inputSchema: AskCacheLibrarySearchInputSchema,
-            }),
-            update_composer: tool({
-                description:
-                    "Apply a validated composer patch. Batch all state changes into one call. Only include fields that differ from the current composer state; noop patches are rejected. Prefer high-confidence concrete filters (domains, collections, sources, entity names) over generic category searchTerms.",
-                execute: (toolInput) => {
-                    if (operations.length >= ASK_CACHE_OPERATION_LIMIT) {
-                        return {
-                            ok: false,
-                            reason: "operation_limit_reached",
-                        };
-                    }
-
-                    const patch = resolveComposerPatchContradictions(
-                        normalizeComposerPatchForContext(
-                            toolInput.patch,
-                            args.input
-                        ),
-                        args.input.composerState
-                    );
-
-                    if (isNoopComposerPatch(patch, args.input.composerState)) {
-                        return {
-                            ok: false,
-                            reason: "patch_is_noop",
-                            validationNote:
-                                "All proposed changes already match the current composer state. Update only fields that differ.",
-                        };
-                    }
-
-                    operations.push(patch);
-                    operationSummaries.push(toolInput.summary);
-                    return {
-                        appliedOperationCount: operations.length,
-                        ok: true,
-                        patch,
-                        summary: toolInput.summary,
-                    };
-                },
-                inputSchema: AskCacheToolUpdateInputSchema,
-            }),
-            web_search: tool({
-                description:
-                    "Search the public web for current context. Use this only when public, current information would improve the answer.",
-                execute: automationWebSearch,
-                inputSchema: AskCacheWebSearchInputSchema,
-            }),
-        },
+        tools,
     });
 
     const result = await agent.generate({
@@ -232,153 +119,15 @@ async function runAskCacheAgentModel(args: {
         timeout: ASK_CACHE_TIMEOUT_MS,
     });
 
-    const markdown = getFinalMarkdown(result.steps, operationSummaries);
+    const markdown = getFinalMarkdown(result.steps, getOperationSummaries());
     if (!markdown) {
         throw new EmptyGenerationOutputError();
     }
 
     return {
-        output: { markdown, operations },
+        output: { markdown, operations: getOperations() },
         usage: summarizeStepUsage(result.steps),
     };
-}
-
-async function searchAskCacheLibrary(args: {
-    input: z.infer<typeof AskCacheLibrarySearchInputSchema>;
-    userId: string;
-}) {
-    const limit = Math.min(
-        args.input.limit ?? 20,
-        ASK_CACHE_LIBRARY_SEARCH_LIMIT_MAX
-    );
-    const offset = Math.min(
-        args.input.offset ?? 0,
-        ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX
-    );
-    const search = args.input.query?.trim();
-    const collectionIds = args.input.collectionIds ?? [];
-    const sourceFilters = args.input.sourceFilters ?? [];
-    const domainFilters = (args.input.domainFilters ?? []).map((domain) =>
-        domain.toLowerCase()
-    );
-    const searchConditions: Prisma.LibraryItemWhereInput[] = [];
-    if (search) {
-        const terms = search
-            .split(WHITESPACE_SPLIT_PATTERN)
-            .filter((term) => term.length > 0);
-        const termGroups: Prisma.LibraryItemWhereInput[] = terms.map(
-            (term) => ({
-                OR: [
-                    { caption: { contains: term, mode: "insensitive" } },
-                    {
-                        noteContentText: {
-                            contains: term,
-                            mode: "insensitive",
-                        },
-                    },
-                    { url: { contains: term, mode: "insensitive" } },
-                ],
-            })
-        );
-        searchConditions.push(...termGroups);
-    }
-    const domainCondition = buildAskCacheDomainCondition(domainFilters);
-    if (domainCondition) {
-        searchConditions.push(domainCondition);
-    }
-
-    const where: Prisma.LibraryItemWhereInput = {
-        deletedAt: null,
-        kind: { not: ITEM_KIND_FOLDER },
-        userId: args.userId,
-        ...(collectionIds.length > 0
-            ? {
-                  collections: {
-                      some: { id: { in: collectionIds } },
-                  },
-              }
-            : {}),
-        ...(sourceFilters.length > 0 ? { source: { in: sourceFilters } } : {}),
-        ...(searchConditions.length > 0 ? { AND: searchConditions } : {}),
-    };
-
-    const items = await prisma.libraryItem.findMany({
-        include: LIBRARY_ITEM_COLLECTIONS_INCLUDE,
-        orderBy: [{ scrapedAt: SORT_DESC }, { updatedAt: SORT_DESC }],
-        skip: offset,
-        take: limit + 1,
-        where,
-    });
-
-    return {
-        items: items.slice(0, limit).map((item) => ({
-            caption: item.caption,
-            collectionNames: item.collections.map(
-                (collection) => collection.name
-            ),
-            createdAt: item.createdAt.toISOString(),
-            domain: parseDisplayUrl(item.url),
-            id: item.id,
-            kind: item.kind,
-            postedAt: item.postedAt?.toISOString() ?? null,
-            source: item.source,
-            textPreview: item.noteContentText
-                ? truncateText(
-                      item.noteContentText,
-                      ASK_CACHE_LIBRARY_TEXT_PREVIEW_LENGTH_MAX
-                  )
-                : null,
-            url: item.url,
-        })),
-        limit,
-        offset,
-        truncated: items.length > limit,
-    };
-}
-
-function buildAskCacheDomainCondition(
-    domainFilters: string[]
-): Prisma.LibraryItemWhereInput | null {
-    if (domainFilters.length === 0) {
-        return null;
-    }
-
-    const uniqueDomains = [
-        ...new Set(
-            domainFilters.map((rawDomain) =>
-                rawDomain.replace(WWW_DOMAIN_PREFIX_PATTERN, "")
-            )
-        ),
-    ];
-
-    const orConditions: Prisma.LibraryItemWhereInput[] = [];
-    for (const domain of uniqueDomains) {
-        for (const host of [domain, `www.${domain}`]) {
-            orConditions.push({ url: { equals: host, mode: "insensitive" } });
-            orConditions.push({
-                url: { equals: `http://${host}`, mode: "insensitive" },
-            });
-            orConditions.push({
-                url: { equals: `https://${host}`, mode: "insensitive" },
-            });
-            for (const prefix of [
-                `http://${host}/`,
-                `http://${host}?`,
-                `http://${host}#`,
-                `http://${host}:`,
-                `https://${host}/`,
-                `https://${host}?`,
-                `https://${host}#`,
-                `https://${host}:`,
-            ]) {
-                orConditions.push({
-                    url: { mode: "insensitive", startsWith: prefix },
-                });
-            }
-        }
-    }
-
-    return { OR: orConditions };
 }
 
 function buildAskCacheInstructions(input: AskCacheRequest): string {
@@ -412,7 +161,7 @@ function buildAskCacheInstructions(input: AskCacheRequest): string {
         "For 'show me all …' inventory requests, call search_library first (page with offset while truncated is true when needed), then update_composer when a useful filter exists.",
         "Example: for 'show me all software products I saved', do not set searchTerms to ['software']. Prefer a matching collection if present; otherwise select all high-confidence product/app/SaaS/tool domains from availableDomains, include relevant sources, apply them together, and note any mixed-content domains you intentionally left out.",
         "If the concept cannot be expressed completely with composer filters, say so plainly, apply only high-confidence filters, and answer with what search_library found. Never invent vague 'system constraints'; if a hard limit was hit, name the actual limit and that the result is partial.",
-        "Use web_search only when public, current information would materially improve the answer beyond what is in the user's library.",
+        "Use web_search only when public, current information would materially improve the answer beyond what is in the user's library. Use github_repo for stats on a specific public GitHub repository.",
         "Prefer concise markdown. Mention applied composer changes in one short sentence when you call update_composer.",
         "Batch multiple composer changes into one update_composer call. The patch accepts searchTerms, sourceFilters, domainFilters, selectedCollectionIds, collectionMembershipFilter, groupBy, sortMode, columnCountMode, and reset all at once.",
         "Call update_composer at most 8 times. After reaching the limit, stop and explain what was applied.",

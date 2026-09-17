@@ -9,13 +9,11 @@ import { createLogger } from "@/lib/common/logs/console/logger";
 import { normalizeCollectionName, truncateText } from "@/lib/common/string";
 import { GenAiProtectionError } from "@/lib/intelligence/error";
 import { generateStructured } from "@/lib/intelligence/generation";
-import {
-    estimateGenAiTokens,
-    protectGenAiRequest,
-} from "@/lib/intelligence/protection";
-import { isIntelligenceConfigured } from "@/lib/intelligence/providers/resolve-model";
+import { protectGenAiRequest } from "@/lib/intelligence/protection";
+import { isIntelligenceConfigured } from "@/lib/intelligence/providers/model-resolver";
 import { prisma } from "@/prisma";
 import { LibraryItemSource } from "@/prisma/client/enums";
+import { estimateTokens } from "../usage";
 import {
     createAttachmentForItem,
     type SmartCollectionAttachment,
@@ -153,7 +151,7 @@ async function decideCollectionsForItem(args: {
     await protectGenAiRequest({
         feature: "smart_collections",
         request: new Request("https://cache.local/internal/smart-collections"),
-        requestedTokens: estimateGenAiTokens(
+        requestedTokens: estimateTokens(
             protectionPrompt,
             SMART_COLLECTIONS_OUTPUT_TOKEN_LIMIT
         ),

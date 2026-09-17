@@ -12,17 +12,6 @@ import { GenAiProtectionError } from "@/lib/intelligence/error";
 const log = createLogger("intelligence:protection");
 
 const CHARACTERISTIC_USER_ID = "userId";
-const CHARS_PER_TOKEN_ESTIMATE = 4;
-
-export function estimateGenAiTokens(
-    input: string,
-    outputTokenLimit: number
-): number {
-    return Math.max(
-        1,
-        Math.ceil(input.length / CHARS_PER_TOKEN_ESTIMATE) + outputTokenLimit
-    );
-}
 
 function createPlanClient(plan: PriceType, key: string) {
     const quota = GEN_AI_QUOTAS[plan];

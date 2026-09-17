@@ -24,7 +24,9 @@ import {
     SECTION_DESCRIPTION_FALLBACK_TEXT,
     truncateContextItems,
 } from "./overview";
-import { estimateGenAiTokens, protectGenAiRequest } from "./protection";
+import { protectGenAiRequest } from "./protection";
+import { truncateChars } from "./truncate";
+import { estimateTokens } from "./usage";
 
 const log = createLogger("intelligence:service");
 
@@ -102,7 +104,7 @@ export async function generateCollectionSummary(
                 ? "section_description_expanded"
                 : "section_description",
             request: input.request,
-            requestedTokens: estimateGenAiTokens(
+            requestedTokens: estimateTokens(
                 prompt,
                 expanded
                     ? SECTION_DESCRIPTION_EXPANDED_OUTPUT_TOKEN_LIMIT
@@ -138,9 +140,10 @@ export async function generateCollectionSummary(
 export async function generateCollectionDescription(
     input: GenerateCollectionDescriptionInput
 ): Promise<GenerateCollectionDescriptionResult> {
-    const collectionTitle = input.collectionTitle
-        .trim()
-        .slice(0, COLLECTION_DESCRIPTION_TITLE_MAX_LENGTH);
+    const collectionTitle = truncateChars(
+        input.collectionTitle.trim(),
+        COLLECTION_DESCRIPTION_TITLE_MAX_LENGTH
+    );
     if (collectionTitle.length === 0) {
         return { description: "" };
     }
@@ -159,10 +162,7 @@ export async function generateCollectionDescription(
         await protectGenAiRequest({
             feature: "collection_description",
             request: input.request,
-            requestedTokens: estimateGenAiTokens(
-                prompt,
-                SECTION_OUTPUT_TOKEN_LIMIT
-            ),
+            requestedTokens: estimateTokens(prompt, SECTION_OUTPUT_TOKEN_LIMIT),
             userId: input.userId,
         });
 

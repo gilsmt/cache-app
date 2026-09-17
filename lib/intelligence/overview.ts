@@ -1,6 +1,8 @@
 import * as z from "zod";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import { normalizeGeneratedMarkdown } from "./markdown";
+import { truncateChars } from "./truncate";
+import { CHARS_PER_TOKEN, estimateTokens } from "./usage";
 
 // --- Input Limits ---
 
@@ -23,7 +25,6 @@ export const SECTION_DESCRIPTION_EXPANDED_OUTPUT_TOKEN_LIMIT = 512;
 
 const MAX_PROMPT_TOKENS = 4096;
 const PROMPT_OVERHEAD_TOKENS = 400;
-const CHARS_PER_TOKEN_ESTIMATE = 4;
 
 // --- Schemas ---
 
@@ -261,12 +262,6 @@ export function buildExpandedSummaryPrompt(
     ].join("\n");
 }
 
-// --- Input Truncation ---
-
-function estimateTokens(text: string): number {
-    return Math.ceil(text.length / CHARS_PER_TOKEN_ESTIMATE);
-}
-
 /**
  * Truncates items to stay within the prompt token budget.
  *
@@ -314,7 +309,7 @@ export function truncateContextItems(
         // If a single item exceeds the remaining budget, truncate its text fields
         if (itemTokens > availableTokens - currentTokens) {
             const budget = availableTokens - currentTokens;
-            const maxChars = budget * CHARS_PER_TOKEN_ESTIMATE;
+            const maxChars = budget * CHARS_PER_TOKEN;
             const titleBudget = Math.min(
                 item.title.length,
                 Math.floor(maxChars * 0.3)
@@ -323,8 +318,8 @@ export function truncateContextItems(
 
             truncatedItems.push({
                 ...item,
-                primaryText: item.primaryText.slice(0, textBudget).trimEnd(),
-                title: item.title.slice(0, titleBudget).trimEnd(),
+                primaryText: truncateChars(item.primaryText, textBudget),
+                title: truncateChars(item.title, titleBudget),
             });
             break;
         }
@@ -379,9 +374,11 @@ export function normalizeSummary(value: string | undefined): string | null {
         return isGrammaticallyComplete(cleaned) ? cleaned : `${cleaned}.`;
     }
 
-    return `${cleaned
-        .slice(0, SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH - 3)
-        .trimEnd()}...`;
+    return truncateChars(
+        cleaned,
+        SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH,
+        "..."
+    );
 }
 
 // --- Expanded Output Normalization ---
@@ -419,7 +416,9 @@ export function normalizeExpandedSummary(
         return cleaned;
     }
 
-    return `${cleaned
-        .slice(0, SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH - 3)
-        .trimEnd()}...`;
+    return truncateChars(
+        cleaned,
+        SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH,
+        "..."
+    );
 }

@@ -4,14 +4,18 @@ import { tavilySearch } from "@tavily/ai-sdk";
 import type { ToolExecutionOptions } from "ai";
 import * as z from "zod";
 import { serverEnv } from "@/env/server";
-import type { AutomationWebSearchTimeRange } from "./tool-inputs";
+import { isAbortError, raceAbort } from "@/lib/common/abort";
+import { createLogger } from "@/lib/common/logs/console/logger";
+import type { WebSearchTimeRange } from "./tool-inputs";
+
+const log = createLogger("intelligence:web-search");
 
 const TAVILY_TIMEOUT_MS = 15_000;
 const TAVILY_RESULT_COUNT_MAX = 5;
 const TAVILY_MANUAL_EXECUTION_OPTIONS = {
     context: undefined,
     messages: [],
-    toolCallId: "automation-web-search",
+    toolCallId: "web-search",
 } satisfies ToolExecutionOptions<unknown>;
 
 const TavilySearchPayloadSchema = z.object({
@@ -29,9 +33,18 @@ const TavilySearchPayloadSchema = z.object({
         .optional(),
 });
 
-export async function automationWebSearch(args: {
+type TavilySearchExecute = (
+    args: {
+        query: string;
+        timeRange?: WebSearchTimeRange;
+    },
+    options: typeof TAVILY_MANUAL_EXECUTION_OPTIONS
+) => Promise<unknown>;
+
+export async function webSearch(args: {
+    abortSignal?: AbortSignal;
     query: string;
-    timeRange?: AutomationWebSearchTimeRange;
+    timeRange?: WebSearchTimeRange;
 }) {
     "use step";
 
@@ -41,6 +54,10 @@ export async function automationWebSearch(args: {
             ok: false,
             results: [],
         };
+    }
+
+    if (args.abortSignal?.aborted) {
+        return { error: "Tavily search was aborted.", ok: false, results: [] };
     }
 
     try {
@@ -61,13 +78,17 @@ export async function automationWebSearch(args: {
             };
         }
 
+        const execute = searchTool.execute as unknown as TavilySearchExecute;
         const parsedPayload = TavilySearchPayloadSchema.safeParse(
-            await searchTool.execute(
-                {
-                    query: args.query,
-                    timeRange: args.timeRange,
-                },
-                TAVILY_MANUAL_EXECUTION_OPTIONS
+            await raceAbort(
+                execute(
+                    {
+                        query: args.query,
+                        timeRange: args.timeRange,
+                    },
+                    TAVILY_MANUAL_EXECUTION_OPTIONS
+                ),
+                args.abortSignal
             )
         );
         if (!parsedPayload.success) {
@@ -92,8 +113,20 @@ export async function automationWebSearch(args: {
                 })) ?? [],
         };
     } catch (error) {
-        return {
+        if (isAbortError(error)) {
+            log.info("Tavily search aborted", { query: args.query });
+            return {
+                error: "Tavily search was aborted.",
+                ok: false,
+                results: [],
+            };
+        }
+        log.warn("Tavily search failed", {
             error: error instanceof Error ? error.message : String(error),
+            query: args.query,
+        });
+        return {
+            error: "Tavily search failed.",
             ok: false,
             results: [],
         };

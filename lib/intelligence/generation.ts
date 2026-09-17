@@ -11,11 +11,11 @@ import type * as z from "zod";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { classifyGenerationError } from "./classify";
 import { GenAiGenerationError } from "./error";
-import type { ModelRef } from "./providers/model-refs";
+import type { RegisteredModel } from "./providers/model-registry";
 import {
-    resolveLanguageModel,
-    resolveModelRefChain,
-} from "./providers/resolve-model";
+    resolveRegisteredModel,
+    resolveRegisteredModelChain,
+} from "./providers/model-resolver";
 
 const log = createLogger("intelligence:generation");
 
@@ -103,8 +103,8 @@ export function generateStructured<T>(
 export async function runModelChain<T>(
     input: ModelChainInput,
     call: (
-        model: Awaited<ReturnType<typeof resolveLanguageModel>>,
-        modelRef: ModelRef
+        model: Awaited<ReturnType<typeof resolveRegisteredModel>>,
+        registeredModel: RegisteredModel
     ) => Promise<{
         output: T;
         usage?: Pick<
@@ -120,10 +120,13 @@ export async function runModelChain<T>(
 
     let lastError: unknown;
     try {
-        for (const modelRef of resolveModelRefChain()) {
+        for (const registeredModel of resolveRegisteredModelChain()) {
             try {
-                const model = resolveLanguageModel(modelRef, input.operation);
-                const result = await call(model, modelRef);
+                const model = resolveRegisteredModel(
+                    registeredModel,
+                    input.operation
+                );
+                const result = await call(model, registeredModel);
                 return {
                     output: result.output,
                     usage: normalizeUsage(result.usage),
@@ -138,7 +141,7 @@ export async function runModelChain<T>(
                         error instanceof Error ? error.message : String(error),
                     errorClassification: classification.message,
                     feature: input.feature,
-                    modelRef,
+                    registeredModel,
                 });
                 if (!classification.canFallback) {
                     break;
