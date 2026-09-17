@@ -2,7 +2,7 @@ import {
     itemPreviewImageUrl,
     type LibraryItemWithCollections,
 } from "@/lib/collections/utils";
-import { djb2Hash } from "@/lib/common/hash";
+import { fnv1aHash } from "@/lib/common/hash";
 
 const COLLECTION_PREVIEW_THUMBNAIL_LIMIT = 5;
 
@@ -64,7 +64,7 @@ export function buildCollectionItemIndexes(
 
             if (previewUrl !== null) {
                 addPreviewEntry(previewEntries, {
-                    orderSeed: djb2Hash(`${collection.id}:${item.id}`),
+                    orderSeed: fnv1aHash(`${collection.id}:${item.id}`),
                     url: previewUrl,
                 });
             }

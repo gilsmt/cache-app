@@ -35,6 +35,15 @@ export function abortAfterAny(ms: number, ...signals: AbortSignal[]) {
 }
 
 /**
+ * Reads the abort reason from `signal`, synthesizing an `AbortError` when the
+ * signal carries none (not-yet-aborted, or explicitly aborted with
+ * `undefined`).
+ */
+export function abortReason(signal: AbortSignal): unknown {
+    return signal.reason ?? new DOMException("Aborted", "AbortError");
+}
+
+/**
  * Returns true when the error is an AbortError, across realms.
  */
 export function isAbortError(error: unknown): boolean {
@@ -61,11 +70,15 @@ export function raceAbort<T>(
         return promise;
     }
     if (signal.aborted) {
-        return Promise.reject(new DOMException("Aborted", "AbortError"));
+        // Observe the abandoned promise so a later rejection cannot surface
+        // as an unhandled rejection. The wrapper still rejects with the
+        // signal's reason.
+        promise.catch(() => undefined);
+        return Promise.reject(abortReason(signal));
     }
     return new Promise<T>((resolve, reject) => {
         const onAbort = () => {
-            reject(new DOMException("Aborted", "AbortError"));
+            reject(abortReason(signal));
         };
         signal.addEventListener("abort", onAbort, { once: true });
         promise.then(

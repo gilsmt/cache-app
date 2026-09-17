@@ -1,4 +1,5 @@
 import pRetry, { type Options } from "p-retry";
+import { abortReason } from "@/lib/common/abort";
 import { HttpError } from "@/lib/common/http";
 import { isNetworkError } from "@/lib/common/network";
 
@@ -39,14 +40,17 @@ export function waitForRetry(
     signal?: AbortSignal
 ): Promise<void> {
     if (signal?.aborted) {
-        return Promise.reject(
-            signal.reason ??
-                new DOMException("The operation was aborted", "AbortError")
-        );
+        return Promise.reject(abortReason(signal));
     }
 
     if (delayMs <= 0) {
         return Promise.resolve();
+    }
+
+    if (!signal) {
+        return new Promise((resolve) => {
+            setTimeout(resolve, delayMs);
+        });
     }
 
     return new Promise((resolve, reject) => {
@@ -57,23 +61,20 @@ export function waitForRetry(
                 clearTimeout(timer);
                 timer = undefined;
             }
-            signal?.removeEventListener("abort", handleAbort);
+            signal.removeEventListener("abort", handleAbort);
         };
 
         const handleAbort = () => {
             cleanup();
-            reject(
-                signal?.reason ??
-                    new DOMException("The operation was aborted", "AbortError")
-            );
+            reject(abortReason(signal));
         };
 
-        if (signal?.aborted) {
+        if (signal.aborted) {
             handleAbort();
             return;
         }
 
-        signal?.addEventListener("abort", handleAbort, { once: true });
+        signal.addEventListener("abort", handleAbort, { once: true });
         timer = setTimeout(() => {
             cleanup();
             resolve();

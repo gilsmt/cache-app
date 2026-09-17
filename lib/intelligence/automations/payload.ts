@@ -11,7 +11,7 @@ import {
     resolvePublicHttpUrl,
     resolveRedirectLocation,
 } from "@/lib/common/security/fetch";
-import { truncateText } from "@/lib/common/string";
+import { escapeLikePattern, truncateText } from "@/lib/common/string";
 import { prisma } from "@/prisma";
 import { AutomationPayloadScope } from "@/prisma/client/enums";
 import {
@@ -184,19 +184,19 @@ export async function listAutomationPayloadItems(args: {
                       OR: [
                           {
                               caption: {
-                                  contains: args.search,
+                                  contains: escapeLikePattern(args.search),
                                   mode: "insensitive",
                               },
                           },
                           {
                               noteContentText: {
-                                  contains: args.search,
+                                  contains: escapeLikePattern(args.search),
                                   mode: "insensitive",
                               },
                           },
                           {
                               url: {
-                                  contains: args.search,
+                                  contains: escapeLikePattern(args.search),
                                   mode: "insensitive",
                               },
                           },

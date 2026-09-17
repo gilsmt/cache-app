@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { GlobeX } from "lucide-react";
 import * as React from "react";
-import { djb2Hash } from "@/lib/common/hash";
+import { fnv1aHash } from "@/lib/common/hash";
 
 interface PlaceholderStyle extends React.CSSProperties {
     "--texture-position": string;
@@ -15,9 +15,9 @@ export function Placeholder({
 }: React.ComponentProps<"div">) {
     const id = React.useId();
 
-    const hash = djb2Hash(id);
+    const hash = fnv1aHash(id);
     const x = hash % 101; // x in [0, 100] percent
-    const y = (hash >> 8) % 101; // y in [0, 100] percent
+    const y = (hash >>> 8) % 101; // y in [0, 100] percent
     const textureStyle: PlaceholderStyle = {
         "--texture-position": `${x}% ${y}%`,
     };

@@ -1,5 +1,5 @@
 /**
- * Session cache of masonry preview image dimensions (url → natural size).
+ * Cache of masonry preview image dimensions (url → natural size).
  * Keeps virtualized cards from reshuffling when images fail or remount.
  */
 
@@ -14,7 +14,6 @@ export const DEFAULT_DIMENSIONS = {
 } as const satisfies Dimensions;
 
 const PREVIEW_DIMENSIONS_CACHE_MAX = 500;
-
 const PREVIEW_MIN_ASPECT_RATIO = 1 / 4;
 const PREVIEW_MAX_ASPECT_RATIO = 3;
 const PREVIEW_MIN_HEIGHT = 1;

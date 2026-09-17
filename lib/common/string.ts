@@ -95,6 +95,12 @@ export const description = z
     .optional()
     .or(z.literal(""));
 
+const LIKE_ESCAPE_PATTERN = /[%_\\]/g;
+
+export function escapeLikePattern(value: string): string {
+    return value.replace(LIKE_ESCAPE_PATTERN, "\\$&");
+}
+
 export function escapeCsv(value: string): string {
     return `"${value.replaceAll('"', '""')}"`;
 }
