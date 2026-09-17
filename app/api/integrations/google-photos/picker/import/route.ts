@@ -12,7 +12,7 @@ import {
     importGooglePhotosCandidates,
 } from "@/lib/integrations/google-photos/service";
 import { GOOGLE_PHOTOS_PERMISSION_MESSAGE } from "@/lib/integrations/google-photos/shared";
-import { scheduleSmartCollections } from "@/lib/intelligence/schedule";
+import { scheduleSmartCollections } from "@/lib/intelligence/collections/schedule";
 
 const bodySchema = z.object({
     accountId: z.string().min(1),

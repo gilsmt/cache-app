@@ -9,7 +9,7 @@ import {
     authenticateExtensionIngest,
     extensionIngestCorsHeaders,
 } from "@/lib/integrations/extension-ingest/route";
-import { scheduleSmartCollections } from "@/lib/intelligence/schedule";
+import { scheduleSmartCollections } from "@/lib/intelligence/collections/schedule";
 
 const log = createLogger("api:integrations:extension:clip");
 

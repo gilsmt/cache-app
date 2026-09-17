@@ -6,7 +6,7 @@ import {
     importYoutubeWatchLaterSnapshot,
     youtubeWatchLaterBodySchema,
 } from "@/lib/integrations/youtube/service";
-import { scheduleSmartCollections } from "@/lib/intelligence/schedule";
+import { scheduleSmartCollections } from "@/lib/intelligence/collections/schedule";
 
 export function OPTIONS(request: Request) {
     return new Response(null, {

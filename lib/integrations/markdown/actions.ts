@@ -14,7 +14,7 @@ import {
     importMarkdownFiles,
     listMarkdownImportRecords,
 } from "@/lib/integrations/markdown/service";
-import { scheduleSmartCollections } from "@/lib/intelligence/schedule";
+import { scheduleSmartCollections } from "@/lib/intelligence/collections/schedule";
 import { Prisma } from "@/prisma/client/client";
 
 const log = createLogger("integrations:markdown:actions");
