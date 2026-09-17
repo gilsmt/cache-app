@@ -26,8 +26,10 @@ import {
     RotateCcw,
     SearchIcon,
     SearchX,
+    Square,
     SquarePen,
     Tags,
+    Volume2,
     XIcon,
 } from "lucide-react";
 import * as React from "react";
@@ -90,6 +92,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis";
 import { itemCanonicalGroupKey } from "@/lib/collections/library-quality";
 import type { LibraryMetricsSnapshot } from "@/lib/collections/metrics";
 import type {
@@ -107,6 +110,21 @@ import { openExternalUrl } from "@/lib/common/url";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
 const MATCH_WORD_SEPARATOR_PATTERN = /[\s:./_-]+/;
+const MARKDOWN_CODE_FENCE_PATTERN = /```[\s\S]*?```/g;
+const MARKDOWN_IMAGE_PATTERN = /!\[([^\]]*)\]\([^)]*\)/g;
+const MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\([^)]*\)/g;
+const MARKDOWN_INLINE_CODE_PATTERN = /`([^`]*)`/g;
+const MARKDOWN_BARE_URL_PATTERN = /https?:\/\/\S+/g;
+const MARKDOWN_HTML_TAG_PATTERN = /<[^>]*>/g;
+const MARKDOWN_HEADING_PATTERN = /^#{1,6}\s+/gm;
+const MARKDOWN_QUOTE_MARKER_PATTERN = /^>[ \t]?/gm;
+const MARKDOWN_LIST_MARKER_PATTERN = /^[ \t]*(?:[-*+]|\d+[.)])[ \t]+/gm;
+const MARKDOWN_TABLE_ROW_PATTERN = /^[ \t]*\|?[ \t:|-]+\|?[ \t]*$/gm;
+const MARKDOWN_TABLE_EDGE_PIPE_PATTERN = /^[ \t]*\||\|[ \t]*$/gm;
+const MARKDOWN_TABLE_PIPE_PATTERN = /\|/g;
+const MARKDOWN_EMPHASIS_PATTERN = /(\*\*|__|\*|_|~~)(.+?)\1/g;
+const WHITESPACE_COLLAPSE_PATTERN = /\s+/g;
+const EMPHASIS_CLEANUP_PASS_COUNT = 3;
 
 export const SUGGESTION_LIMIT = 3;
 export const SUGGESTION_ICON_CLASS = "size-3.5 shrink-0";
@@ -2169,6 +2187,32 @@ export function buildPaletteStackEntries({
     return entries;
 }
 
+export function toSpeakableText(markdown: string): string {
+    // Code blocks and URLs carry no spoken meaning. The clipboard copy keeps
+    // the raw markdown, so speech drops them instead of spelling them out.
+    let text = markdown.replace(MARKDOWN_CODE_FENCE_PATTERN, " ");
+    text = text.replace(MARKDOWN_IMAGE_PATTERN, "$1");
+    text = text.replace(MARKDOWN_LINK_PATTERN, "$1");
+    text = text.replace(MARKDOWN_INLINE_CODE_PATTERN, "$1");
+    text = text.replace(MARKDOWN_BARE_URL_PATTERN, " ");
+    text = text.replace(MARKDOWN_HTML_TAG_PATTERN, " ");
+    text = text.replace(MARKDOWN_HEADING_PATTERN, "");
+    text = text.replace(MARKDOWN_QUOTE_MARKER_PATTERN, "");
+    text = text.replace(MARKDOWN_LIST_MARKER_PATTERN, "");
+    text = text.replace(MARKDOWN_TABLE_ROW_PATTERN, "");
+    text = text.replace(MARKDOWN_TABLE_EDGE_PIPE_PATTERN, "");
+    text = text.replace(MARKDOWN_TABLE_PIPE_PATTERN, ",");
+    // Repeat for nested runs such as ***bold italic***.
+    for (let pass = 0; pass < EMPHASIS_CLEANUP_PASS_COUNT; pass += 1) {
+        const next = text.replace(MARKDOWN_EMPHASIS_PATTERN, "$2");
+        if (next === text) {
+            break;
+        }
+        text = next;
+    }
+    return text.replace(WHITESPACE_COLLAPSE_PATTERN, " ").trim();
+}
+
 export function CopyResponseButton({ value }: { value: string }) {
     const { copyToClipboard, isCopied } = useCopyToClipboard();
 
@@ -2186,6 +2230,46 @@ export function CopyResponseButton({ value }: { value: string }) {
                 <Check className="size-3.5 text-success" />
             ) : (
                 <CopyIcon className="size-3.5 text-muted-foreground" />
+            )}
+        </Button>
+    );
+}
+
+export function SpeakResponseButton({ value }: { value: string }) {
+    const { isSpeaking, isSupported, stop, toggle } = useSpeechSynthesis();
+    const speakableText = toSpeakableText(value);
+    const previousTextRef = React.useRef(speakableText);
+
+    React.useEffect(() => {
+        if (previousTextRef.current === speakableText) {
+            return;
+        }
+        previousTextRef.current = speakableText;
+        stop();
+    }, [speakableText, stop]);
+
+    const handleToggle = useStableCallback(() => toggle(speakableText));
+
+    if (!isSupported) {
+        return null;
+    }
+
+    return (
+        <Button
+            aria-label={
+                isSpeaking ? "Stop reading response" : "Listen to response"
+            }
+            aria-pressed={isSpeaking}
+            disabled={speakableText.length === 0}
+            onClick={handleToggle}
+            size="icon-xs"
+            title={isSpeaking ? "Stop reading" : "Listen to response"}
+            variant="ghost"
+        >
+            {isSpeaking ? (
+                <Square className="size-3.5 fill-current text-foreground" />
+            ) : (
+                <Volume2 className="size-3.5 text-muted-foreground" />
             )}
         </Button>
     );
@@ -2244,7 +2328,10 @@ export function AskCacheResponsePanel({
             <Streamdown className="whitespace-pre-line text-sm leading-relaxed">
                 {response.markdown}
             </Streamdown>
-            <CopyResponseButton value={response.markdown} />
+            <div className="flex items-center gap-1">
+                <CopyResponseButton value={response.markdown} />
+                <SpeakResponseButton value={response.markdown} />
+            </div>
         </div>
     );
 }
