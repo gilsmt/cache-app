@@ -10,7 +10,7 @@ import {
 export const DimensionsCacheContext =
     React.createContext<DimensionsCache | null>(null);
 
-export function useDimensionsCacheContext(): DimensionsCache {
+export function useDimensionCacheContext(): DimensionsCache {
     const context = React.use(DimensionsCacheContext);
     if (!context) {
         throw new Error(
@@ -20,7 +20,7 @@ export function useDimensionsCacheContext(): DimensionsCache {
     return context;
 }
 
-export function DimensionsCacheProvider({ children }: React.PropsWithChildren) {
+export function DimensionCacheProvider({ children }: React.PropsWithChildren) {
     const contextValue = useRefWithInit(createDimensionsCache).current;
 
     return (

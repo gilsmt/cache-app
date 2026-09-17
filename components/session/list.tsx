@@ -51,13 +51,13 @@ import {
 } from "@/components/billing/paywall";
 import { useSubscriptionAccess } from "@/components/billing/subscription";
 import { SuccessfulUpgradeDialog } from "@/components/billing/success";
+import { CommentComposer } from "@/components/comments/composer";
 import {
     reconcileCollectionTags,
     replaceMultipleItemCollections,
     sortCollections,
     useCollectionsContext,
 } from "@/components/session/collections";
-import { CommentTextarea } from "@/components/session/comment";
 import {
     ALL_DOMAIN_FILTER,
     type AskCacheResponseState,
@@ -300,7 +300,7 @@ import {
 } from "@/lib/intelligence/overview";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
-import { useDimensionsCacheContext } from "./dimensions";
+import { useDimensionCacheContext } from "./dimension-cache";
 
 const COBALT_SOURCES = new Set<LibraryItemSource>([
     LibraryItemSource.google_photos,
@@ -1545,6 +1545,68 @@ function buildRemovableDuplicateItemIds({
         : [];
 }
 
+function getUnreachableProbeBatch(
+    currentItems: LibraryItemWithCollections[],
+    probedItemIds: ReadonlySet<string>
+) {
+    const probeableItems = currentItems.filter((item) =>
+        isLinkProbeCandidate(item)
+    );
+    const candidates = probeableItems.filter(
+        (item) =>
+            !probedItemIds.has(item.id) && needsLinkReachabilityProbe(item)
+    );
+    const totalProbeable = probeableItems.length;
+    return {
+        batch: candidates.slice(0, LINK_REACHABILITY_BATCH_MAX),
+        checked: totalProbeable - candidates.length,
+        totalProbeable,
+    };
+}
+
+function getProbeRetryDelayMs(consecutiveFailures: number): number {
+    return LINK_PROBE_RETRY_BACKOFF_BASE_MS * 2 ** (consecutiveFailures - 1);
+}
+
+async function probeUnreachableBatch(
+    batch: LibraryItemWithCollections[]
+): Promise<{
+    result: LibraryItemsReachabilityProbeResult | null;
+    thrownError: unknown;
+}> {
+    try {
+        const result = await probeLibraryItemsReachabilityAction({
+            itemIds: batch.map((item) => item.id),
+        });
+        return { result, thrownError: null };
+    } catch (thrownError) {
+        return { result: null, thrownError };
+    }
+}
+
+function updateItemsWithProbeSuccess(
+    previous: LibraryItemWithCollections[],
+    result: Extract<
+        LibraryItemsReachabilityProbeResult,
+        { status: typeof ACTION_STATUS.SUCCESS }
+    >
+): LibraryItemWithCollections[] {
+    const resultById = new Map(
+        result.results.map((entry) => [entry.itemId, entry] as const)
+    );
+    return previous.map((item) => {
+        const entry = resultById.get(item.id);
+        if (!entry) {
+            return item;
+        }
+        return {
+            ...item,
+            linkCheckedAt: new Date(entry.checkedAt),
+            linkReachability: entry.status,
+        };
+    });
+}
+
 function buildResultsCollectionName(searchTerms: string[]): string {
     const normalizedTerms = searchTerms
         .map((term) => term.trim())
@@ -2686,7 +2748,7 @@ function MediaPreview({
     src: string | null;
     videoSrc?: string | null;
 }) {
-    const dimensionsCache = useDimensionsCacheContext();
+    const dimensionsCache = useDimensionCacheContext();
     const imgRef = React.useRef<HTMLImageElement | null>(null);
     const videoRef = React.useRef<HTMLVideoElement | null>(null);
 
@@ -3150,7 +3212,7 @@ function MediaCardContextMenuActionList() {
     );
 }
 
-function MediaCardMenuCommentTextarea() {
+function MediaCardMenuCommentComposer() {
     const { isNote, item } = useMediaCardDataContext();
     const { isOverlayOpen } = useMediaCardSurfaceContext();
 
@@ -3158,14 +3220,14 @@ function MediaCardMenuCommentTextarea() {
         return null;
     }
 
-    return <CommentTextarea isOpen={isOverlayOpen} item={item} />;
+    return <CommentComposer isOpen={isOverlayOpen} item={item} />;
 }
 
 function MediaCardMenuContent() {
     return (
         <>
             <MediaCardMenuDetails />
-            <MediaCardMenuCommentTextarea />
+            <MediaCardMenuCommentComposer />
             <MenuSeparator />
             <MediaCardMenuActionList />
         </>
@@ -3176,7 +3238,7 @@ function MediaCardContextMenuContent() {
     return (
         <>
             <MediaCardMenuDetails />
-            <MediaCardMenuCommentTextarea />
+            <MediaCardMenuCommentComposer />
             <ContextMenuSeparator />
             <MediaCardContextMenuActionList />
         </>
@@ -4253,10 +4315,8 @@ export function BrowserContent({
         const version = unreachableProbeVersionRef.current + 1;
         unreachableProbeVersionRef.current = version;
 
-        // Track pending sleeps so cleanup can settle them: a cleared timeout
-        // never fires its callback, which would otherwise leave `run()` awaiting
-        // a promise that never settles and keep the loop closure alive.
         const pendingSleepResolvers = new Set<() => void>();
+        const probedItemIds = new Set<string>();
 
         const sleep = (ms: number) =>
             new Promise<void>((resolve) => {
@@ -4267,27 +4327,15 @@ export function BrowserContent({
                 });
             });
 
-        // Local set so the async loop does not re-probe the same batch while
-        // waiting for React to commit `setItems` into `itemsRef`.
-        const probedItemIds = new Set<string>();
-
         const run = async () => {
             let consecutiveFailures = 0;
 
             while (unreachableProbeVersionRef.current === version) {
                 const currentItems = itemsRef.current;
-                const probeableItems = currentItems.filter((item) =>
-                    isLinkProbeCandidate(item)
-                );
-                const candidates = probeableItems.filter(
-                    (item) =>
-                        !probedItemIds.has(item.id) &&
-                        needsLinkReachabilityProbe(item)
-                );
-                const totalProbeable = probeableItems.length;
-                const checked = totalProbeable - candidates.length;
+                const { batch, checked, totalProbeable } =
+                    getUnreachableProbeBatch(currentItems, probedItemIds);
 
-                if (candidates.length === 0) {
+                if (batch.length === 0) {
                     setUnreachableProbe({
                         checked: totalProbeable,
                         isActive: false,
@@ -4309,42 +4357,21 @@ export function BrowserContent({
                     total: totalProbeable,
                 });
 
-                const batch = candidates.slice(0, LINK_REACHABILITY_BATCH_MAX);
-                let result: LibraryItemsReachabilityProbeResult;
-                try {
-                    result = await probeLibraryItemsReachabilityAction({
-                        itemIds: batch.map((item) => item.id),
-                    });
-                } catch (error) {
-                    if (unreachableProbeVersionRef.current !== version) {
-                        return;
-                    }
-                    log.error("Link reachability probe threw", error);
-                    consecutiveFailures += 1;
-                    if (consecutiveFailures > LINK_PROBE_MAX_RETRIES) {
-                        setUnreachableProbe({
-                            checked,
-                            isActive: false,
-                            probeFailed: true,
-                            total: totalProbeable,
-                        });
-                        return;
-                    }
-                    await sleep(
-                        LINK_PROBE_RETRY_BACKOFF_BASE_MS *
-                            2 ** (consecutiveFailures - 1)
-                    );
-                    continue;
-                }
+                const { result, thrownError } =
+                    await probeUnreachableBatch(batch);
 
                 if (unreachableProbeVersionRef.current !== version) {
                     return;
                 }
 
-                if (result.status !== ACTION_STATUS.SUCCESS) {
-                    log.error("Link reachability probe failed", {
-                        message: result.message,
-                    });
+                if (!result || result.status !== ACTION_STATUS.SUCCESS) {
+                    if (result) {
+                        log.error("Link reachability probe failed", {
+                            message: result.message,
+                        });
+                    } else {
+                        log.error("Link reachability probe threw", thrownError);
+                    }
                     consecutiveFailures += 1;
                     if (consecutiveFailures > LINK_PROBE_MAX_RETRIES) {
                         setUnreachableProbe({
@@ -4355,10 +4382,7 @@ export function BrowserContent({
                         });
                         return;
                     }
-                    await sleep(
-                        LINK_PROBE_RETRY_BACKOFF_BASE_MS *
-                            2 ** (consecutiveFailures - 1)
-                    );
+                    await sleep(getProbeRetryDelayMs(consecutiveFailures));
                     continue;
                 }
 
@@ -4379,21 +4403,8 @@ export function BrowserContent({
                     probedItemIds.add(entry.itemId);
                 }
 
-                const resultById = new Map(
-                    result.results.map((entry) => [entry.itemId, entry])
-                );
                 setItems((previous) =>
-                    previous.map((item) => {
-                        const entry = resultById.get(item.id);
-                        if (!entry) {
-                            return item;
-                        }
-                        return {
-                            ...item,
-                            linkCheckedAt: new Date(entry.checkedAt),
-                            linkReachability: entry.status,
-                        };
-                    })
+                    updateItemsWithProbeSuccess(previous, result)
                 );
             }
         };

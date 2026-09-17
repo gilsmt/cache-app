@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { buildPageMetadata } from "@/app/metadata";
+import { Integrations } from "@/components/integrations/list";
 import {
     Collections,
     CollectionsProvider,
 } from "@/components/session/collections";
-import { DimensionsCacheProvider } from "@/components/session/dimensions";
-import { Integrations } from "@/components/session/integrations";
+import { DimensionCacheProvider } from "@/components/session/dimension-cache";
 import { ItemsStateProvider } from "@/components/session/items";
 import { BrowserContent } from "@/components/session/list";
 import { SidebarNavigation } from "@/components/sidebar/navigation";
@@ -83,7 +83,7 @@ export default async function LibraryPage() {
     ]);
 
     return (
-        <DimensionsCacheProvider>
+        <DimensionCacheProvider>
             <ItemsStateProvider initialItems={items} key={userId}>
                 <CollectionsProvider initialCollections={collections}>
                     <BrowserContent
@@ -100,6 +100,6 @@ export default async function LibraryPage() {
                     </BrowserContent>
                 </CollectionsProvider>
             </ItemsStateProvider>
-        </DimensionsCacheProvider>
+        </DimensionCacheProvider>
     );
 }

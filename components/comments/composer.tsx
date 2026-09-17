@@ -41,7 +41,7 @@ function getCommentKey(
     return isOpen ? [COMMENT_SWR_KEY_PREFIX, itemId] : null;
 }
 
-interface CommentTextareaProps {
+interface CommentComposerProps {
     isOpen: boolean;
     item: LibraryItemWithCollections;
 }
@@ -50,16 +50,16 @@ interface CommentTextareaProps {
  * keyed by `item.id` here rather than left to callers
  * since a surviving mount would save one item's draft onto another.
  */
-export function CommentTextarea(props: CommentTextareaProps) {
-    return <ItemCommentTextarea key={props.item.id} {...props} />;
+export function CommentComposer(props: CommentComposerProps) {
+    return <CommentComposerImpl key={props.item.id} {...props} />;
 }
 
-interface ItemCommentTextareaProps {
+interface CommentComposerImplProps {
     isOpen: boolean;
     item: LibraryItemWithCollections;
 }
 
-function ItemCommentTextarea({ isOpen, item }: ItemCommentTextareaProps) {
+function CommentComposerImpl({ isOpen, item }: CommentComposerImplProps) {
     const gt = useGT();
 
     const { data, error, isLoading, mutate } = useSWR(

@@ -9,6 +9,7 @@ import { Check, ChevronRight, Component, LibraryBig } from "lucide-react";
 import * as React from "react";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
+import { openIntegrationsList } from "@/components/integrations/list";
 import {
     shareCollectionPubliclySafely,
     useCollectionAccessGate,
@@ -16,7 +17,6 @@ import {
     useCollectionsContext,
     useCollectionsPendingActionsContext,
 } from "@/components/session/collections";
-import { openIntegrationsList } from "@/components/session/integrations";
 import { useItemsContext } from "@/components/session/items";
 import { Button } from "@/components/ui/button";
 import {

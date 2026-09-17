@@ -16,8 +16,11 @@ import { storage } from "stan-js/storage";
 import {
     MarkdownImportDialog,
     openMarkdownImportDialog,
-} from "@/components/session/markdown";
-import { openRssManageDialog, RssManageDialog } from "@/components/session/rss";
+} from "@/components/integrations/markdown";
+import {
+    openRssManageDialog,
+    RssManageDialog,
+} from "@/components/integrations/rss";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -243,7 +246,7 @@ function resolveActionLabel(args: {
     switch (role) {
         case "open":
             if (!isExtensionInstalled && integration.behaviors.open) {
-                return gt("Get Extension");
+                return gt("Get extension");
             }
             return gt("Open");
         case "connect":
@@ -326,12 +329,10 @@ async function executeIntegrationAction(args: {
         });
     }
 
-    // open
     switch (behavior.kind) {
         case "extension-entry":
             executeOpenBehavior(behavior, isExtensionInstalled);
             return NO_ACTION_FEEDBACK;
-        // connect
         case "rss-manage":
             openRssManageDialog();
             return NO_ACTION_FEEDBACK;
@@ -339,21 +340,18 @@ async function executeIntegrationAction(args: {
         case "social-sign-in":
             await executeConnectBehavior(behavior);
             return NO_ACTION_FEEDBACK;
-        // copy
         case "copy-prompt":
             await executeCopyPromptBehavior(behavior);
             return {
                 refresh: false,
                 successMessage: gt("Copied to clipboard."),
             };
-        // sync
         case "route":
         case "google-photos-picker":
             return {
                 refresh: true,
                 successMessage: await executeSyncBehavior(behavior),
             };
-        // import
         case "markdown-import":
             openMarkdownImportDialog();
             return NO_ACTION_FEEDBACK;
@@ -405,11 +403,11 @@ function IntegrationsList({
     const { isIntegrationsListOpen, setIsIntegrationsListOpen } =
         useIntegrationsListStore();
 
-    const handleKeyShortcutPress = useStableCallback(() => {
+    const toggleIntegrationsList = useStableCallback(() => {
         setIsIntegrationsListOpen((prev) => !prev);
     });
 
-    useHotkeys("mod+i", handleKeyShortcutPress, {
+    useHotkeys("mod+i", toggleIntegrationsList, {
         description: gt("Toggle integrations panel"),
         preventDefault: true,
     });
@@ -492,10 +490,7 @@ function IntegrationsListTrigger({
                         <T>Import from other apps</T>
                     </h2>
                     <p className="text-foreground text-xs">
-                        <T>
-                            Sync your bookmarks from other services into your
-                            library.
-                        </T>
+                        <T>Sync content from other apps into your library.</T>
                     </p>
                 </div>
             </PreviewCardPopup>
