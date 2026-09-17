@@ -95,6 +95,7 @@ import {
     removeLastPaletteStackEntry,
     SOURCE_LABEL_BY_VALUE,
     type SortMode,
+    SpeakResponseButton,
 } from "@/components/session/composer";
 import {
     browserHasActiveFilters,
@@ -112,11 +113,11 @@ import {
 import { OnboardingMenu } from "@/components/session/onboarding";
 import {
     type NoteDraft,
-    openQuickLook,
-    openQuickLookNote,
-    QuickLookContent,
-    QuickLookRoot,
-} from "@/components/session/quick-look";
+    openSide,
+    openSideNote,
+    SideContent,
+    SideRoot,
+} from "@/components/session/side";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -495,15 +496,15 @@ const MEDIA_CARD_ACTION_PLUGINS = [
         separatorBefore: false,
     },
     {
-        id: "quick-look",
+        id: "side",
         isAvailable: ({ item }: MediaCardData) =>
             item.kind !== ITEM_KIND_NOTE &&
             toValidUrl(normalizeURL(item.url)) !== FALLBACK_URL,
         render: (variant: "menu" | "contextMenu") =>
             variant === "menu" ? (
-                <MediaCardQuickLookAction variant="menu" />
+                <MediaCardSideAction variant="menu" />
             ) : (
-                <MediaCardQuickLookAction variant="contextMenu" />
+                <MediaCardSideAction variant="contextMenu" />
             ),
         separatorBefore: false,
     },
@@ -1004,7 +1005,7 @@ function useCardHoverHotkeys({
                 return;
             }
             event.preventDefault();
-            openQuickLook({
+            openSide({
                 description: getLibraryItemDomain(item.url),
                 title: getLibraryItemTitle(item),
                 url: item.url,
@@ -2589,7 +2590,10 @@ function BrowserGroupAIOverviewContent() {
             </Streamdown>
             &nbsp;
             {summary && summary.length > 0 ? (
-                <CopyResponseButton value={summary} />
+                <>
+                    <CopyResponseButton value={summary} />
+                    <SpeakResponseButton value={summary} />
+                </>
             ) : null}
             <Button
                 aria-controls={contentId}
@@ -3569,15 +3573,11 @@ function MediaCardNoteAction({ variant }: { variant: "menu" | "contextMenu" }) {
     );
 }
 
-function MediaCardQuickLookAction({
-    variant,
-}: {
-    variant: "menu" | "contextMenu";
-}) {
+function MediaCardSideAction({ variant }: { variant: "menu" | "contextMenu" }) {
     const { displayTitle, item } = useMediaCardDataContext();
 
     const handleOpen = useStableCallback(() => {
-        openQuickLook({
+        openSide({
             description: getLibraryItemDomain(item.url),
             title: displayTitle,
             url: item.url,
@@ -3586,7 +3586,7 @@ function MediaCardQuickLookAction({
     const content = (
         <>
             <EyeIcon className="size-4.5 text-muted-foreground" />
-            Quick Look
+            Quick look
             <Kbd className="ml-auto">
                 <AltKbd />E
             </Kbd>
@@ -5109,7 +5109,7 @@ export function BrowserContent({
     );
 
     const handleCreateNote = useStableCallback(() => {
-        openQuickLookNote(null);
+        openSideNote(null);
     });
 
     const handleOpenComposerFromOnboarding = useStableCallback(() => {
@@ -5206,14 +5206,14 @@ export function BrowserContent({
 
     const handleOpenNote = useStableCallback(
         (item: LibraryItemWithCollections) => {
-            openQuickLookNote(item);
+            openSideNote(item);
         }
     );
 
     const handleOpenFavoriteItem = useStableCallback(
         (item: LibraryItemWithCollections) => {
             if (item.kind === ITEM_KIND_NOTE) {
-                openQuickLookNote(item);
+                openSideNote(item);
                 return;
             }
             handleOpenInNewTab(item);
@@ -5385,7 +5385,7 @@ export function BrowserContent({
 
     return (
         <ItemsContext value={itemsContextValue}>
-            <QuickLookRoot
+            <SideRoot
                 onSaveNote={handleSaveNote}
                 onUrlPaste={handlePasteUrlIntoLibrary}
             >
@@ -5548,7 +5548,7 @@ export function BrowserContent({
                                 </div>
                             ) : null}
                         </div>
-                        <QuickLookContent />
+                        <SideContent />
                     </div>
                     <DeleteItemDialog
                         isDeletePending={isDeletePending}
@@ -5595,7 +5595,7 @@ export function BrowserContent({
                     />
                     <SuccessfulUpgradeDialog />
                 </BrowserContext>
-            </QuickLookRoot>
+            </SideRoot>
         </ItemsContext>
     );
 }

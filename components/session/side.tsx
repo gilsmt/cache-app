@@ -146,21 +146,21 @@ import {
 } from "@/lib/integrations/notes/utils";
 import { sendNoteToNotion } from "@/lib/integrations/notion/actions";
 
-const QUICK_LOOK_BLOCKED_URL = "about:blank";
+const SIDE_BLOCKED_URL = "about:blank";
 const DEFAULT_TITLE = "Preview";
 const DEFAULT_TIMEOUT_MS = 8000;
-const ACTIVE_INDEX_STORAGE_KEY = "cache:quick-look:active-index";
-const ITEMS_STORAGE_KEY = "cache:quick-look:items";
-const OPEN_STORAGE_KEY = "cache:quick-look:open";
+const ACTIVE_INDEX_STORAGE_KEY = "cache:side:active-index";
+const ITEMS_STORAGE_KEY = "cache:side:items";
+const OPEN_STORAGE_KEY = "cache:side:open";
 const QUEUE_LIMIT = 12;
-const QUICK_LOOK_RECENT_ITEMS_LIMIT = 3;
+const SIDE_RECENT_ITEMS_LIMIT = 3;
 
 const OEMBED_IFRAME_SANDBOX =
     "allow-scripts allow-popups allow-popups-to-escape-sandbox allow-presentation";
 const OEMBED_DIRECT_IFRAME_SANDBOX = `${OEMBED_IFRAME_SANDBOX} allow-same-origin allow-forms allow-modals allow-downloads`;
 const OEMBED_IFRAME_ALLOW =
     "accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share";
-const QUICK_LOOK_IFRAME_SANDBOX =
+const SIDE_IFRAME_SANDBOX =
     "allow-scripts allow-popups allow-popups-to-escape-sandbox allow-presentation";
 const OEMBED_SRCDOC_CSP =
     "default-src 'none'; img-src https: data:; font-src https: data:; style-src 'unsafe-inline' https:; script-src 'unsafe-inline' https:; connect-src https:; media-src https: data: blob:; frame-src https:; object-src 'none'; form-action 'none';";
@@ -331,20 +331,20 @@ type OembedResolution =
           resolution: "not-found" | "unsupported";
       };
 
-export interface QuickLookUrlInput {
+export interface SideUrlInput {
     description?: string;
     title?: string;
     url: string;
 }
 
-export interface QuickLookNote {
+export interface SideNote {
     id: string;
     noteContentHtml: string | null;
     noteContentState: unknown;
     noteContentText: string | null;
 }
 
-interface QuickLookUrlEntry {
+interface SideUrlEntry {
     description?: string;
     id: string;
     title: string;
@@ -352,13 +352,13 @@ interface QuickLookUrlEntry {
     url: string;
 }
 
-interface QuickLookNoteEntry {
+interface SideNoteEntry {
     id: string;
-    note: QuickLookNote | null;
+    note: SideNote | null;
     type: "note";
 }
 
-type QuickLookEntry = QuickLookNoteEntry | QuickLookUrlEntry;
+type SideEntry = SideNoteEntry | SideUrlEntry;
 
 export interface NoteDraft {
     contentHtml: string;
@@ -370,17 +370,17 @@ type NoteSaveHandler = (
     noteId: string | null
 ) => Promise<LibraryItemWithCollections | null>;
 
-interface QuickLookQueueState {
+interface SideQueueState {
     activeIndex: number;
-    items: QuickLookEntry[];
+    items: SideEntry[];
 }
 
-interface QuickLookContextValue {
+interface SideContextValue {
     onSaveNote: NoteSaveHandler;
     onUrlPaste: (url: string) => Promise<void> | void;
 }
 
-interface QuickLookTabsContextValue {
+interface SideTabsContextValue {
     onKeyDown: (
         index: number,
         event: React.KeyboardEvent<HTMLButtonElement>
@@ -388,30 +388,30 @@ interface QuickLookTabsContextValue {
     registerTab: (itemId: string, element: HTMLButtonElement | null) => void;
 }
 
-interface QuickLookStore {
+interface SideStore {
     activeIndex: number;
     isOpen: boolean;
-    items: QuickLookEntry[];
+    items: SideEntry[];
 }
 
-interface QuickLookStorage<T> {
+interface SideStorage<T> {
     getSnapshot: (key: string) => T | Promise<T>;
     subscribe?: (update: (value: T) => void, key: string) => void;
     update: (value: T, key: string) => void;
     value: T;
 }
 
-interface QuickLookActions {
-    openWithEntry: (entry: QuickLookEntry) => void;
+interface SideActions {
+    openWithEntry: (entry: SideEntry) => void;
     removeQueueItem: (index: number) => void;
     selectQueueIndex: (index: number) => void;
-    updateNoteEntry: (id: string, note: QuickLookNote) => void;
+    updateNoteEntry: (id: string, note: SideNote) => void;
 }
 
-type QuickLookStoreActions = QuickLookActions &
+type SideStoreActions = SideActions &
     Record<string, (...args: never[]) => void>;
 
-const log = createLogger("library:quick-look");
+const log = createLogger("library:side");
 
 const NOTE_EDITOR_EXTENSION = defineExtension({
     dependencies: [
@@ -436,39 +436,33 @@ const NOTE_EDITOR_EXTENSION = defineExtension({
     theme: NOTE_EDITOR_THEME,
 });
 
-const QuickLookContext = createContext<QuickLookContextValue | null>(null);
-const QuickLookTabsContext = createContext<QuickLookTabsContextValue | null>(
-    null
-);
+const SideContext = createContext<SideContextValue | null>(null);
+const SideTabsContext = createContext<SideTabsContextValue | null>(null);
 
-function useQuickLookContext(): QuickLookContextValue {
-    const context = use(QuickLookContext);
+function useSideContext(): SideContextValue {
+    const context = use(SideContext);
     if (!context) {
-        throw new Error(
-            "QuickLook components must be used inside <QuickLook.Root>."
-        );
+        throw new Error("Side components must be used inside <SideRoot>.");
     }
     return context;
 }
 
-function useQuickLookTabsContext(): QuickLookTabsContextValue {
-    const context = use(QuickLookTabsContext);
+function useSideTabsContext(): SideTabsContextValue {
+    const context = use(SideTabsContext);
     if (!context) {
-        throw new Error(
-            "Quick Look tabs must be rendered inside <QuickLookList>."
-        );
+        throw new Error("Side tabs must be rendered inside <SideList>.");
     }
     return context;
 }
 
-export function useIsQuickLookOpen(): boolean {
-    const { isOpen } = useQuickLookStore();
+export function useIsSideOpen(): boolean {
+    const { isOpen } = useSideStore();
     return isOpen;
 }
 
-function useQuickLookStatus(url: string | null, timeoutMs: number) {
+function useSideStatus(url: string | null, timeoutMs: number) {
     const oembedUrl =
-        url !== null && !isQuickLookBlockedUrl(url) && hasOembedSupport(url)
+        url !== null && !isSideBlockedUrl(url) && hasOembedSupport(url)
             ? url
             : null;
 
@@ -522,7 +516,7 @@ function useQuickLookStatus(url: string | null, timeoutMs: number) {
     }, [url, iframeStatus, statusCacheRef]);
 
     React.useEffect(() => {
-        if (isQuickLookBlockedUrl(url) || iframeStatus !== "pending") {
+        if (isSideBlockedUrl(url) || iframeStatus !== "pending") {
             timeout.clear();
             return;
         }
@@ -544,18 +538,15 @@ function useQuickLookStatus(url: string | null, timeoutMs: number) {
 
     React.useEffect(() => {
         if (error && url) {
-            log.warn(
-                "Quick Look oEmbed fetch failed; trying iframe fallback.",
-                {
-                    host: parseDisplayUrl(url),
-                }
-            );
+            log.warn("Side oEmbed fetch failed; trying iframe fallback.", {
+                host: parseDisplayUrl(url),
+            });
         }
     }, [error, url]);
 
     React.useEffect(() => {
         if (iframeStatus === "blocked" && url) {
-            log.warn("Quick Look preview did not load; showing fallback.", {
+            log.warn("Side preview did not load; showing fallback.", {
                 host: parseDisplayUrl(url),
             });
         }
@@ -572,7 +563,7 @@ function parseOembedStatus(
     data: OembedResolution | undefined,
     iframeStatus: IframeStatus
 ): OembedStatus {
-    if (isQuickLookBlockedUrl(url)) {
+    if (isSideBlockedUrl(url)) {
         return "blocked";
     }
 
@@ -607,17 +598,17 @@ async function resolveOembed(url: string): Promise<OembedResolution> {
         : { resolution: "not-found" };
 }
 
-function addQuickLookQueueEntry(
-    items: QuickLookEntry[],
-    entry: QuickLookEntry
-): QuickLookQueueState {
+function addSideQueueEntry(
+    items: SideEntry[],
+    entry: SideEntry
+): SideQueueState {
     const existingIndex = items.findIndex((item) =>
-        areQuickLookEntriesSameTab(item, entry)
+        areSideEntriesSameTab(item, entry)
     );
     const existingEntry = items[existingIndex];
 
     if (existingEntry) {
-        if (areQuickLookEntriesEqual(existingEntry, entry)) {
+        if (areSideEntriesEqual(existingEntry, entry)) {
             return { activeIndex: existingIndex, items };
         }
         const nextEntry =
@@ -638,10 +629,7 @@ function addQuickLookQueueEntry(
     return { activeIndex: nextItems.length - 1, items: nextItems };
 }
 
-function areQuickLookEntriesSameTab(
-    left: QuickLookEntry,
-    right: QuickLookEntry
-): boolean {
+function areSideEntriesSameTab(left: SideEntry, right: SideEntry): boolean {
     if (left.type !== right.type) {
         return false;
     }
@@ -654,10 +642,7 @@ function areQuickLookEntriesSameTab(
     return left.id === right.id;
 }
 
-function areQuickLookEntriesEqual(
-    left: QuickLookEntry,
-    right: QuickLookEntry
-): boolean {
+function areSideEntriesEqual(left: SideEntry, right: SideEntry): boolean {
     if (left.type !== right.type || left.id !== right.id) {
         return false;
     }
@@ -669,14 +654,14 @@ function areQuickLookEntriesEqual(
         );
     }
     if (left.type === "note" && right.type === "note") {
-        return areQuickLookNotesEqual(left.note, right.note);
+        return areSideNotesEqual(left.note, right.note);
     }
     return false;
 }
 
-function areQuickLookNotesEqual(
-    left: QuickLookNote | null,
-    right: QuickLookNote | null
+function areSideNotesEqual(
+    left: SideNote | null,
+    right: SideNote | null
 ): boolean {
     if (left === null || right === null) {
         return left === right;
@@ -691,7 +676,7 @@ function areQuickLookNotesEqual(
     );
 }
 
-function createQuickLookUrlEntry(input: QuickLookUrlInput): QuickLookUrlEntry {
+function createSideUrlEntry(input: SideUrlInput): SideUrlEntry {
     return {
         description: input.description,
         id: `url:${input.url}`,
@@ -701,7 +686,7 @@ function createQuickLookUrlEntry(input: QuickLookUrlInput): QuickLookUrlEntry {
     };
 }
 
-function getRecentQuickLookItems(
+function getRecentSideItems(
     items: LibraryItemWithCollections[],
     lastVisitedItemIds: string[]
 ): LibraryItemWithCollections[] {
@@ -713,12 +698,10 @@ function getRecentQuickLookItems(
             (item): item is LibraryItemWithCollections =>
                 item?.kind === ITEM_KIND_BOOKMARK
         )
-        .slice(0, QUICK_LOOK_RECENT_ITEMS_LIMIT);
+        .slice(0, SIDE_RECENT_ITEMS_LIMIT);
 }
 
-function createQuickLookNoteEntry(
-    note: QuickLookNote | null
-): QuickLookNoteEntry {
+function createSideNoteEntry(note: SideNote | null): SideNoteEntry {
     return {
         id: note?.id ?? `new-note:${crypto.randomUUID()}`,
         note,
@@ -726,12 +709,12 @@ function createQuickLookNoteEntry(
     };
 }
 
-function deserializeQuickLookItems(value: string): QuickLookEntry[] {
+function deserializeSideItems(value: string): SideEntry[] {
     let parsed: unknown;
     try {
         parsed = JSON.parse(value);
     } catch {
-        log.warn("Failed to restore quick look tabs from storage.");
+        log.warn("Failed to restore side tabs from storage.");
         return [];
     }
 
@@ -739,14 +722,14 @@ function deserializeQuickLookItems(value: string): QuickLookEntry[] {
         return [];
     }
 
-    return parsed.flatMap((rawItem): QuickLookEntry[] => {
+    return parsed.flatMap((rawItem): SideEntry[] => {
         if (!isRecord(rawItem)) {
             return [];
         }
 
         if (typeof rawItem.url === "string") {
             return [
-                createQuickLookUrlEntry({
+                createSideUrlEntry({
                     description:
                         typeof rawItem.description === "string"
                             ? rawItem.description
@@ -784,12 +767,12 @@ function deserializeQuickLookItems(value: string): QuickLookEntry[] {
                             : null,
                 },
                 type: "note",
-            } satisfies QuickLookNoteEntry,
+            } satisfies SideNoteEntry,
         ];
     });
 }
 
-function serializeQuickLookItems(items: QuickLookEntry[]): string {
+function serializeSideItems(items: SideEntry[]): string {
     return JSON.stringify(
         items.filter((item) => item.type === "url" || item.note !== null)
     );
@@ -807,18 +790,18 @@ function isStorageQuotaExceededError(error: unknown): boolean {
     );
 }
 
-function createQuickLookItemsStorage() {
+function createSideItemsStorage() {
     // stan-js's browser runtime returns a synchronizer object here, although
     // its published Storage type describes the callable factory result as T.
-    const persistedStorage = storage<QuickLookEntry[]>([], {
-        deserialize: deserializeQuickLookItems,
-        serialize: serializeQuickLookItems,
+    const persistedStorage = storage<SideEntry[]>([], {
+        deserialize: deserializeSideItems,
+        serialize: serializeSideItems,
         storageKey: ITEMS_STORAGE_KEY,
-    }) as unknown as QuickLookStorage<QuickLookEntry[]>;
+    }) as unknown as SideStorage<SideEntry[]>;
 
     return {
         ...persistedStorage,
-        update(value: QuickLookEntry[], key: string) {
+        update(value: SideEntry[], key: string) {
             try {
                 persistedStorage.update(value, key);
             } catch (error) {
@@ -827,15 +810,15 @@ function createQuickLookItemsStorage() {
                 }
 
                 log.warn(
-                    "Quick Look tabs exceeded local storage quota; keeping the current tabs in memory.",
+                    "Side tabs exceeded local storage quota; keeping the current tabs in memory.",
                     error
                 );
             }
         },
-    } as unknown as QuickLookEntry[];
+    } as unknown as SideEntry[];
 }
 
-function getQuickLookEntryTitle(entry: QuickLookEntry): string | null {
+function getSideEntryTitle(entry: SideEntry): string | null {
     if (entry.type === "url") {
         return entry.title;
     }
@@ -848,23 +831,23 @@ function getQuickLookEntryTitle(entry: QuickLookEntry): string | null {
     return firstLine ?? null;
 }
 
-function getQuickLookTabId(entry: QuickLookEntry): string {
-    return `quick-look-tab-${entry.type}-${encodeURIComponent(entry.id)}`;
+function getSideTabId(entry: SideEntry): string {
+    return `side-tab-${entry.type}-${encodeURIComponent(entry.id)}`;
 }
 
-function getQuickLookPanelId(entry: QuickLookEntry): string {
-    return `quick-look-panel-${entry.type}-${encodeURIComponent(entry.id)}`;
+function getSidePanelId(entry: SideEntry): string {
+    return `side-panel-${entry.type}-${encodeURIComponent(entry.id)}`;
 }
 
-function isQuickLookBlockedUrl(url: string | null): boolean {
-    if (url === null || url === QUICK_LOOK_BLOCKED_URL) {
+function isSideBlockedUrl(url: string | null): boolean {
+    if (url === null || url === SIDE_BLOCKED_URL) {
         return true;
     }
     const parsed = parseValidUrl(url);
     return parsed?.protocol !== "http:" && parsed?.protocol !== "https:";
 }
 
-function isQuickLookKeyboardShortcut(event: KeyboardEvent): boolean {
+function isSideKeyboardShortcut(event: KeyboardEvent): boolean {
     return (
         event.code === "KeyB" &&
         event.altKey &&
@@ -958,107 +941,105 @@ function clampActiveIndex(index: number, itemsLength: number): number {
     return clamp(index, 0, itemsLength - 1);
 }
 
-const QUICK_LOOK_ITEMS_STORAGE = createQuickLookItemsStorage();
+const SIDE_ITEMS_STORAGE = createSideItemsStorage();
 
-const { actions: quickLookStoreActions, useStore: useQuickLookStore } =
-    createStore<QuickLookStore, QuickLookStoreActions>(
-        {
-            activeIndex: storage(0, {
-                storageKey: ACTIVE_INDEX_STORAGE_KEY,
-            }),
-            isOpen: storage(false, {
-                storageKey: OPEN_STORAGE_KEY,
-            }),
-            items: QUICK_LOOK_ITEMS_STORAGE,
+const { actions: sideStoreActions, useStore: useSideStore } = createStore<
+    SideStore,
+    SideStoreActions
+>(
+    {
+        activeIndex: storage(0, {
+            storageKey: ACTIVE_INDEX_STORAGE_KEY,
+        }),
+        isOpen: storage(false, {
+            storageKey: OPEN_STORAGE_KEY,
+        }),
+        items: SIDE_ITEMS_STORAGE,
+    },
+    ({ actions, getState }) => ({
+        openWithEntry(entry: SideEntry) {
+            const { items } = getState();
+            const queue = addSideQueueEntry(items, entry);
+
+            actions.setItems(queue.items);
+            actions.setActiveIndex(queue.activeIndex);
+            actions.setIsOpen(true);
         },
-        ({ actions, getState }) => ({
-            openWithEntry(entry: QuickLookEntry) {
-                const { items } = getState();
-                const queue = addQuickLookQueueEntry(items, entry);
+        removeQueueItem(index: number) {
+            const { activeIndex, items } = getState();
+            if (index < 0 || index >= items.length) {
+                return;
+            }
+            const nextItems = items.filter((_, i) => i !== index);
+            actions.setItems(nextItems);
+            // Removing a tab before the active one shifts the active tab
+            // left; removing the active tab hands the slot to its follower.
+            actions.setActiveIndex(
+                clampActiveIndex(
+                    activeIndex - (index < activeIndex ? 1 : 0),
+                    nextItems.length
+                )
+            );
+        },
+        selectQueueIndex(index: number) {
+            const { items } = getState();
+            if (index < 0 || index >= items.length) {
+                return;
+            }
+            actions.setActiveIndex(index);
+        },
+        updateNoteEntry(id: string, note: SideNote) {
+            const { items } = getState();
+            const index = items.findIndex(
+                (item) => item.type === "note" && item.id === id
+            );
+            if (index === -1) {
+                return;
+            }
 
-                actions.setItems(queue.items);
-                actions.setActiveIndex(queue.activeIndex);
-                actions.setIsOpen(true);
-            },
-            removeQueueItem(index: number) {
-                const { activeIndex, items } = getState();
-                if (index < 0 || index >= items.length) {
-                    return;
-                }
-                const nextItems = items.filter((_, i) => i !== index);
-                actions.setItems(nextItems);
-                // Removing a tab before the active one shifts the active tab
-                // left; removing the active tab hands the slot to its follower.
-                actions.setActiveIndex(
-                    clampActiveIndex(
-                        activeIndex - (index < activeIndex ? 1 : 0),
-                        nextItems.length
-                    )
-                );
-            },
-            selectQueueIndex(index: number) {
-                const { items } = getState();
-                if (index < 0 || index >= items.length) {
-                    return;
-                }
-                actions.setActiveIndex(index);
-            },
-            updateNoteEntry(id: string, note: QuickLookNote) {
-                const { items } = getState();
-                const index = items.findIndex(
-                    (item) => item.type === "note" && item.id === id
-                );
-                if (index === -1) {
-                    return;
-                }
+            const currentEntry = items[index];
+            if (currentEntry?.type !== "note") {
+                return;
+            }
 
-                const currentEntry = items[index];
-                if (currentEntry?.type !== "note") {
-                    return;
-                }
+            const nextEntry: SideNoteEntry = { ...currentEntry, note };
+            if (areSideEntriesEqual(currentEntry, nextEntry)) {
+                return;
+            }
 
-                const nextEntry: QuickLookNoteEntry = { ...currentEntry, note };
-                if (areQuickLookEntriesEqual(currentEntry, nextEntry)) {
-                    return;
-                }
+            actions.setItems(
+                items.map((item, itemIndex) =>
+                    itemIndex === index ? nextEntry : item
+                )
+            );
+        },
+    })
+);
 
-                actions.setItems(
-                    items.map((item, itemIndex) =>
-                        itemIndex === index ? nextEntry : item
-                    )
-                );
-            },
-        })
-    );
-
-export function openQuickLook(input: QuickLookUrlInput) {
-    quickLookStoreActions.openWithEntry(createQuickLookUrlEntry(input));
+export function openSide(input: SideUrlInput) {
+    sideStoreActions.openWithEntry(createSideUrlEntry(input));
 }
 
-export function openQuickLookNote(note: LibraryItemWithCollections | null) {
-    quickLookStoreActions.openWithEntry(
-        createQuickLookNoteEntry(note ? toQuickLookNote(note) : null)
+export function openSideNote(note: LibraryItemWithCollections | null) {
+    sideStoreActions.openWithEntry(
+        createSideNoteEntry(note ? toSideNote(note) : null)
     );
 }
 
-interface QuickLookRootProps extends React.PropsWithChildren {
+interface SideRootProps extends React.PropsWithChildren {
     onSaveNote: NoteSaveHandler;
     onUrlPaste: (url: string) => Promise<void> | void;
 }
 
-export function QuickLookRoot({
-    children,
-    onSaveNote,
-    onUrlPaste,
-}: QuickLookRootProps) {
+export function SideRoot({ children, onSaveNote, onUrlPaste }: SideRootProps) {
     const contextValue = { onSaveNote, onUrlPaste };
 
-    return <QuickLookContext value={contextValue}>{children}</QuickLookContext>;
+    return <SideContext value={contextValue}>{children}</SideContext>;
 }
 
-export function QuickLookContent() {
+export function SideContent() {
     const gt = useGT();
-    const { onSaveNote, onUrlPaste } = useQuickLookContext();
+    const { onSaveNote, onUrlPaste } = useSideContext();
     const {
         activeIndex,
         isOpen,
@@ -1066,7 +1047,7 @@ export function QuickLookContent() {
         removeQueueItem,
         selectQueueIndex,
         setIsOpen,
-    } = useQuickLookStore();
+    } = useSideStore();
 
     const safeActiveIndex = clampActiveIndex(activeIndex, items.length);
     const activeEntry = items[safeActiveIndex] ?? null;
@@ -1092,7 +1073,7 @@ export function QuickLookContent() {
         if (
             event.defaultPrevented ||
             event.isComposing ||
-            !isQuickLookKeyboardShortcut(event) ||
+            !isSideKeyboardShortcut(event) ||
             isTextEntryTarget(event.target)
         ) {
             return;
@@ -1146,17 +1127,17 @@ export function QuickLookContent() {
         }
         const doc = aside.ownerDocument;
         if (isOpen) {
-            // Notes move focus to the editor in QuickLookNotePanel. Only move
+            // Notes move focus to the editor in SideNotePanel. Only move
             // focus here for URL tabs so Escape on the aside stays reachable
             // and mobile screen readers enter the fixed panel.
             if (activeEntry?.type === "url") {
-                const tab = doc.getElementById(getQuickLookTabId(activeEntry));
+                const tab = doc.getElementById(getSideTabId(activeEntry));
                 if (tab) {
                     tab.focus({ preventScroll: true });
                 } else {
-                    doc.getElementById(getQuickLookPanelId(activeEntry))?.focus(
-                        { preventScroll: true }
-                    );
+                    doc.getElementById(getSidePanelId(activeEntry))?.focus({
+                        preventScroll: true,
+                    });
                 }
             }
             return;
@@ -1173,14 +1154,14 @@ export function QuickLookContent() {
                 invoker.focus({ preventScroll: true });
             } else {
                 doc.querySelector<HTMLElement>(
-                    '[data-quick-look="toggle"]'
+                    '[data-slot="side-toggle"]'
                 )?.focus({ preventScroll: true });
             }
         }
     }, [isOpen, activeEntry]);
 
     const handleRemoveItem = useStableCallback(
-        (item: QuickLookEntry, index: number) => {
+        (item: SideEntry, index: number) => {
             if (item.type === "note") {
                 noteCloseHandlersRef.get(item.id)?.();
                 return;
@@ -1200,18 +1181,18 @@ export function QuickLookContent() {
 
     return (
         <>
-            <QuickLookToggle />
+            <SideToggle />
             <aside
                 aria-hidden={!isOpen}
                 aria-label={gt("Preview")}
                 className={cn(
-                    "group/quick-look relative z-50 flex min-h-0 shrink-0 flex-col overflow-hidden border-s bg-background transition-[width,transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+                    "group/side relative z-50 flex min-h-0 shrink-0 flex-col overflow-hidden border-s bg-background transition-[width,transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
                     "fixed inset-y-0 right-0 w-[calc(100%-3rem)] max-w-md data-[state=collapsed]:translate-x-full",
                     "lg:w-[400px]",
                     "lg:sticky lg:top-0 lg:right-auto lg:h-dvh lg:max-h-dvh lg:translate-x-0 lg:data-[state=collapsed]:w-0 lg:data-[state=collapsed]:border-transparent lg:data-[state=collapsed]:opacity-0"
                 )}
                 data-side="right"
-                data-slot="quick-look"
+                data-slot="side"
                 data-state={isOpen ? "expanded" : "collapsed"}
                 inert={!isOpen}
                 onKeyDown={handleAsideKeyDown}
@@ -1233,15 +1214,15 @@ export function QuickLookContent() {
                         )}
                     >
                         <h2 className="sr-only">
-                            <T>Quick Look</T>
+                            <T>Side</T>
                         </h2>
                         <div className="flex max-w-full items-center gap-1">
-                            <QuickLookList
+                            <SideList
                                 items={items}
                                 onTabSelect={selectQueueIndex}
                             >
                                 {(item, index) => (
-                                    <QuickLookListItem
+                                    <SideListItem
                                         index={index}
                                         isActive={index === safeActiveIndex}
                                         item={item}
@@ -1250,11 +1231,11 @@ export function QuickLookContent() {
                                         onSelect={selectQueueIndex}
                                     />
                                 )}
-                            </QuickLookList>
-                            {activeEntry ? <QuickLookNewTabMenu /> : null}
+                            </SideList>
+                            {activeEntry ? <SideNewTabMenu /> : null}
                         </div>
                     </div>
-                    <QuickLookPanel
+                    <SidePanel
                         activeEntry={activeEntry}
                         isOpen={isOpen}
                         items={items}
@@ -1269,10 +1250,10 @@ export function QuickLookContent() {
     );
 }
 
-interface QuickLookPanelProps {
-    activeEntry: QuickLookEntry | null;
+interface SidePanelProps {
+    activeEntry: SideEntry | null;
     isOpen: boolean;
-    items: QuickLookEntry[];
+    items: SideEntry[];
     onCloseNote: (id: string) => void;
     onRegisterNoteClose: (
         id: string,
@@ -1282,7 +1263,7 @@ interface QuickLookPanelProps {
     onUrlPaste: (url: string) => Promise<void> | void;
 }
 
-function QuickLookPanel({
+function SidePanel({
     activeEntry,
     isOpen,
     items,
@@ -1290,10 +1271,10 @@ function QuickLookPanel({
     onRegisterNoteClose,
     onSaveNote,
     onUrlPaste,
-}: QuickLookPanelProps) {
+}: SidePanelProps) {
     const visibleActiveEntry = isOpen ? activeEntry : null;
     const { attempt, markAsBlocked, markAsLoaded, oembed, retry, status } =
-        useQuickLookStatus(
+        useSideStatus(
             visibleActiveEntry?.type === "url" ? visibleActiveEntry.url : null,
             DEFAULT_TIMEOUT_MS
         );
@@ -1301,7 +1282,7 @@ function QuickLookPanel({
     return (
         <>
             {visibleActiveEntry?.type === "url" ? (
-                <QuickLookUrlPanel
+                <SideUrlPanel
                     attempt={attempt}
                     entry={visibleActiveEntry}
                     markAsBlocked={markAsBlocked}
@@ -1314,7 +1295,7 @@ function QuickLookPanel({
             {/* Keep every note session mounted so tab switches preserve editor history. */}
             {items.map((item) =>
                 item.type === "note" ? (
-                    <QuickLookNotePanel
+                    <SideNotePanel
                         entry={item}
                         isActive={
                             isOpen &&
@@ -1329,16 +1310,14 @@ function QuickLookPanel({
                     />
                 ) : null
             )}
-            {visibleActiveEntry === null && isOpen ? (
-                <QuickLookPanelEmpty />
-            ) : null}
+            {visibleActiveEntry === null && isOpen ? <SidePanelEmpty /> : null}
         </>
     );
 }
 
-interface QuickLookUrlPanelProps {
+interface SideUrlPanelProps {
     attempt: number;
-    entry: QuickLookUrlEntry;
+    entry: SideUrlEntry;
     markAsBlocked: () => void;
     markAsLoaded: () => void;
     oembed: Oembed | null;
@@ -1346,7 +1325,7 @@ interface QuickLookUrlPanelProps {
     status: OembedStatus;
 }
 
-function QuickLookUrlPanel({
+function SideUrlPanel({
     attempt,
     entry,
     markAsBlocked,
@@ -1354,7 +1333,7 @@ function QuickLookUrlPanel({
     oembed,
     onRetry,
     status,
-}: QuickLookUrlPanelProps) {
+}: SideUrlPanelProps) {
     const gt = useGT();
 
     const isLoading = status === "loading";
@@ -1364,20 +1343,18 @@ function QuickLookUrlPanel({
     return (
         <div
             aria-busy={isLoading}
-            aria-labelledby={getQuickLookTabId(entry)}
+            aria-labelledby={getSideTabId(entry)}
             className="relative min-h-0 flex-1"
-            id={getQuickLookPanelId(entry)}
+            id={getSidePanelId(entry)}
             role="tabpanel"
             // biome-ignore lint/a11y/noNoninteractiveTabindex: tabpanel needs keyboard focus per ARIA tabs pattern; matches previous DrawerPanel behavior
             tabIndex={0}
         >
-            {isLoading ? <QuickLookLoading /> : null}
+            {isLoading ? <SideLoading /> : null}
             {isBlocked ? (
-                <QuickLookBlocked onRetry={onRetry} url={entry.url} />
+                <SideBlocked onRetry={onRetry} url={entry.url} />
             ) : null}
-            {isOembed && oembed ? (
-                <QuickLookOembedPreview oembed={oembed} />
-            ) : null}
+            {isOembed && oembed ? <SideOembedPreview oembed={oembed} /> : null}
             {isBlocked || isOembed ? null : (
                 // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts iframe onError/onLoad
                 <iframe
@@ -1389,7 +1366,7 @@ function QuickLookUrlPanel({
                     onError={markAsBlocked}
                     onLoad={markAsLoaded}
                     referrerPolicy="strict-origin-when-cross-origin"
-                    sandbox={QUICK_LOOK_IFRAME_SANDBOX}
+                    sandbox={SIDE_IFRAME_SANDBOX}
                     src={entry.url}
                     title={gt("Preview of {title}", { title: entry.title })}
                 />
@@ -1398,11 +1375,11 @@ function QuickLookUrlPanel({
     );
 }
 
-function QuickLookPanelEmpty() {
+function SidePanelEmpty() {
     const { items } = useItemsContext();
     const { lastVisitedItemIds } = useLastVisited();
 
-    const recentItems = getRecentQuickLookItems(items, lastVisitedItemIds);
+    const recentItems = getRecentSideItems(items, lastVisitedItemIds);
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -1414,7 +1391,7 @@ function QuickLookPanelEmpty() {
                         focusable="false"
                     />
                     <span className="z-20 text-center font-medium text-muted-foreground text-sm">
-                        Quick Look
+                        Side
                     </span>
                 </Placeholder>
             </div>
@@ -1425,7 +1402,7 @@ function QuickLookPanelEmpty() {
                     </h2>
                     <ul className="mt-2 flex flex-col gap-1">
                         {recentItems.map((item) => (
-                            <QuickLookRecentItem item={item} key={item.id} />
+                            <SideRecentItem item={item} key={item.id} />
                         ))}
                     </ul>
                 </section>
@@ -1434,17 +1411,17 @@ function QuickLookPanelEmpty() {
     );
 }
 
-interface QuickLookRecentItemProps {
+interface SideRecentItemProps {
     item: LibraryItemWithCollections;
 }
 
-function QuickLookRecentItem({ item }: QuickLookRecentItemProps) {
+function SideRecentItem({ item }: SideRecentItemProps) {
     const gt = useGT();
     const title = item.caption?.trim() || item.url;
     const label = item.caption?.trim() || parseDisplayUrl(item.url);
 
     const handleOpen = useStableCallback(() => {
-        openQuickLook({
+        openSide({
             description: parseDisplayUrl(item.url),
             title,
             url: item.url,
@@ -1454,7 +1431,7 @@ function QuickLookRecentItem({ item }: QuickLookRecentItemProps) {
     return (
         <li>
             <Button
-                aria-label={gt("Open {title} in Quick Look", { title })}
+                aria-label={gt("Open {title} in Side", { title })}
                 className="w-full justify-start text-left"
                 onClick={handleOpen}
                 size="sm"
@@ -1468,11 +1445,11 @@ function QuickLookRecentItem({ item }: QuickLookRecentItemProps) {
     );
 }
 
-interface QuickLookOembedPreviewProps {
+interface SideOembedPreviewProps {
     oembed: Oembed;
 }
 
-function QuickLookOembedPreview({ oembed }: QuickLookOembedPreviewProps) {
+function SideOembedPreview({ oembed }: SideOembedPreviewProps) {
     const gt = useGT();
     const src = getOembedIframeSrc(oembed);
     const [hasDirectError, setHasDirectError] = useState(false);
@@ -1482,10 +1459,9 @@ function QuickLookOembedPreview({ oembed }: QuickLookOembedPreviewProps) {
     }, [oembed.html, oembed.provider]);
 
     const handleDirectError = useStableCallback(() => {
-        log.warn(
-            "Quick Look direct embed failed; falling back to widget document.",
-            { provider: oembed.provider }
-        );
+        log.warn("Side direct embed failed; falling back to widget document.", {
+            provider: oembed.provider,
+        });
         setHasDirectError(true);
     });
 
@@ -1514,20 +1490,19 @@ function QuickLookOembedPreview({ oembed }: QuickLookOembedPreviewProps) {
     );
 }
 
-interface QuickLookListProps
-    extends Omit<React.ComponentProps<"div">, "children"> {
-    children: (item: QuickLookEntry, index: number) => React.ReactNode;
-    items: QuickLookEntry[];
+interface SideListProps extends Omit<React.ComponentProps<"div">, "children"> {
+    children: (item: SideEntry, index: number) => React.ReactNode;
+    items: SideEntry[];
     onTabSelect: (index: number) => void;
 }
 
-function QuickLookList({
+function SideList({
     items,
     className,
     children,
     onTabSelect,
     ...props
-}: QuickLookListProps) {
+}: SideListProps) {
     const gt = useGT();
     const tabRefs = useRefWithInit(
         () => new Map<string, HTMLButtonElement>()
@@ -1579,10 +1554,10 @@ function QuickLookList({
     const contextValue = { onKeyDown: handleKeyDown, registerTab };
 
     return (
-        <QuickLookTabsContext value={contextValue}>
+        <SideTabsContext value={contextValue}>
             <div
                 {...props}
-                aria-label={gt("Open quick look tabs")}
+                aria-label={gt("Open side tabs")}
                 className={cn(
                     "flex min-w-0 max-w-full flex-1 items-center gap-1.5 overflow-x-auto",
                     className
@@ -1591,29 +1566,29 @@ function QuickLookList({
             >
                 {items.map(children)}
             </div>
-        </QuickLookTabsContext>
+        </SideTabsContext>
     );
 }
 
-interface QuickLookListItemProps {
+interface SideListItemProps {
     index: number;
     isActive: boolean;
-    item: QuickLookEntry;
-    onRemove: (item: QuickLookEntry, index: number) => void;
+    item: SideEntry;
+    onRemove: (item: SideEntry, index: number) => void;
     onSelect: (index: number) => void;
 }
 
-function QuickLookListItem({
+function SideListItem({
     index,
     isActive,
     item,
     onRemove,
     onSelect,
-}: QuickLookListItemProps) {
+}: SideListItemProps) {
     const gt = useGT();
-    const { onKeyDown, registerTab } = useQuickLookTabsContext();
+    const { onKeyDown, registerTab } = useSideTabsContext();
 
-    const entryTitle = getQuickLookEntryTitle(item);
+    const entryTitle = getSideEntryTitle(item);
 
     let title: string;
     if (entryTitle === DEFAULT_TITLE) {
@@ -1656,9 +1631,9 @@ function QuickLookListItem({
             role="presentation"
         >
             <Button
-                aria-controls={getQuickLookPanelId(item)}
+                aria-controls={getSidePanelId(item)}
                 aria-selected={isActive}
-                id={getQuickLookTabId(item)}
+                id={getSideTabId(item)}
                 onClick={handleClick}
                 onKeyDown={handleKeyDown}
                 ref={handleTabRef}
@@ -1688,12 +1663,12 @@ function QuickLookListItem({
     );
 }
 
-function QuickLookNewTabMenu() {
+function SideNewTabMenu() {
     const gt = useGT();
     const { items } = useItemsContext();
     const { lastVisitedItemIds } = useLastVisited();
 
-    const recentItems = getRecentQuickLookItems(items, lastVisitedItemIds);
+    const recentItems = getRecentSideItems(items, lastVisitedItemIds);
     const triggerLabel = gt("Open recent tabs");
 
     return (
@@ -1717,10 +1692,7 @@ function QuickLookNewTabMenu() {
                     </MenuGroupLabel>
                     {recentItems.length > 0 ? (
                         recentItems.map((item) => (
-                            <QuickLookNewTabMenuItem
-                                item={item}
-                                key={item.id}
-                            />
+                            <SideNewTabMenuItem item={item} key={item.id} />
                         ))
                     ) : (
                         <MenuItem disabled>
@@ -1735,17 +1707,17 @@ function QuickLookNewTabMenu() {
     );
 }
 
-interface QuickLookNewTabMenuItemProps {
+interface SideNewTabMenuItemProps {
     item: LibraryItemWithCollections;
 }
 
-function QuickLookNewTabMenuItem({ item }: QuickLookNewTabMenuItemProps) {
+function SideNewTabMenuItem({ item }: SideNewTabMenuItemProps) {
     const gt = useGT();
     const title = item.caption?.trim() || item.url;
     const label = item.caption?.trim() || parseDisplayUrl(item.url);
 
     const handleOpen = useStableCallback(() => {
-        openQuickLook({
+        openSide({
             description: parseDisplayUrl(item.url),
             title,
             url: item.url,
@@ -1761,13 +1733,13 @@ function QuickLookNewTabMenuItem({ item }: QuickLookNewTabMenuItemProps) {
             />
             <span className="min-w-0 flex-1 truncate">{label}</span>
             <span className="sr-only">
-                {gt("Open {title} in Quick Look", { title })}
+                {gt("Open {title} in Side", { title })}
             </span>
         </MenuItem>
     );
 }
 
-function QuickLookLoading() {
+function SideLoading() {
     return (
         <div
             aria-live="polite"
@@ -1787,13 +1759,7 @@ function QuickLookLoading() {
     );
 }
 
-function QuickLookBlocked({
-    onRetry,
-    url,
-}: {
-    onRetry: () => void;
-    url: string;
-}) {
+function SideBlocked({ onRetry, url }: { onRetry: () => void; url: string }) {
     return (
         <div
             aria-live="polite"
@@ -1835,13 +1801,13 @@ function QuickLookBlocked({
     );
 }
 
-function QuickLookToggle({
+function SideToggle({
     className,
     onClick,
     ...props
 }: React.ComponentProps<typeof Button>) {
     const gt = useGT();
-    const { isOpen, setIsOpen } = useQuickLookStore();
+    const { isOpen, setIsOpen } = useSideStore();
 
     const handleClick = useStableCallback(
         (event: BaseUIEvent<React.MouseEvent<HTMLButtonElement>>) => {
@@ -1868,8 +1834,7 @@ function QuickLookToggle({
                 { "text-muted-foreground": !isOpen },
                 className
             )}
-            data-quick-look="toggle"
-            data-slot="quick-look-toggle"
+            data-slot="side-toggle"
             onClick={handleClick}
             size="icon-sm"
             title={toggleTitle}
@@ -1880,8 +1845,8 @@ function QuickLookToggle({
     );
 }
 
-interface QuickLookNotePanelProps {
-    entry: QuickLookNoteEntry;
+interface SideNotePanelProps {
+    entry: SideNoteEntry;
     isActive: boolean;
     onClose: (id: string) => void;
     onRegisterClose: (
@@ -1892,14 +1857,14 @@ interface QuickLookNotePanelProps {
     onUrlPaste: (url: string) => Promise<void> | void;
 }
 
-function QuickLookNotePanel({
+function SideNotePanel({
     entry,
     isActive,
     onClose,
     onRegisterClose,
     onSave,
     onUrlPaste,
-}: QuickLookNotePanelProps) {
+}: SideNotePanelProps) {
     const contentEditableRef = useRef<HTMLDivElement | null>(null);
 
     const handleClose = useStableCallback(() => {
@@ -1910,9 +1875,9 @@ function QuickLookNotePanel({
         async (draft: NoteDraft, noteId: string | null) => {
             const savedNote = await onSave(draft, noteId);
             if (savedNote) {
-                const nextNote = toQuickLookNote(savedNote);
-                if (!areQuickLookNotesEqual(entry.note, nextNote)) {
-                    quickLookStoreActions.updateNoteEntry(entry.id, nextNote);
+                const nextNote = toSideNote(savedNote);
+                if (!areSideNotesEqual(entry.note, nextNote)) {
+                    sideStoreActions.updateNoteEntry(entry.id, nextNote);
                 }
             }
             return savedNote;
@@ -1941,12 +1906,12 @@ function QuickLookNotePanel({
         >
             <div
                 aria-hidden={!isActive}
-                aria-labelledby={getQuickLookTabId(entry)}
+                aria-labelledby={getSideTabId(entry)}
                 className={cn(
                     "min-h-0 flex-1 flex-col",
                     isActive ? "flex" : "hidden"
                 )}
-                id={getQuickLookPanelId(entry)}
+                id={getSidePanelId(entry)}
                 role="tabpanel"
                 tabIndex={isActive ? 0 : -1}
             >
@@ -1961,7 +1926,7 @@ function QuickLookNotePanel({
     );
 }
 
-function toQuickLookNote(note: LibraryItemWithCollections): QuickLookNote {
+function toSideNote(note: LibraryItemWithCollections): SideNote {
     return {
         id: note.id,
         noteContentHtml: note.noteContentHtml,
@@ -2024,7 +1989,7 @@ function useNoteContext(): NoteContextValue {
     const context = use(NoteContext);
     if (!context) {
         throw new Error(
-            "Quick look note components must be rendered inside a note tab."
+            "Side note components must be rendered inside a note tab."
         );
     }
     return context;
@@ -2046,7 +2011,7 @@ function noteDraftFromEditorState(
     });
 }
 
-function noteDraftFromItem(note: QuickLookNote | null): NoteDraft {
+function noteDraftFromItem(note: SideNote | null): NoteDraft {
     const contentState = isNoteSerializedEditorState(note?.noteContentState)
         ? note.noteContentState
         : null;
@@ -2216,7 +2181,7 @@ interface NoteRootProps {
     children: ReactNode;
     contentEditableRef?: React.RefObject<HTMLDivElement | null>;
     isActive: boolean;
-    note: QuickLookNote | null;
+    note: SideNote | null;
     onClose: () => void | Promise<void>;
     onSave: NoteSaveHandler;
     onUrlPaste: (url: string) => Promise<void> | void;
