@@ -1232,6 +1232,12 @@ export function SideContent() {
                                     />
                                 )}
                             </SideList>
+                            {activeEntry?.type === "url" ? (
+                                <SideCopyLinkButton
+                                    key={activeEntry.url}
+                                    url={activeEntry.url}
+                                />
+                            ) : null}
                             {activeEntry ? <SideNewTabMenu /> : null}
                         </div>
                     </div>
@@ -1660,6 +1666,35 @@ function SideListItem({
                 <XIcon className="size-3.5 shrink-0" />
             </Button>
         </div>
+    );
+}
+
+interface SideCopyLinkButtonProps {
+    url: string;
+}
+
+function SideCopyLinkButton({ url }: SideCopyLinkButtonProps) {
+    const gt = useGT();
+    const { copyToClipboard, isCopied } = useCopyToClipboard();
+
+    const handleCopy = useStableCallback(() => copyToClipboard(url));
+
+    const label = isCopied ? gt("Link copied") : gt("Copy link");
+
+    return (
+        <Button
+            aria-label={label}
+            onClick={handleCopy}
+            size="icon-sm"
+            title={label}
+            variant="ghost"
+        >
+            {isCopied ? (
+                <CheckIcon aria-hidden className="size-4" focusable="false" />
+            ) : (
+                <Copy aria-hidden className="size-4" focusable="false" />
+            )}
+        </Button>
     );
 }
 
