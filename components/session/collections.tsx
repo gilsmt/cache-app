@@ -34,8 +34,8 @@ import {
     LinkIcon,
     ListFilter,
     LockKeyhole,
-    PencilIcon,
     PencilSparkles,
+    PenLine,
     PlusIcon,
     SignalHigh,
     SignalMedium,
@@ -3899,7 +3899,7 @@ function CollectionsListItemControls({
                             </MenuShortcut>
                         </MenuItem>
                         <MenuItem onClick={handleRename}>
-                            <PencilIcon
+                            <PenLine
                                 aria-hidden
                                 className="size-4 text-muted-foreground"
                                 focusable="false"

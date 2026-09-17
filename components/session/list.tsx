@@ -2169,9 +2169,13 @@ function BrowserEmpty() {
                     </span>
                 </h3>
                 <p className="text-muted-foreground text-xs leading-tight">
-                    Everything you bookmark, unified and searchable. Cache is a
-                    purpose-built bookmark manager designed to find what matters
-                    to you. Images, videos, and links you add will appear here.
+                    <T>
+                        Cache is for every topic you care about. A purpose-built
+                        home for everything you save. Search it by asking,
+                        brainstorm against it, draft and research with
+                        everything you’ve saved already in context. The more you
+                        add, the smarter it gets.
+                    </T>
                 </p>
             </BrowserGroupHeader>
             <MasonryRoot
