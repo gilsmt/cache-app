@@ -1,5 +1,6 @@
 import {
     hasWindow,
+    isDevelopment,
     isProduction,
     isTest,
     type RuntimeName,
@@ -88,8 +89,12 @@ const getNodeEnvironment = (): NodeEnvironment => {
     if (isTest) {
         return "test";
     }
-    // Unset or unknown NODE_ENV defaults to development.
-    return "development";
+    if (isDevelopment) {
+        return "development";
+    }
+    // An unrecognized NODE_ENV falls back to production, so a deployed process
+    // never logs below ERROR or attaches error stacks.
+    return "production";
 };
 
 function getEnvironmentRuntime(): RuntimeName | "" | "browser" {

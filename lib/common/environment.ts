@@ -28,6 +28,9 @@ export const isProduction: boolean = env.NODE_ENV === "production";
  */
 export const isTest: boolean = env.NODE_ENV === "test" || !!env.TEST;
 
+/** Detect if the current environment is development (`NODE_ENV=development`). */
+export const isDevelopment: boolean = env.NODE_ENV === "development";
+
 /**
  * Runtime detectors in check order: the first truthy predicate wins. The order
  * mirrors `std-env` so edge runtimes are classified before their Node.js

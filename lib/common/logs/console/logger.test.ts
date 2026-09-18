@@ -19,6 +19,7 @@ const logger = createLogger("logger-test");
  */
 interface EnvironmentFlags {
     hasWindow: boolean;
+    isDevelopment: boolean;
     isProduction: boolean;
     isTest: boolean;
     runtime: RuntimeName | "";
@@ -27,6 +28,7 @@ interface EnvironmentFlags {
 /** Flags for a Node development runtime. */
 const DEV_ENV_FLAGS: EnvironmentFlags = {
     hasWindow: false,
+    isDevelopment: true,
     isProduction: false,
     isTest: false,
     runtime: "node",
@@ -214,7 +216,9 @@ describe("Logger environment suppression", () => {
     }
 
     test("logs nothing in the test environment", () => {
-        logsNothingInDisabledEnvironment(() => mockEnvFlags({ isTest: true }));
+        logsNothingInDisabledEnvironment(() =>
+            mockEnvFlags({ isDevelopment: false, isTest: true })
+        );
     });
 
     test("logs only errors in the production environment", () => {
@@ -225,7 +229,33 @@ describe("Logger environment suppression", () => {
             warn: spyOn(console, "warn").mockImplementation(() => undefined),
         };
         try {
-            mockEnvFlags({ isProduction: true });
+            mockEnvFlags({ isDevelopment: false, isProduction: true });
+
+            logger.debug("debug message");
+            logger.info("info message");
+            logger.warn("warn message");
+            logger.error("error message");
+
+            expect(spies.debug).not.toHaveBeenCalled();
+            expect(spies.info).not.toHaveBeenCalled();
+            expect(spies.warn).not.toHaveBeenCalled();
+            expect(spies.error).toHaveBeenCalledTimes(1);
+        } finally {
+            for (const spy of Object.values(spies)) {
+                spy.mockRestore();
+            }
+        }
+    });
+
+    test("logs only errors when NODE_ENV is unrecognized", () => {
+        const spies = {
+            debug: spyOn(console, "debug").mockImplementation(() => undefined),
+            error: spyOn(console, "error").mockImplementation(() => undefined),
+            info: spyOn(console, "info").mockImplementation(() => undefined),
+            warn: spyOn(console, "warn").mockImplementation(() => undefined),
+        };
+        try {
+            mockEnvFlags({ isDevelopment: false });
 
             logger.debug("debug message");
             logger.info("info message");
