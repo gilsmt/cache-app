@@ -221,7 +221,7 @@ describe("Logger environment suppression", () => {
         );
     });
 
-    test("logs only errors in the production environment", () => {
+    test("logs warnings and errors in the production environment", () => {
         const spies = {
             debug: spyOn(console, "debug").mockImplementation(() => undefined),
             error: spyOn(console, "error").mockImplementation(() => undefined),
@@ -238,7 +238,7 @@ describe("Logger environment suppression", () => {
 
             expect(spies.debug).not.toHaveBeenCalled();
             expect(spies.info).not.toHaveBeenCalled();
-            expect(spies.warn).not.toHaveBeenCalled();
+            expect(spies.warn).toHaveBeenCalledTimes(1);
             expect(spies.error).toHaveBeenCalledTimes(1);
         } finally {
             for (const spy of Object.values(spies)) {
@@ -247,7 +247,7 @@ describe("Logger environment suppression", () => {
         }
     });
 
-    test("logs only errors when NODE_ENV is unrecognized", () => {
+    test("logs warnings and errors when NODE_ENV is unrecognized", () => {
         const spies = {
             debug: spyOn(console, "debug").mockImplementation(() => undefined),
             error: spyOn(console, "error").mockImplementation(() => undefined),
@@ -264,7 +264,7 @@ describe("Logger environment suppression", () => {
 
             expect(spies.debug).not.toHaveBeenCalled();
             expect(spies.info).not.toHaveBeenCalled();
-            expect(spies.warn).not.toHaveBeenCalled();
+            expect(spies.warn).toHaveBeenCalledTimes(1);
             expect(spies.error).toHaveBeenCalledTimes(1);
         } finally {
             for (const spy of Object.values(spies)) {
