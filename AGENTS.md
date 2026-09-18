@@ -93,6 +93,8 @@ Boolean variables follow a prefix convention:
 
 Refs should be suffixed with `Ref` (e.g. `popupHeightRef`, `lastPointerTypeRef`)
 
+Naming should match what the code actually does and follow sibling file/function names.
+
 ## Comments
 
 Use mostly ASD-STE100 Simplified Technical English. Use active voice, simple tenses, one idea per sentence, and consistent terms. Explain why, not what, and only when a future reader (with no access to this PR or chat) would otherwise be confused. If appropriate, prefer no comments at all.

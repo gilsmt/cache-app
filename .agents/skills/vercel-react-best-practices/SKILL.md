@@ -9,7 +9,7 @@ metadata:
 
 # Vercel React Best Practices
 
-Comprehensive performance optimization guide for React and Next.js applications, maintained by Vercel. Contains 70 rules across 8 categories, prioritized by impact to guide automated refactoring and code generation.
+Comprehensive performance optimization guide for React and Next.js applications, maintained by Vercel. Contains 73 rules across 8 categories, prioritized by impact to guide automated refactoring and code generation.
 
 ## When to Apply
 
@@ -69,6 +69,7 @@ Reference these guidelines when:
 ### 4. Client-Side Data Fetching (MEDIUM-HIGH)
 
 - `client-swr-dedup` - Use SWR for automatic request deduplication
+- `client-fetch-race-cleanup` - Ignore stale fetch responses with Effect cleanup
 - `client-event-listeners` - Deduplicate global event listeners
 - `client-passive-event-listeners` - Use passive listeners for scroll
 - `client-localstorage-schema` - Version and minimize localStorage data
@@ -85,6 +86,7 @@ Reference these guidelines when:
 - `rerender-lazy-state-init` - Pass function to useState for expensive values
 - `rerender-simple-expression-in-memo` - Avoid memo for simple primitives
 - `rerender-split-combined-hooks` - Split hooks with independent dependencies
+- `rerender-sync-state-without-effects` - Sync state without Effects (derive, key, lift, handlers)
 - `rerender-move-effect-to-event` - Put interaction logic in event handlers
 - `rerender-transitions` - Use startTransition for non-urgent updates
 - `rerender-use-deferred-value` - Defer expensive renders to keep input responsive
@@ -126,6 +128,7 @@ Reference these guidelines when:
 
 - `advanced-effect-event-deps` - Don't put `useEffectEvent` results in effect deps
 - `advanced-event-handler-refs` - Store event handlers in refs
+- `advanced-external-store` - Subscribe to external stores with useSyncExternalStore
 - `advanced-init-once` - Initialize app once per app load
 - `advanced-use-latest` - useLatest for stable callback refs
 

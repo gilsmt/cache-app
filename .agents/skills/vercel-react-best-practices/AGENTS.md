@@ -47,9 +47,10 @@ Comprehensive performance optimization guide for React and Next.js applications,
    - 3.10 [Use after() for Non-Blocking Operations](#310-use-after-for-non-blocking-operations)
 4. [Client-Side Data Fetching](#4-client-side-data-fetching) — **MEDIUM-HIGH**
    - 4.1 [Deduplicate Global Event Listeners](#41-deduplicate-global-event-listeners)
-   - 4.2 [Use Passive Event Listeners for Scrolling Performance](#42-use-passive-event-listeners-for-scrolling-performance)
-   - 4.3 [Use SWR for Automatic Deduplication](#43-use-swr-for-automatic-deduplication)
-   - 4.4 [Version and Minimize localStorage Data](#44-version-and-minimize-localstorage-data)
+   - 4.2 [Handle Fetch Race Conditions with Effect Cleanup](#42-handle-fetch-race-conditions-with-effect-cleanup)
+   - 4.3 [Use Passive Event Listeners for Scrolling Performance](#43-use-passive-event-listeners-for-scrolling-performance)
+   - 4.4 [Use SWR for Automatic Deduplication](#44-use-swr-for-automatic-deduplication)
+   - 4.5 [Version and Minimize localStorage Data](#45-version-and-minimize-localstorage-data)
 5. [Re-render Optimization](#5-re-render-optimization) — **MEDIUM**
    - 5.1 [Calculate Derived State During Rendering](#51-calculate-derived-state-during-rendering)
    - 5.2 [Defer State Reads to Usage Point](#52-defer-state-reads-to-usage-point)
@@ -61,11 +62,12 @@ Comprehensive performance optimization guide for React and Next.js applications,
    - 5.8 [Put Interaction Logic in Event Handlers](#58-put-interaction-logic-in-event-handlers)
    - 5.9 [Split Combined Hook Computations](#59-split-combined-hook-computations)
    - 5.10 [Subscribe to Derived State](#510-subscribe-to-derived-state)
-   - 5.11 [Use Functional setState Updates](#511-use-functional-setstate-updates)
-   - 5.12 [Use Lazy State Initialization](#512-use-lazy-state-initialization)
-   - 5.13 [Use Transitions for Non-Urgent Updates](#513-use-transitions-for-non-urgent-updates)
-   - 5.14 [Use useDeferredValue for Expensive Derived Renders](#514-use-usedeferredvalue-for-expensive-derived-renders)
-   - 5.15 [Use useRef for Transient Values](#515-use-useref-for-transient-values)
+   - 5.11 [Sync State Without Effects](#511-sync-state-without-effects)
+   - 5.12 [Use Functional setState Updates](#512-use-functional-setstate-updates)
+   - 5.13 [Use Lazy State Initialization](#513-use-lazy-state-initialization)
+   - 5.14 [Use Transitions for Non-Urgent Updates](#514-use-transitions-for-non-urgent-updates)
+   - 5.15 [Use useDeferredValue for Expensive Derived Renders](#515-use-usedeferredvalue-for-expensive-derived-renders)
+   - 5.16 [Use useRef for Transient Values](#516-use-useref-for-transient-values)
 6. [Rendering Performance](#6-rendering-performance) — **MEDIUM**
    - 6.1 [Animate SVG Wrapper Instead of SVG Element](#61-animate-svg-wrapper-instead-of-svg-element)
    - 6.2 [CSS content-visibility for Long Lists](#62-css-content-visibility-for-long-lists)
@@ -97,7 +99,8 @@ Comprehensive performance optimization guide for React and Next.js applications,
    - 8.1 [Do Not Put Effect Events in Dependency Arrays](#81-do-not-put-effect-events-in-dependency-arrays)
    - 8.2 [Initialize App Once, Not Per Mount](#82-initialize-app-once-not-per-mount)
    - 8.3 [Store Event Handlers in Refs](#83-store-event-handlers-in-refs)
-   - 8.4 [useEffectEvent for Stable Callback Refs](#84-useeffectevent-for-stable-callback-refs)
+   - 8.4 [Subscribe to External Stores with useSyncExternalStore](#84-subscribe-to-external-stores-with-usesyncexternalstore)
+   - 8.5 [useEffectEvent for Stable Callback Refs](#85-useeffectevent-for-stable-callback-refs)
 
 ---
 
@@ -1440,7 +1443,53 @@ function Profile() {
 }
 ```
 
-### 4.2 Use Passive Event Listeners for Scrolling Performance
+### 4.2 Handle Fetch Race Conditions with Effect Cleanup
+
+**Impact: MEDIUM (prevents stale responses from overwriting fresh state)**
+
+Fetching inside an Effect is correct when the request depends on props or state, but a slow response can arrive after a newer one and overwrite fresh UI. Guard the result with a cleanup flag so stale responses are ignored.
+
+Prefer [SWR](./client-swr-dedup.md) or a Server Component for shared or cacheable data. Use this pattern when a raw Effect fetch is required.
+
+**Incorrect (stale response overwrites fresh state):**
+
+```tsx
+function Results({ query }: { query: string }) {
+  const [results, setResults] = useState<Result[]>([])
+
+  useEffect(() => {
+    fetchResults(query).then((json) => {
+      setResults(json)
+    })
+  }, [query])
+
+  // ...
+}
+```
+
+**Correct (cleanup ignores stale responses):**
+
+```tsx
+function Results({ query }: { query: string }) {
+  const [results, setResults] = useState<Result[]>([])
+
+  useEffect(() => {
+    let ignore = false
+    fetchResults(query).then((json) => {
+      if (!ignore) setResults(json)
+    })
+    return () => {
+      ignore = true
+    }
+  }, [query])
+
+  // ...
+}
+```
+
+Reference: [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect)
+
+### 4.3 Use Passive Event Listeners for Scrolling Performance
 
 **Impact: MEDIUM (eliminates scroll delay caused by event listeners)**
 
@@ -1484,7 +1533,7 @@ useEffect(() => {
 
 **Don't use passive when:** implementing custom swipe gestures, custom zoom controls, or any listener that needs `preventDefault()`.
 
-### 4.3 Use SWR for Automatic Deduplication
+### 4.4 Use SWR for Automatic Deduplication
 
 **Impact: MEDIUM-HIGH (automatic deduplication)**
 
@@ -1536,7 +1585,7 @@ function UpdateButton() {
 
 Reference: [https://swr.vercel.app](https://swr.vercel.app)
 
-### 4.4 Version and Minimize localStorage Data
+### 4.5 Version and Minimize localStorage Data
 
 **Impact: MEDIUM (prevents schema conflicts, reduces storage size)**
 
@@ -2035,7 +2084,194 @@ function Sidebar() {
 }
 ```
 
-### 5.11 Use Functional setState Updates
+### 5.11 Sync State Without Effects
+
+**Impact: MEDIUM (avoids extra renders, cascading updates, and state drift)**
+
+Effects sync with external systems. Do not use Effects to keep React state in sync with props or other state, or to chain one state update after another. Derive values during render, reset with `key`, lift state, or update in the event handler that caused the change.
+
+Use this decision tree for code that runs on update:
+
+- Component displayed → Effect (subscribe, fetch with cleanup, measure DOM).
+- User action → event handler.
+- Value calculable from props/state → calculate during render.
+
+When NOT to use Effects: transform data for rendering, handle user events, update state based on other state.
+
+**Incorrect (derived list stored via Effect):**
+
+```tsx
+function TodoList({ todos, filter }: Props) {
+  const [visibleTodos, setVisibleTodos] = useState<Todo[]>([])
+
+  useEffect(() => {
+    setVisibleTodos(getFilteredTodos(todos, filter))
+  }, [todos, filter])
+
+  return <List items={visibleTodos} />
+}
+```
+
+**Correct (derive during render, memoize only if expensive):**
+
+```tsx
+function TodoList({ todos, filter }: Props) {
+  const visibleTodos = useMemo(
+    () => getFilteredTodos(todos, filter),
+    [todos, filter]
+  )
+
+  return <List items={visibleTodos} />
+}
+```
+
+Measure with `console.time()`/`console.timeEnd()`. Memoize when the computation costs around 1ms or more. Leave cheap derivations as plain expressions.
+
+**Incorrect (reset state in Effect on prop change):**
+
+```tsx
+function Profile({ userId }: { userId: string }) {
+  const [comment, setComment] = useState('')
+
+  useEffect(() => {
+    setComment('')
+  }, [userId])
+
+  return <Editor comment={comment} onChange={setComment} />
+}
+```
+
+**Correct (use key to reset):**
+
+```tsx
+function Page({ userId }: { userId: string }) {
+  return <Profile userId={userId} key={userId} />
+}
+```
+
+**Incorrect (adjust state in Effect on prop change):**
+
+```tsx
+function Picker({ items }: { items: Item[] }) {
+  const [selection, setSelection] = useState<Item | null>(null)
+
+  useEffect(() => {
+    setSelection(null)
+  }, [items])
+
+  // ...
+}
+```
+
+**Correct (derive the adjusted value during render):**
+
+```tsx
+function Picker({ items }: { items: Item[] }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selection = items.find((item) => item.id === selectedId) ?? null
+
+  // ...
+}
+```
+
+**Incorrect (cascading Effects):**
+
+```tsx
+useEffect(() => {
+  setGoldCardCount((c) => c + 1)
+}, [card])
+useEffect(() => {
+  setRound((r) => r + 1)
+}, [goldCardCount])
+useEffect(() => {
+  setIsGameOver(true)
+}, [round])
+```
+
+**Correct (calculate and update in the handler):**
+
+```tsx
+const isGameOver = round > 5
+
+function handlePlaceCard(nextCard: Card) {
+  setCard(nextCard)
+  if (nextCard.gold) {
+    if (goldCardCount < 3) {
+      setGoldCardCount(goldCardCount + 1)
+    } else {
+      setGoldCardCount(0)
+      setRound(round + 1)
+    }
+  }
+}
+```
+
+**Incorrect (notify parent from Effect):**
+
+```tsx
+function Toggle({ onChange }: { onChange: (value: boolean) => void }) {
+  const [isOn, setIsOn] = useState(false)
+
+  useEffect(() => {
+    onChange(isOn)
+  }, [isOn, onChange])
+
+  // ...
+}
+```
+
+**Correct (update both in the handler, or lift state):**
+
+```tsx
+function Toggle({ onChange }: { onChange: (value: boolean) => void }) {
+  const [isOn, setIsOn] = useState(false)
+
+  function updateToggle(nextIsOn: boolean) {
+    setIsOn(nextIsOn)
+    onChange(nextIsOn)
+  }
+
+  // ...
+}
+
+// Also good: controlled component with lifted state
+function Toggle({ isOn, onChange }: { isOn: boolean; onChange: (value: boolean) => void }) {
+  function handleClick() {
+    onChange(!isOn)
+  }
+
+  // ...
+}
+```
+
+**Incorrect (child fetches, passes data up via Effect):**
+
+```tsx
+function Child({ onFetched }: { onFetched: (data: Data) => void }) {
+  const [data, setData] = useState<Data | null>(null)
+
+  useEffect(() => {
+    if (data) onFetched(data)
+  }, [data])
+
+  // ...
+}
+```
+
+**Correct (parent fetches, passes data down):**
+
+```tsx
+function Parent() {
+  const data = useSomeAPI()
+  return <Child data={data} />
+}
+```
+
+**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, manual `useMemo` is unnecessary. The compiler memoizes derived values automatically.
+
+Reference: [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect)
+
+### 5.12 Use Functional setState Updates
 
 **Impact: MEDIUM (prevents stale closures and unnecessary callback recreations)**
 
@@ -2113,7 +2349,7 @@ function TodoList() {
 
 **Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, the compiler can automatically optimize some cases, but functional updates are still recommended for correctness and to prevent stale closure bugs.
 
-### 5.12 Use Lazy State Initialization
+### 5.13 Use Lazy State Initialization
 
 **Impact: MEDIUM (wasted computation on every render)**
 
@@ -2167,7 +2403,7 @@ Use lazy initialization when computing initial values from localStorage/sessionS
 
 For simple primitives (`useState(0)`), direct references (`useState(props.value)`), or cheap literals (`useState({})`), the function form is unnecessary.
 
-### 5.13 Use Transitions for Non-Urgent Updates
+### 5.14 Use Transitions for Non-Urgent Updates
 
 **Impact: MEDIUM (maintains UI responsiveness)**
 
@@ -2203,7 +2439,7 @@ function ScrollTracker() {
 }
 ```
 
-### 5.14 Use useDeferredValue for Expensive Derived Renders
+### 5.15 Use useDeferredValue for Expensive Derived Renders
 
 **Impact: MEDIUM (keeps input responsive during heavy computation)**
 
@@ -2260,7 +2496,7 @@ function Search({ items }: { items: Item[] }) {
 
 Reference: [https://react.dev/reference/react/useDeferredValue](https://react.dev/reference/react/useDeferredValue)
 
-### 5.15 Use useRef for Transient Values
+### 5.16 Use useRef for Transient Values
 
 **Impact: MEDIUM (avoids unnecessary re-renders on frequent updates)**
 
@@ -3765,7 +4001,52 @@ function useWindowEvent(event: string, handler: (e) => void) {
 
 `useEffectEvent` provides a cleaner API for the same pattern: it creates a stable function reference that always calls the latest version of the handler.
 
-### 8.4 useEffectEvent for Stable Callback Refs
+### 8.4 Subscribe to External Stores with useSyncExternalStore
+
+**Impact: LOW (avoids torn reads and manual subscription bugs)**
+
+Do not hand-roll external store subscriptions with `useEffect` and `addEventListener`. Manual subscriptions miss server snapshots and can tear under concurrent rendering. Use `useSyncExternalStore` instead.
+
+**Incorrect (manual subscription in Effect):**
+
+```tsx
+function useOnlineStatus() {
+  const [isOnline, setIsOnline] = useState(true)
+
+  useEffect(() => {
+    const handler = () => setIsOnline(navigator.onLine)
+    window.addEventListener('online', handler)
+    window.addEventListener('offline', handler)
+    return () => {
+      window.removeEventListener('online', handler)
+      window.removeEventListener('offline', handler)
+    }
+  }, [])
+
+  return isOnline
+}
+```
+
+**Correct (dedicated subscription API):**
+
+```tsx
+function subscribe(callback: () => void) {
+  window.addEventListener('online', callback)
+  window.addEventListener('offline', callback)
+  return () => {
+    window.removeEventListener('online', callback)
+    window.removeEventListener('offline', callback)
+  }
+}
+
+function useOnlineStatus() {
+  return useSyncExternalStore(subscribe, () => navigator.onLine, () => true)
+}
+```
+
+Reference: [useSyncExternalStore](https://react.dev/reference/react/useSyncExternalStore)
+
+### 8.5 useEffectEvent for Stable Callback Refs
 
 **Impact: LOW (prevents effect re-runs)**
 
