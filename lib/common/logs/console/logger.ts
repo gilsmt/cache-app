@@ -51,7 +51,14 @@ const LOG_CONFIG = {
         enabled: true,
         minLevel: LOG_LEVEL.DEBUG,
     },
-    production: DISABLED_LOG_CONFIG,
+    // Production keeps errors. The stack is dropped (see stringifyLogValue)
+    // and sensitive keys are redacted by formatLogValue, so console.error is
+    // the one channel an operator reads from the platform's log stream.
+    production: {
+        colorize: false,
+        enabled: true,
+        minLevel: LOG_LEVEL.ERROR,
+    },
     test: DISABLED_LOG_CONFIG,
 };
 
@@ -100,12 +107,11 @@ function getLogConfigForEnvironment(): LogConfig {
     if (environmentRuntime === "browser") {
         return DISABLED_LOG_CONFIG;
     }
-    if (getNodeEnvironment() !== "development") {
-        return DISABLED_LOG_CONFIG;
-    }
+    const nodeEnvironment = getNodeEnvironment();
     return {
-        ...LOG_CONFIG.development,
-        colorize: environmentRuntime === "node",
+        ...LOG_CONFIG[nodeEnvironment],
+        colorize:
+            nodeEnvironment === "development" && environmentRuntime === "node",
     };
 }
 

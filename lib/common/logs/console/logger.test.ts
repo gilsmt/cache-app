@@ -217,10 +217,30 @@ describe("Logger environment suppression", () => {
         logsNothingInDisabledEnvironment(() => mockEnvFlags({ isTest: true }));
     });
 
-    test("logs nothing in the production environment", () => {
-        logsNothingInDisabledEnvironment(() =>
-            mockEnvFlags({ isProduction: true })
-        );
+    test("logs only errors in the production environment", () => {
+        const spies = {
+            debug: spyOn(console, "debug").mockImplementation(() => undefined),
+            error: spyOn(console, "error").mockImplementation(() => undefined),
+            info: spyOn(console, "info").mockImplementation(() => undefined),
+            warn: spyOn(console, "warn").mockImplementation(() => undefined),
+        };
+        try {
+            mockEnvFlags({ isProduction: true });
+
+            logger.debug("debug message");
+            logger.info("info message");
+            logger.warn("warn message");
+            logger.error("error message");
+
+            expect(spies.debug).not.toHaveBeenCalled();
+            expect(spies.info).not.toHaveBeenCalled();
+            expect(spies.warn).not.toHaveBeenCalled();
+            expect(spies.error).toHaveBeenCalledTimes(1);
+        } finally {
+            for (const spy of Object.values(spies)) {
+                spy.mockRestore();
+            }
+        }
     });
 
     test("logs nothing in the browser runtime", () => {
