@@ -2191,18 +2191,17 @@ useEffect(() => {
 **Correct (calculate and update in the handler):**
 
 ```tsx
-const isGameOver = round > 5
+const [game, setGame] = useState({ goldCardCount: 0, round: 0 });
+const isGameOver = game.round > 5;
 
 function handlePlaceCard(nextCard: Card) {
-  setCard(nextCard)
-  if (nextCard.gold) {
-    if (goldCardCount < 3) {
-      setGoldCardCount(goldCardCount + 1)
-    } else {
-      setGoldCardCount(0)
-      setRound(round + 1)
-    }
-  }
+  setCard(nextCard);
+  if (!nextCard.gold) return;
+  setGame((prev) =>
+    prev.goldCardCount < 3
+      ? { ...prev, goldCardCount: prev.goldCardCount + 1 }
+      : { goldCardCount: 0, round: prev.round + 1 }
+  );
 }
 ```
 
