@@ -1,0 +1,63 @@
+# Web CI gate.
+#
+# Runs the repository quality checks (CONTRIBUTING.md) on every pull request and
+# on every push to main. Vercel deploys main and pull request branches without a
+# build gate, so this workflow is the check to require on main.
+#
+# The job name "Lint, Type-check, Test" is the status check to require.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # prisma generate runs on postinstall and reads DATABASE_URL from
+  # prisma.config.ts. The client generator does not connect, so a placeholder
+  # value is enough.
+  DATABASE_URL: postgresql://user:password@localhost:5432/cache
+
+jobs:
+  checks:
+    name: Lint, Type-check, Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      # next typegen writes next-env.d.ts and .next/types. tsc reads them to
+      # resolve image imports and route types, so type-check needs them first.
+      - name: Generate Next.js types
+        run: bunx next typegen
+
+      - name: Type-check
+        run: bun run type-check
+
+      - name: Test
+        run: bun run test
