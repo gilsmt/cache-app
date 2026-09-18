@@ -5,6 +5,7 @@
 
         // Linting & Formatting
         "biomejs.biome",
+        "yzhang.markdown-all-in-one",
         "editorconfig.editorconfig",
 
         // Database & ORM

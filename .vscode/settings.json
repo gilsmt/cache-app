@@ -2,16 +2,13 @@
     "js/ts.tsdk.path": "node_modules/typescript/lib",
     "js/ts.updateImportsOnFileMove.enabled": "always",
     "js/ts.preferences.importModuleSpecifier": "non-relative",
-    "js/ts.preferences.useAliasesForRenames": false,
     "search.exclude": {
-        "prisma/client": true,
-        "**/*.agents": true,
-        "**/.git": true,
-        "**/.venv": true,
-        "**/__pycache__": true
+        "**/prisma/client": true,
+        "**/.agents": true
     },
     "eslint.enable": false,
     "prettier.enable": false,
+    "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.fixAll.biome": "explicit",
         "source.organizeImports.biome": "explicit"
@@ -19,20 +16,5 @@
     "editor.defaultFormatter": "biomejs.biome",
     "[markdown]": {
         "editor.defaultFormatter": "yzhang.markdown-all-in-one"
-    },
-    "[css]": {
-        "editor.defaultFormatter": "biomejs.biome"
-    },
-    "[typescript]": {
-        "editor.defaultFormatter": "biomejs.biome"
-    },
-    "[typescriptreact]": {
-        "editor.defaultFormatter": "biomejs.biome"
-    },
-    "[json]": {
-        "editor.defaultFormatter": "biomejs.biome"
-    },
-    "[jsonc]": {
-        "editor.defaultFormatter": "biomejs.biome"
     }
 }
