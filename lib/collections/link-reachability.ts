@@ -9,7 +9,7 @@ import {
 import { isAbortError } from "@/lib/common/abort";
 import { mapConcurrent } from "@/lib/common/array";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { getRedisClient, isRedisConfigured } from "@/lib/common/redis";
+import { getReadyRedisClient, isRedisConfigured } from "@/lib/common/redis";
 import {
     type FetchHttpRedirectResult,
     fetchPublicRedirect,
@@ -96,9 +96,10 @@ function tryConsumeLocalProbeBudget(
  *
  * Redis holds the shared budget. When it is configured but unreachable the
  * budget cannot be enforced across isolates, so probes are refused rather
- * than fanned out; the client retries after the window. A deployment with no
- * `REDIS_URL` uses the in-process Map, which still bounds a single local
- * isolate.
+ * than fanned out; the client retries after the window. `getReadyRedisClient`
+ * waits out the connect window of a freshly created client, so a cold start
+ * is not read as an outage. A deployment with no `REDIS_URL` uses the
+ * in-process Map, which still bounds a single local isolate.
  */
 export async function consumeProbeBudget(
     userId: string,
@@ -108,7 +109,7 @@ export async function consumeProbeBudget(
         return { allowed: true, retryAfterMs: 0 };
     }
 
-    const redis = getRedisClient();
+    const redis = await getReadyRedisClient();
     if (!redis) {
         if (isRedisConfigured()) {
             log.warn("Link probe budget unavailable; refusing probes", {

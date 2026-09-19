@@ -4,7 +4,7 @@ let redisConfigured = false;
 
 mock.module("server-only", () => ({}));
 mock.module("@/lib/common/redis", () => ({
-    getRedisClient: () => null,
+    getReadyRedisClient: () => Promise.resolve(null),
     isRedisConfigured: () => redisConfigured,
 }));
 

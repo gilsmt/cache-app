@@ -16,9 +16,11 @@
  * it. When Redis is configured but unreachable this fails closed
  * (`unavailable`) rather than letting the request through: the counter is
  * the blast-radius control for a stolen token, and letting the request
- * through would remove the only throttle. A deployment with no `REDIS_URL`
- * at all is a deliberate Redis-less setup, so that case stays fail-open;
- * the Redis client logs it separately from an outage.
+ * through would remove the only throttle. `getReadyRedisClient` waits out the
+ * connect window of a freshly created client, so a cold start is not read as
+ * an outage. A deployment with no `REDIS_URL` at all is a deliberate
+ * Redis-less setup, so that case stays fail-open; the Redis client logs it
+ * separately from an outage.
  *
  * No `import "server-only"` here on purpose: this module's only callers are
  * the MCP route handler (a Next.js server route); pulling in the client
@@ -27,7 +29,7 @@
  * preload hack.
  */
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { getRedisClient, isRedisConfigured } from "@/lib/common/redis";
+import { getReadyRedisClient, isRedisConfigured } from "@/lib/common/redis";
 
 const log = createLogger("mcp.rate-limit");
 
@@ -59,7 +61,7 @@ export async function checkMcpRateLimit(
     userId: string,
     bucket: Bucket
 ): Promise<McpRateLimitOutcome> {
-    const redis = getRedisClient();
+    const redis = await getReadyRedisClient();
     if (!redis) {
         return isRedisConfigured()
             ? { status: "unavailable" }

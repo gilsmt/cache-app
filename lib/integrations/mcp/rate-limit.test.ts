@@ -12,7 +12,7 @@ beforeEach(() => {
     redisClient = null;
     redisConfigured = false;
     mock.module("@/lib/common/redis", () => ({
-        getRedisClient: () => redisClient,
+        getReadyRedisClient: () => Promise.resolve(redisClient),
         isRedisConfigured: () => redisConfigured,
     }));
 });
@@ -26,7 +26,7 @@ const { checkMcpRateLimit, MCP_RATE_BUCKETS } = await import(
 );
 
 describe("checkMcpRateLimit", () => {
-    test("fails closed when Redis is configured but not ready", async () => {
+    test("fails closed when Redis is configured but unreachable", async () => {
         redisConfigured = true;
         expect(
             await checkMcpRateLimit("user-1", MCP_RATE_BUCKETS.read)

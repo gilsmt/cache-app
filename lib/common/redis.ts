@@ -15,8 +15,16 @@ const RedisConnectionError = NamedError.create(
 );
 export type RedisConnectionError = InstanceType<typeof RedisConnectionError>;
 
+/**
+ * How long an abuse-bounding caller waits for an in-flight connection before
+ * it treats a configured Redis as unavailable.
+ */
+const REDIS_READY_WAIT_TIMEOUT_MS = 1000;
+
 let globalRedisClient: RedisClientType | null = null;
+let redisConnectPromise: Promise<void> | null = null;
 let didWarnRedisUnavailable = false;
+let hasRedisConnected = false;
 
 /**
  * Whether Redis is configured through `REDIS_URL`.
@@ -40,18 +48,44 @@ function warnRedisUnavailableOnce(): void {
 }
 
 /**
+ * Wait for the connect started by {@link getRedisClient} to settle, up to a
+ * bound. A client that is still connecting on a cold start resolves here in
+ * milliseconds; a client whose socket cannot connect keeps its connect
+ * pending across reconnects, so the timeout keeps the caller from hanging.
+ */
+function waitForRedisReady(timeoutMs: number): Promise<void> {
+    const connecting = redisConnectPromise;
+    if (!connecting) {
+        return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve) => {
+        const timer = setTimeout(() => resolve(), timeoutMs);
+        connecting.then(
+            () => {
+                clearTimeout(timer);
+                resolve();
+            },
+            () => {
+                clearTimeout(timer);
+                resolve();
+            }
+        );
+    });
+}
+
+/**
  * Get a Redis client instance.
  * Returns null in browser environments, when Redis is not configured, or
- * when the underlying socket has not connected yet (including during an
- * automatic reconnection). Callers already handle null throughout the
- * codebase via their existing degraded-path branches.
+ * when the underlying socket is not ready — which includes both the
+ * cold-start connect window and a reconnect after a dropped connection.
  *
  * The client auto-reconnects on disconnection. Once the socket is ready
  * again the returned value flips from null back to the client — no
  * instance is lost or re-created.
  *
- * While the client is present but not ready, this logs a WARN once per
- * outage so the degraded state is separable from "no REDIS_URL configured".
+ * Abuse-bounding callers use {@link getReadyRedisClient} so the transient
+ * cold-start window is not mistaken for an outage.
  */
 export function getRedisClient(): RedisClientType | null {
     if (typeof window !== "undefined") {
@@ -62,15 +96,19 @@ export function getRedisClient(): RedisClientType | null {
         // The client auto-reconnects after disconnection, but commands sent before
         // reconnection completes queue indefinitely (the offline queue is enabled by
         // default). Rather than returning a client that will hang callers, return null
-        // so every caller's existing null-handling branch gracefully degrades.
+        // so every caller can degrade or fail closed.
         //
         // Once the underlying socket is ready again the client will be returned on
         // the next call — no client is lost or re-created.
         if (globalRedisClient.isReady) {
-            didWarnRedisUnavailable = false;
             return globalRedisClient;
         }
-        warnRedisUnavailableOnce();
+        // A dropped connection and a not-yet-established one both leave
+        // `isReady` false. Only the first is an outage, so warn only after an
+        // established connection has been lost.
+        if (hasRedisConnected) {
+            warnRedisUnavailableOnce();
+        }
         return null;
     }
 
@@ -87,12 +125,16 @@ export function getRedisClient(): RedisClientType | null {
 
     try {
         globalRedisClient = createClient({ url });
+        redisConnectPromise = null;
+        hasRedisConnected = false;
 
         globalRedisClient.on("error", (error) => {
             log.error("Redis client error", { error });
         });
 
-        globalRedisClient.on("connect", () => {
+        globalRedisClient.on("ready", () => {
+            hasRedisConnected = true;
+            didWarnRedisUnavailable = false;
             log.info("Redis connection established");
         });
 
@@ -105,20 +147,47 @@ export function getRedisClient(): RedisClientType | null {
         });
 
         // Kick off connect eagerly so the client is ready by the first data request.
-        globalRedisClient.connect().catch((error) => {
-            log.error("Redis initial connect failed", { error });
-        });
+        redisConnectPromise = globalRedisClient.connect().then(
+            () => undefined,
+            (error) => {
+                log.error("Redis initial connect failed", { error });
+            }
+        );
 
-        if (globalRedisClient.isReady) {
-            didWarnRedisUnavailable = false;
-            return globalRedisClient;
-        }
-        warnRedisUnavailableOnce();
+        // The first call creates the client before its socket is ready. Return
+        // null now; getReadyRedisClient waits for the connect to settle.
         return null;
     } catch (error) {
         log.error("Failed to initialize Redis client", { error });
         return null;
     }
+}
+
+/**
+ * Get a Redis client that has finished connecting, for callers that must fail
+ * closed when Redis is configured but unreachable.
+ *
+ * The transient state where a freshly created client is still connecting is
+ * waited out, so a cold start is not reported as an outage. A client that is
+ * genuinely down (or reconnecting) still reports null after the bounded wait.
+ * A deployment with no `REDIS_URL` returns null immediately.
+ */
+export async function getReadyRedisClient(): Promise<RedisClientType | null> {
+    const client = getRedisClient();
+    if (client) {
+        return client;
+    }
+    if (!isRedisConfigured()) {
+        return null;
+    }
+
+    await waitForRedisReady(REDIS_READY_WAIT_TIMEOUT_MS);
+
+    const readyClient = getRedisClient();
+    if (!readyClient) {
+        warnRedisUnavailableOnce();
+    }
+    return readyClient;
 }
 
 /**
@@ -128,6 +197,8 @@ export function getRedisClient(): RedisClientType | null {
 export async function closeRedisConnection(): Promise<void> {
     const client = globalRedisClient;
     globalRedisClient = null;
+    redisConnectPromise = null;
+    hasRedisConnected = false;
     if (!client) {
         return;
     }
