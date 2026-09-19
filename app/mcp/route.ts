@@ -129,7 +129,7 @@ async function authorizeToolCall(
         };
     }
     if (rateLimit.status === "unavailable") {
-        return { result: rateLimitUnavailableResult() };
+        return { result: rateLimitUnavailableResult(auth.userId, bucket) };
     }
     return { userId: auth.userId };
 }
@@ -150,8 +150,14 @@ function rateLimitResult(
     };
 }
 
-function rateLimitUnavailableResult(): CallToolResult {
-    log.warn("rate limit unavailable; rejecting request");
+function rateLimitUnavailableResult(
+    userId: string,
+    bucket: { name: string }
+): CallToolResult {
+    log.warn("rate limit unavailable; rejecting request", {
+        bucket: bucket.name,
+        userId,
+    });
     return {
         content: [
             {

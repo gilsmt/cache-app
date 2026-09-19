@@ -85,6 +85,7 @@ export async function checkMcpRateLimit(
         log.warn("MCP rate limit counter failed; failing closed", {
             bucket: bucket.name,
             error,
+            userId,
         });
         return { status: "unavailable" };
     }
