@@ -113,6 +113,7 @@ export async function consumeProbeBudget(
     if (!redis) {
         if (isRedisConfigured()) {
             log.warn("Link probe budget unavailable; refusing probes", {
+                amount,
                 userId,
             });
             return { allowed: false, retryAfterMs: PROBE_BUDGET_WINDOW_MS };
@@ -142,6 +143,7 @@ export async function consumeProbeBudget(
     } catch (error) {
         if (isRedisConfigured()) {
             log.warn("Link probe Redis budget failed; refusing probes", {
+                amount,
                 error,
                 userId,
             });
