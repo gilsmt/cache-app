@@ -1,6 +1,7 @@
 import "server-only";
 
 import crypto from "node:crypto";
+import type { AuthInfo } from "@modelcontextprotocol/server";
 import type * as z from "zod";
 import {
     LIBRARY_ITEM_COLLECTIONS_INCLUDE,
@@ -13,7 +14,12 @@ import { parseStandaloneUrl } from "@/lib/common/url";
 import { DEFAULT_BROWSER_PROFILE_ID } from "@/lib/integrations/browser-profiles";
 import { IntegrationApiError } from "@/lib/integrations/error";
 import { upsertLibraryItemImports } from "@/lib/integrations/import";
-import { generateMcpToken } from "@/lib/integrations/mcp/auth";
+import {
+    generateMcpToken,
+    isMcpTokenRevoked,
+    MCP_SCOPES,
+    verifyMcpToken,
+} from "@/lib/integrations/mcp/auth";
 import type { McpLibraryItemSchema } from "@/lib/integrations/mcp/protocol";
 import { createNoteFromPlainText } from "@/lib/integrations/notes/service";
 import { prisma } from "@/prisma";
@@ -166,7 +172,7 @@ export interface McpSetupPrompt {
 export async function generateMcpSetupPrompt(
     userId: string
 ): Promise<McpSetupPrompt> {
-    const token = await generateMcpToken(userId);
+    const token = await generateMcpToken(userId, MCP_SCOPES);
     const endpoint = `${BASE_URL}/mcp`;
 
     const prompt = `You have been given access to my Cache library via MCP.
@@ -204,6 +210,57 @@ If you are Claude Desktop, add this to your claude_desktop_config.json:
 If you are Cursor or another client, use the endpoint and Bearer token above.`;
 
     return { endpoint, prompt, token };
+}
+
+/**
+ * Verifies a Bearer token for `withMcpAuth`: signature and expiry from the token
+ * bytes, then the per-user revocation check. Tokens minted before the user's
+ * `mcpTokenMinIssuedAt` point are rejected, so a leaked grant is cut by
+ * `rotateMcpTokens` without rotating `BETTER_AUTH_SECRET`.
+ */
+export async function verifyMcpAuthToken(
+    _req: Request,
+    bearerToken?: string
+): Promise<AuthInfo | undefined> {
+    if (!bearerToken) {
+        return;
+    }
+
+    const verified = await verifyMcpToken(bearerToken);
+    if (!verified) {
+        return;
+    }
+
+    const user = await prisma.user.findUnique({
+        select: { mcpTokenMinIssuedAt: true },
+        where: { id: verified.userId },
+    });
+    if (!user) {
+        return;
+    }
+
+    if (isMcpTokenRevoked(verified.issuedAt, user.mcpTokenMinIssuedAt)) {
+        return;
+    }
+
+    return {
+        clientId: verified.userId,
+        extra: { userId: verified.userId },
+        scopes: verified.scopes,
+        token: bearerToken,
+    };
+}
+
+/**
+ * Revokes every MCP token minted for the user so far by moving their
+ * `mcpTokenMinIssuedAt` point to now. Tokens minted after this call stay valid,
+ * so the caller mints a fresh one for whichever client it re-configures.
+ */
+export async function rotateMcpTokens(userId: string): Promise<void> {
+    await prisma.user.update({
+        data: { mcpTokenMinIssuedAt: new Date() },
+        where: { id: userId },
+    });
 }
 
 export function toMcpLibraryItem(

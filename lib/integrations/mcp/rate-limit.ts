@@ -1,10 +1,11 @@
 /**
  * Per-userId rate limiting for the MCP tools.
  *
- * The threat we're guarding against is a stolen MCP Bearer token. Tokens are
- * 30-day HMAC-secret-bound; a leaked grant gives the holder full read+write
- * access to the user's library. Rate limits narrow the blast radius without
- * requiring a revocation surface area we don't have today.
+ * The threat we're guarding against is a stolen MCP Bearer token. A leaked
+ * grant gives the holder the user's library access until the user revokes it,
+ * which they can do at any time by rotating their MCP tokens
+ * (`rotateMcpTokens`). Rate limits bound what the token can do in the window
+ * before that revocation lands.
  *
  * Implementation: a fixed-window counter in Redis, keyed by `userId` and
  * the bucket name. We pick fixed window over a sliding log because it stays
