@@ -19,11 +19,7 @@ import {
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { tryParseUrl } from "@/lib/common/url";
 import { IntegrationApiError } from "@/lib/integrations/error";
-import {
-    MCP_SCOPES,
-    type McpScope,
-    verifyMcpAuthToken,
-} from "@/lib/integrations/mcp/auth";
+import { MCP_SCOPES, type McpScope } from "@/lib/integrations/mcp/auth";
 import {
     McpAddLibraryItemInputSchema,
     McpCollectionListOutputSchema,
@@ -42,6 +38,7 @@ import {
 import {
     addLibraryItem,
     toMcpLibraryItem,
+    verifyMcpAuthToken,
 } from "@/lib/integrations/mcp/service";
 
 const log = createLogger("mcp.route");
