@@ -109,7 +109,10 @@ export async function consumeProbeBudget(
         return { allowed: true, retryAfterMs: 0 };
     }
 
-    const redis = await getReadyRedisClient();
+    const redis = await getReadyRedisClient({
+        caller: "library:link-reachability",
+        probes: amount,
+    });
     if (!redis) {
         if (isRedisConfigured()) {
             log.warn("Link probe budget unavailable; refusing probes", {

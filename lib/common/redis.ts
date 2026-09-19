@@ -16,6 +16,24 @@ const RedisConnectionError = NamedError.create(
 export type RedisConnectionError = InstanceType<typeof RedisConnectionError>;
 
 /**
+ * Identifies the caller waiting for the connect, so a refusal is attributable
+ * during an incident. The count the caller was about to spend (the MCP bucket
+ * or the probe batch) sizes the blast radius.
+ */
+export type RedisReadyCaller =
+    | { readonly bucket: string; readonly caller: "mcp.rate-limit" }
+    | { readonly caller: "library:link-reachability"; readonly probes: number };
+
+/**
+ * Outcome of {@link waitForRedisReady}: how long the connect stayed pending,
+ * and whether the wait bound expired before it settled.
+ */
+interface RedisReadyWait {
+    readonly durationMs: number;
+    readonly timedOut: boolean;
+}
+
+/**
  * How long an abuse-bounding caller waits for an in-flight connection before
  * it treats a configured Redis as unavailable.
  */
@@ -24,6 +42,7 @@ const REDIS_READY_WAIT_TIMEOUT_MS = 1000;
 let globalRedisClient: RedisClientType | null = null;
 let redisConnectPromise: Promise<void> | null = null;
 let didWarnRedisUnavailable = false;
+let didWarnRedisReadyRefusal = false;
 let hasRedisConnected = false;
 
 /**
@@ -48,29 +67,55 @@ function warnRedisUnavailableOnce(): void {
 }
 
 /**
+ * Report, once per outage episode, that a caller waited for the connect and
+ * was refused. Records the wait outcome so an operator can tell a cold start
+ * that outran the bound from a Redis instance that never connected, and can
+ * attribute the refusal to the caller it hit.
+ */
+function warnRedisReadyRefusalOnce(
+    caller: RedisReadyCaller,
+    wait: RedisReadyWait
+): void {
+    if (didWarnRedisReadyRefusal) {
+        return;
+    }
+    didWarnRedisReadyRefusal = true;
+    log.warn(
+        "Redis not ready after waiting for the connect; caller fails closed",
+        {
+            ...caller,
+            hasRedisConnected,
+            waitDurationMs: wait.durationMs,
+            waitTimedOut: wait.timedOut,
+        }
+    );
+}
+
+/**
  * Wait for the connect started by {@link getRedisClient} to settle, up to a
  * bound. A client that is still connecting on a cold start resolves here in
  * milliseconds; a client whose socket cannot connect keeps its connect
  * pending across reconnects, so the timeout keeps the caller from hanging.
+ *
+ * Reports how long the connect stayed pending and whether the bound expired,
+ * so the caller can attribute and classify the refusal.
  */
-function waitForRedisReady(timeoutMs: number): Promise<void> {
+function waitForRedisReady(timeoutMs: number): Promise<RedisReadyWait> {
     const connecting = redisConnectPromise;
     if (!connecting) {
-        return Promise.resolve();
+        return Promise.resolve({ durationMs: 0, timedOut: false });
     }
 
-    return new Promise<void>((resolve) => {
-        const timer = setTimeout(() => resolve(), timeoutMs);
-        connecting.then(
-            () => {
-                clearTimeout(timer);
-                resolve();
-            },
-            () => {
-                clearTimeout(timer);
-                resolve();
-            }
-        );
+    const startedAt = Date.now();
+    return new Promise<RedisReadyWait>((resolve) => {
+        const timer = setTimeout(() => {
+            resolve({ durationMs: Date.now() - startedAt, timedOut: true });
+        }, timeoutMs);
+        const settle = () => {
+            clearTimeout(timer);
+            resolve({ durationMs: Date.now() - startedAt, timedOut: false });
+        };
+        connecting.then(settle, settle);
     });
 }
 
@@ -135,6 +180,7 @@ export function getRedisClient(): RedisClientType | null {
         globalRedisClient.on("ready", () => {
             hasRedisConnected = true;
             didWarnRedisUnavailable = false;
+            didWarnRedisReadyRefusal = false;
             log.info("Redis connection established");
         });
 
@@ -172,7 +218,9 @@ export function getRedisClient(): RedisClientType | null {
  * genuinely down (or reconnecting) still reports null after the bounded wait.
  * A deployment with no `REDIS_URL` returns null immediately.
  */
-export async function getReadyRedisClient(): Promise<RedisClientType | null> {
+export async function getReadyRedisClient(
+    caller: RedisReadyCaller
+): Promise<RedisClientType | null> {
     const client = getRedisClient();
     if (client) {
         return client;
@@ -181,11 +229,11 @@ export async function getReadyRedisClient(): Promise<RedisClientType | null> {
         return null;
     }
 
-    await waitForRedisReady(REDIS_READY_WAIT_TIMEOUT_MS);
+    const wait = await waitForRedisReady(REDIS_READY_WAIT_TIMEOUT_MS);
 
     const readyClient = getRedisClient();
     if (!readyClient) {
-        warnRedisUnavailableOnce();
+        warnRedisReadyRefusalOnce(caller, wait);
     }
     return readyClient;
 }
