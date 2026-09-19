@@ -236,10 +236,12 @@ export async function verifyMcpAuthToken(
         where: { id: verified.userId },
     });
     if (!user) {
+        logRejectedMcpToken(verified.userId, "unknown_user");
         return;
     }
 
     if (isMcpTokenRevoked(verified.issuedAt, user.mcpTokenMinIssuedAt)) {
+        logRejectedMcpToken(verified.userId, "revoked");
         return;
     }
 
@@ -249,6 +251,20 @@ export async function verifyMcpAuthToken(
         scopes: verified.scopes,
         token: bearerToken,
     };
+}
+
+type McpTokenRejectionReason = "revoked" | "unknown_user";
+
+/**
+ * Records why a token was rejected so an operator can count and attribute
+ * rejected MCP traffic after a leak. WARN because the production log stream
+ * keeps WARN and above, and no aggregator reads it.
+ */
+function logRejectedMcpToken(
+    userId: string,
+    reason: McpTokenRejectionReason
+): void {
+    log.warn("MCP token rejected", { reason, userId });
 }
 
 /**
