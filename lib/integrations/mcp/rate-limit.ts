@@ -61,7 +61,10 @@ export async function checkMcpRateLimit(
     userId: string,
     bucket: Bucket
 ): Promise<McpRateLimitOutcome> {
-    const redis = await getReadyRedisClient();
+    const redis = await getReadyRedisClient({
+        bucket: bucket.name,
+        caller: "mcp.rate-limit",
+    });
     if (!redis) {
         return isRedisConfigured()
             ? { status: "unavailable" }
