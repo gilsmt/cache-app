@@ -31,20 +31,6 @@ export const isTest: boolean = env.NODE_ENV === "test" || !!env.TEST;
 /** Detect if the current environment is development (`NODE_ENV=development`). */
 export const isDevelopment: boolean = env.NODE_ENV === "development";
 
-/** Deployment target reported by the hosting platform. */
-export type DeploymentTarget = "development" | "preview" | "production";
-
-/**
- * A preview or development deployment must not run production work. An absent
- * deployment target means a self-hosted production deployment, where the
- * operator owns every environment.
- */
-export function isProductionDeployment(
-    deploymentTarget: DeploymentTarget | undefined
-): boolean {
-    return deploymentTarget === undefined || deploymentTarget === "production";
-}
-
 /**
  * Runtime detectors in check order: the first truthy predicate wins. The order
  * mirrors `std-env` so edge runtimes are classified before their Node.js
