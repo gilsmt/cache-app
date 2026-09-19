@@ -26,6 +26,7 @@ import {
     type AutomationScheduleInput,
     buildScheduleSnapshot,
     computeNextRunAtUtc,
+    getAutomationStallDelayMs,
     validateAutomationSchedule,
 } from "./schedule";
 
@@ -130,6 +131,8 @@ export async function listAutomations(args: {
             userId: args.userId,
         },
     });
+
+    reportStalledScheduler(automations, new Date());
 
     return automations.map(toAutomationListItem);
 }
@@ -1282,6 +1285,46 @@ async function pauseAutomationForMissingCollection(args: {
             },
         }),
     ]);
+}
+
+interface AutomationScheduleState {
+    nextRunAtUtc: Date | null;
+    status: AutomationStatus;
+}
+
+// The scheduler that ticks /api/cron/automations runs outside this deployment,
+// so its silence leaves no trace here: a stopped tick looks the same as a day
+// with nothing due. Reading the automations reports it, because the rows
+// already carry the slot the tick was supposed to claim.
+function reportStalledScheduler(
+    automations: AutomationScheduleState[],
+    now: Date
+) {
+    let oldestDelayMs = 0;
+    let overdueCount = 0;
+
+    for (const automation of automations) {
+        const delayMs = getAutomationStallDelayMs({
+            nextRunAtUtc: automation.nextRunAtUtc,
+            now,
+            status: automation.status,
+        });
+        if (delayMs === null) {
+            continue;
+        }
+
+        overdueCount += 1;
+        oldestDelayMs = Math.max(oldestDelayMs, delayMs);
+    }
+
+    if (overdueCount === 0) {
+        return;
+    }
+
+    log.error("Automation runs are overdue: the scheduler has not ticked", {
+        oldestDelayMs,
+        overdueCount,
+    });
 }
 
 function toAutomationListItem(automation: {

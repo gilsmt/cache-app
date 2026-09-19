@@ -1,6 +1,8 @@
 import type { Dayjs } from "@/lib/common/dayjs";
 import { dayjs } from "@/lib/common/dayjs";
 import type { AutomationCadence } from "@/prisma/client/enums";
+import { AutomationStatus } from "@/prisma/client/enums";
+import { AUTOMATION_SCHEDULER_STALL_TOLERANCE_MS } from "./constants";
 
 const MINUTES_PER_DAY = 24 * 60;
 const WEEK_DAY_MIN = 0;
@@ -61,6 +63,24 @@ export function computeNextRunAtUtc(args: {
     const candidate = computeLocalCandidateAfter(localAfter, schedule);
 
     return candidate.utc().toDate();
+}
+
+/**
+ * How long a due slot waited past its scheduled time, in milliseconds, when
+ * the scheduler that ticks /api/cron/automations stopped claiming runs.
+ * Null when the automation is paused, has no next slot, or is on time.
+ */
+export function getAutomationStallDelayMs(args: {
+    nextRunAtUtc: Date | null;
+    now: Date;
+    status: AutomationStatus;
+}): number | null {
+    if (args.status !== AutomationStatus.active || !args.nextRunAtUtc) {
+        return null;
+    }
+
+    const delayMs = args.now.getTime() - args.nextRunAtUtc.getTime();
+    return delayMs > AUTOMATION_SCHEDULER_STALL_TOLERANCE_MS ? delayMs : null;
 }
 
 export function buildScheduleSnapshot(args: {

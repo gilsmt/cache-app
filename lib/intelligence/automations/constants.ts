@@ -7,6 +7,10 @@ export const AUTOMATION_ITEM_PAGE_LIMIT_DEFAULT = 20;
 export const AUTOMATION_ITEM_PAGE_LIMIT_MAX = 50;
 export const AUTOMATION_LEASE_DURATION_MS = 10 * 60 * 1000;
 export const AUTOMATION_RUNNING_TIMEOUT_MS = 45 * 60 * 1000;
+// The scheduler that ticks the automations cron runs at least once a day, so
+// a due run waits under a day plus one tick of slack. A longer wait means the
+// scheduler stopped claiming runs.
+export const AUTOMATION_SCHEDULER_STALL_TOLERANCE_MS = 26 * 60 * 60 * 1000;
 export const AUTOMATION_TEXT_PREVIEW_LENGTH_MAX = 1200;
 export const AUTOMATION_WEB_FETCH_BODY_LENGTH_MAX = 12_000;
 export const AUTOMATION_WEB_FETCH_TIMEOUT_MS = 15_000;
