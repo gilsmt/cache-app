@@ -52,13 +52,15 @@ const LOG_CONFIG = {
         enabled: true,
         minLevel: LOG_LEVEL.DEBUG,
     },
-    // Production keeps errors. The stack is dropped (see stringifyLogValue)
-    // and sensitive keys are redacted by formatLogValue, so console.error is
-    // the one channel an operator reads from the platform's log stream.
+    // Production keeps warnings and errors. No aggregator reads this stream,
+    // so the platform log stream is the only surface an operator has. Routes
+    // report partial failures they swallow and still return 200 for at WARN,
+    // so dropping that level would hide them. The stack is dropped (see
+    // stringifyLogValue) and sensitive keys are redacted by formatLogValue.
     production: {
         colorize: false,
         enabled: true,
-        minLevel: LOG_LEVEL.ERROR,
+        minLevel: LOG_LEVEL.WARN,
     },
     test: DISABLED_LOG_CONFIG,
 };
