@@ -16,6 +16,28 @@ const RedisConnectionError = NamedError.create(
 export type RedisConnectionError = InstanceType<typeof RedisConnectionError>;
 
 let globalRedisClient: RedisClientType | null = null;
+let didWarnRedisUnavailable = false;
+
+/**
+ * Whether Redis is configured through `REDIS_URL`.
+ *
+ * Separates "the operator never configured Redis" from "Redis is configured
+ * but its socket is not ready yet". Abuse-bounding callers must fail closed
+ * for the second state without breaking a deliberately Redis-less setup.
+ */
+export function isRedisConfigured(): boolean {
+    return Boolean(process.env.REDIS_URL);
+}
+
+function warnRedisUnavailableOnce(): void {
+    if (didWarnRedisUnavailable) {
+        return;
+    }
+    didWarnRedisUnavailable = true;
+    log.warn(
+        "Redis client not ready (disconnected or reconnecting); callers degrade or fail closed"
+    );
+}
 
 /**
  * Get a Redis client instance.
@@ -27,6 +49,9 @@ let globalRedisClient: RedisClientType | null = null;
  * The client auto-reconnects on disconnection. Once the socket is ready
  * again the returned value flips from null back to the client — no
  * instance is lost or re-created.
+ *
+ * While the client is present but not ready, this logs a WARN once per
+ * outage so the degraded state is separable from "no REDIS_URL configured".
  */
 export function getRedisClient(): RedisClientType | null {
     if (typeof window !== "undefined") {
@@ -41,7 +66,12 @@ export function getRedisClient(): RedisClientType | null {
         //
         // Once the underlying socket is ready again the client will be returned on
         // the next call — no client is lost or re-created.
-        return globalRedisClient.isReady ? globalRedisClient : null;
+        if (globalRedisClient.isReady) {
+            didWarnRedisUnavailable = false;
+            return globalRedisClient;
+        }
+        warnRedisUnavailableOnce();
+        return null;
     }
 
     const url =
@@ -79,7 +109,12 @@ export function getRedisClient(): RedisClientType | null {
             log.error("Redis initial connect failed", { error });
         });
 
-        return globalRedisClient.isReady ? globalRedisClient : null;
+        if (globalRedisClient.isReady) {
+            didWarnRedisUnavailable = false;
+            return globalRedisClient;
+        }
+        warnRedisUnavailableOnce();
+        return null;
     } catch (error) {
         log.error("Failed to initialize Redis client", { error });
         return null;

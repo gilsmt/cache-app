@@ -9,7 +9,7 @@ import {
 import { isAbortError } from "@/lib/common/abort";
 import { mapConcurrent } from "@/lib/common/array";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { getRedisClient } from "@/lib/common/redis";
+import { getRedisClient, isRedisConfigured } from "@/lib/common/redis";
 import {
     type FetchHttpRedirectResult,
     fetchPublicRedirect,
@@ -92,10 +92,15 @@ function tryConsumeLocalProbeBudget(
 }
 
 /**
- * Shared fixed-window budget via Redis when available; falls back to an
- * in-process Map so local/dev still rate-limits a single isolate.
+ * Shared fixed-window budget for outbound probes.
+ *
+ * Redis holds the shared budget. When it is configured but unreachable the
+ * budget cannot be enforced across isolates, so probes are refused rather
+ * than fanned out; the client retries after the window. A deployment with no
+ * `REDIS_URL` uses the in-process Map, which still bounds a single local
+ * isolate.
  */
-async function tryConsumeProbeBudget(
+export async function consumeProbeBudget(
     userId: string,
     amount: number
 ): Promise<{ allowed: boolean; retryAfterMs: number }> {
@@ -105,6 +110,12 @@ async function tryConsumeProbeBudget(
 
     const redis = getRedisClient();
     if (!redis) {
+        if (isRedisConfigured()) {
+            log.warn("Link probe budget unavailable; refusing probes", {
+                userId,
+            });
+            return { allowed: false, retryAfterMs: PROBE_BUDGET_WINDOW_MS };
+        }
         return tryConsumeLocalProbeBudget(userId, amount);
     }
 
@@ -128,6 +139,13 @@ async function tryConsumeProbeBudget(
         }
         return { allowed: true, retryAfterMs: 0 };
     } catch (error) {
+        if (isRedisConfigured()) {
+            log.warn("Link probe Redis budget failed; refusing probes", {
+                error,
+                userId,
+            });
+            return { allowed: false, retryAfterMs: PROBE_BUDGET_WINDOW_MS };
+        }
         log.warn("Link probe Redis budget failed; using local fallback", {
             error,
             userId,
@@ -293,7 +311,7 @@ export async function probeLibraryItemsReachability({
     });
 
     const probeCount = work.filter((entry) => entry.kind === "probe").length;
-    const budget = await tryConsumeProbeBudget(userId, probeCount);
+    const budget = await consumeProbeBudget(userId, probeCount);
     if (!budget.allowed) {
         return {
             didPersist: false,
