@@ -1,6 +1,7 @@
 import { start } from "workflow/api";
 import { automationRunWorkflow } from "@/app/workflows/automation";
 import { serverEnv } from "@/env/server";
+import { isProductionDeployment } from "@/lib/common/environment";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { withRetry } from "@/lib/common/retry";
 import {
@@ -15,6 +16,13 @@ const log = createLogger("automations:cron");
 const NO_STORE_HEADERS = { "Cache-Control": "private, no-store" };
 
 export async function GET(request: Request) {
+    if (!isProductionDeployment(serverEnv.VERCEL_ENV)) {
+        return Response.json(
+            { error: "Not found" },
+            { headers: NO_STORE_HEADERS, status: 404 }
+        );
+    }
+
     if (
         !isAuthorizedCronRequest(request) &&
         serverEnv.NODE_ENV === "production"
