@@ -13,6 +13,10 @@
 #
 # Each platform uploads its assets directly to the release, so a single
 # platform failure does not block the others from publishing.
+#
+# Every action is pinned to a full commit SHA. A mutable tag or branch lets
+# its owner change the code this workflow runs, which can rewrite the
+# installers cachd.app serves.
 
 name: Desktop App Release
 
@@ -46,7 +50,7 @@ jobs:
       tag: ${{ steps.tag.outputs.value }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Resolve release tag
         id: tag
@@ -64,7 +68,7 @@ jobs:
           echo "Release tag: ${TAG}"
 
       - name: Create release (skips if it already exists)
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           tag: ${{ steps.tag.outputs.value }}
           name: Cache Desktop ${{ steps.tag.outputs.value }}
@@ -99,16 +103,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: stable
           targets: ${{ matrix.platform == 'macos' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -139,7 +143,7 @@ jobs:
 
       - name: Setup mold linker
         if: matrix.platform == 'linux'
-        uses: rui314/setup-mold@v1
+        uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
 
       - name: Install pake-cli
         run: npm install -g pake-cli
@@ -244,7 +248,7 @@ jobs:
           ls -lh output/
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: desktop-${{ matrix.platform }}
           path: output/*
@@ -252,7 +256,7 @@ jobs:
           retention-days: 14
 
       - name: Attach to GitHub Release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           tag: ${{ needs.create-release.outputs.tag }}
           allowUpdates: true
