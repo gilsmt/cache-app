@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
+import arcjet, { fixedWindow } from "@arcjet/next";
 import * as z from "zod";
+import { serverEnv } from "@/env/server";
 import { getSessionUserId } from "@/lib/auth/session";
 import {
     abortAfter,
@@ -48,6 +50,11 @@ const MAX_TARGET_URL_LENGTH = 4096;
 const MAX_PREVIEW_METADATA_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_IMAGE_CONTENT_LENGTH_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_CONTENT_LENGTH_BYTES = 200 * 1024 * 1024;
+// The proxy delivery streams upstream bytes through this origin, and anonymous
+// clients reach it through public share pages, so it needs a per-client budget.
+// The budget covers a full share page (12 items) with headroom.
+const PREVIEW_PROXY_RATE_LIMIT_MAX = 120;
+const PREVIEW_PROXY_RATE_LIMIT_WINDOW = "60s";
 const COBALT_CACHE_TTL_SECONDS = 5 * 60;
 const COBALT_CACHE_KEY_PREFIX = "cobalt-preview:";
 const PREVIEW_IMAGE_CACHE_TTL_SECONDS = 4 * 24 * 60 * 60; // 4 d
@@ -96,6 +103,21 @@ const XHTML_CONTENT_TYPE_PATTERN = /^application\/xhtml\+xml/i;
 const ABORTED_RESPONSE = new Response(null, { status: 499 });
 const INSTAGRAM_HOST = "instagram.com";
 const GOOGLE_PHOTOS_CDN_HOST = "lh3.googleusercontent.com";
+
+// Arcjet keys the limit on the client IP when no characteristics are set. That
+// bounds anonymous share-page traffic without a session lookup.
+const previewArcjet = serverEnv.ARCJET_KEY
+    ? arcjet({
+          key: serverEnv.ARCJET_KEY,
+          rules: [
+              fixedWindow({
+                  max: PREVIEW_PROXY_RATE_LIMIT_MAX,
+                  mode: "LIVE",
+                  window: PREVIEW_PROXY_RATE_LIMIT_WINDOW,
+              }),
+          ],
+      })
+    : null;
 
 const PreviewRedirectLoopError = NamedError.create(
     "PreviewRedirectLoop",
@@ -320,6 +342,13 @@ export async function GET(request: Request): Promise<Response> {
     // by the standard checks above.
     if (contentType === "image" && isGooglePhotosHost(targetUrl)) {
         return serveGooglePhotosPreview(targetUrl, request);
+    }
+
+    if (delivery === "proxy" && previewArcjet) {
+        const decision = await previewArcjet.protect(request);
+        if (decision.isDenied() && decision.reason.isRateLimit()) {
+            return textResponse("Too many preview requests", 429);
+        }
     }
 
     if (contentType === "video") {
