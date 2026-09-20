@@ -6,10 +6,48 @@ import { SessionError } from "@/lib/auth/error";
 import { auth } from "@/lib/auth/server";
 import { ACTION_STATUS } from "@/lib/common/constants";
 import { getErrorMessage } from "@/lib/common/error";
+import { HttpError } from "@/lib/common/http";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { isNetworkError } from "@/lib/common/network";
+import { isRecord } from "@/lib/common/object";
 import { withRetry } from "@/lib/common/retry";
 
 const log = createLogger("Auth:session");
+
+/**
+ * Socket codes the Postgres driver raises when a connection fails before a
+ * query runs. Prisma wraps them in a known-request error that keeps the driver
+ * code, so `isNetworkError` does not recognize them.
+ */
+const TRANSIENT_DATABASE_ERROR_CODES = new Set([
+    "ECONNRESET",
+    "ECONNREFUSED",
+    "ETIMEDOUT",
+    "EPIPE",
+    "EHOSTUNREACH",
+    "ENETUNREACH",
+    "EAI_AGAIN",
+]);
+
+/**
+ * Separates a transient transport failure, which a retry can outlast, from a
+ * deterministic failure, which a retry only repeats with added load.
+ */
+function isTransientSessionError(error: unknown): boolean {
+    if (isNetworkError(error)) {
+        return true;
+    }
+
+    if (HttpError.isInstance(error)) {
+        return error.isRetryable();
+    }
+
+    return (
+        isRecord(error) &&
+        typeof error.code === "string" &&
+        TRANSIENT_DATABASE_ERROR_CODES.has(error.code)
+    );
+}
 
 export type Session = typeof auth.$Infer.Session;
 
@@ -22,6 +60,7 @@ export const getServerSession = cache(async () => {
     const requestHeaders = await headers();
     return withRetry(() => auth.api.getSession({ headers: requestHeaders }), {
         randomize: true,
+        shouldRetry: ({ error }) => isTransientSessionError(error),
     });
 });
 
