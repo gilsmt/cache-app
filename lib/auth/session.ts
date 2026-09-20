@@ -7,14 +7,23 @@ import { auth } from "@/lib/auth/server";
 import { ACTION_STATUS } from "@/lib/common/constants";
 import { getErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { withRetry } from "@/lib/common/retry";
 
 const log = createLogger("Auth:session");
 
 export type Session = typeof auth.$Infer.Session;
 
-export const getServerSession = cache(async () =>
-    auth.api.getSession({ headers: await headers() })
-);
+/**
+ * A session read is idempotent, so a transient database transport failure is
+ * retried instead of surfacing as a 500. The backoff is jittered so instances
+ * that fail together do not reconnect in lockstep.
+ */
+export const getServerSession = cache(async () => {
+    const requestHeaders = await headers();
+    return withRetry(() => auth.api.getSession({ headers: requestHeaders }), {
+        randomize: true,
+    });
+});
 
 export const getSessionUserId = cache(async (): Promise<string | null> => {
     const session = await getServerSession();
