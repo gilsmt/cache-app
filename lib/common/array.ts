@@ -42,7 +42,6 @@ export function countBy<T, K extends PropertyKey>(
     items: readonly T[],
     getKey: (item: T) => K
 ): Partial<Record<K, number>> {
-    // Null prototype keeps "__proto__" keys as own counts.
     const counts: Partial<Record<K, number>> = Object.create(null);
     for (const item of items) {
         const key = getKey(item);
