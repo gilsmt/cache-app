@@ -17,7 +17,7 @@ export const NOTE_EMPTY_HTML = "<p></p>";
 
 export type NoteSerializedEditorState = SerializedEditorState;
 
-type NoteSerializedElementNode = SerializedElementNode<SerializedLexicalNode>;
+type NoteSerializedElementNode = SerializedElementNode;
 type NoteSerializedRootNode = NoteSerializedEditorState["root"];
 
 const NOTE_ALLOWED_TAGS = new Set([
