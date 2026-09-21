@@ -318,10 +318,13 @@ function extractPreviewMetadataWithParser(
     // and a meta-only outcome with zero usable images (e.g., empty content)
     // still falls through to the image_src/img candidates.
     let images: string[];
+    let imagesFromOpenGraph = false;
     if (propertyOgImages.length > 0) {
         images = propertyOgImages;
+        imagesFromOpenGraph = true;
     } else if (!hasPropertyOgImageTag && nameOgImages.length > 0) {
         images = nameOgImages;
+        imagesFromOpenGraph = true;
     } else if (imageSrcLinkHref) {
         images = [imageSrcLinkHref];
     } else {
@@ -373,13 +376,22 @@ function extractPreviewMetadataWithParser(
         }
     }
 
+    // Dimensions describe the selected Open Graph image only. A fallback
+    // image_src or img candidate has unknown dimensions, so omit them
+    // rather than attach unrelated og:image:width/height values.
+    const imageWidth = imagesFromOpenGraph
+        ? imageDimensions.propertyWidth || imageDimensions.nameWidth
+        : undefined;
+    const imageHeight = imagesFromOpenGraph
+        ? imageDimensions.propertyHeight || imageDimensions.nameHeight
+        : undefined;
+
     return {
         description,
         favicons: faviconHrefs,
-        imageHeight:
-            imageDimensions.propertyHeight || imageDimensions.nameHeight,
+        imageHeight,
         images,
-        imageWidth: imageDimensions.propertyWidth || imageDimensions.nameWidth,
+        imageWidth,
         title,
         videos,
     };

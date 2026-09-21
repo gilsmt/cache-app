@@ -250,7 +250,8 @@ describe("extractPreviewMetadata — image dimensions", () => {
     test("name variants apply when no property present", () => {
         expect(
             imageDimensionsOf(
-                `<meta name="og:image:width" content="800">` +
+                `<meta name="og:image" content="https://x.com/b.png">` +
+                    `<meta name="og:image:width" content="800">` +
                     `<meta name="og:image:height" content="600">`
             )
         ).toEqual({ height: "600", width: "800" });
@@ -259,7 +260,8 @@ describe("extractPreviewMetadata — image dimensions", () => {
     test("property wins over name", () => {
         expect(
             imageDimensionsOf(
-                `<meta property="og:image:width" content="1200">` +
+                `<meta property="og:image" content="https://x.com/a.png">` +
+                    `<meta property="og:image:width" content="1200">` +
                     `<meta name="og:image:width" content="800">` +
                     `<meta property="og:image:height" content="630">` +
                     `<meta name="og:image:height" content="600">`
@@ -270,7 +272,8 @@ describe("extractPreviewMetadata — image dimensions", () => {
     test("first value wins within the same variant", () => {
         expect(
             imageDimensionsOf(
-                `<meta property="og:image:width" content="1200">` +
+                `<meta property="og:image" content="https://x.com/a.png">` +
+                    `<meta property="og:image:width" content="1200">` +
                     `<meta property="og:image:width" content="400">` +
                     `<meta property="og:image:height" content="630">`
             )
@@ -290,6 +293,26 @@ describe("extractPreviewMetadata — image dimensions", () => {
             imageDimensionsOf(
                 `<meta property="og:video:width" content="640">` +
                     `<meta property="og:video:height" content="360">`
+            )
+        ).toEqual({ height: undefined, width: undefined });
+    });
+
+    test("img fallback does not inherit og:image dimensions", () => {
+        expect(
+            imageDimensionsOf(
+                `<meta property="og:image:width" content="1200">` +
+                    `<meta property="og:image:height" content="630">` +
+                    `<img src="https://x.com/fallback.png">`
+            )
+        ).toEqual({ height: undefined, width: undefined });
+    });
+
+    test("image_src fallback does not inherit og:image dimensions", () => {
+        expect(
+            imageDimensionsOf(
+                `<meta property="og:image:width" content="1200">` +
+                    `<meta property="og:image:height" content="630">` +
+                    `<link rel="image_src" href="/fav.png">`
             )
         ).toEqual({ height: undefined, width: undefined });
     });
