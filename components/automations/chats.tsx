@@ -1,8 +1,7 @@
 "use client";
 
-import { Calligraph } from "calligraph";
 import { T, Var } from "gt-next";
-import { History } from "lucide-react";
+import { History, MessageCircle } from "lucide-react";
 import * as React from "react";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
@@ -29,65 +28,70 @@ import { dayjs } from "@/lib/common/dayjs";
 import type { AutomationListItem } from "@/lib/intelligence/automations/service";
 import { AutomationRunStatus } from "@/prisma/client/enums";
 
-const AUTOMATION_ACTIVITY_OPEN_STORAGE_KEY = "cache:automations:activity-open";
-const AUTOMATION_ACTIVITY_MAX = 10;
-const AUTOMATION_ACTIVITY_UPDATE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const AUTOMATION_CHATS_OPEN_STORAGE_KEY = "cache:automations:chats-open";
+const AUTOMATION_CHATS_MAX = 10;
+const AUTOMATION_CHATS_UPDATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-type AutomationActivityRun = AutomationListItem["recentRuns"][number];
+type AutomationChatsRun = AutomationListItem["recentRuns"][number];
 
-interface AutomationActivityEntry extends AutomationActivityRun {
+interface AutomationChatsEntry extends AutomationChatsRun {
     automationTitle: string;
 }
 
-interface AutomationActivityContext {
-    entries: AutomationActivityEntry[];
+interface AutomationChatsContext {
+    entries: AutomationChatsEntry[];
 }
 
-interface AutomationActivityItemContext {
+interface AutomationChatsItemContext {
     display: NonNullable<ReturnType<typeof getLastRunDisplay>>;
-    entry: AutomationActivityEntry;
+    entry: AutomationChatsEntry;
 }
 
-const AutomationActivityContext =
-    React.createContext<AutomationActivityContext | null>(null);
+const AutomationChatsContext =
+    React.createContext<AutomationChatsContext | null>(null);
 
-function useAutomationActivityContext(): AutomationActivityContext {
-    const context = React.use(AutomationActivityContext);
+function useAutomationChatsContext(): AutomationChatsContext {
+    const context = React.use(AutomationChatsContext);
     if (!context) {
         throw new Error(
-            "AutomationActivity compound components must be used within AutomationActivity."
+            "AutomationChats compound components must be used within AutomationChats."
         );
     }
     return context;
 }
 
-const AutomationActivityItemContext =
-    React.createContext<AutomationActivityItemContext | null>(null);
+const AutomationChatsItemContext =
+    React.createContext<AutomationChatsItemContext | null>(null);
 
-function useAutomationActivityItemContext(): AutomationActivityItemContext {
-    const context = React.use(AutomationActivityItemContext);
+function useAutomationChatsItemContext(): AutomationChatsItemContext {
+    const context = React.use(AutomationChatsItemContext);
     if (!context) {
         throw new Error(
-            "AutomationActivityItem compound components must be used within AutomationActivityItem."
+            "AutomationChatsItem compound components must be used within AutomationChatsItem."
         );
     }
     return context;
 }
 
-const { useStore: useAutomationActivityStore } = createStore({
-    isActivityOpen: storage(true, {
-        storageKey: AUTOMATION_ACTIVITY_OPEN_STORAGE_KEY,
+const { useStore: useAutomationChatsStore } = createStore({
+    isChatsOpen: storage(true, {
+        storageKey: AUTOMATION_CHATS_OPEN_STORAGE_KEY,
     }),
 });
 
-function getRecentAutomationActivity(
+function toRunCreatedAt(value: Date | string): Date {
+    return value instanceof Date ? value : new Date(value);
+}
+
+function getRecentAutomationChats(
     automations: AutomationListItem[]
-): AutomationActivityEntry[] {
+): AutomationChatsEntry[] {
     return automations
         .flatMap((automation) =>
             automation.recentRuns.map((run) => ({
                 ...run,
                 automationTitle: automation.title,
+                createdAt: toRunCreatedAt(run.createdAt),
             }))
         )
         .filter(
@@ -101,20 +105,16 @@ function getRecentAutomationActivity(
                 ? left.automationTitle.localeCompare(right.automationTitle)
                 : diff;
         })
-        .slice(0, AUTOMATION_ACTIVITY_MAX);
+        .slice(0, AUTOMATION_CHATS_MAX);
 }
 
-function getRecentActivityUpdateCount(
-    entries: AutomationActivityEntry[]
-): number {
-    const cutoff = Date.now() - AUTOMATION_ACTIVITY_UPDATE_WINDOW_MS;
+function getRecentChatsUpdateCount(entries: AutomationChatsEntry[]): number {
+    const cutoff = Date.now() - AUTOMATION_CHATS_UPDATE_WINDOW_MS;
     return entries.filter((entry) => entry.createdAt.getTime() >= cutoff)
         .length;
 }
 
-function getActivityPreviewOutput(
-    entry: AutomationActivityEntry
-): React.ReactNode {
+function getChatsPreviewOutput(entry: AutomationChatsEntry): React.ReactNode {
     if (
         entry.status === AutomationRunStatus.succeeded &&
         entry.summaryMarkdown
@@ -135,89 +135,78 @@ function getActivityPreviewOutput(
     return null;
 }
 
-interface AutomationActivityProps {
+interface AutomationChatsProps {
     automations: AutomationListItem[];
 }
 
-export function AutomationActivity({ automations }: AutomationActivityProps) {
-    const entries = getRecentAutomationActivity(automations);
-    const updateCount = getRecentActivityUpdateCount(entries);
+export function AutomationChats({ automations }: AutomationChatsProps) {
+    const entries = getRecentAutomationChats(automations);
+    const updateCount = getRecentChatsUpdateCount(entries);
 
     return (
-        <AutomationActivityContext value={{ entries }}>
-            <AutomationActivityCollapsible
+        <AutomationChatsContext value={{ entries }}>
+            <AutomationChatsCollapsible
                 className="group/collapsible"
                 data-sidebar-collapsible=""
             >
-                <AutomationActivityTrigger
-                    count={entries.length}
-                    updateCount={updateCount}
-                >
-                    <T>Activity</T>
-                </AutomationActivityTrigger>
-                <AutomationActivityPanel>
-                    <AutomationActivityEmpty />
-                    <AutomationActivityList>
+                <AutomationChatsTrigger updateCount={updateCount}>
+                    <T>Chats</T>
+                </AutomationChatsTrigger>
+                <AutomationChatsPanel>
+                    <AutomationChatsEmpty />
+                    <AutomationChatsList>
                         {(entry) => (
-                            <AutomationActivityItem
-                                entry={entry}
-                                key={entry.id}
-                            >
-                                <AutomationActivityItemTrigger>
-                                    <AutomationActivityItemTitle />
-                                </AutomationActivityItemTrigger>
-                                <AutomationActivityItemPreview />
-                            </AutomationActivityItem>
+                            <AutomationChatsItem entry={entry} key={entry.id}>
+                                <AutomationChatsItemTrigger>
+                                    <AutomationChatsItemTitle />
+                                </AutomationChatsItemTrigger>
+                                <AutomationChatsItemPreview />
+                            </AutomationChatsItem>
                         )}
-                    </AutomationActivityList>
-                </AutomationActivityPanel>
-            </AutomationActivityCollapsible>
-        </AutomationActivityContext>
+                    </AutomationChatsList>
+                </AutomationChatsPanel>
+            </AutomationChatsCollapsible>
+        </AutomationChatsContext>
     );
 }
 
-function AutomationActivityCollapsible(
+function AutomationChatsCollapsible(
     props: React.ComponentProps<typeof Collapsible>
 ) {
-    const { isActivityOpen, setIsActivityOpen } = useAutomationActivityStore();
+    const { isChatsOpen, setIsChatsOpen } = useAutomationChatsStore();
 
     return (
         <Collapsible
             {...props}
-            onOpenChange={setIsActivityOpen}
-            open={isActivityOpen}
+            onOpenChange={setIsChatsOpen}
+            open={isChatsOpen}
         />
     );
 }
 
-function AutomationActivityPanel(
+function AutomationChatsPanel(
     props: React.ComponentProps<typeof CollapsiblePanel>
 ) {
     return <CollapsiblePanel {...props} />;
 }
 
-interface AutomationActivityTriggerProps
+interface AutomationChatsTriggerProps
     extends React.ComponentProps<typeof CollapsibleTrigger> {
-    count: number;
     updateCount: number;
 }
 
-function AutomationActivityTrigger({
+function AutomationChatsTrigger({
     children,
-    count,
     render,
     updateCount,
     ...props
-}: AutomationActivityTriggerProps) {
+}: AutomationChatsTriggerProps) {
     return (
         <CollapsibleTrigger
             {...props}
             render={render ?? <SidebarItem render={<button type="button" />} />}
         >
-            <span className="min-w-0 text-xs">
-                {children}&nbsp;
-                <Calligraph className="mx-0.5 opacity-80">{count}</Calligraph>
-            </span>
+            <span className="min-w-0 text-xs">{children}</span>
             <ChevronDownFilledIcon
                 aria-hidden
                 className="-ml-0.5"
@@ -237,21 +226,18 @@ function AutomationActivityTrigger({
     );
 }
 
-interface AutomationActivityListProps {
-    children: (
-        entry: AutomationActivityEntry,
-        index: number
-    ) => React.ReactNode;
+interface AutomationChatsListProps {
+    children: (entry: AutomationChatsEntry, index: number) => React.ReactNode;
 }
 
-function AutomationActivityList({ children }: AutomationActivityListProps) {
-    const { entries } = useAutomationActivityContext();
+function AutomationChatsList({ children }: AutomationChatsListProps) {
+    const { entries } = useAutomationChatsContext();
 
     return <SidebarGroup>{entries.map(children)}</SidebarGroup>;
 }
 
-function AutomationActivityEmpty() {
-    const { entries } = useAutomationActivityContext();
+function AutomationChatsEmpty() {
+    const { entries } = useAutomationChatsContext();
 
     if (entries.length > 0) {
         return null;
@@ -265,23 +251,22 @@ function AutomationActivityEmpty() {
                 focusable="false"
             />
             <p className="font-medium text-muted-foreground text-xs leading-tight">
-                <T>No activity yet.</T>
+                <T>No chats yet.</T>
             </p>
             <p className="text-[11px] text-muted-foreground/70 leading-tight">
-                <T>Outputs will appear here after your automations run.</T>
+                <T>
+                    Recent activity will appear here after your automations run.
+                </T>
             </p>
         </div>
     );
 }
 
-interface AutomationActivityItemProps extends React.PropsWithChildren {
-    entry: AutomationActivityEntry;
+interface AutomationChatsItemProps extends React.PropsWithChildren {
+    entry: AutomationChatsEntry;
 }
 
-function AutomationActivityItem({
-    children,
-    entry,
-}: AutomationActivityItemProps) {
+function AutomationChatsItem({ children, entry }: AutomationChatsItemProps) {
     const display = getLastRunDisplay(entry);
 
     if (!display) {
@@ -289,43 +274,45 @@ function AutomationActivityItem({
     }
 
     return (
-        <AutomationActivityItemContext value={{ display, entry }}>
+        <AutomationChatsItemContext value={{ display, entry }}>
             <PreviewCard>{children}</PreviewCard>
-        </AutomationActivityItemContext>
+        </AutomationChatsItemContext>
     );
 }
 
-function AutomationActivityItemTrigger({ children }: React.PropsWithChildren) {
+function AutomationChatsItemTrigger({ children }: React.PropsWithChildren) {
     return (
         <PreviewCardTrigger
             render={<SidebarItem render={<button type="button" />} />}
         >
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted/90">
+                <MessageCircle
+                    aria-hidden
+                    className="size-4"
+                    focusable="false"
+                />
+            </span>
             {children}
         </PreviewCardTrigger>
     );
 }
 
-function AutomationActivityItemTitle() {
-    const { entry } = useAutomationActivityItemContext();
+function AutomationChatsItemTitle() {
+    const { entry } = useAutomationChatsItemContext();
 
     return (
         <>
-            {entry.status === AutomationRunStatus.succeeded ? (
-                <span className="sr-only">
-                    <T>Succeeded</T>,&nbsp;
-                </span>
-            ) : null}
             <SidebarItemValue>{entry.automationTitle}</SidebarItemValue>
             {entry.status === AutomationRunStatus.failed ? (
                 <span
-                    className="shrink-0 text-[11px] text-muted-foreground/60"
+                    className="mr-1 shrink-0 text-[11px] text-destructive/80"
                     data-sidebar-collapsible=""
                 >
                     <T>Failed</T>
                 </span>
             ) : null}
             <time
-                className="shrink-0 text-[11px] text-muted-foreground/60 tabular-nums"
+                className="shrink-0 text-[11px] text-muted-foreground/80 tabular-nums"
                 data-sidebar-collapsible=""
                 dateTime={entry.createdAt.toISOString()}
                 title={dayjs(entry.createdAt).format("MMM DD, YYYY, h:mm A")}
@@ -336,18 +323,13 @@ function AutomationActivityItemTitle() {
     );
 }
 
-function AutomationActivityItemPreview() {
-    const { entry } = useAutomationActivityItemContext();
-    const output = getActivityPreviewOutput(entry);
+function AutomationChatsItemPreview() {
+    const { entry } = useAutomationChatsItemContext();
+    const output = getChatsPreviewOutput(entry);
 
     return (
-        <PreviewCardPopup
-            align="start"
-            className="max-h-80 flex-col overflow-y-auto p-3"
-            positionMethod="fixed"
-            side="right"
-        >
-            <div className="mt-2 text-xs leading-snug">
+        <PreviewCardPopup align="start" className="p-3" side="right">
+            <div className="text-foreground text-xs leading-snug">
                 {output ?? (
                     <p className="text-muted-foreground">
                         <T>No output recorded.</T>
