@@ -76,9 +76,9 @@ export function ItemsStateProvider({
 }: ItemsStateProviderProps) {
     const [items, setItems] = React.useState(initialItems);
 
+    const contextValue = { items, setItems };
+
     return (
-        <ItemsStateContext value={{ items, setItems }}>
-            {children}
-        </ItemsStateContext>
+        <ItemsStateContext value={contextValue}>{children}</ItemsStateContext>
     );
 }

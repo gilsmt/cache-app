@@ -20,7 +20,7 @@ const LibraryItemCommentIdSchema = z.object({
 
 const LibraryItemCommentUpdateSchema = z.object({
     contentText: z.string().trim().max(COMMENT_TEXT_MAX_LENGTH),
-    libraryItemId: z.string().trim().min(1).max(64),
+    itemId: z.string().trim().min(1).max(64),
 });
 
 export type CommentActionResult =
@@ -58,7 +58,7 @@ export async function getLibraryItemComment(
 
     try {
         const comment = await service.getCommentForItem({
-            libraryItemId: parsed.data.libraryItemId,
+            itemId: parsed.data.libraryItemId,
             userId: auth.userId,
         });
 
@@ -82,7 +82,7 @@ export async function getLibraryItemComment(
 
 export async function updateLibraryItemComment(input: {
     contentText: string;
-    libraryItemId: string;
+    itemId: string;
 }): Promise<CommentActionResult> {
     const parsed = LibraryItemCommentUpdateSchema.safeParse(input);
     if (!parsed.success) {
@@ -103,7 +103,7 @@ export async function updateLibraryItemComment(input: {
     try {
         await service.saveCommentForItem({
             contentText: parsed.data.contentText,
-            libraryItemId: parsed.data.libraryItemId,
+            itemId: parsed.data.itemId,
             userId: auth.userId,
         });
 

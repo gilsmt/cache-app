@@ -119,7 +119,7 @@ import type { LibraryItemWithCollections } from "@/lib/collections/utils";
 import { ITEM_KIND_BOOKMARK } from "@/lib/common/constants";
 import { getOwnerDocument, isTextEntryTarget } from "@/lib/common/dom";
 import { saveFile } from "@/lib/common/file";
-import { getSystemAltKey, getSystemControlKey } from "@/lib/common/keyboard";
+import { getSystemControlKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { clamp } from "@/lib/common/number";
 import { isRecord } from "@/lib/common/object";
@@ -849,8 +849,8 @@ function isSideBlockedUrl(url: string | null): boolean {
 
 function isSideKeyboardShortcut(event: KeyboardEvent): boolean {
     return (
-        event.code === "KeyB" &&
-        event.altKey &&
+        ((event.code === "KeyJ" && !event.altKey) ||
+            (event.code === "KeyB" && event.altKey)) &&
         (event.metaKey || event.ctrlKey) &&
         !event.getModifierState("AltGraph")
     );
@@ -1071,7 +1071,6 @@ export function SideContent() {
 
     const handleToggleShortcut = useStableCallback((event: KeyboardEvent) => {
         if (
-            event.defaultPrevented ||
             event.isComposing ||
             !isSideKeyboardShortcut(event) ||
             isTextEntryTarget(event.target)
@@ -1081,7 +1080,7 @@ export function SideContent() {
         setIsOpen((prev) => !prev);
     });
 
-    useHotkeys("mod+alt+b", handleToggleShortcut, {
+    useHotkeys("mod+j, mod+alt+b", handleToggleShortcut, {
         description: gt("Open or close preview"),
         preventDefault: true,
     });
@@ -1187,8 +1186,8 @@ export function SideContent() {
                 aria-label={gt("Preview")}
                 className={cn(
                     "group/side relative z-50 flex min-h-0 shrink-0 flex-col overflow-hidden border-s bg-background transition-[width,transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-                    "fixed inset-y-0 right-0 w-[calc(100%-3rem)] max-w-md data-[state=collapsed]:translate-x-full",
-                    "lg:w-[400px]",
+                    "fixed inset-y-0 right-0 w-[calc(100%-3rem)] max-w-lg data-[state=collapsed]:translate-x-full",
+                    "lg:w-[480px]",
                     "lg:sticky lg:top-0 lg:right-auto lg:h-dvh lg:max-h-dvh lg:translate-x-0 lg:data-[state=collapsed]:w-0 lg:data-[state=collapsed]:border-transparent lg:data-[state=collapsed]:opacity-0"
                 )}
                 data-side="right"
@@ -1198,25 +1197,14 @@ export function SideContent() {
                 onKeyDown={handleAsideKeyDown}
                 ref={asideRef}
             >
-                <div
-                    className={cn(
-                        "flex h-full min-h-0 w-[calc(100vw-3rem)] min-w-0 max-w-md flex-1 flex-col",
-                        "lg:w-[400px]",
-                        "lg:max-w-[400px]"
-                    )}
-                >
+                <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
                     <div
                         className={cn(
-                            "flex shrink-0 flex-col gap-2 p-2 pr-11",
-                            {
-                                "p-0": !activeEntry,
-                            }
+                            "flex shrink-0 flex-col gap-2 p-2 pr-10",
+                            { "p-0": !activeEntry }
                         )}
                     >
-                        <h2 className="sr-only">
-                            <T>Side</T>
-                        </h2>
-                        <div className="flex max-w-full items-center gap-1">
+                        <div className="flex max-w-full flex-nowrap items-center gap-1">
                             <SideList
                                 items={items}
                                 onTabSelect={selectQueueIndex}
@@ -1396,9 +1384,6 @@ function SidePanelEmpty() {
                         className="z-20 size-5.5 text-muted-foreground"
                         focusable="false"
                     />
-                    <span className="z-20 text-center font-medium text-muted-foreground text-sm">
-                        Side
-                    </span>
                 </Placeholder>
             </div>
             {recentItems.length > 0 ? (
@@ -1561,17 +1546,19 @@ function SideList({
 
     return (
         <SideTabsContext value={contextValue}>
-            <div
-                {...props}
-                aria-label={gt("Open side tabs")}
-                className={cn(
-                    "flex min-w-0 max-w-full flex-1 items-center gap-1.5 overflow-x-auto",
-                    className
-                )}
-                role="tablist"
-            >
-                {items.map(children)}
-            </div>
+            <ScrollArea className="h-fit min-w-0 flex-1" shouldScrollFade>
+                <div
+                    {...props}
+                    aria-label={gt("Open side tabs")}
+                    className={cn(
+                        "flex w-max min-w-full items-center gap-1.5",
+                        className
+                    )}
+                    role="tablist"
+                >
+                    {items.map(children)}
+                </div>
+            </ScrollArea>
         </SideTabsContext>
     );
 }
@@ -1692,7 +1679,7 @@ function SideCopyLinkButton({ url }: SideCopyLinkButtonProps) {
             {isCopied ? (
                 <CheckIcon aria-hidden className="size-4" focusable="false" />
             ) : (
-                <Copy aria-hidden className="size-4" focusable="false" />
+                <Copy aria-hidden className="size-3.5" focusable="false" />
             )}
         </Button>
     );
@@ -1855,7 +1842,7 @@ function SideToggle({
     );
 
     const toggleLabel = isOpen ? gt("Close preview") : gt("Open preview");
-    const toggleShortcut = `${getSystemControlKey()}${getSystemAltKey()}B`;
+    const toggleShortcut = `${getSystemControlKey()}J`;
     const toggleTitle = isOpen
         ? gt("Close preview ({shortcut})", { shortcut: toggleShortcut })
         : gt("Open preview ({shortcut})", { shortcut: toggleShortcut });
@@ -1981,7 +1968,6 @@ interface NoteContextValue {
     onUrlPaste: (url: string) => Promise<void> | void;
     query: string;
     saveStatus: SaveStatus;
-    sessionId: string;
     shouldCreateBookmarkFromUrlPaste: () => boolean;
     textMetrics: NoteTextMetrics;
 }
@@ -2011,11 +1997,6 @@ interface ExportContentProvider {
     getTitle: (gt: Translate) => string;
     icon: ComponentType<SVGProps<SVGSVGElement>>;
     id: string;
-}
-
-interface EditorSession {
-    editorKey: number;
-    extension: ReturnType<typeof createNoteSessionExtension>;
 }
 
 const NoteContext = createContext<NoteContextValue | null>(null);
@@ -2199,15 +2180,11 @@ function getInitialEditorState(
     };
 }
 
-function createNoteSessionExtension(
-    sessionId: string,
-    editorKey: number,
-    initialDraft: NoteDraft
-) {
+function createNoteSessionExtension(initialDraft: NoteDraft) {
     return defineExtension({
         $initialEditorState: getInitialEditorState(initialDraft),
         dependencies: [NOTE_EDITOR_EXTENSION],
-        name: `${NOTE_EDITOR_NAMESPACE}-${sessionId}-${editorKey}`,
+        name: `${NOTE_EDITOR_NAMESPACE}-session`,
         namespace: NOTE_EDITOR_NAMESPACE,
     });
 }
@@ -2231,7 +2208,6 @@ function NoteRoot({
     onSave,
     onUrlPaste,
 }: NoteRootProps) {
-    const sessionId = React.useId();
     const [initialDraft, setInitialDraft] = useState<NoteDraft>(() =>
         noteDraftFromItem(note)
     );
@@ -2395,7 +2371,6 @@ function NoteRoot({
                 onUrlPaste: handleUrlPaste,
                 query,
                 saveStatus,
-                sessionId,
                 shouldCreateBookmarkFromUrlPaste,
                 textMetrics,
             }}
@@ -2561,31 +2536,20 @@ function NoteEditor() {
         initialDraft,
         onDraftChange,
         onUrlPaste,
-        sessionId,
         shouldCreateBookmarkFromUrlPaste,
     } = useNoteContext();
-    const sessionRef = useRef<EditorSession | null>(null);
 
-    if (
-        sessionRef.current === null ||
-        sessionRef.current.editorKey !== editorKey
-    ) {
-        sessionRef.current = {
-            editorKey,
-            extension: createNoteSessionExtension(
-                sessionId,
-                editorKey,
-                initialDraft
-            ),
-        };
+    const [cachedKey, setCachedKey] = useState(editorKey);
+    const [extension, setExtension] = useState(() =>
+        createNoteSessionExtension(initialDraft)
+    );
+    if (cachedKey !== editorKey) {
+        setCachedKey(editorKey);
+        setExtension(createNoteSessionExtension(initialDraft));
     }
 
     return (
-        <LexicalExtensionComposer
-            contentEditable={null}
-            extension={sessionRef.current.extension}
-            key={editorKey}
-        >
+        <LexicalExtensionComposer contentEditable={null} extension={extension}>
             <ContentPlugin
                 contentEditableRef={contentEditableRef}
                 onDraftChange={onDraftChange}

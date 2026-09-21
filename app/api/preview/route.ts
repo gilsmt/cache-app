@@ -8,6 +8,7 @@ import {
     raceAbort,
 } from "@/lib/common/abort";
 import { MIME_TYPES, USER_AGENT } from "@/lib/common/constants";
+import { parseImageDimensions } from "@/lib/common/dimension";
 import { NamedError } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
@@ -117,8 +118,10 @@ interface VideoRangeRequest {
 }
 
 interface ResolvedImage {
+    h?: number;
     imageUrl: string;
     pageUrl: string;
+    w?: number;
 }
 
 type CacheLookup<T> =
@@ -289,7 +292,14 @@ function parseResolvedImage(value: unknown): ResolvedImage | null {
     ) {
         return null;
     }
+    // Entries written before dimensions existed carry no h/w; entries with
+    // corrupt sides degrade to dimensionless rather than missing.
+    const dimensions =
+        "w" in value && "h" in value
+            ? parseImageDimensions(value.w, value.h)
+            : null;
     return {
+        ...(dimensions ? { h: dimensions.h, w: dimensions.w } : {}),
         imageUrl: value.imageUrl,
         pageUrl: value.pageUrl,
     };
@@ -313,6 +323,10 @@ export async function GET(request: Request): Promise<Response> {
     const contentType = parsePreviewType(requestUrl.searchParams.get("type"));
     if (!contentType) {
         return textResponse("Unsupported preview type", 400);
+    }
+
+    if (requestUrl.searchParams.get("metadata") === "1") {
+        return serveImageMetadataResponse(targetUrl, contentType, request);
     }
 
     // Google Photos CDN URLs require OAuth authorization. Only image
@@ -435,6 +449,84 @@ function parsePreviewDelivery(delivery: string | null): PreviewDelivery | null {
     return null;
 }
 
+async function serveImageMetadataResponse(
+    targetUrl: URL,
+    contentType: PreviewType,
+    request: Request
+): Promise<Response> {
+    // Only the standard image path resolves dimensions. Google Photos needs
+    // per-request OAuth and never goes through resolution; video has no
+    // image slot to reserve.
+    if (contentType !== "image" || isGooglePhotosHost(targetUrl)) {
+        return textResponse("Preview not available", 404);
+    }
+
+    try {
+        const cached = await readCachedImagePreview(targetUrl.href);
+        if (cached.status === "hit") {
+            return imageMetadataResponse(cached.value, targetUrl.href);
+        }
+        if (cached.status === "negative") {
+            return previewNotFoundResponse(targetUrl.href, "image");
+        }
+
+        const publicTargetUrl = await parsePublicHttpUrl(targetUrl.href);
+        if (!publicTargetUrl) {
+            return textResponse("Invalid URL", 400);
+        }
+
+        const resolution = await resolveImagePreviewWithCoordination(
+            publicTargetUrl,
+            request.signal
+        );
+        if (resolution.status === "not_found") {
+            writeCachedNegativePreview(targetUrl.href, "image");
+            return previewNotFoundResponse(targetUrl.href, "image");
+        }
+        if (resolution.status === "unresolved") {
+            return textResponse("Preview temporarily unavailable", 503);
+        }
+        return imageMetadataResponse(resolution.value, publicTargetUrl.href);
+    } catch (error) {
+        return handlePreviewError(
+            error,
+            "resolve preview metadata",
+            "Preview not found",
+            { targetUrl: targetUrl.href }
+        );
+    }
+}
+
+function imageMetadataResponse(
+    preview: ResolvedImage,
+    targetHref: string
+): Response {
+    const signedUrlLifetimeSeconds = getSignedUrlLifetimeSeconds(
+        preview.imageUrl
+    );
+    const headers = new Headers();
+    headers.set(
+        "cache-control",
+        previewResponseCacheControl("image", signedUrlLifetimeSeconds)
+    );
+    headers.set("content-type", `${MIME_TYPES.json}; charset=utf-8`);
+    setPreviewCacheHeaders(
+        headers,
+        targetHref,
+        "image",
+        signedUrlLifetimeSeconds
+    );
+    return new Response(
+        JSON.stringify({
+            height: preview.h ?? null,
+            imageUrl: preview.imageUrl,
+            pageUrl: preview.pageUrl,
+            width: preview.w ?? null,
+        }),
+        { headers, status: 200 }
+    );
+}
+
 async function resolveImagePreview(
     targetUrl: URL,
     signal?: AbortSignal
@@ -510,14 +602,18 @@ async function resolveImagePreview(
 
     const baseUrl = pageResponse.url || targetHref;
     const extractPreviewMetadata = await loadExtractPreviewMetadata();
-    const imageUrl = getFirstHttpUrl(
-        extractPreviewMetadata(previewBody, baseUrl).images
-    );
+    const metadata = extractPreviewMetadata(previewBody, baseUrl);
+    const imageUrl = getFirstHttpUrl(metadata.images);
     if (!imageUrl) {
         return null;
     }
 
-    const result = {
+    const dimensions = parseImageDimensions(
+        metadata.imageWidth,
+        metadata.imageHeight
+    );
+    const result: ResolvedImage = {
+        ...(dimensions ? { h: dimensions.h, w: dimensions.w } : {}),
         imageUrl,
         pageUrl: parseHttpUrl(baseUrl)?.href ?? targetHref,
     };
@@ -1417,6 +1513,9 @@ async function readCachedImagePreview(
 
 function serializeCachedImagePreview(preview: ResolvedImage): string {
     return JSON.stringify({
+        ...(preview.h !== undefined && preview.w !== undefined
+            ? { h: preview.h, w: preview.w }
+            : {}),
         imageUrl: preview.imageUrl,
         pageUrl: preview.pageUrl,
     });

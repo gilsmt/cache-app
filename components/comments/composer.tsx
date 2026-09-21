@@ -1,13 +1,11 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
-import { useValueAsRef } from "@base-ui/utils/useValueAsRef";
 import { T, useGT } from "gt-next";
 import * as React from "react";
 import useSWR from "swr";
 import { Textarea } from "@/components/ui/textarea";
 import { useAutosave } from "@/hooks/use-autosave";
-import type { LibraryItemWithCollections } from "@/lib/collections/utils";
 import {
     getLibraryItemComment,
     updateLibraryItemComment,
@@ -19,12 +17,10 @@ import {
 import { ACTION_STATUS } from "@/lib/common/constants";
 import { stopPropagationForMenuTextInputKeys } from "@/lib/common/dom";
 
-const COMMENT_SWR_KEY_PREFIX = "library-item-comment";
-
-async function fetchItemComment([
-    _commentSwrKeyPrefix,
-    libraryItemId,
-]: readonly [string, string]): Promise<string | null> {
+async function fetchItemComment([_key, libraryItemId]: readonly [
+    string,
+    string,
+]): Promise<string | null> {
     const result = await getLibraryItemComment(libraryItemId);
 
     if (result.status !== ACTION_STATUS.SUCCESS) {
@@ -34,67 +30,48 @@ async function fetchItemComment([
     return result.contentText;
 }
 
-function getCommentKey(
-    itemId: string,
-    isOpen: boolean
-): readonly [string, string] | null {
-    return isOpen ? [COMMENT_SWR_KEY_PREFIX, itemId] : null;
-}
-
 interface CommentComposerProps {
     isOpen: boolean;
-    item: LibraryItemWithCollections;
+    itemId: string;
 }
 
 /**
- * keyed by `item.id` here rather than left to callers
+ * keyed by `libraryItemId` here rather than left to callers
  * since a surviving mount would save one item's draft onto another.
  */
 export function CommentComposer(props: CommentComposerProps) {
-    return <CommentComposerImpl key={props.item.id} {...props} />;
+    return <CommentComposerImpl key={props.itemId} {...props} />;
 }
 
-interface CommentComposerImplProps {
-    isOpen: boolean;
-    item: LibraryItemWithCollections;
-}
-
-function CommentComposerImpl({ isOpen, item }: CommentComposerImplProps) {
+function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
     const gt = useGT();
 
     const { data, error, isLoading, mutate } = useSWR(
-        getCommentKey(item.id, isOpen),
+        isOpen ? (["library-item-comment", itemId] as const) : null,
         fetchItemComment,
         { keepPreviousData: true }
     );
 
-    const [hasOpened, setHasOpened] = React.useState(false);
-    if (isOpen && !hasOpened) {
-        setHasOpened(true);
-    }
-
     const savedContent = data ?? "";
     const [content, setContent] = React.useState(savedContent);
 
-    const contentRef = useValueAsRef(content);
-    const hasBeenEditedRef = React.useRef(false);
     const editVersionRef = React.useRef(0);
 
     const [prevSavedContent, setPrevSavedContent] =
         React.useState(savedContent);
     if (prevSavedContent !== savedContent) {
         setPrevSavedContent(savedContent);
-        if (!hasBeenEditedRef.current) {
+        if (content === prevSavedContent) {
             setContent(savedContent);
         }
     }
 
-    const handleSave = useStableCallback(async () => {
+    async function handleSave() {
         const saveVersion = editVersionRef.current;
-        const next = normalizeCommentText(contentRef.current) ?? "";
+        const next = normalizeCommentText(content) ?? "";
         const result = await updateLibraryItemComment({
             contentText: next,
-            libraryItemId: item.id,
+            itemId,
         });
         if (result.status !== ACTION_STATUS.SUCCESS) {
             return false;
@@ -103,31 +80,29 @@ function CommentComposerImpl({ isOpen, item }: CommentComposerImplProps) {
         await mutate(result.contentText, { revalidate: false });
 
         if (editVersionRef.current === saveVersion) {
-            hasBeenEditedRef.current = false;
             setContent(next);
             return next;
         }
         return true;
-    });
+    }
 
     const handleChange = useStableCallback(
         (event: React.ChangeEvent<HTMLTextAreaElement>) => {
             editVersionRef.current += 1;
-            hasBeenEditedRef.current = true;
             setContent(event.currentTarget.value);
         }
     );
 
     const { saveStatus } = useAutosave({
         content,
-        enabled: hasOpened && !isLoading,
+        enabled: !isLoading,
         onSave: handleSave,
         savedContent,
     });
 
     if (error && data === undefined) {
         return (
-            <div className="flex h-20 min-h-16 items-center rounded-lg bg-muted px-2.5 py-2 text-muted-foreground text-xs">
+            <div className="flex h-20 items-center rounded-lg bg-muted px-2.5 py-2 text-muted-foreground text-xs">
                 <T>Comment unavailable</T>
             </div>
         );

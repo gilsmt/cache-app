@@ -1,21 +1,13 @@
 "use client";
 
-import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
-import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
-import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
 import { T } from "gt-next";
-import * as React from "react";
+import type * as React from "react";
+import { DimensionCacheProvider } from "@/components/session/dimension-cache";
+import { NoteExcerptPreview, PreviewImage } from "@/components/session/item";
 import { MasonryItem, MasonryRoot } from "@/components/ui/masonry";
-import { Placeholder } from "@/components/ui/placeholder";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Ticker } from "@/components/ui/ticker";
-import {
-    createDimensionsCache,
-    type Dimensions,
-    type DimensionsCache,
-    resolveDisplayDimensions,
-} from "@/lib/common/dimension";
 
 const SHARE_SKELETON_PLACEHOLDERS = [
     { aspect: "aspect-[3/4]", id: "share-skel-0" },
@@ -96,8 +88,6 @@ export function PublicShareGrid({
 }: {
     items: PublicShareGridItem[];
 }): React.ReactElement {
-    const [dimensionsCache] = React.useState(createDimensionsCache);
-
     if (items.length === 0) {
         return (
             <div className="flex min-h-[50vh] items-center justify-center">
@@ -111,16 +101,15 @@ export function PublicShareGrid({
     }
 
     return (
-        <MasonryRoot gap={16} items={items} maxColumnCount={7}>
-            {(item) => (
-                <MasonryItem key={item.id}>
-                    <PublicShareGridCard
-                        data={item}
-                        dimensionsCache={dimensionsCache}
-                    />
-                </MasonryItem>
-            )}
-        </MasonryRoot>
+        <DimensionCacheProvider>
+            <MasonryRoot gap={16} items={items} maxColumnCount={7}>
+                {(item) => (
+                    <MasonryItem key={item.id}>
+                        <PublicShareGridCard data={item} />
+                    </MasonryItem>
+                )}
+            </MasonryRoot>
+        </DimensionCacheProvider>
     );
 }
 
@@ -147,32 +136,14 @@ export function PublicShareGridSkeleton(): React.ReactElement {
 
 interface PublicShareGridCardProps {
     data: PublicShareGridItem;
-    dimensionsCache: DimensionsCache;
 }
 
 function PublicShareGridCard({
     data,
-    dimensionsCache,
 }: PublicShareGridCardProps): React.ReactElement {
     const isNote = data.kind === "note";
     const noteExcerpt = data.noteExcerpt ?? "Untitled note";
     const displayTitle = data.title;
-
-    const preview = isNote ? (
-        <div className="relative flex h-auto min-h-56 w-full flex-col justify-between bg-linear-to-br from-note-surface-from via-background to-note-surface-to p-3">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.18),transparent_45%)]" />
-            <div className="relative flex flex-1 flex-col gap-2 pt-1.5">
-                <p className="whitespace-pre-wrap text-[11px] text-foreground leading-relaxed opacity-90">
-                    {noteExcerpt}
-                </p>
-            </div>
-        </div>
-    ) : (
-        <PreviewMedia
-            dimensionsCache={dimensionsCache}
-            src={data.previewImageUrl}
-        />
-    );
 
     const titleElement = isNote ? null : (
         <div className="flex items-center py-1.5 pr-1">
@@ -186,7 +157,17 @@ function PublicShareGridCard({
     );
 
     const media = (
-        <div className="squircle overflow-clip rounded-xl">{preview}</div>
+        <div className="squircle relative overflow-clip rounded-xl">
+            {isNote ? (
+                <NoteExcerptPreview excerpt={noteExcerpt} />
+            ) : (
+                <PreviewImage src={data.previewImageUrl} />
+            )}
+            <div
+                aria-hidden
+                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
+            />
+        </div>
     );
 
     return (
@@ -206,112 +187,6 @@ function PublicShareGridCard({
                     {media}
                     {titleElement}
                 </div>
-            )}
-        </div>
-    );
-}
-
-interface PreviewMediaProps extends Omit<React.ComponentProps<"img">, "src"> {
-    dimensionsCache: DimensionsCache;
-    src: string | null;
-}
-
-function PreviewMedia({
-    className,
-    dimensionsCache,
-    src,
-    ref,
-    ...props
-}: PreviewMediaProps): React.ReactElement {
-    const imgRef = React.useRef<HTMLImageElement | null>(null);
-    const mergedRef = useMergedRefs(ref, imgRef);
-
-    const [didFail, setDidFail] = React.useState(false);
-    const [dimensions, setDimensions] = React.useState<Dimensions | null>(() =>
-        dimensionsCache.readCachedDimensions(src)
-    );
-    const [prevSrc, setPrevSrc] = React.useState(src);
-
-    if (!Object.is(src, prevSrc)) {
-        setPrevSrc(src);
-        setDidFail(false);
-        setDimensions(dimensionsCache.readCachedDimensions(src));
-    }
-
-    const canRenderImage = !!src && !didFail;
-    const displayDimensions = resolveDisplayDimensions(dimensions);
-
-    const applyNaturalDimensions = useStableCallback(
-        (img: HTMLImageElement) => {
-            if (!src) {
-                return;
-            }
-            if (img.getAttribute("src") !== src) {
-                return;
-            }
-            const w = img.naturalWidth;
-            const h = img.naturalHeight;
-            if (!(w > 0 && h > 0)) {
-                return;
-            }
-            const next: Dimensions = { h, w };
-            dimensionsCache.cacheDimensions(src, next);
-            setDimensions((current) =>
-                current?.w === w && current.h === h ? current : next
-            );
-        }
-    );
-
-    const handleError = useStableCallback(
-        (event: React.SyntheticEvent<HTMLImageElement>) => {
-            if (!src || event.currentTarget.getAttribute("src") !== src) {
-                return;
-            }
-            setDimensions(dimensionsCache.pinDefaultDimensionsIfMissing(src));
-            setDidFail(true);
-        }
-    );
-
-    const handleLoad = useStableCallback(
-        (event: React.SyntheticEvent<HTMLImageElement>) => {
-            applyNaturalDimensions(event.currentTarget);
-        }
-    );
-
-    useIsoLayoutEffect(() => {
-        const img = imgRef.current;
-        if (img?.complete && img.naturalWidth > 0) {
-            applyNaturalDimensions(img);
-        }
-    }, [applyNaturalDimensions, src]);
-
-    return (
-        <div
-            className="relative w-full break-inside-avoid"
-            style={{
-                aspectRatio: `${displayDimensions.w} / ${displayDimensions.h}`,
-            }}
-        >
-            {canRenderImage ? (
-                // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts img onError/onLoad
-                <img
-                    {...props}
-                    alt=""
-                    className={cn("size-full object-cover", className)}
-                    decoding="async"
-                    draggable="false"
-                    fetchPriority="auto"
-                    height={displayDimensions.h}
-                    key={src}
-                    loading="lazy"
-                    onError={handleError}
-                    onLoad={handleLoad}
-                    ref={mergedRef}
-                    src={src ?? undefined}
-                    width={displayDimensions.w}
-                />
-            ) : (
-                <Placeholder className="size-full" />
             )}
         </div>
     );

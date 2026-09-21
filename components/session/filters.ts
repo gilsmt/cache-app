@@ -67,7 +67,7 @@ export function filterComposerItems<T extends FilterableComposerItem>(
         return items;
     }
 
-    let list = [...items];
+    let list = items;
     const normalizedSearchTerms = input.searchTerms.map((term) =>
         term.trim().toLowerCase()
     );
@@ -86,8 +86,7 @@ export function filterComposerItems<T extends FilterableComposerItem>(
     }
 
     // Selections suspend while "not in collections" is active: the two
-    // filters are mutually exclusive, and AND-ing them always yields
-    // zero results.
+    // filters are mutually exclusive
     if (
         input.selectedCollectionIds.length > 0 &&
         input.collectionMembershipFilter !== "not-in-collections"

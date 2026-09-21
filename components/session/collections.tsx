@@ -27,7 +27,6 @@ import {
     FileSpreadsheetIcon,
     Globe,
     GlobeCheck,
-    Info,
     LayoutList,
     LibraryBig,
     Lightbulb,
@@ -60,7 +59,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Carousel, CarouselPanel } from "@/components/ui/carousel";
 import {
     Collapsible,
     CollapsiblePanel,
@@ -208,7 +206,12 @@ import {
     normalizeWhitespace,
     slugify,
 } from "@/lib/common/string";
-import { isHttpUrl, normalizeURL, openExternalUrl } from "@/lib/common/url";
+import {
+    isHttpUrl,
+    normalizeURL,
+    openExternalUrl,
+    parseDisplayUrl,
+} from "@/lib/common/url";
 import { sendCollectionToNotion } from "@/lib/integrations/notion/actions";
 import { getSourceLabel } from "@/lib/integrations/support";
 import { getCollectionDescription } from "@/lib/intelligence/actions";
@@ -1877,8 +1880,8 @@ function getCollectionItemStyle(
     return {
         "--accent-color": `color-mix(in srgb, ${hexColor}, light-dark(black, white) 20%)`,
         "--collection-background": isSelected
-            ? `color-mix(in srgb, ${baseMix}, light-dark(white, black) 4%)`
-            : `color-mix(in srgb, ${baseMix}, light-dark(black, white) 4%)`,
+            ? `color-mix(in srgb, ${baseMix}, light-dark(white, black) 2%)`
+            : `color-mix(in srgb, ${baseMix}, light-dark(black, white) 2%)`,
         "--text-muted-color": `color-mix(in srgb, ${hexColor} 28%, light-dark(black, white) 22%)`,
     };
 }
@@ -2008,6 +2011,13 @@ function formatFavoritesGroupSummary(
     return LIST_FORMATTER.format([...collectionLabels, moreLabel]);
 }
 
+function getFavoriteItemLabel(item: LibraryItemWithCollections): string {
+    if (item.kind === ITEM_KIND_NOTE) {
+        return getNoteExcerpt(item.noteContentText) || "Untitled note";
+    }
+    return item.caption?.trim() || parseDisplayUrl(item.url) || "Saved item";
+}
+
 function buildPriorityBreakdownEntries(
     priorityCounts: Partial<Record<CollectionPriority, number>> | undefined
 ): PriorityBreakdownEntry[] {
@@ -2096,14 +2106,14 @@ export function Collections() {
                     </CollectionsListToolbarGroup>
                 </CollectionsListToolbar>
                 <CollapsiblePanel>
-                    <CollectionsListFavoritesCarouselContent>
+                    <CollectionsListFavoritesItemsContent>
                         {(item) => (
-                            <CollectionsListFavoritesCarouselSlide
+                            <CollectionsListFavoritesItem
                                 item={item}
                                 key={item.id}
                             />
                         )}
-                    </CollectionsListFavoritesCarouselContent>
+                    </CollectionsListFavoritesItemsContent>
                     <CollectionsListFavoritesContent>
                         {(collection) => (
                             <CollectionsListItem
@@ -2474,7 +2484,11 @@ function CollectionsListFavoritesContent({
 }: CollectionsListChildrenProps<LibraryCollectionSummary>) {
     const favoriteCollections = useFavoriteCollections();
 
-    return favoriteCollections.map(children);
+    return (
+        <CollapsibleListVertical className="ml-1.25" maxVisible={10}>
+            {favoriteCollections.map(children)}
+        </CollapsibleListVertical>
+    );
 }
 
 interface CollectionsListGroupProps {
@@ -2690,34 +2704,25 @@ function CollectionsListFavoritesTrigger(
     );
 }
 
-function CollectionsListFavoritesCarouselContent({
+function CollectionsListFavoritesItemsContent({
     children,
 }: CollectionsListChildrenProps<LibraryItemWithCollections>) {
     const { favoriteItems } = useItemsContext();
 
-    if (!favoriteItems.length) {
-        return null;
-    }
-
     return (
-        <Carousel>
-            <CarouselPanel
-                className="*:first:pl-2.5 [&>*:not(:last-child)]:me-1.5"
-                shouldScrollFade
-            >
-                {favoriteItems.map(children)}
-            </CarouselPanel>
-        </Carousel>
+        <CollapsibleListVertical className="ml-1.25" maxVisible={10}>
+            {favoriteItems.map(children)}
+        </CollapsibleListVertical>
     );
 }
 
-interface CollectionsListFavoritesCarouselSlideProps {
+interface CollectionsListFavoritesItemProps {
     item: LibraryItemWithCollections;
 }
 
-function CollectionsListFavoritesCarouselSlide({
+function CollectionsListFavoritesItem({
     item,
-}: CollectionsListFavoritesCarouselSlideProps) {
+}: CollectionsListFavoritesItemProps) {
     const { onOpenFavoriteItem, onItemFavoriteToggle: onToggleItemFavorite } =
         useItemsContext();
     const { showError } = useCollectionStatus();
@@ -2725,92 +2730,91 @@ function CollectionsListFavoritesCarouselSlide({
     const isNote = item.kind === ITEM_KIND_NOTE;
     const previewImageUrl = itemPreviewImageUrl(item);
     const noteExcerpt = getNoteExcerpt(item.noteContentText);
-    const previewLabel =
-        (item.caption ?? "").trim() || (isNote ? "Note" : "Saved item");
+    const label = getFavoriteItemLabel(item);
 
     const handleClick = useStableCallback((event: React.SyntheticEvent) => {
         event.preventDefault();
         onOpenFavoriteItem(item);
     });
 
-    const handleRemoveFavorite = useStableCallback(
-        async (event: React.MouseEvent<HTMLButtonElement>) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const result = await onToggleItemFavorite(item);
-            if (result.status === ACTION_STATUS.UPDATED) {
-                return;
-            }
-            log.error("Failed to remove item from favorites", {
-                itemId: item.id,
-                message: result.message,
-            });
-            showError(result.message);
+    const handleRemoveFavorite = useStableCallback(async () => {
+        const result = await onToggleItemFavorite(item);
+        if (result.status === ACTION_STATUS.UPDATED) {
+            return;
         }
-    );
+        log.error("Failed to remove item from favorites", {
+            itemId: item.id,
+            message: result.message,
+        });
+        showError(result.message);
+    });
 
     return (
-        <PreviewCard>
-            <div
-                className="group relative inline-block aspect-3/4 h-14 overflow-hidden rounded-md bg-muted focus-within:ring-2 focus-within:ring-ring/60 active:scale-[0.97]"
-                title={previewLabel}
-            >
-                <PreviewCardTrigger
-                    aria-label={previewLabel}
-                    className="size-full focus-visible:outline-none"
-                    onClick={handleClick}
-                >
-                    {isNote ? (
-                        <div className="flex size-full flex-col justify-between overflow-hidden bg-linear-to-br from-note-surface-from via-background to-note-surface-to p-1.5">
-                            <p className="line-clamp-4 whitespace-pre-wrap text-left text-[9px] text-foreground leading-snug opacity-90">
-                                {noteExcerpt || "Open note"}
-                            </p>
-                        </div>
-                    ) : (
-                        <CollectionsListFavoritesCarouselImage
-                            alt={previewLabel}
-                            className="size-full object-cover"
-                            src={previewImageUrl ?? undefined}
-                        />
-                    )}
-                </PreviewCardTrigger>
-                <button
-                    aria-label="Remove from favorites"
-                    className="absolute top-0 left-0 z-10 flex size-4 items-center justify-center rounded-br-md bg-black/40 opacity-100 pointer-fine:opacity-0 hover:bg-black/60 focus-visible:opacity-100 pointer-fine:group-hover:opacity-100"
-                    onClick={handleRemoveFavorite}
-                    type="button"
-                >
-                    <Trash2Icon
-                        aria-hidden
-                        className="size-2.5 text-white"
-                        focusable="false"
-                    />
-                </button>
-            </div>
-            <PreviewCardPopup
-                className="pointer-events-none p-0"
-                positionMethod="fixed"
-                side="top"
-            >
+        <div className="group relative flex select-none items-center">
+            <div className="pointer-events-none absolute top-1/2 left-1.25 z-10 size-6 -translate-y-1/2 overflow-hidden rounded-md outline-1 outline-black/5 -outline-offset-1 dark:outline-white/5">
                 {isNote ? (
-                    <div className="flex size-full flex-col justify-between overflow-hidden bg-linear-to-br from-note-surface-from via-background to-note-surface-to p-3">
-                        <p className="line-clamp-6 whitespace-pre-wrap text-left text-foreground text-xs leading-snug">
-                            {noteExcerpt || "Empty note"}
-                        </p>
-                    </div>
+                    <span className="block size-full bg-linear-to-br from-note-surface-from via-background to-note-surface-to" />
                 ) : (
-                    <CollectionsListFavoritesCarouselImage
-                        alt={previewLabel}
-                        className="aspect-auto h-auto w-full"
+                    <CollectionsListFavoritesItemImage
+                        alt=""
+                        className="size-full object-cover"
                         src={previewImageUrl ?? undefined}
                     />
                 )}
-            </PreviewCardPopup>
-        </PreviewCard>
+            </div>
+            <PreviewCard>
+                <PreviewCardTrigger
+                    onClick={handleClick}
+                    render={
+                        <SidebarItem
+                            className="w-full min-w-0 flex-1 justify-start pr-8 pl-8.5 text-left"
+                            render={<Button variant="ghost" />}
+                        />
+                    }
+                >
+                    <span className="min-w-0 flex-1 truncate font-medium text-sm leading-none tracking-tight">
+                        {label}
+                    </span>
+                </PreviewCardTrigger>
+                <PreviewCardPopup
+                    className="pointer-events-none p-0"
+                    positionMethod="fixed"
+                    side="right"
+                >
+                    {isNote ? (
+                        <div className="overflow-hidden bg-linear-to-br from-note-surface-from via-background to-note-surface-to p-3">
+                            <p className="line-clamp-6 whitespace-pre-wrap text-left text-foreground text-xs leading-snug">
+                                {noteExcerpt || "Empty note"}
+                            </p>
+                        </div>
+                    ) : (
+                        <CollectionsListFavoritesItemImage
+                            alt=""
+                            className="aspect-auto h-auto w-full outline-1 outline-black/5 -outline-offset-1 dark:outline-white/5"
+                            src={previewImageUrl ?? undefined}
+                        />
+                    )}
+                </PreviewCardPopup>
+            </PreviewCard>
+            <Button
+                aria-label="Remove from favorites"
+                className="absolute top-1/2 right-1 z-10 size-6 -translate-y-1/2 text-muted-foreground opacity-100 pointer-fine:opacity-0 focus-visible:opacity-100 group-focus-within:opacity-100 pointer-fine:group-hover:opacity-100"
+                onClick={handleRemoveFavorite}
+                size="icon-xs"
+                title="Remove from favorites"
+                variant="ghost"
+            >
+                <Trash2Icon
+                    aria-hidden
+                    className="size-3.5 shrink-0"
+                    focusable="false"
+                />
+            </Button>
+        </div>
     );
 }
 
-function CollectionsListFavoritesCarouselImage({
+function CollectionsListFavoritesItemImage({
     alt,
     className,
     src,
@@ -2936,7 +2940,7 @@ function CollectionsListEmpty({
                     <>
                         <Image
                             alt="empty cluster"
-                            className="squircle mx-auto size-10 rounded-lg"
+                            className="squircle mx-auto size-10 rounded-lg outline-1 outline-black/5 -outline-offset-1 dark:outline-white/5"
                             height={40}
                             src={EmptyCollectionStateImage}
                             width={40}
@@ -3303,9 +3307,9 @@ function CollectionsListSmartCollectionsPopover() {
                 <div className="mt-4 flex max-w-64 flex-col gap-2">
                     <PopoverTitle>Let Cache do the organizing</PopoverTitle>
                     <PopoverDescription className="text-foreground text-xs leading-snug">
-                        Smart Collections uses AI to automatically group your
-                        saves into contextual collections as you add new
-                        entries. Cache even learns your preferences over time.
+                        Smart Collections will use AI to automatically group
+                        your saves into contextual collections as you add new
+                        entries.
                     </PopoverDescription>
                     <Button
                         className="w-fit px-0 text-muted-foreground text-xs"
@@ -3421,11 +3425,9 @@ function CollectionsListSuggestionItem({
                             focusable="false"
                         />
                     </span>
-                    <div className="flex min-w-0 flex-1 items-center gap-3 leading-none">
-                        <span className="max-w-full shrink-0 truncate font-medium text-sm">
-                            {template.name}
-                        </span>
-                    </div>
+                    <span className="min-w-0 flex-1 truncate font-medium text-sm leading-none">
+                        {template.name}
+                    </span>
                     {isPending ? (
                         <Spinner className="absolute right-3 size-3.5" />
                     ) : (
@@ -3655,7 +3657,7 @@ function CollectionsListItemPreviewImage({
                 <motion.img
                     alt={`${name} preview`}
                     animate={{ opacity: 1 }}
-                    className="drag-none absolute inset-0 size-full object-cover"
+                    className="drag-none absolute inset-0 size-full object-cover outline-1 outline-black/5 -outline-offset-1 dark:outline-white/5"
                     decoding="async"
                     draggable={false}
                     exit={{ opacity: 0 }}
@@ -3784,16 +3786,6 @@ function CollectionsListItemPriorityCombobox() {
                         )}
                     </ComboboxCollection>
                 </ComboboxList>
-                <div className="flex gap-1.5 pt-1.5 pr-2 pb-2.5 pl-3">
-                    <Info
-                        aria-hidden
-                        className="inline-block size-3.5 shrink-0"
-                        focusable="false"
-                    />
-                    <p className="max-w-48 text-[10px] text-muted-foreground leading-tight">
-                        Highlight your collection based on its relevance to you
-                    </p>
-                </div>
             </ComboboxPopup>
         </Combobox>
     );
@@ -4608,21 +4600,6 @@ function CollectionsCreateDialog() {
                                         )}
                                     </ComboboxCollection>
                                 </ComboboxList>
-                                <div className="flex gap-2 px-3 pt-1.5 pb-2.5">
-                                    <Info
-                                        aria-hidden
-                                        className="inline-block size-3.5 shrink-0"
-                                        focusable="false"
-                                    />
-                                    <p className="text-[11px] text-muted-foreground leading-tight">
-                                        <strong className="font-medium">
-                                            Smart Collections
-                                        </strong>{" "}
-                                        can automatically assign collections to
-                                        saved content that matches these
-                                        templates.
-                                    </p>
-                                </div>
                             </ComboboxPopup>
                         </Combobox>
                         <Button

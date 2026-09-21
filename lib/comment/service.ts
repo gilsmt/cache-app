@@ -25,14 +25,14 @@ export interface ItemCommentWithItem {
  * no comment or the row does not belong to the user.
  */
 export async function getCommentForItem({
-    libraryItemId,
+    itemId,
     userId,
 }: {
-    libraryItemId: string;
+    itemId: string;
     userId: string;
 }): Promise<{ contentText: string } | null> {
     const comment = await prisma.comment.findUnique({
-        where: { libraryItemId },
+        where: { libraryItemId: itemId },
     });
 
     if (!comment || comment.userId !== userId) {
@@ -88,11 +88,11 @@ export async function listCommentsForUser({
  */
 export async function saveCommentForItem({
     contentText,
-    libraryItemId,
+    itemId,
     userId,
 }: {
     contentText: string;
-    libraryItemId: string;
+    itemId: string;
     userId: string;
 }): Promise<void> {
     const normalized = normalizeCommentText(contentText);
@@ -108,7 +108,7 @@ export async function saveCommentForItem({
     await prisma.$transaction(async (tx) => {
         const item = await tx.libraryItem.findFirst({
             select: { kind: true },
-            where: { deletedAt: null, id: libraryItemId, userId },
+            where: { deletedAt: null, id: itemId, userId },
         });
 
         if (!item) {
@@ -129,25 +129,19 @@ export async function saveCommentForItem({
 
         if (normalized === null) {
             await tx.comment.deleteMany({
-                where: { libraryItemId, userId },
+                where: { libraryItemId: itemId, userId },
             });
             return;
         }
 
-        // libraryItemId is globally unique (1:1 item↔comment), so the upsert
-        // matches on it alone; Prisma's where cannot add userId without a
-        // compound unique. Cross-user writes are structurally impossible: the
-        // ownership check above runs in this same transaction and this service
-        // is the only comment writer, so comment.userId always equals the
-        // verified item owner. getCommentForItem re-asserts it on reads.
         await tx.comment.upsert({
             create: {
                 contentText: normalized,
-                libraryItemId,
+                libraryItemId: itemId,
                 userId,
             },
             update: { contentText: normalized },
-            where: { libraryItemId },
+            where: { libraryItemId: itemId },
         });
     });
 }

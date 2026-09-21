@@ -16,7 +16,9 @@ export interface PreviewVideoMeta {
 export interface PreviewMetadata {
     description: string | null;
     favicons: string[];
+    imageHeight: string | undefined;
     images: string[];
+    imageWidth: string | undefined;
     title: string | null;
     videos: PreviewVideoMeta[];
 }
@@ -34,7 +36,9 @@ export function extractPreviewMetadata(
         return {
             description: null,
             favicons: [],
+            imageHeight: undefined,
             images: [],
+            imageWidth: undefined,
             title: null,
             videos: [],
         };
@@ -92,6 +96,32 @@ function decodeMetadataValue(value: string | undefined): string | undefined {
     return decodeHTMLAttribute(value);
 }
 
+interface ImageDimensionMeta {
+    nameHeight?: string;
+    nameWidth?: string;
+    propertyHeight?: string;
+    propertyWidth?: string;
+}
+
+function accumulateImageDimensions(
+    state: ImageDimensionMeta,
+    name: string | undefined,
+    property: string | undefined,
+    content: string | undefined,
+    seenPropertyImageCount: number,
+    seenNameImageCount: number
+): void {
+    if (property === "og:image:width" && seenPropertyImageCount <= 1) {
+        state.propertyWidth ??= content;
+    } else if (name === "og:image:width" && seenNameImageCount <= 1) {
+        state.nameWidth ??= content;
+    } else if (property === "og:image:height" && seenPropertyImageCount <= 1) {
+        state.propertyHeight ??= content;
+    } else if (name === "og:image:height" && seenNameImageCount <= 1) {
+        state.nameHeight ??= content;
+    }
+}
+
 function normalizeMetadataText(value: string | undefined): string {
     return value ? value.replace(WHITESPACE_RE, " ").trim() : "";
 }
@@ -126,6 +156,7 @@ function extractPreviewMetadataWithParser(
     let nameOgVideoWidth: string | undefined;
     let propertyOgVideoHeight: string | undefined;
     let nameOgVideoHeight: string | undefined;
+    const imageDimensions: ImageDimensionMeta = {};
 
     const faviconIconHrefs: string[] = [];
     const faviconShortcutIconHrefs: string[] = [];
@@ -138,6 +169,14 @@ function extractPreviewMetadataWithParser(
     const handleMetaTag = (attrs: Record<string, string>) => {
         const content = decodeMetadataValue(attrs.content);
         const { name, property } = attrs;
+        accumulateImageDimensions(
+            imageDimensions,
+            name,
+            property,
+            content,
+            propertyOgImages.length,
+            nameOgImages.length
+        );
         if (property === "og:image") {
             hasPropertyOgImageTag = true;
             if (content) {
@@ -337,7 +376,10 @@ function extractPreviewMetadataWithParser(
     return {
         description,
         favicons: faviconHrefs,
+        imageHeight:
+            imageDimensions.propertyHeight || imageDimensions.nameHeight,
         images,
+        imageWidth: imageDimensions.propertyWidth || imageDimensions.nameWidth,
         title,
         videos,
     };

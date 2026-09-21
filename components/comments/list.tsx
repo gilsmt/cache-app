@@ -1,16 +1,9 @@
 import { T } from "gt-next";
 import { MessageSquare } from "lucide-react";
-import type { LibraryItemWithCollections } from "@/lib/collections/utils";
 import type { ItemCommentWithItem } from "@/lib/comment/service";
 import { FALLBACK_URL } from "@/lib/common/constants";
 import { parseDisplayUrl, toValidUrl } from "@/lib/common/url";
 import { getSourceIcon } from "@/lib/integrations/support";
-
-const COMMENT_CARD_CLASS = "flex items-start gap-4 rounded-2xl bg-muted/60 p-4";
-
-function displayTitle(item: LibraryItemWithCollections): string {
-    return item.caption?.trim() || parseDisplayUrl(item.url);
-}
 
 interface CommentsListProps {
     comments: ItemCommentWithItem[];
@@ -50,7 +43,7 @@ function CommentRow({ comment }: CommentRowProps) {
     const href = toValidUrl(comment.item.url);
     if (href === FALLBACK_URL) {
         return (
-            <div className={COMMENT_CARD_CLASS}>
+            <div className="flex items-start gap-4 rounded-2xl bg-muted/60 p-4">
                 <CommentRowContent comment={comment} />
             </div>
         );
@@ -58,7 +51,7 @@ function CommentRow({ comment }: CommentRowProps) {
 
     return (
         <a
-            className={`${COMMENT_CARD_CLASS} transition-colors hover:bg-muted`}
+            className="flex items-start gap-4 rounded-2xl bg-muted/60 p-4 transition-colors hover:bg-muted"
             href={href}
             rel="noopener noreferrer"
             target="_blank"
@@ -75,6 +68,7 @@ interface CommentRowContentProps {
 function CommentRowContent({ comment }: CommentRowContentProps) {
     const SourceIcon = getSourceIcon(comment.item.source) ?? MessageSquare;
     const displayUrl = parseDisplayUrl(comment.item.url);
+    const title = comment.item.caption?.trim() || displayUrl;
 
     return (
         <>
@@ -83,14 +77,14 @@ function CommentRowContent({ comment }: CommentRowContentProps) {
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <p className="truncate font-medium text-foreground text-sm">
-                    {displayTitle(comment.item)}
+                    {title}
                 </p>
                 {displayUrl ? (
                     <p className="truncate text-muted-foreground text-xs">
                         {displayUrl}
                     </p>
                 ) : null}
-                <p className="whitespace-pre-wrap break-words text-foreground text-sm">
+                <p className="wrap-break-words whitespace-pre-wrap text-foreground text-sm">
                     {comment.contentText}
                 </p>
                 <time

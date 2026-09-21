@@ -27,6 +27,14 @@ function videosOf(html: string): PreviewVideoMeta[] {
     return extractPreviewMetadata(html, BASE_URL).videos;
 }
 
+function imageDimensionsOf(html: string): {
+    height: string | undefined;
+    width: string | undefined;
+} {
+    const { imageHeight, imageWidth } = extractPreviewMetadata(html, BASE_URL);
+    return { height: imageHeight, width: imageWidth };
+}
+
 function faviconsOf(html: string): string[] {
     return extractPreviewMetadata(html, BASE_URL).favicons;
 }
@@ -225,6 +233,65 @@ describe("extractPreviewMetadata — images", () => {
             "https://example.com/static/asset.jpg",
             "https://x.com/body.png",
         ]);
+    });
+});
+
+describe("extractPreviewMetadata — image dimensions", () => {
+    test("og:image:width and height via property", () => {
+        expect(
+            imageDimensionsOf(
+                `<meta property="og:image" content="https://x.com/a.png">` +
+                    `<meta property="og:image:width" content="1200">` +
+                    `<meta property="og:image:height" content="630">`
+            )
+        ).toEqual({ height: "630", width: "1200" });
+    });
+
+    test("name variants apply when no property present", () => {
+        expect(
+            imageDimensionsOf(
+                `<meta name="og:image:width" content="800">` +
+                    `<meta name="og:image:height" content="600">`
+            )
+        ).toEqual({ height: "600", width: "800" });
+    });
+
+    test("property wins over name", () => {
+        expect(
+            imageDimensionsOf(
+                `<meta property="og:image:width" content="1200">` +
+                    `<meta name="og:image:width" content="800">` +
+                    `<meta property="og:image:height" content="630">` +
+                    `<meta name="og:image:height" content="600">`
+            )
+        ).toEqual({ height: "630", width: "1200" });
+    });
+
+    test("first value wins within the same variant", () => {
+        expect(
+            imageDimensionsOf(
+                `<meta property="og:image:width" content="1200">` +
+                    `<meta property="og:image:width" content="400">` +
+                    `<meta property="og:image:height" content="630">`
+            )
+        ).toEqual({ height: "630", width: "1200" });
+    });
+
+    test("missing tags yield undefined dimensions", () => {
+        expect(
+            imageDimensionsOf(
+                `<meta property="og:image" content="https://x.com/a.png">`
+            )
+        ).toEqual({ height: undefined, width: undefined });
+    });
+
+    test("og:video:width does not leak into image dimensions", () => {
+        expect(
+            imageDimensionsOf(
+                `<meta property="og:video:width" content="640">` +
+                    `<meta property="og:video:height" content="360">`
+            )
+        ).toEqual({ height: undefined, width: undefined });
     });
 });
 
@@ -473,7 +540,9 @@ describe("extractPreviewMetadata — combined", () => {
         ).toEqual({
             description: null,
             favicons: ["https://example.com/favicon.ico"],
+            imageHeight: undefined,
             images: ["https://x.com/og.png"],
+            imageWidth: undefined,
             title: "Page",
             videos: [],
         });

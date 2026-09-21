@@ -39,7 +39,6 @@ import {
     type CollectionMembershipFilter,
     DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
     getLibraryItemDomain,
-    UNSPECIFIC_LIBRARY_DOMAIN,
 } from "@/components/session/filters";
 import {
     Attachment,
@@ -110,7 +109,7 @@ import { openExternalUrl } from "@/lib/common/url";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
 const MATCH_WORD_SEPARATOR_PATTERN = /[\s:./_-]+/;
-const MARKDOWN_CODE_FENCE_PATTERN = /```[\s\S]*?```/g;
+const MARKDOWN_CODE_FENCE_PATTERN = /```[\s\S]*?(?:```|$)/g;
 const MARKDOWN_IMAGE_PATTERN = /!\[([^\]]*)\]\([^)]*\)/g;
 const MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\([^)]*\)/g;
 const MARKDOWN_INLINE_CODE_PATTERN = /`([^`]*)`/g;
@@ -122,7 +121,7 @@ const MARKDOWN_LIST_MARKER_PATTERN = /^[ \t]*(?:[-*+]|\d+[.)])[ \t]+/gm;
 const MARKDOWN_TABLE_ROW_PATTERN = /^[ \t]*\|?[ \t:|-]+\|?[ \t]*$/gm;
 const MARKDOWN_TABLE_EDGE_PIPE_PATTERN = /^[ \t]*\||\|[ \t]*$/gm;
 const MARKDOWN_TABLE_PIPE_PATTERN = /\|/g;
-const MARKDOWN_EMPHASIS_PATTERN = /(\*\*|__|\*|_|~~)(.+?)\1/g;
+const MARKDOWN_EMPHASIS_PATTERN = /(\*\*|__|\*|~~)(.+?)\1/g;
 const WHITESPACE_COLLAPSE_PATTERN = /\s+/g;
 const EMPHASIS_CLEANUP_PASS_COUNT = 3;
 
@@ -367,6 +366,7 @@ export interface BuildComposerSuggestionsInput {
     clearLibraryPalette: () => void;
     collectionMembershipFilter: CollectionMembershipFilter;
     collections: LibraryCollectionSummary[];
+    columnCountMode: ColumnCountMode;
     domainFilters: string[];
     duplicatesFilterEnabled: boolean;
     groupBy: GroupByMode;
@@ -658,7 +658,7 @@ export function groupByLabel(mode: GroupByMode): string {
 export function sortModeLabel(mode: SortMode): string {
     return (
         PALETTE_SORT_OPTIONS.find((opt) => opt.value === mode)?.label ??
-        sortModeLabel(DEFAULT_SORT_MODE)
+        "Added: Newest first"
     );
 }
 
@@ -855,11 +855,21 @@ export function itemDate(
     item: LibraryItemWithCollections,
     mode: "added" | "created" = "added"
 ): Date {
-    const value =
+    const candidates =
         mode === "created"
-            ? (item.postedAt ?? item.scrapedAt ?? item.createdAt)
-            : (item.scrapedAt ?? item.createdAt);
-    return value instanceof Date ? value : new Date(value);
+            ? [item.postedAt, item.scrapedAt, item.createdAt]
+            : [item.scrapedAt, item.createdAt];
+    for (const candidate of candidates) {
+        if (candidate === null || candidate === undefined) {
+            continue;
+        }
+        const date =
+            candidate instanceof Date ? candidate : new Date(candidate);
+        if (Number.isFinite(date.getTime())) {
+            return date;
+        }
+    }
+    return new Date(0);
 }
 
 export function itemTimestamp(
@@ -889,7 +899,7 @@ export function itemYearKey(
 
 export function getItemGroupKey(
     item: LibraryItemWithCollections,
-    groupBy: EffectiveGroupByMode
+    groupBy: Exclude<EffectiveGroupByMode, "none" | "collection">
 ): string {
     if (groupBy === "source") {
         return item.source;
@@ -912,7 +922,8 @@ export function getItemGroupKey(
     if (groupBy === "year-created") {
         return itemYearKey(item, "created");
     }
-    return UNSPECIFIC_LIBRARY_DOMAIN;
+    const _exhaustive: never = groupBy;
+    return _exhaustive;
 }
 
 export function getGroupCount(
@@ -945,6 +956,7 @@ export function buildComposerSuggestions({
     clearLibraryPalette,
     collectionMembershipFilter,
     collections,
+    columnCountMode,
     items,
     lastVisitedFilterEnabled,
     onClearCollectionFilters,
@@ -1011,6 +1023,7 @@ export function buildComposerSuggestions({
         collectionMembershipFilter !== DEFAULT_COLLECTION_MEMBERSHIP_FILTER ||
         groupBy !== "none" ||
         sortMode !== DEFAULT_SORT_MODE ||
+        columnCountMode !== DEFAULT_COLUMN_COUNT_MODE ||
         lastVisitedFilterEnabled ||
         duplicatesFilterEnabled ||
         unreachableFilterEnabled;
@@ -1722,6 +1735,7 @@ export function buildSearchPaletteGroups({
             description: draftAlreadyIncluded
                 ? "Already included in the search"
                 : "Add this search term",
+            disabled: draftAlreadyIncluded,
             isActive: draftAlreadyIncluded,
             label: `Search "${draft}"`,
             onSelect: () => {
@@ -1784,7 +1798,7 @@ export function buildSearchPaletteGroups({
                 }
                 const thumbnails =
                     collectionPreviewThumbnailUrlsById.get(collection.id) ?? [];
-                if (thumbnails.length <= 1) {
+                if (thumbnails.length === 0) {
                     continue;
                 }
                 collectionItems.push({
@@ -2593,7 +2607,7 @@ export function ComposerActionMetrics() {
     return (
         <Popover>
             <PopoverTrigger openOnHover render={<ComposerMetricsTrigger />} />
-            <PopoverPopup align="start" side="top">
+            <PopoverPopup align="start" positionMethod="fixed" side="top">
                 <ComposerMetricsPopoverPanel />
             </PopoverPopup>
         </Popover>
@@ -2639,12 +2653,18 @@ function ComposerItem({ item, isHorizontal = false }: ComposerItemProps) {
 
     const handleSelect = useStableCallback(
         (event: BaseUIEvent<React.MouseEvent>) => {
-            const result = onSelect(event);
-            if (result) {
-                result.catch((error: unknown) => {
-                    log.error("ComposerItem selection failed", error, {
-                        value: item.value,
+            try {
+                const result = onSelect(event);
+                if (result) {
+                    result.catch((error: unknown) => {
+                        log.error("ComposerItem selection failed", error, {
+                            value: item.value,
+                        });
                     });
+                }
+            } catch (error) {
+                log.error("ComposerItem selection failed", error, {
+                    value: item.value,
                 });
             }
         }
@@ -2833,7 +2853,9 @@ export function ComposerSuggestionsList({
     ...props
 }: ComposerSuggestionsListProps) {
     const [internalOpen, setInternalOpen] = React.useState(true);
+
     const isOpen = isOpenProp ?? internalOpen;
+
     const setIsOpen = useStableCallback((open: boolean) => {
         onOpenChangeProp?.(open);
         if (isOpenProp === undefined) {
@@ -2933,7 +2955,6 @@ export function ComposerCategoryThumbnail({ urls }: { urls: string[] }) {
             className="drag-none absolute top-10 left-3 h-auto w-full rounded-sm object-cover transition-transform ease-out group-data-highlighted:-translate-y-1"
             decoding="async"
             draggable="false"
-            fetchPriority="high"
             height={104}
             loading="lazy"
             onError={handleImageError}

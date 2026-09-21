@@ -4,6 +4,7 @@ import {
     ACTION_STATUS,
     FALLBACK_URL,
     ITEM_KIND_BOOKMARK,
+    ITEM_KIND_NOTE,
     SORT_ASC,
 } from "@/lib/common/constants";
 import { parseDate } from "@/lib/common/date";
@@ -403,6 +404,27 @@ export function itemPreviewVideoUrl(item: {
     }
 
     return `/api/preview?url=${encodeURIComponent(href)}&type=video`;
+}
+
+export function getLibraryItemTitle(item: LibraryItemWithCollections): string {
+    if (item.kind === ITEM_KIND_NOTE) {
+        return "";
+    }
+    const caption = item.caption?.trim();
+    if (caption) {
+        return caption;
+    }
+    return item.url;
+}
+
+export function getLibraryItemPrimaryText(
+    item: LibraryItemWithCollections
+): string {
+    if (item.kind === ITEM_KIND_NOTE) {
+        return item.noteContentText?.trim() || "Untitled note";
+    }
+    const caption = item.caption?.trim();
+    return caption && caption.length > 0 ? caption : item.url;
 }
 
 /**

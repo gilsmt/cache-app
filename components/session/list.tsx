@@ -5,7 +5,6 @@ import type {
     BaseUIEvent,
 } from "@base-ui/react";
 import { getTarget } from "@base-ui/utils/shadowDom";
-import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
@@ -35,14 +34,11 @@ import {
     Squircle,
     SquircleDashed,
     Star,
-    Volume2Icon,
-    VolumeXIcon,
     ZoomIn,
 } from "lucide-react";
 import Image from "next/image";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { Controlled as ControlledZoom } from "react-medium-image-zoom";
 import { Streamdown } from "streamdown";
 import useSWR from "swr";
 import {
@@ -105,6 +101,7 @@ import {
     getLibraryItemDomain,
     UNSPECIFIC_LIBRARY_DOMAIN,
 } from "@/components/session/filters";
+import { MediaCardPreview } from "@/components/session/item";
 import {
     ItemsContext,
     useItemsContext,
@@ -126,6 +123,7 @@ import {
     CollapsiblePanel,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { CollapsibleListHorizontal } from "@/components/ui/collapsible-list";
 import {
     Combobox,
     ComboboxCollection,
@@ -181,7 +179,6 @@ import {
     MenuSubTrigger,
     MenuTrigger,
 } from "@/components/ui/menu";
-import { Placeholder } from "@/components/ui/placeholder";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -227,9 +224,10 @@ import {
 import { buildComposerMetrics } from "@/lib/collections/metrics";
 import {
     buildItemsCsv,
+    getLibraryItemPrimaryText,
+    getLibraryItemTitle,
     isRecentlySmartCollected,
     itemPreviewImageUrl,
-    itemPreviewVideoUrl,
     type LibraryCollectionSummary,
     type LibraryCollectionTag,
     type LibraryItemWithCollections,
@@ -245,15 +243,7 @@ import {
     MIME_TYPES,
 } from "@/lib/common/constants";
 import { parseDate } from "@/lib/common/date";
-import {
-    type Dimensions,
-    resolveDisplayDimensions,
-} from "@/lib/common/dimension";
-import {
-    getOwnerDocument,
-    getOwnerWindow,
-    isTextEntryTarget,
-} from "@/lib/common/dom";
+import { isTextEntryTarget } from "@/lib/common/dom";
 import { revokeFileAttachmentObjectUrl, saveFile } from "@/lib/common/file";
 import { getImageColors } from "@/lib/common/image-color";
 import { createLogger } from "@/lib/common/logs/console/logger";
@@ -301,7 +291,8 @@ import {
 } from "@/lib/intelligence/overview";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
-import { useDimensionCacheContext } from "./dimension-cache";
+
+const MEDIA_DOWNLOAD_TIMEOUT_MS = 60_000;
 
 const COBALT_SOURCES = new Set<LibraryItemSource>([
     LibraryItemSource.google_photos,
@@ -311,8 +302,6 @@ const COBALT_SOURCES = new Set<LibraryItemSource>([
     LibraryItemSource.x_bookmarks,
     LibraryItemSource.youtube_watch_later,
 ]);
-
-const MEDIA_DOWNLOAD_TIMEOUT_MS = 60_000;
 
 const DOMAIN_RELATED_SOURCES = new Set<LibraryItemSource>([
     LibraryItemSource.chrome_bookmarks,
@@ -332,6 +321,35 @@ const EMPTY_LIBRARY_PEEK_PLACEHOLDERS = [
     { aspect: "aspect-[4/5]", id: "library-empty-peek-9" },
 ] as const;
 
+const LOCKED_PEEK_ASPECT_CYCLE = [
+    "aspect-[3/4]",
+    "aspect-[4/5]",
+    "aspect-square",
+    "aspect-[5/6]",
+] as const;
+
+const LOCKED_PEEK_PLACEHOLDERS_MAX = 24;
+
+interface LibraryPeekPlaceholder {
+    aspect: string;
+    id: string;
+}
+
+function buildLockedPeekPlaceholders(
+    lockedItemCount: number
+): LibraryPeekPlaceholder[] {
+    const length = Math.min(
+        Math.max(0, Math.floor(lockedItemCount)),
+        LOCKED_PEEK_PLACEHOLDERS_MAX
+    );
+    return Array.from({ length }, (_, index) => ({
+        aspect: LOCKED_PEEK_ASPECT_CYCLE[
+            index % LOCKED_PEEK_ASPECT_CYCLE.length
+        ],
+        id: `locked-library-peek-${index}`,
+    }));
+}
+
 const MEDIA_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE: Record<
     string,
     MediaDownloadFileExtension
@@ -349,42 +367,6 @@ const MEDIA_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE: Record<
     [MIME_TYPES.webp]: "webp",
     [MIME_TYPES.webm]: "webm",
 } as const;
-
-const LOCKED_LIBRARY_PREVIEW_PLACEHOLDERS = [
-    {
-        aspect: "aspect-[4/5]",
-        id: "locked-library-preview-1",
-        kind: "bookmark",
-    },
-    { aspect: "aspect-[3/4]", id: "locked-library-preview-2", kind: "note" },
-    {
-        aspect: "aspect-square",
-        id: "locked-library-preview-3",
-        kind: "bookmark",
-    },
-    {
-        aspect: "aspect-[5/6]",
-        id: "locked-library-preview-4",
-        kind: "bookmark",
-    },
-    { aspect: "aspect-[4/5]", id: "locked-library-preview-5", kind: "note" },
-    {
-        aspect: "aspect-[3/4]",
-        id: "locked-library-preview-6",
-        kind: "bookmark",
-    },
-    {
-        aspect: "aspect-square",
-        id: "locked-library-preview-7",
-        kind: "bookmark",
-    },
-    { aspect: "aspect-[5/6]", id: "locked-library-preview-8", kind: "note" },
-    {
-        aspect: "aspect-[4/5]",
-        id: "locked-library-preview-9",
-        kind: "bookmark",
-    },
-] satisfies LockedLibraryPreviewPlaceholder[];
 
 interface SectionDescriptionResponse {
     summary: string;
@@ -417,6 +399,7 @@ interface BrowserContext {
     openPickerItemId: string | null;
     setOpenPickerItemId: (id: string | null) => void;
     shouldShowEmptyLibraryPeek: boolean;
+    shouldShowLockedPreview: boolean;
     shouldShowNoFilteredResults: boolean;
     shouldShowUnreachableProbePending: boolean;
 }
@@ -458,10 +441,13 @@ interface MediaCardData {
     previewImageUrl: string | null;
 }
 
-interface MediaCardInteractionContext {
+interface MediaCardDownloadContext {
     isDownloading: boolean;
-    isZoomed: boolean;
     onDownload: () => void;
+}
+
+interface MediaCardZoomContext {
+    isZoomed: boolean;
     onZoomChange: (nextZoomed: boolean) => void;
     onZoomIn: () => void;
 }
@@ -591,12 +577,6 @@ const MEDIA_CARD_ACTION_PLUGINS = [
 
 type MediaDownloadFileExtension = Exclude<keyof typeof MIME_TYPES, "binary">;
 
-interface LockedLibraryPreviewPlaceholder {
-    aspect: string;
-    id: string;
-    kind: "bookmark" | "note";
-}
-
 interface BrowserSimilarFilterState {
     collectionMembershipFilter: CollectionMembershipFilter;
     domainFilters: string[];
@@ -669,14 +649,28 @@ function useMediaCardDataContext(): MediaCardData {
     return data;
 }
 
-const MediaCardInteractionContext =
-    React.createContext<MediaCardInteractionContext | null>(null);
+const MediaCardDownloadContext =
+    React.createContext<MediaCardDownloadContext | null>(null);
 
-function useMediaCardInteractionContext(): MediaCardInteractionContext {
-    const context = React.use(MediaCardInteractionContext);
+function useMediaCardDownloadContext(): MediaCardDownloadContext {
+    const context = React.use(MediaCardDownloadContext);
     if (!context) {
         throw new Error(
-            "Media card components must be used inside <MediaCardInteractionProvider>."
+            "Media card components must be used inside <MediaCardDownloadProvider>."
+        );
+    }
+    return context;
+}
+
+const MediaCardZoomContext = React.createContext<MediaCardZoomContext | null>(
+    null
+);
+
+function useMediaCardZoomContext(): MediaCardZoomContext {
+    const context = React.use(MediaCardZoomContext);
+    if (!context) {
+        throw new Error(
+            "Media card components must be used inside <MediaCardZoomProvider>."
         );
     }
     return context;
@@ -875,12 +869,16 @@ function useSectionCollapseState({
 }
 
 function useLibraryItemActions(args: {
-    onDeleteSuccess?: (collectionSummaries: LibraryCollectionSummary[]) => void;
-    removeItems: (itemIds: string[]) => void;
+    onDeleteSuccess: (collectionSummaries: LibraryCollectionSummary[]) => void;
+    setItems: React.Dispatch<
+        React.SetStateAction<LibraryItemWithCollections[]>
+    >;
 }) {
     const [pendingDeleteItem, setPendingDeleteItem] =
         React.useState<LibraryItemWithCollections | null>(null);
-    const [isDeletePending, startDeleteTransition] = React.useTransition();
+    const [deleteErrorMessage, setDeleteErrorMessage] = React.useState<
+        string | null
+    >(null);
     const { copyToClipboard } = useCopyToClipboard();
 
     const handleOpenInNewTab = useStableCallback(
@@ -897,54 +895,66 @@ function useLibraryItemActions(args: {
 
     const handleRequestDelete = useStableCallback(
         (item: LibraryItemWithCollections) => {
+            setDeleteErrorMessage(null);
             setPendingDeleteItem(item);
         }
     );
 
     const handleDeleteDialogOpenChange = useStableCallback((open: boolean) => {
-        if (!(open || isDeletePending)) {
+        if (!open) {
+            setDeleteErrorMessage(null);
             setPendingDeleteItem(null);
         }
     });
 
-    const handleConfirmDelete = useStableCallback(() => {
+    const handleConfirmDelete = useStableCallback(async () => {
         const targetItem = pendingDeleteItem;
         if (!targetItem) {
             return;
         }
 
-        const targetItemId = targetItem.id;
+        setDeleteErrorMessage(null);
+        setPendingDeleteItem(null);
+        args.setItems((current) =>
+            current.filter((item) => item.id !== targetItem.id)
+        );
 
-        startDeleteTransition(async () => {
-            let result: LibraryItemDeleteResult;
+        let result: LibraryItemDeleteResult;
+        try {
+            result = await deleteLibraryItem(targetItem.id);
+        } catch (error) {
+            log.error("Failed to delete library item", error, {
+                itemId: targetItem.id,
+            });
+            result = {
+                message: "We couldn't delete this saved item right now.",
+                status: ACTION_STATUS.ERROR,
+            };
+        }
 
-            try {
-                result = await deleteLibraryItem(targetItemId);
-            } catch {
-                result = {
-                    message: "We couldn't delete this saved item right now.",
-                    status: "ERROR",
-                };
-            }
+        if (result.status === ACTION_STATUS.DELETED) {
+            args.onDeleteSuccess(result.collectionSummaries);
+            return;
+        }
 
-            if (result.status === ACTION_STATUS.DELETED) {
-                args.removeItems([result.itemId]);
-                args.onDeleteSuccess?.(result.collectionSummaries);
-            }
+        // The item is already gone from the library, so the optimistic
+        // removal matches the server and there is nothing to recover.
+        if (result.status === ACTION_STATUS.NOT_FOUND) {
+            return;
+        }
 
-            if (pendingDeleteItem && pendingDeleteItem.id === targetItemId) {
-                setPendingDeleteItem(null);
-            }
-        });
+        args.setItems((current) => mergeById(current, [targetItem]));
+        setDeleteErrorMessage(result.message);
+        setPendingDeleteItem(targetItem);
     });
 
     return {
+        deleteErrorMessage,
         handleConfirmDelete,
         handleCopyLink,
         handleDeleteDialogOpenChange,
         handleOpenInNewTab,
         handleRequestDelete,
-        isDeletePending,
         pendingDeleteItem,
     };
 }
@@ -1351,25 +1361,6 @@ function useCollectionMutations({
         handleUpdateItemCollections,
         handleUpdateItemsCollections,
     };
-}
-
-function getLibraryItemTitle(item: LibraryItemWithCollections): string {
-    if (item.kind === ITEM_KIND_NOTE) {
-        return "";
-    }
-    const caption = item.caption?.trim();
-    if (caption) {
-        return caption;
-    }
-    return item.url;
-}
-
-function getLibraryItemPrimaryText(item: LibraryItemWithCollections): string {
-    if (item.kind === ITEM_KIND_NOTE) {
-        return item.noteContentText?.trim() || "Untitled note";
-    }
-    const caption = item.caption?.trim();
-    return caption && caption.length > 0 ? caption : item.url;
 }
 
 async function fetchSectionDescription([
@@ -2213,6 +2204,39 @@ function BrowserEmptyWithFilters() {
     );
 }
 
+interface BrowserLockedProps {
+    length: number;
+    lockedItemCount: number;
+}
+
+function BrowserLocked({ length, lockedItemCount }: BrowserLockedProps) {
+    const { columnCount, shouldShowLockedPreview } = useBrowserContext();
+
+    const placeholders = buildLockedPeekPlaceholders(lockedItemCount);
+
+    if (!shouldShowLockedPreview) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-col gap-8">
+            <BlockPaywallBanner length={length} />
+            <MasonryRoot
+                columnCount={columnCount}
+                gap={16}
+                items={placeholders}
+                maxColumnCount={7}
+            >
+                {(placeholder, index) => (
+                    <MasonryItem key={placeholder.id}>
+                        <MediaCardEmptyCell data={placeholder} index={index} />
+                    </MasonryItem>
+                )}
+            </MasonryRoot>
+        </div>
+    );
+}
+
 function BrowserUnreachableProbePending() {
     const { shouldShowUnreachableProbePending } = useBrowserContext();
 
@@ -2294,6 +2318,49 @@ function BrowserGroupHeader({
                 className
             )}
         />
+    );
+}
+
+interface BrowserGroupSourceIconsProps {
+    items: LibraryItemWithCollections[];
+}
+
+function BrowserGroupSourceIcons({ items }: BrowserGroupSourceIconsProps) {
+    const seenSources = new Set<LibraryItemSource>();
+    for (const item of items) {
+        seenSources.add(item.source);
+    }
+
+    const entries: {
+        label: string;
+        SourceIcon: NonNullable<ReturnType<typeof getSourceIcon>>;
+        source: LibraryItemSource;
+    }[] = [];
+    for (const source of seenSources) {
+        const SourceIcon = getSourceIcon(source);
+        if (SourceIcon) {
+            entries.push({ label: getSourceLabel(source), SourceIcon, source });
+        }
+    }
+
+    return (
+        <CollapsibleListHorizontal
+            badgeRender={
+                <Button className="opacity-50" size="xs" variant="link" />
+            }
+            className="ml-2.5 gap-1.5"
+        >
+            {entries.map(({ SourceIcon, label, source }) => (
+                <span
+                    aria-label={label}
+                    className="inline-flex items-center"
+                    key={source}
+                    role="img"
+                >
+                    <SourceIcon aria-hidden className="size-3" />
+                </span>
+            ))}
+        </CollapsibleListHorizontal>
     );
 }
 
@@ -2510,7 +2577,7 @@ function BrowserGroupAIOverview({
     children,
     ...props
 }: React.ComponentProps<"div">) {
-    const { collapsed } = useBrowserGroupContext();
+    const { collapsed, items } = useBrowserGroupContext();
 
     if (collapsed) {
         return null;
@@ -2526,10 +2593,11 @@ function BrowserGroupAIOverview({
                 />
                 <GradientWaveText
                     ariaLabel="Overview"
-                    className="font-medium text-muted-foreground text-xs"
+                    className="w-fit font-medium text-muted-foreground text-xs"
                 >
                     Overview
                 </GradientWaveText>
+                <BrowserGroupSourceIcons items={items} />
             </div>
             {children}
         </BrowserGroupHeader>
@@ -2683,17 +2751,15 @@ function BrowserMasonry({ children }: BrowserMasonryProps) {
 
 function MediaCardDataProvider({
     children,
-    item,
-}: React.PropsWithChildren<{
-    item: LibraryItemWithCollections;
-}>) {
+    value,
+}: React.PropsWithChildren<{ value: LibraryItemWithCollections }>) {
     return (
         <MediaCardDataContext
             value={{
-                displayTitle: getLibraryItemPrimaryText(item),
-                isNote: item.kind === ITEM_KIND_NOTE,
-                item,
-                previewImageUrl: itemPreviewImageUrl(item),
+                displayTitle: getLibraryItemPrimaryText(value),
+                isNote: value.kind === ITEM_KIND_NOTE,
+                item: value,
+                previewImageUrl: itemPreviewImageUrl(value),
             }}
         >
             {children}
@@ -2731,10 +2797,10 @@ function MediaCardEmptyCell({
     data,
     index,
 }: {
-    data: (typeof EMPTY_LIBRARY_PEEK_PLACEHOLDERS)[number];
+    data: LibraryPeekPlaceholder;
     index: number;
 }) {
-    const opacity = Math.max(0.25, 1 - index * 0.06);
+    const opacity = Math.max(0.25, 1 - index * 0.03);
 
     return (
         <div className="flex flex-col" style={{ opacity }}>
@@ -2749,296 +2815,36 @@ function MediaCardEmptyCell({
     );
 }
 
-function MediaPreview({
-    src,
-    videoSrc,
-}: {
-    src: string | null;
-    videoSrc?: string | null;
-}) {
-    const dimensionsCache = useDimensionCacheContext();
-    const imgRef = React.useRef<HTMLImageElement | null>(null);
-    const videoRef = React.useRef<HTMLVideoElement | null>(null);
+function MediaCardZoomProvider({ children }: React.PropsWithChildren) {
+    const [isZoomed, setIsZoomed] = React.useState(false);
 
-    const [isHovered, setIsHovered] = React.useState(false);
-    const [isSoundEnabled, setIsSoundEnabled] = React.useState(true);
-
-    const [hasImageFailed, setHasImageFailed] = React.useState(false);
-    const [hasVideoFailed, setHasVideoFailed] = React.useState(false);
-    const [hasVideoStarted, setHasVideoStarted] = React.useState(false);
-    const [dimensions, setDimensions] = React.useState<Dimensions | null>(() =>
-        dimensionsCache.readCachedDimensions(src)
-    );
-    const [prevSrc, setPrevSrc] = React.useState(src);
-    const [prevVideoSrc, setPrevVideoSrc] = React.useState(videoSrc);
-
-    if (!Object.is(src, prevSrc)) {
-        setPrevSrc(src);
-        setHasImageFailed(false);
-        setDimensions(dimensionsCache.readCachedDimensions(src));
-    }
-
-    if (!Object.is(videoSrc, prevVideoSrc)) {
-        setPrevVideoSrc(videoSrc);
-        setHasVideoStarted(false);
-        setHasVideoFailed(false);
-    }
-
-    const canRenderImage = !!src && !hasImageFailed;
-    const canRenderVideo = typeof videoSrc === "string" && videoSrc.length > 0;
-
-    const shouldLoadVideo = isHovered && canRenderVideo && !hasVideoFailed;
-    const isVideoLoading = !hasVideoStarted && shouldLoadVideo;
-
-    const stopHoverPlayback = useStableCallback(() => {
-        setIsHovered(false);
-        const video = videoRef.current;
-        if (!video) {
-            return;
-        }
-        video.pause();
-        video.currentTime = 0;
-    });
-
-    const handlePointerEnter = useStableCallback(() => {
-        setIsHovered(true);
-        setHasVideoFailed(false);
-    });
-
-    const handlePointerLeave = useStableCallback(() => {
-        stopHoverPlayback();
-    });
-
-    const handlePointerDown = useStableCallback(
-        (event: React.PointerEvent<HTMLDivElement>) => {
-            const ownerWindow = getOwnerWindow(event.currentTarget);
-            const target = event.target;
-            if (
-                target instanceof ownerWindow.Element &&
-                target.closest("button") !== null
-            ) {
-                return;
-            }
-            stopHoverPlayback();
-        }
-    );
-
-    const handleCanPlay = useStableCallback(() => {
-        setHasVideoStarted(true);
-        const video = videoRef.current;
-        if (video && isHovered && !hasVideoFailed) {
-            video.play().catch((error: unknown) => {
-                log.debug("Failed to play hover preview", { error });
-            });
+    // Ignore zoom-in requests so clicks keep opening the item; zooming in is
+    // the card menu's job.
+    const handleZoomChange = useStableCallback((nextZoomed: boolean) => {
+        if (!nextZoomed) {
+            setIsZoomed(false);
         }
     });
 
-    const applyNaturalDimensions = useStableCallback(
-        (img: HTMLImageElement) => {
-            if (!src) {
-                return;
-            }
-            if (img.getAttribute("src") !== src) {
-                return;
-            }
-            const w = img.naturalWidth;
-            const h = img.naturalHeight;
-            if (!(w > 0 && h > 0)) {
-                return;
-            }
-            const next: Dimensions = { h, w };
-            dimensionsCache.cacheDimensions(src, next);
-            setDimensions((current) =>
-                current?.w === w && current.h === h ? current : next
-            );
-        }
-    );
-
-    const handleImageError = useStableCallback(
-        (event: React.SyntheticEvent<HTMLImageElement>) => {
-            if (!src || event.currentTarget.getAttribute("src") !== src) {
-                return;
-            }
-            // Pin a default slot when nothing is known yet so virtualization
-            // remounts (and MediaPlaceholder) keep a stable aspect ratio.
-            setDimensions(dimensionsCache.pinDefaultDimensionsIfMissing(src));
-            setHasImageFailed(true);
-        }
-    );
-
-    const handleImageLoad = useStableCallback(
-        (event: React.SyntheticEvent<HTMLImageElement>) => {
-            applyNaturalDimensions(event.currentTarget);
-        }
-    );
-
-    useIsoLayoutEffect(() => {
-        const img = imgRef.current;
-        if (img?.complete && img.naturalWidth > 0) {
-            applyNaturalDimensions(img);
-        }
-    }, [applyNaturalDimensions, src]);
-
-    const handleVideoError = useStableCallback(() => {
-        const video = videoRef.current;
-        const mediaError = video?.error;
-        log.debug("Video source failed to load", {
-            mediaError,
-            networkState: video?.networkState,
-            readyState: video?.readyState,
-            videoSrc,
-        });
-        setHasVideoFailed(true);
+    const handleZoomIn = useStableCallback(() => {
+        setIsZoomed(true);
     });
 
-    const handleSoundToggle = useStableCallback((event: React.MouseEvent) => {
-        event.preventDefault();
-        event.stopPropagation();
-        setIsSoundEnabled((prev) => !prev);
-    });
-
-    React.useEffect(() => {
-        const video = videoRef.current;
-        if (!(video && shouldLoadVideo)) {
-            return;
-        }
-
-        video.play().catch((error: unknown) => {
-            log.debug("Failed to resume hover preview", { error });
-        });
-    }, [shouldLoadVideo]);
-
-    React.useEffect(() => {
-        if (!shouldLoadVideo) {
-            return;
-        }
-
-        const ownerDocument = getOwnerDocument(videoRef.current);
-        const handleVisibilityChange = () => {
-            if (ownerDocument.hidden) {
-                stopHoverPlayback();
-                return;
-            }
-            const previewRoot = videoRef.current?.parentElement;
-            if (previewRoot?.matches(":hover")) {
-                setIsHovered(true);
-            }
-        };
-
-        ownerDocument.addEventListener(
-            "visibilitychange",
-            handleVisibilityChange
-        );
-        return () => {
-            ownerDocument.removeEventListener(
-                "visibilitychange",
-                handleVisibilityChange
-            );
-            const video = videoRef.current;
-            if (!video) {
-                return;
-            }
-            video.pause();
-            video.currentTime = 0;
-        };
-    }, [shouldLoadVideo, stopHoverPlayback]);
-
-    const SoundIcon = isSoundEnabled ? Volume2Icon : VolumeXIcon;
-    const displayDimensions = resolveDisplayDimensions(dimensions);
+    const contextValue = {
+        isZoomed,
+        onZoomChange: handleZoomChange,
+        onZoomIn: handleZoomIn,
+    };
 
     return (
-        <div
-            className="relative w-full break-inside-avoid"
-            onPointerDown={handlePointerDown}
-            onPointerEnter={handlePointerEnter}
-            onPointerLeave={handlePointerLeave}
-            style={{
-                aspectRatio: `${displayDimensions.w} / ${displayDimensions.h}`,
-            }}
-        >
-            {canRenderImage ? (
-                // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts img onError/onLoad
-                <img
-                    alt=""
-                    className="drag-none size-full object-cover"
-                    decoding="async"
-                    draggable="false"
-                    fetchPriority="auto"
-                    height={displayDimensions.h}
-                    // Remount on src change so aborted prior loads cannot
-                    // fire stale error/load events against the new URL.
-                    key={src}
-                    loading="eager"
-                    onError={handleImageError}
-                    onLoad={handleImageLoad}
-                    ref={imgRef}
-                    src={src ?? undefined}
-                    style={{ cursor: "pointer" }}
-                    width={displayDimensions.w}
-                />
-            ) : (
-                <Placeholder className="-z-1 size-full" />
-            )}
-            {shouldLoadVideo ? (
-                <>
-                    <video
-                        className="squircle drag-none pointer-events-none absolute inset-0 size-full rounded-xl object-contain transition-opacity ease-out"
-                        crossOrigin="use-credentials"
-                        draggable="false"
-                        loop
-                        muted={!isSoundEnabled}
-                        onCanPlay={handleCanPlay}
-                        onError={handleVideoError}
-                        playsInline
-                        preload="none"
-                        ref={videoRef}
-                        src={videoSrc}
-                    />
-                    {isVideoLoading ? (
-                        <div
-                            className={cn(
-                                "pointer-events-none absolute bottom-2 left-2 rounded-xl bg-black/50 text-white opacity-0 transition-opacity ease-out",
-                                { "opacity-100": isHovered }
-                            )}
-                        >
-                            <Spinner
-                                aria-hidden
-                                className="m-1.5 size-4"
-                                focusable="false"
-                            />
-                        </div>
-                    ) : (
-                        <Button
-                            aria-label={
-                                isSoundEnabled
-                                    ? "Mute video preview"
-                                    : "Enable video preview sound"
-                            }
-                            aria-pressed={isSoundEnabled}
-                            className={cn(
-                                "pointer-events-auto absolute bottom-2 left-2 rounded-xl bg-black/50 text-white opacity-0 transition-opacity ease-out hover:bg-black/60 focus-visible:opacity-100 focus-visible:ring-ring/70",
-                                { "opacity-100": isHovered }
-                            )}
-                            onClick={handleSoundToggle}
-                            size="icon-sm"
-                            variant="ghost"
-                        >
-                            <SoundIcon
-                                aria-hidden
-                                className="size-4"
-                                focusable="false"
-                            />
-                        </Button>
-                    )}
-                </>
-            ) : null}
-        </div>
+        <MediaCardZoomContext value={contextValue}>
+            {children}
+        </MediaCardZoomContext>
     );
 }
 
-function MediaCardInteractionProvider({ children }: React.PropsWithChildren) {
+function MediaCardDownloadProvider({ children }: React.PropsWithChildren) {
     const { item } = useMediaCardDataContext();
-    const [isZoomed, setIsZoomed] = React.useState(false);
     const [isDownloading, startDownloadTransition] = React.useTransition();
     const [hasDownloadError, setHasDownloadError] = React.useState(false);
 
@@ -3057,29 +2863,13 @@ function MediaCardInteractionProvider({ children }: React.PropsWithChildren) {
         });
     });
 
-    const handleZoomChange = useStableCallback((nextZoomed: boolean) => {
-        if (!nextZoomed) {
-            setIsZoomed(false);
-        }
-    });
-
-    const handleZoomIn = useStableCallback(() => {
-        setIsZoomed(true);
-    });
-
     return (
         <>
-            <MediaCardInteractionContext
-                value={{
-                    isDownloading,
-                    isZoomed,
-                    onDownload: handleDownload,
-                    onZoomChange: handleZoomChange,
-                    onZoomIn: handleZoomIn,
-                }}
+            <MediaCardDownloadContext
+                value={{ isDownloading, onDownload: handleDownload }}
             >
                 {children}
-            </MediaCardInteractionContext>
+            </MediaCardDownloadContext>
             {hasDownloadError ? (
                 <p
                     aria-atomic="true"
@@ -3228,7 +3018,7 @@ function MediaCardMenuCommentComposer() {
         return null;
     }
 
-    return <CommentComposer isOpen={isOverlayOpen} item={item} />;
+    return <CommentComposer isOpen={isOverlayOpen} itemId={item.id} />;
 }
 
 function MediaCardMenuContent() {
@@ -3262,7 +3052,7 @@ function MediaCardMenuSurface() {
             <MenuTrigger
                 render={
                     <Button
-                        className="w-full min-w-0 flex-1 justify-start overflow-clip text-nowrap px-0 text-left text-[11px]!"
+                        className="w-full min-w-0 flex-1 justify-start overflow-clip text-nowrap px-0 text-left text-xs!"
                         size="xs"
                         title={displayTitle}
                         type="button"
@@ -3270,7 +3060,7 @@ function MediaCardMenuSurface() {
                     />
                 }
             >
-                <Ticker>{displayTitle}</Ticker>
+                <Ticker className="pt-px">{displayTitle}</Ticker>
             </MenuTrigger>
             <MenuPopup>
                 <MediaCardMenuContent />
@@ -3362,76 +3152,15 @@ function MediaCardContextMenuSurface({ children }: React.PropsWithChildren) {
     );
 }
 
-function MediaCardPreview(props: React.ComponentProps<"div">) {
-    const { isNote, item, previewImageUrl } = useMediaCardDataContext();
-    const { isZoomed, onZoomChange } = useMediaCardInteractionContext();
-    const { isLastVisited } = useLastVisited();
-
-    const hasNoteContent = (item.noteContentText ?? "").trim().length > 0;
-    const previewVideoUrl = itemPreviewVideoUrl(item);
-
-    return (
-        // biome-ignore lint/a11y/useSemanticElements: ControlledZoom conflicts with anchor elements
-        <div
-            {...props}
-            aria-label={
-                isNote
-                    ? item.noteContentText?.trim() || "Note"
-                    : getLibraryItemTitle(item)
-            }
-            className={cn(
-                "squircle relative flex flex-col overflow-clip rounded-xl focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
-                { "bg-muted/90": isNote }
-            )}
-            role="link"
-            tabIndex={0}
-        >
-            {isNote ? (
-                <div className="mask-b-from-[calc(100%-var(--fade-size))] size-full max-h-60 select-none p-4 [--fade-size:5rem]">
-                    <Streamdown className="text-[11px] text-foreground">
-                        {hasNoteContent && item.noteContentHtml
-                            ? item.noteContentHtml
-                            : "Tap to start writing in this note"}
-                    </Streamdown>
-                </div>
-            ) : (
-                <>
-                    <ControlledZoom
-                        isZoomed={isZoomed}
-                        onZoomChange={onZoomChange}
-                    >
-                        <MediaPreview
-                            src={previewImageUrl}
-                            videoSrc={previewVideoUrl}
-                        />
-                    </ControlledZoom>
-                    {isLastVisited(item.id) ? (
-                        <span className="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-xl bg-black/45 px-1.5 py-px font-medium text-white text-xs leading-normal">
-                            <T>Last visited</T>
-                            <ArrowUpRight
-                                aria-hidden
-                                className="hidden size-4 group-hover:inline-block"
-                                focusable="false"
-                            />
-                        </span>
-                    ) : (
-                        <span className="absolute right-2 bottom-2 rounded-xl bg-black/50 px-1.5 py-px font-medium text-white text-xs leading-normal opacity-0 group-hover:opacity-100">
-                            <ArrowUpRight
-                                aria-hidden
-                                className="size-4"
-                                focusable="false"
-                            />
-                        </span>
-                    )}
-                </>
-            )}
-        </div>
-    );
-}
-
 function MediaCardOpenTarget() {
     const { isNote, item } = useMediaCardDataContext();
-    const { onOpenInNewTab, onOpenNote } = useMediaCardEnvironmentContext();
+    const {
+        favoriteItemIdSet,
+        onItemFavoriteToggle,
+        onOpenInNewTab,
+        onOpenNote,
+    } = useMediaCardEnvironmentContext();
+    const { isZoomed, onZoomChange } = useMediaCardZoomContext();
     const { markVisited } = useLastVisited();
 
     const handleOpen = useStableCallback(() => {
@@ -3443,25 +3172,18 @@ function MediaCardOpenTarget() {
         markVisited(item.id);
     });
 
-    const handleOpenTargetClick = useStableCallback(
-        (event: React.MouseEvent<HTMLElement>) => {
-            event.preventDefault();
-            handleOpen();
-        }
-    );
-
-    const handleOpenTargetKeyDown = useStableCallback(
-        (event: React.KeyboardEvent<HTMLElement>) => {
-            if (event.key === "Enter") {
-                handleOpen();
-            }
-        }
-    );
+    const handleToggleFavorite = useStableCallback(() => {
+        onItemFavoriteToggle(item);
+    });
 
     return (
         <MediaCardPreview
-            onClick={handleOpenTargetClick}
-            onKeyDown={handleOpenTargetKeyDown}
+            isFavorite={favoriteItemIdSet.has(item.id)}
+            isZoomed={isZoomed}
+            item={item}
+            onOpen={handleOpen}
+            onToggleFavorite={handleToggleFavorite}
+            onZoomChange={onZoomChange}
         />
     );
 }
@@ -3495,42 +3217,6 @@ function MediaCardActions() {
                 }
             />
             <MediaCardMenuSurface />
-        </div>
-    );
-}
-
-function MediaCardLocked({ data }: { data: LockedLibraryPreviewPlaceholder }) {
-    return (
-        <div className="relative flex flex-col overflow-clip rounded-xl ring-1 ring-border/30">
-            {data.kind === "note" ? (
-                <div className="relative min-h-56 bg-linear-to-br from-note-surface-from via-background to-note-surface-to p-4">
-                    <div className="absolute inset-0 bg-background/30" />
-                    <div className="relative flex h-full flex-col gap-3">
-                        <div className="space-y-2">
-                            <Skeleton className="h-3 w-[86%]" />
-                            <Skeleton className="h-3 w-[74%]" />
-                            <Skeleton className="h-3 w-[68%]" />
-                            <Skeleton className="h-3 w-[56%]" />
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <div
-                    className={cn(
-                        "relative overflow-clip bg-linear-to-br from-muted/75 via-card to-muted/45",
-                        data.aspect
-                    )}
-                >
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.45),transparent_38%)]" />
-                    <div className="absolute inset-0 bg-background/25" />
-                    <div className="relative flex h-full flex-col justify-between p-4">
-                        <div className="space-y-2">
-                            <Skeleton className="h-3 w-[88%]" />
-                            <Skeleton className="h-3 w-[62%]" />
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
@@ -3604,7 +3290,7 @@ function MediaCardSideAction({ variant }: { variant: "menu" | "contextMenu" }) {
 }
 
 function MediaCardZoomAction({ variant }: { variant: "menu" | "contextMenu" }) {
-    const { onZoomIn } = useMediaCardInteractionContext();
+    const { onZoomIn } = useMediaCardZoomContext();
     const content = (
         <>
             <ZoomIn className="size-4.5 text-muted-foreground" />
@@ -3670,7 +3356,7 @@ function MediaCardDownloadAction({
 }: {
     variant: "menu" | "contextMenu";
 }) {
-    const { isDownloading, onDownload } = useMediaCardInteractionContext();
+    const { isDownloading, onDownload } = useMediaCardDownloadContext();
     const content = (
         <>
             <DownloadIcon className="size-4.5 text-muted-foreground" />
@@ -3817,7 +3503,7 @@ function MediaCardDeleteAction({
 }
 
 interface DeleteItemDialogProps {
-    isDeletePending: boolean;
+    deleteErrorMessage: string | null;
     onConfirmDelete: () => void;
     onOpenChange: (open: boolean) => void;
     open: boolean;
@@ -3825,7 +3511,7 @@ interface DeleteItemDialogProps {
 }
 
 function DeleteItemDialog({
-    isDeletePending,
+    deleteErrorMessage,
     onConfirmDelete,
     onOpenChange,
     open,
@@ -3852,19 +3538,17 @@ function DeleteItemDialog({
                             original platform.
                         </T>
                     </DialogDescription>
+                    {deleteErrorMessage ? (
+                        <p className="text-destructive text-sm">
+                            {deleteErrorMessage}
+                        </p>
+                    ) : null}
                 </DialogHeader>
                 <DialogFooter>
-                    <DialogClose
-                        disabled={isDeletePending}
-                        render={<Button variant="ghost" />}
-                    >
+                    <DialogClose render={<Button variant="ghost" />}>
                         <T>Cancel</T>
                     </DialogClose>
-                    <Button
-                        isLoading={isDeletePending}
-                        onClick={onConfirmDelete}
-                        variant="destructive"
-                    >
+                    <Button onClick={onConfirmDelete} variant="destructive">
                         <T>Delete</T>
                     </Button>
                 </DialogFooter>
@@ -4232,19 +3916,16 @@ export function BrowserContent({
     });
 
     const {
+        deleteErrorMessage,
         handleConfirmDelete,
         handleCopyLink,
         handleDeleteDialogOpenChange,
         handleOpenInNewTab,
         handleRequestDelete,
-        isDeletePending,
         pendingDeleteItem,
     } = useLibraryItemActions({
         onDeleteSuccess: mergeCollectionSummaries,
-        removeItems: (itemIds) =>
-            setItems((current) =>
-                current.filter((item) => !itemIds.includes(item.id))
-            ),
+        setItems,
     });
     const pendingDeleteItemIdRef = React.useRef<string | null>(
         pendingDeleteItem?.id ?? null
@@ -4875,6 +4556,7 @@ export function BrowserContent({
         clearLibraryPalette,
         collectionMembershipFilter,
         collections,
+        columnCountMode,
         domainFilters,
         duplicatesFilterEnabled,
         groupBy,
@@ -5338,12 +5020,7 @@ export function BrowserContent({
 
     const mergeImportedLibraryItems = useStableCallback(
         (imported: LibraryItemWithCollections[]) => {
-            setItems((current) => {
-                if (imported.length === 0) {
-                    return current;
-                }
-                return mergeById(current, imported);
-            });
+            setItems((current) => mergeById(current, imported));
         }
     );
 
@@ -5382,6 +5059,7 @@ export function BrowserContent({
         openPickerItemId,
         setOpenPickerItemId,
         shouldShowEmptyLibraryPeek,
+        shouldShowLockedPreview,
         shouldShowNoFilteredResults,
         shouldShowUnreachableProbePending:
             isUnreachableProbePending && filteredItems.length === 0,
@@ -5500,14 +5178,16 @@ export function BrowserContent({
                                             {(item) => (
                                                 <MasonryItem key={item.id}>
                                                     <MediaCardDataProvider
-                                                        item={item}
+                                                        value={item}
                                                     >
-                                                        <MediaCardInteractionProvider>
-                                                            <MediaCardContextMenuSurface>
-                                                                <MediaCardOpenTarget />
-                                                                <MediaCardActions />
-                                                            </MediaCardContextMenuSurface>
-                                                        </MediaCardInteractionProvider>
+                                                        <MediaCardZoomProvider>
+                                                            <MediaCardDownloadProvider>
+                                                                <MediaCardContextMenuSurface>
+                                                                    <MediaCardOpenTarget />
+                                                                    <MediaCardActions />
+                                                                </MediaCardContextMenuSurface>
+                                                            </MediaCardDownloadProvider>
+                                                        </MediaCardZoomProvider>
                                                     </MediaCardDataProvider>
                                                 </MasonryItem>
                                             )}
@@ -5515,47 +5195,15 @@ export function BrowserContent({
                                     </BrowserGroup>
                                 )}
                             </BrowserGroupList>
-                            {shouldShowLockedPreview ? (
-                                <div className="relative isolate flex flex-col gap-8">
-                                    <BlockPaywallBanner
-                                        length={totalItemCount}
-                                    />
-                                    <div className="pointer-events-none absolute inset-0 z-10 rounded-[2rem] bg-linear-to-b from-background/10 via-background/45 to-background/75" />
-                                    <div className="select-none blur-[1.5px]">
-                                        <div className="contain-layout contain-paint contain-style [overflow-clip-margin:0.5rem]">
-                                            <MasonryRoot
-                                                columnCount={
-                                                    resolvedColumnCount
-                                                }
-                                                gap={16}
-                                                items={
-                                                    LOCKED_LIBRARY_PREVIEW_PLACEHOLDERS
-                                                }
-                                                maxColumnCount={7}
-                                            >
-                                                {(previewPlaceholder) => (
-                                                    <MasonryItem
-                                                        key={
-                                                            previewPlaceholder.id
-                                                        }
-                                                    >
-                                                        <MediaCardLocked
-                                                            data={
-                                                                previewPlaceholder
-                                                            }
-                                                        />
-                                                    </MasonryItem>
-                                                )}
-                                            </MasonryRoot>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : null}
+                            <BrowserLocked
+                                length={totalItemCount}
+                                lockedItemCount={lockedItemCount}
+                            />
                         </div>
                         <SideContent />
                     </div>
                     <DeleteItemDialog
-                        isDeletePending={isDeletePending}
+                        deleteErrorMessage={deleteErrorMessage}
                         onConfirmDelete={handleConfirmDelete}
                         onOpenChange={handleDeleteDialogOpenChange}
                         open={pendingDeleteItem !== null}
