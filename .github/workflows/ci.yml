@@ -1,0 +1,63 @@
+# Continuous integration gate for cache-app.
+#
+# CONTRIBUTING.md requires every pull request to pass the type-check, lint and
+# test suites. A commit on `main` reaches production through Vercel and no
+# automated check runs on the way, so this workflow is where those suites run.
+# Mark it required on `main` in the branch protection settings to block merges.
+#
+# `next typegen` runs before the type-check: next-env.d.ts and the route types
+# are generated files that .gitignore excludes, so a fresh checkout cannot
+# type-check until they exist.
+#
+# DATABASE_URL only has to satisfy `prisma generate`, which .postinstall runs
+# during install. The workflow does not build or connect to a database.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Type-check, lint and test
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://cache:cache@localhost:5432/cache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate Next.js types
+        run: bunx next typegen
+
+      - name: Type-check
+        run: bun run type-check
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Test
+        run: bun run test
