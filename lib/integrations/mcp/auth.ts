@@ -1,5 +1,3 @@
-import type { AuthInfo } from "@modelcontextprotocol/server";
-
 const encoder = new TextEncoder();
 
 const MCP_TOKEN_TTL_DAYS = 30;
@@ -13,7 +11,11 @@ const MCP_TOKEN_TTL_MS = MCP_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
 export const MCP_SCOPES = ["library:read", "library:write"] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
 
-/** Full-access scopes are minted by default; not yet a readers-only path. */
+/**
+ * Tokens issued before the scope segment existed decode as full access so
+ * existing clients keep working. New tokens declare their scopes at the mint
+ * site instead of inheriting a full-access default.
+ */
 const LEGACY_DEFAULT_SCOPES: McpScope[] = ["library:read", "library:write"];
 
 function requireSecret(): string {
@@ -92,17 +94,18 @@ function isMcpScope(value: string): value is McpScope {
 /**
  * Generates a stateless HMAC token for MCP authentication.
  *
- * The token encodes `userId`, `issuedAt`, `expiresAt` (default TTL: 30 days)
- * and the granted `scopes`, and signs the joined string with
- * `BETTER_AUTH_SECRET`. Tokens are self-validating: `verifyMcpToken` only
- * needs the secret + the token bytes, so there is no server-side state to
- * revoke on rotation. To invalidate a compromised token today, rotate
- * `BETTER_AUTH_SECRET`; keep the same secret across deploys until you want
- * everyone to re-issue.
+ * The token encodes `userId`, `issuedAt`, `expiresAt` (TTL: 30 days) and the
+ * granted `scopes`, and signs the joined string with `BETTER_AUTH_SECRET`.
+ * `scopes` is required so no caller mints a full-access token by omission.
+ *
+ * Revocation is server-side: `verifyMcpAuthToken` rejects a token whose signed
+ * `issuedAt` predates the user's `mcpTokenMinIssuedAt` point, which
+ * `rotateMcpTokens` advances. A leaked grant therefore needs no
+ * `BETTER_AUTH_SECRET` rotation.
  */
 export async function generateMcpToken(
     userId: string,
-    scopes: readonly McpScope[] = LEGACY_DEFAULT_SCOPES
+    scopes: readonly McpScope[]
 ): Promise<string> {
     const issuedAt = Date.now();
     const expiresAt = issuedAt + MCP_TOKEN_TTL_MS;
@@ -135,15 +138,23 @@ function dedupeScopes(scopes: readonly McpScope[]): McpScope[] {
     return result;
 }
 
+/** The claims of an MCP token whose signature and expiry both check out. */
+export interface VerifiedMcpToken {
+    issuedAt: number;
+    scopes: McpScope[];
+    userId: string;
+}
+
 /**
- * Verifies an MCP token. Returns the authenticated `userId` and granted
- * `scopes` if the signature is valid AND the token has not expired,
- * otherwise `null`. The expiry check runs after signature verification so
- * an attacker cannot probe expiry with a forged token.
+ * Verifies an MCP token. Returns the token's `issuedAt`, granted `scopes` and
+ * `userId` if the signature is valid AND the token has not expired, otherwise
+ * `null`. The expiry check runs after signature verification so an attacker
+ * cannot probe expiry with a forged token. Revocation is a separate server-side
+ * check: see `isMcpTokenRevoked`.
  */
 export async function verifyMcpToken(
     token: string
-): Promise<{ scopes: McpScope[]; userId: string } | null> {
+): Promise<VerifiedMcpToken | null> {
     const parts = token.split(".");
     if (parts.length !== 2) {
         return null;
@@ -190,29 +201,20 @@ export async function verifyMcpToken(
         return null;
     }
 
-    return { scopes: parsed.scopes, userId: parsed.userId };
+    return {
+        issuedAt: parsed.issuedAt,
+        scopes: parsed.scopes,
+        userId: parsed.userId,
+    };
 }
 
 /**
- * Verifies a Bearer token for use with `withMcpAuth`.
+ * A token is revoked when it was minted before the user's revocation point.
+ * `minIssuedAt` is null until the user rotates their MCP access.
  */
-export async function verifyMcpAuthToken(
-    _req: Request,
-    bearerToken?: string
-): Promise<AuthInfo | undefined> {
-    if (!bearerToken) {
-        return;
-    }
-
-    const verified = await verifyMcpToken(bearerToken);
-    if (!verified) {
-        return;
-    }
-
-    return {
-        clientId: verified.userId,
-        extra: { userId: verified.userId },
-        scopes: verified.scopes,
-        token: bearerToken,
-    };
+export function isMcpTokenRevoked(
+    issuedAt: number,
+    minIssuedAt: Date | null
+): boolean {
+    return minIssuedAt !== null && issuedAt < minIssuedAt.getTime();
 }

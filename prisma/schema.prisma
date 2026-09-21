@@ -121,6 +121,10 @@ model User {
     /// Bearer token used by browser extensions to ingest into this user's library
     /// without exposing session cookies.
     extensionIngestToken    String?                @unique
+    /// MCP tokens minted before this instant are revoked; null means no
+    /// revocation has been performed. `rotateMcpTokens` moves it to now so a
+    /// leaked MCP grant can be cut without rotating `BETTER_AUTH_SECRET`.
+    mcpTokenMinIssuedAt     DateTime?
     /// Library preference: whether smart collections auto-tagging is on. Smart
     /// collections runs only on the per-save event path; there is no scheduled
     /// catch-up batch. Defaults to off so a brand-new user must opt in before
