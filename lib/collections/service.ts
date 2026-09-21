@@ -39,6 +39,11 @@ import { LibraryCollectionError } from "./error";
 const COLLECTION_LIST_LIMIT_MAX = 9999;
 const LIBRARY_ITEMS_PAGE_LIMIT_DEFAULT = 9999;
 const LIBRARY_ITEMS_PAGE_LIMIT_MAX = 9999;
+/**
+ * Rows per membership INSERT statement. Two params per row keeps every
+ * statement far under the Postgres 65535 parameter cap.
+ */
+const COLLECTION_ITEMS_INSERT_CHUNK_SIZE = 1000;
 const LIBRARY_ITEM_TRASH_WINDOW_MS =
     LIBRARY_ITEM_TRASH_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -342,15 +347,30 @@ async function insertSharedCollectionItems(
         return;
     }
 
-    const rows = args.collectionIds.flatMap((collectionId) =>
-        args.itemIds.map((itemId) => Prisma.sql`(${collectionId}, ${itemId})`)
-    );
-
-    await tx.$executeRaw`
-        INSERT INTO "_CollectionToLibraryItem" ("A", "B")
-        VALUES ${Prisma.join(rows)}
-        ON CONFLICT DO NOTHING
-    `;
+    // Chunk the cross product so no statement exceeds
+    // COLLECTION_ITEMS_INSERT_CHUNK_SIZE rows. Sequential awaits are
+    // required: the interactive transaction holds a single connection.
+    for (const collectionId of args.collectionIds) {
+        for (
+            let offset = 0;
+            offset < args.itemIds.length;
+            offset += COLLECTION_ITEMS_INSERT_CHUNK_SIZE
+        ) {
+            const chunk = args.itemIds.slice(
+                offset,
+                offset + COLLECTION_ITEMS_INSERT_CHUNK_SIZE
+            );
+            await tx.$executeRaw`
+                INSERT INTO "_CollectionToLibraryItem" ("A", "B")
+                VALUES ${Prisma.join(
+                    chunk.map(
+                        (itemId) => Prisma.sql`(${collectionId}, ${itemId})`
+                    )
+                )}
+                ON CONFLICT DO NOTHING
+            `;
+        }
+    }
 }
 
 async function requireLibraryItemOwnedWithCollections(
@@ -534,17 +554,22 @@ export function createCollectionFromItems({
             userId,
         });
 
+        // Create the row first, then attach memberships with a chunked raw
+        // INSERT. A Prisma nested `connect` fans out per item and degrades
+        // past a few hundred ids; the raw statement writes 1000 rows each.
         const collection = await tx.collection.create({
             data: {
                 description: resolvedDescription,
-                items: {
-                    connect: toIdConnections(itemIds),
-                },
                 name: normalized.name,
                 nameKey: normalized.nameKey,
                 userId,
             },
             select: LIBRARY_COLLECTION_TAG_SELECT,
+        });
+
+        await insertSharedCollectionItems(tx, {
+            collectionIds: [collection.id],
+            itemIds,
         });
 
         return {
@@ -627,14 +652,6 @@ export function duplicateCollection({
         const duplicatedCollection = await tx.collection.create({
             data: {
                 description: sourceCollection.description,
-                items:
-                    sourceCollection.items.length > 0
-                        ? {
-                              connect: toIdConnections(
-                                  sourceCollection.items.map((item) => item.id)
-                              ),
-                          }
-                        : undefined,
                 name: normalized.name,
                 nameKey: normalized.nameKey,
                 priority: sourceCollection.priority,
@@ -642,6 +659,15 @@ export function duplicateCollection({
             },
             select: LIBRARY_COLLECTION_TAG_SELECT,
         });
+
+        // Same chunked raw INSERT as createCollectionFromItems: a nested
+        // `connect` fans out per item and degrades on large collections.
+        if (sourceCollection.items.length > 0) {
+            await insertSharedCollectionItems(tx, {
+                collectionIds: [duplicatedCollection.id],
+                itemIds: sourceCollection.items.map((item) => item.id),
+            });
+        }
 
         return {
             assignedItemIds: sourceCollection.items.map((item) => item.id),
@@ -1206,6 +1232,10 @@ interface ListRecentlyDeletedItemsArgs {
     userId: string;
 }
 
+interface CountRecentlyDeletedItemsArgs {
+    userId: string;
+}
+
 interface RecentlyDeletedItem {
     collections: LibraryCollectionTag[];
     daysRemaining: number;
@@ -1259,6 +1289,20 @@ export async function listRecentlyDeletedItems({
             deletedAt,
             item,
         };
+    });
+}
+
+export function countRecentlyDeletedItems({
+    userId,
+}: CountRecentlyDeletedItemsArgs): Promise<number> {
+    const cutoff = new Date(Date.now() - LIBRARY_ITEM_TRASH_WINDOW_MS);
+
+    return prisma.libraryItem.count({
+        where: {
+            deletedAt: { gte: cutoff },
+            kind: { not: ITEM_KIND_FOLDER },
+            userId,
+        },
     });
 }
 

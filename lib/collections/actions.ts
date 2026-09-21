@@ -19,7 +19,11 @@ import {
     handleActionError,
 } from "@/lib/common/action";
 import { unique } from "@/lib/common/array";
-import { ACTION_STATUS, DESCRIPTION_MAX_LENGTH } from "@/lib/common/constants";
+import {
+    ACTION_STATUS,
+    COLLECTION_CREATE_FROM_ITEMS_MAX_ITEMS,
+    DESCRIPTION_MAX_LENGTH,
+} from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import type { CollectionPriority } from "@/prisma/client/enums";
 import { LibraryCollectionError } from "./error";
@@ -35,7 +39,13 @@ const CollectionCreateInputSchema = z.object({
 
 const CollectionCreateFromItemsInputSchema = z.object({
     description: z.string().trim().max(DESCRIPTION_MAX_LENGTH).optional(),
-    itemIds: z.array(z.string().trim().min(1)).min(1).max(500),
+    itemIds: z
+        .array(z.string().trim().min(1))
+        .min(1)
+        .max(
+            COLLECTION_CREATE_FROM_ITEMS_MAX_ITEMS,
+            `Collections can hold up to ${COLLECTION_CREATE_FROM_ITEMS_MAX_ITEMS} items at a time. Refine the results and try again.`
+        ),
     name: collectionNameSchema,
 });
 
