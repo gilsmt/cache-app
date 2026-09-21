@@ -108,7 +108,7 @@ chore(deps): upgrade Prisma to v7
 ### Setup
 
 ```bash
-git clone https://github.com/rortan134/cache-app.git
+git clone https://github.com/gilsmt/cache-app.git
 cd cache-app
 bun install
 
