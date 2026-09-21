@@ -1,5 +1,5 @@
 /** GitHub repository that hosts desktop installers. */
-export const DESKTOP_GITHUB_REPO = "rortan134/cache-app" as const;
+export const DESKTOP_GITHUB_REPO = "gilsmt/cache-app" as const;
 
 /**
  * Product name passed to Pake (`--name`). Keep in sync with

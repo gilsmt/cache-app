@@ -1,6 +1,7 @@
 import { T } from "gt-next";
 import Link from "next/link";
 import { GDPRIcon } from "@/components/ui/icons";
+import { CHANGELOG_URL, DOCS_URL, SUPPORT_URL } from "@/lib/common/constants";
 
 export function Footer() {
     return (
@@ -12,12 +13,32 @@ export function Footer() {
                             <div className="flex flex-row flex-wrap gap-6 [&:has(a:hover,a:focus-visible)_a:focus-visible]:opacity-100 [&:has(a:hover,a:focus-visible)_a:hover]:opacity-100 [&:has(a:hover,a:focus-visible)_a]:opacity-25 [&_a:focus-visible]:opacity-100 [&_a:hover]:opacity-100 [&_a]:opacity-50 [&_a]:transition-opacity [&_a]:duration-300">
                                 <Link
                                     className="underline"
-                                    href="https://docs.cachd.app"
+                                    href={DOCS_URL}
                                     rel="noopener noreferrer"
                                     target="_blank"
                                 >
                                     <p>
                                         <T>Docs</T>
+                                    </p>
+                                </Link>
+                                <Link
+                                    className="underline"
+                                    href={CHANGELOG_URL}
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    <p>
+                                        <T>Changelog</T>
+                                    </p>
+                                </Link>
+                                <Link
+                                    className="underline"
+                                    href={SUPPORT_URL}
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    <p>
+                                        <T>Support</T>
                                     </p>
                                 </Link>
                                 <Link

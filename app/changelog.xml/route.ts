@@ -24,7 +24,7 @@ function escapeXml(str: string) {
 export async function GET() {
     try {
         const response = await fetch(
-            "https://api.github.com/repos/rortan134/cache-app/releases",
+            "https://api.github.com/repos/gilsmt/cache-app/releases",
             {
                 headers: { Accept: "application/vnd.github+json" },
                 next: { revalidate },

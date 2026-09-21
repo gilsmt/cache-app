@@ -19,7 +19,9 @@ export const DOCS_URL = "https://docs.cachd.app";
 
 export const CHANGELOG_URL = `${DOCS_URL}/docs/changelog`;
 
-export const GITHUB_URL = "https://github.com/rortan134/cache-app";
+export const SUPPORT_URL = DOCS_URL;
+
+export const GITHUB_URL = "https://github.com/gilsmt/cache-app";
 
 export const CACHE_EXTENSION_ID = "fibhdcjlclheehonialdpealhemmoikn";
 export const CACHE_EXTENSION_DOWNLOAD_URL =
@@ -59,6 +61,8 @@ export const FREE_LIBRARY_PREVIEW_ITEMS = 12;
 export const MAX_COLLECTIONS_PER_ITEM = 100;
 
 export const BATCH_UPDATE_MAX_ITEMS = 500;
+
+export const COLLECTION_CREATE_FROM_ITEMS_MAX_ITEMS = 9999;
 
 export const MAX_COLLECTIONS_PER_BATCH = 100;
 

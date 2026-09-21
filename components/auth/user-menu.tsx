@@ -52,7 +52,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeSelector } from "@/components/ui/theme";
 import { authClient, useSession } from "@/lib/auth/client";
 import type { Session } from "@/lib/auth/session";
-import { ACTION_STATUS } from "@/lib/common/constants";
+import {
+    ACTION_STATUS,
+    CHANGELOG_URL,
+    GITHUB_URL,
+    SUPPORT_URL,
+} from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { getInitials } from "@/lib/common/string";
 import { getDesktopDownloads } from "@/lib/desktop/actions";
@@ -737,8 +742,7 @@ function UserMenuAccountActionsSubMenu(
                         className="justify-between"
                         render={
                             <Link
-                                href="/changelog"
-                                prefetch={false}
+                                href={CHANGELOG_URL}
                                 rel="noopener noreferrer"
                                 target="_blank"
                             />
@@ -751,7 +755,7 @@ function UserMenuAccountActionsSubMenu(
                         className="justify-between"
                         render={
                             <Link
-                                href="https://docs.cachd.app/docs/privacy"
+                                href={SUPPORT_URL}
                                 rel="noopener noreferrer"
                                 target="_blank"
                             />
@@ -764,7 +768,7 @@ function UserMenuAccountActionsSubMenu(
                         className="justify-between"
                         render={
                             <Link
-                                href="https://github.com/rortan134/cache-app"
+                                href={GITHUB_URL}
                                 rel="noopener noreferrer"
                                 target="_blank"
                             />

@@ -23,13 +23,13 @@ describe("matchDesktopPlatform", () => {
 describe("getDesktopLatestDownloadUrl", () => {
     test("builds stable latest-download URLs", () => {
         expect(getDesktopLatestDownloadUrl("macos")).toBe(
-            "https://github.com/rortan134/cache-app/releases/latest/download/Cache.dmg"
+            "https://github.com/gilsmt/cache-app/releases/latest/download/Cache.dmg"
         );
         expect(getDesktopLatestDownloadUrl("windows")).toBe(
-            "https://github.com/rortan134/cache-app/releases/latest/download/Cache_x64.msi"
+            "https://github.com/gilsmt/cache-app/releases/latest/download/Cache_x64.msi"
         );
         expect(getDesktopLatestDownloadUrl("linux")).toBe(
-            "https://github.com/rortan134/cache-app/releases/latest/download/Cache_x86_64.AppImage"
+            "https://github.com/gilsmt/cache-app/releases/latest/download/Cache_x86_64.AppImage"
         );
     });
 });
@@ -61,7 +61,7 @@ describe("buildDesktopReleaseDownloads", () => {
                     name: "README.md",
                 },
             ],
-            html_url: "https://github.com/rortan134/cache-app/releases/v1.0.0",
+            html_url: "https://github.com/gilsmt/cache-app/releases/v1.0.0",
             tag_name: "v1.0.0",
         });
 
@@ -89,7 +89,7 @@ describe("buildDesktopReleaseDownloads", () => {
                         name: "source.zip",
                     },
                 ],
-                html_url: "https://github.com/rortan134/cache-app/releases/v1",
+                html_url: "https://github.com/gilsmt/cache-app/releases/v1",
                 tag_name: "v1",
             })
         ).toBeNull();
