@@ -15,11 +15,6 @@ import { decodeHtmlEntities } from "@/lib/common/string";
 
 export const NOTE_EMPTY_HTML = "<p></p>";
 
-export type NoteSerializedEditorState = SerializedEditorState;
-
-type NoteSerializedElementNode = SerializedElementNode<SerializedLexicalNode>;
-type NoteSerializedRootNode = NoteSerializedEditorState["root"];
-
 const NOTE_ALLOWED_TAGS = new Set([
     "a",
     "blockquote",
@@ -78,7 +73,7 @@ export function escapeNoteHtmlText(value: string): string {
 
 function isNoteSerializedElementNode(
     value: unknown
-): value is NoteSerializedElementNode {
+): value is SerializedElementNode {
     return (
         isRecord(value) &&
         typeof value.type === "string" &&
@@ -88,7 +83,7 @@ function isNoteSerializedElementNode(
 
 function isNoteSerializedRootNode(
     value: unknown
-): value is NoteSerializedRootNode {
+): value is SerializedEditorState["root"] {
     return isNoteSerializedElementNode(value) && value.type === "root";
 }
 
@@ -156,7 +151,7 @@ function renderNoteChildren(children: SerializedLexicalNode[]): string {
 
 function renderNoteElement(
     tag: "p" | SerializedHeadingNode["tag"],
-    node: NoteSerializedElementNode
+    node: SerializedElementNode
 ): string {
     return `<${tag}>${renderNoteChildren(node.children)}</${tag}>`;
 }
@@ -202,12 +197,12 @@ export function normalizeNoteHtml(html: string | null | undefined): string {
 
 export function isNoteSerializedEditorState(
     value: unknown
-): value is NoteSerializedEditorState {
+): value is SerializedEditorState {
     return isRecord(value) && isNoteSerializedRootNode(value.root);
 }
 
 export function serializeNoteEditorStateToHtml(
-    editorState: NoteSerializedEditorState
+    editorState: SerializedEditorState
 ): string {
     const html = renderNoteNode(editorState.root);
     return sanitizeNoteHtml(html);

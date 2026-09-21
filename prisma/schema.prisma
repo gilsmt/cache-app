@@ -105,6 +105,15 @@ enum AutomationRunStatus {
     canceled
 }
 
+/// Author of a chat message. Only user questions and assistant answers
+/// persist; tool calls stream without being stored so history stays readable.
+/// A chat may stand alone or link to an automation run, so this enum lives
+/// outside the automation domain.
+enum ChatMessageRole {
+    user
+    assistant
+}
+
 /// Managed by better-auth core, with Cache-specific user preferences added.
 /// Do not rename auth-owned fields; better-auth reads them by convention.
 model User {
@@ -137,6 +146,7 @@ model User {
     libraryActivityEvents   LibraryActivityEvent[]
     automations             Automation[]
     automationRuns          AutomationRun[]
+    chats                   Chat[]
     comments                Comment[]
 
     feedbackEntries Feedback[]
@@ -347,6 +357,7 @@ model AutomationRun {
     collectionNameSnapshot String?
     promptSnapshot         String
     scheduleSnapshot       Json
+    chat                   Chat?
     createdAt              DateTime               @default(now())
     updatedAt              DateTime               @updatedAt
 
@@ -354,6 +365,38 @@ model AutomationRun {
     @@index([status, scheduledForUtc])
     @@index([automationId, createdAt])
     @@map("automation_run")
+}
+
+/// Assistant conversation owned by a user. A chat may stand alone or extend
+/// an automation run; the optional run link carries the run output and its
+/// library payload into follow-ups. One chat per run keeps the sidebar stable.
+model Chat {
+    id              String         @id @default(cuid())
+    userId          String
+    user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    title           String
+    automationRunId String?        @unique
+    automationRun   AutomationRun? @relation(fields: [automationRunId], references: [id], onDelete: SetNull)
+    messages        ChatMessage[]
+    createdAt       DateTime       @default(now())
+    updatedAt       DateTime       @updatedAt
+
+    @@index([userId, updatedAt])
+    @@map("chat")
+}
+
+/// Single persisted exchange inside a chat. Tool calls stream without being
+/// stored, so only user questions and assistant answers land here.
+model ChatMessage {
+    id        String         @id @default(cuid())
+    chatId    String
+    chat      Chat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    role      ChatMessageRole
+    content   String
+    createdAt DateTime       @default(now())
+
+    @@index([chatId, createdAt])
+    @@map("chat_message")
 }
 
 /// Managed by better-auth core. Do not rename fields.

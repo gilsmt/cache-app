@@ -1,7 +1,10 @@
 {
   "019869a6c0157892": "Términos del Servicio",
+  "0258e612b158655d": "Nota sin título",
   "03560a0d75adf329": "Productividad",
   "0400595ed6026e78": "Usar tema del sistema",
+  "055ee2b070db4f97": "Enviar opinión",
+  "05b985f47a30af5c": "Añade un comentario a cualquier elemento guardado y aparecerá aquí.",
   "062b5e45e86d2cc4": {
     "c": [
       {
@@ -33,12 +36,39 @@
     }
   ],
   "090dd58a9e726297": "Lectores curiosos",
+  "0a3be36a949e3fa3": "Detener la generación",
+  "0a526f1ba3d398ce": "Buscar…",
+  "0a6340f99818626d": "Si tienes un momento, cuéntanos qué no funcionó o en qué Cache no cumplió tus expectativas. Tu opinión nos ayuda a mejorar la aplicación Cache.",
   "0d5988f4c0fbf2ad": "Cuenta de Cache",
-  "0de517eebed93c10": "Empieza gratis հիմա",
+  "0dbd5d47d8b197a8": [
+    {
+      "c": [
+        "Guarda con un clic,",
+        {
+          "i": 2,
+          "t": "br"
+        },
+        {
+          "c": "y los agentes de IA se encargan del resto",
+          "i": 3,
+          "t": "span"
+        }
+      ],
+      "i": 1,
+      "t": "h2"
+    },
+    {
+      "c": "Resume, investiga, compara o redacta con los marcadores relevantes ya en contexto.",
+      "i": 4,
+      "t": "p"
+    }
+  ],
+  "0de517eebed93c10": "Empieza gratis ahora",
+  "0ee98438909e178b": "Últimos 30 días",
   "104132fd795e5775": "Se elimina hoy",
-  "107b1bf538b68e5f": "Copyright © Cache App. Todos los derechos reservados.",
   "111a44209dc6e701": "Eliminar",
   "11503a3d12f43fdd": "Documentos oficiales que regulan tu relación con nosotros y explican cómo tratamos los datos. Elige un tema a continuación para leer el texto completo.",
+  "1168d0b54232a485": "Fallida",
   "118ab776d12b969b": [
     "Devuelve ",
     {
@@ -50,6 +80,7 @@
   ],
   "11d641c2c7d32f5c": "No hemos podido abrir la facturación ahora mismo.",
   "1251dfcf3fa4d431": "Acuerdo de tratamiento de datos de {appName}: cómo tratamos y protegemos los datos personales.",
+  "133533b015cd9278": "Cargando resumen…",
   "136b10cbfdf209dd": [
     {
       "c": {
@@ -77,7 +108,9 @@
       "t": "div"
     }
   ],
+  "142b7634aca3d343": "Enviado a Notion.",
   "148d5dd8e5fc0bcc": "Te damos la bienvenida a Cache",
+  "151b93d63c8df7a4": "Gracias por probar Cache",
   "15c8a471fd9b053b": [
     {
       "i": 1,
@@ -86,9 +119,11 @@
     },
     " se moverá a Eliminados recientemente. Tendrás 30 días para restaurarlo antes de que se elimine permanentemente. Esto solo lo elimina de tu biblioteca, no de la plataforma original."
   ],
+  "185a3a4c5eec5ceb": "Últimos 3 días",
   "1875c90761635cfa": "El resumen no está disponible ahora mismo.",
   "19ed295bdbbd37e9": "Política de Privacidad",
   "1ad7b60584ddc5de": "Tendrás que volver a iniciar sesión para acceder a tu biblioteca.",
+  "1b0170c70210a7ff": "Haz otra pregunta…",
   "1b691e9402e0f0db": [
     {
       "c": {
@@ -122,10 +157,10 @@
     "i": 1,
     "t": "p"
   },
-  "1e850b13fa5eae43": "Guardado",
   "20529ca475e73f99": "Tema",
   "2160b45b8ed704e5": "Los elementos que elimines de tu biblioteca permanecerán aquí durante 30 días antes de eliminarse para siempre.",
   "228f947f7df3af4d": "Añadir otra cuenta...",
+  "22d56462418ed284": "Vista previa de {title}",
   "22ecdfc00af0782c": [
     {
       "c": [
@@ -158,27 +193,13 @@
       "t": "li"
     }
   ],
-  "230a6fc79f364a03": [
-    {
-      "c": "Casos de uso",
-      "i": 1,
-      "t": "span"
-    },
-    {
-      "i": 2,
-      "t": "br"
-    },
-    {
-      "c": "Trabajo, vida y todo lo demás.",
-      "i": 3,
-      "t": "span"
-    },
-    " Cache es para…"
-  ],
   "24027d4e6ab343d5": "Gestiona automatizaciones sencillas que organizan y resumen tu contenido guardado.",
+  "2460d9e8644d82da": "Cache es para todos los temas que te importan. Un espacio diseñado para todo lo que guardas. Hazle preguntas, genera ideas a partir de ello, redacta e investiga con todo lo que has guardado ya como contexto. Cuanto más añadas, más inteligente será.",
   "251aca485fefb2c6": "Empieza a escribir o pega un enlace para añadirlo...",
+  "258d16c1554b734c": "Copiar enlace",
   "25e5fbe77d7cc75c": "o",
   "25f457f910ba96b7": "Recomendado",
+  "263b25fd4e958777": "No hemos podido eliminar permanentemente tus elementos en este momento.",
   "26fe9d3e34588477": "Cerrar sesión",
   "27d7979205fe23f9": "¿Eliminar tu cuenta?",
   "2913d419f4111c4f": "Comenta este elemento",
@@ -187,39 +208,31 @@
   "2d905536ddbff96d": "Cerrar sesión",
   "2e477bab4317c062": "No se pudo añadir otra cuenta.",
   "2e9224bc11574ab5": "Exportar a Markdown",
-  "31e3e8d137ca1b40": "Mostrar {count} más",
+  "3136393af3e1a76a": "Mostrar u ocultar el panel de integraciones",
+  "314468e0bdda2688": "Abrir en",
   "32b19c3e4683dc66": "¿Eliminar marcadores duplicados?",
-  "32cc81324cd4e5d2": "Añade un comentario...",
+  "3414b088dde8621b": "Guardando...",
+  "34b440f7dd401997": "Anteriores",
+  "35a8ba9962016e65": "Abrir las pestañas laterales",
+  "35bc93dd8971dab1": "Pregunta sobre la aplicación Cache en",
+  "3698ef1870be20c6": "Error en la solicitud",
+  "37163916fecb17c6": "Nueva nota",
+  "3843c27670bbf642": "No tienes conexión. Los cambios que hagas podrían perderse hasta que recuperes la conexión. Comprueba tu conexión e inténtalo de nuevo.",
   "3937ec0f8b9c2f95": "No se ha podido descargar este archivo multimedia. Inténtalo de nuevo.",
-  "3a9c949fbbeae41b": [
-    "Se elimina dentro de ",
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    },
-    " día"
-  ],
   "3b141ebe5a75d3fd": "{current} de {count}",
   "3b205a1c17c06fbd": "Favoritos",
   "3b244622a56ac1bc": "¿Eliminar?",
   "3cc401c973c3d2ba": "Abrir la barra lateral",
   "3d26c791d3bcb69a": "Seguridad",
-  "3dea5f947f5fc048": [
-    "Ahorra horas cada semana con una forma más inteligente de gestionar todo lo que guardas en Internet.",
-    {
-      "i": 1,
-      "t": "br"
-    },
-    "Pon orden en el caos desde 8 $ al mes."
-  ],
   "3fe9728594a7340c": "Quitar filtros",
   "400a7d9516cfbfd6": "Gestor de marcadores | {appName}",
   "408574e37e8d91ee": "pronto",
   "43c4658708e52e85": "Eliminar cuenta",
+  "43c5fbd02c6f330a": "Mostrar menos",
   "442ad87bcc4b1187": "No hay nada que restaurar ahora mismo",
   "446fc0e1621b7ae8": "Soporte",
   "4593e3bd9f747b95": "Hazte Pro mensual",
+  "4681c4c9541539a4": "Iniciar sesión",
   "4842519093db3e53": [
     {
       "c": "Busca y explora desde un único feed rápido",
@@ -246,6 +259,14 @@
     }
   ],
   "4d1751261b773c2c": "¿Restaurar este elemento guardado?",
+  "4d4959bee757085b": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " colecciones"
+  ],
   "4d587a9524c95dd7": [
     "Accede a todos tus ",
     {
@@ -255,17 +276,31 @@
     },
     " marcadores."
   ],
+  "4e58b00dd0d6f8a9": "Formato de texto",
+  "4f344145221df575": "Cerrar vista previa ({shortcut})",
   "4fc630d6b2bf647f": "Restaurar",
+  "54163ab3c44d09a4": "Cuéntanos qué no funcionó o en qué Cache no cumplió tus expectativas.",
   "54733851c614db5d": "Esto cancela cualquier suscripción activa y elimina permanentemente tu biblioteca, tus colecciones y los datos de tu cuenta. Esta acción no se puede deshacer.",
   "569571a2b12ca3fe": "Biblioteca",
   "56d9e7462d146a1e": "Política de privacidad de {appName}: cómo recopilamos, utilizamos y protegemos los datos personales.",
-  "57e47beccd8ac997": "Hazte premium",
   "5930189d0848c328": "Creadores y curadores",
   "59470116de88a745": "Artículos, ensayos, newsletters. Una biblioteca viva en lugar de un cementerio de lecturas pendientes.",
   "595765ef1a782850": "Privacidad de Cache",
   "5a0a4ee1bf2a58dc": "No se pudieron cargar las cuentas guardadas.",
   "5a8b7ed8982653e0": "Descartar",
   "5aa41c2dff6613bf": "Eliminados recientemente",
+  "5adc88d41cfe0263": "Contraer grupo",
+  "5d353f1426949b52": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " actualizaciones"
+  ],
+  "5d756254c8a3a577": "© Cache App. Todos los derechos reservados.",
+  "5d7e34ba2a6a05dd": "Abrir pestañas recientes",
+  "5e37f4b517dff1e2": "Enviar a Notion",
   "5f7836df60f0e71e": "Estas páginas pueden actualizarse periódicamente. La versión publicada en este sitio es la que está vigente en el momento de tu visita.",
   "600433e7972a7e75": "Facturación",
   "606daf45fd88b674": "Escritores y pensadores",
@@ -281,7 +316,41 @@
       "t": "p"
     }
   ],
+  "61fadecde1736c6d": "Ir a {label}",
+  "62eae48ff290efd4": "Guardar la imagen del logotipo",
   "634fd36cce8909a0": "Instala la extensión",
+  "64705455763736a6": [
+    {
+      "c": [
+        {
+          "i": 2,
+          "t": "Search"
+        },
+        {
+          "c": "Pregunta y Cache encontrará lo que necesitas",
+          "i": 3,
+          "t": "span"
+        }
+      ],
+      "i": 1,
+      "t": "li"
+    },
+    {
+      "c": [
+        {
+          "i": 5,
+          "t": "Lightbulb"
+        },
+        {
+          "c": "Habla con la IA sobre tus marcadores en contexto",
+          "i": 6,
+          "t": "span"
+        }
+      ],
+      "i": 4,
+      "t": "li"
+    }
+  ],
   "64b08e57a2f2e7b7": "Cómo procesamos y protegemos los datos personales de los clientes.",
   "64ca722508a892f5": "Importa desde otras aplicaciones",
   "6516055cdbb1b570": "Buscar atajos",
@@ -299,6 +368,8 @@
     }
   ],
   "69cac161cf484cd9": "No hemos podido abrir el proceso de pago ahora mismo.",
+  "6a02c2d68b5ef50d": "Chatea con Cache sobre el contenido que has guardado.",
+  "6a348673e552d166": "Abrir o cerrar la vista previa",
   "6a48fd0a37e725a1": "Legal",
   "6b75fd08ca7c6ae3": [
     {
@@ -345,6 +416,18 @@
       "t": "li"
     }
   ],
+  "6d7ffa8a64927a74": [
+    {
+      "c": "Detecta lo obsoleto y conserva lo útil",
+      "i": 1,
+      "t": "h2"
+    },
+    {
+      "c": "Crea una base de conocimiento a partir del contenido guardado que ya has marcado como importante. Importa todo una vez y Cache lo organiza en minutos.",
+      "i": 2,
+      "t": "p"
+    }
+  ],
   "6dc17c680e88d0a7": [
     {
       "c": [
@@ -384,8 +467,18 @@
       "t": "li"
     }
   ],
+  "6e9e7ff7e44b0b68": [
+    "+",
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " más"
+  ],
   "6f1b661d2c2cb538": "Desconocido",
   "6f6eccbaa122fcae": "Usar tema oscuro",
+  "6f938d5cbd13aeab": "Comentarios",
   "7120e94fedd7615d": {
     "c": [
       {
@@ -443,9 +536,11 @@
     " elementos de Eliminados recientemente. Esta acción no se puede deshacer."
   ],
   "76215760a48c21ac": "Usar tema claro",
+  "76c7db717571ae61": "Pensando…",
   "7721d8d00edabeda": "Cerrando sesión…",
   "7778504b2e559b68": "El gestor de marcadores con IA para gente ocupada. Consulta, gestiona y organiza tus marcadores en todas tus plataformas.",
   "7842d17ac91e7c4f": "Acciones de la cuenta",
+  "79e96b9deacbf022": "No guardado",
   "7a6c957300c408f9": "Privacidad",
   "7a8ec4ce7cf50dc7": "Eliminados recientemente",
   "7ae945f28f4ed360": "Cerrar la barra lateral ({shortcut})",
@@ -453,14 +548,19 @@
   "7bf38c4262e9fc77": "Abriendo la página.",
   "7ca9c9a15764489d": "GitHub",
   "7d288c9b77b0a60e": "Información legal y políticas",
-  "7e4a1101bc29031b": "Abrir...",
   "7f8cb8174c6d288f": "Siguiente",
+  "807a81ec10ab2e49": "Cerrar vista previa",
   "81ae67bbef7a15d0": "De código abierto. Realmente tuyo",
-  "82d31940c8fa920c": "No tienes conexión. Los cambios que hagas podrían perderse hasta que vuelvas a conectarte.",
-  "841cad15ee2276fc": "Recursos",
+  "81cd4e150d2a29be": "Opinión",
+  "8225bb0311245046": "Abrir vista previa ({shortcut})",
+  "82fa9c3fa8006d4a": "Aún no hay conversaciones.",
+  "831f4549b7a6bcec": "1 colección",
+  "842a791ab1f466f2": "Mensaje de la conversación",
+  "84fe4dbea97aa37b": "Te damos la bienvenida a Pro",
   "855fc8d0a319071f": "Completa esta lista",
   "86311df6a7e1f583": "Los elementos guardados de tus cuentas conectadas y de las importaciones de la extensión aparecen a continuación por origen.",
   "87254fc32f854b77": "No se pudo cambiar de cuenta.",
+  "878c23d10d0dffc2": "No hemos podido eliminar permanentemente este elemento guardado ahora mismo.",
   "87f6f3f373779010": [
     {
       "c": [
@@ -493,23 +593,23 @@
       "t": "li"
     }
   ],
+  "89e3997e9381f3b2": "Tu opinión ayuda a mejorar Cache.",
   "8a356f348a1058a6": "Las plataformas de terceros a las que te conectas a través del Servicio operan de forma independiente a Cache. Cache no controla sus políticas ni cómo las aplican, y no se hace responsable de las decisiones que esas plataformas tomen sobre tus cuentas o tu acceso a sus servicios, incluidos, entre otros, los cambios en la disponibilidad, estén o no relacionados con tu uso de Cache. Eres responsable de cumplir los términos, las políticas y las community guidelines de cada plataforma. Cache no será responsable de ningún inconveniente, pérdida u otra consecuencia derivada de tu relación con esas plataformas o de tu uso del Servicio en relación con ellas.",
+  "8a51ee5e4662b88d": "Enlace copiado",
+  "8a723b4bf185e6f1": "Archivo Markdown",
   "8b045bc1a6270fb5": "Colecciones",
+  "8c832a04815bdfdd": "Conversaciones",
   "8d01ed931a4c5812": "Eliminando…",
   "8ebdbcb486fb7060": "Suscripción",
   "8eeee33f47318d9a": "Hilos, vídeos, inspiración. Agrupa ideas en colecciones y compártelas.",
   "8fba3b366db17ad6": "Todavía no hay automatizaciones",
   "9212372dca975209": "Cargando vista previa...",
   "92e47f5de41fd261": "No se han encontrado atajos",
-  "933fa7740fe8c681": {
-    "i": 1,
-    "k": "_gt_value_1",
-    "v": "v"
-  },
   "93b9717cc1acb2fd": "Documentos legales, políticas y avisos de {appName}.",
   "93f881a7033302b7": "El paso que faltaba entre guardar marcadores y tomar notas. Estructurado, fácil de buscar y siempre a mano cuando lo necesitas.",
   "94c20ff6b75d8acb": "Cómo recopilamos, usamos y protegemos la información personal.",
   "9588289bb956e0d6": "Documentación",
+  "95ee62a0d6968b89": "Enviar mensaje",
   "97f68bd29d3d4247": {
     "c": [
       {
@@ -522,15 +622,19 @@
     "i": 1,
     "t": "span"
   },
-  "98515f1201b25dcc": "+{count} más",
   "98f22f896e28d856": "Crea una para resumir u organizar el contenido guardado según una programación.",
   "996e972b969048e9": "Acuerdo de Tratamiento de Datos",
   "99e4c3ba36537129": "Cancelar",
+  "9ac1770bd802f44d": "No hemos podido restaurar este elemento guardado en este momento.",
+  "9bba908de65db48f": "Tu biblioteca ya está totalmente desbloqueada, junto con todas las integraciones.",
+  "9e172217c3e3d8ae": "Pasar a Pro",
+  "9e2fa260be397f55": "Sincroniza contenido de otras aplicaciones en tu biblioteca.",
   "9fd82b2890ce2961": "Ocultar sugerencias",
   "a06f2446c9ee9132": "Referencias, citas, fragmentos. Una base documental con buscador para tu material de trabajo.",
   "a0dceb2ba7bdebac": "No hay colecciones que coincidan con esta vista.",
   "a1266e82c6a1f68f": "Mostrar sugerencias",
   "a190980699ae2ce2": "Términos del servicio de {appName}: normas de uso del servicio, las cuentas y el uso aceptable.",
+  "a3aba2685c853fe4": "Copiar nota",
   "a3bf9c945c7318bb": "Automatizaciones",
   "a4ecc2d52fb9c50b": "Política de Privacidad",
   "a586e0692358c532": "Actualiza para acceder por completo a Cache y a todas las integraciones",
@@ -557,8 +661,8 @@
   "a98a66fcfa96ef4d": "Descargar la aplicación de escritorio",
   "ab47f58386924b4f": "Anterior",
   "ab4abf4e5a6f6057": "No guardado",
-  "ab67881e5cba62f3": "Cargando resumen...",
   "aba29e77e52bca46": "Eliminar",
+  "abe69a4d3c229cef": "Empieza a explorar",
   "ae4483d35e3db50a": [
     {
       "i": 1,
@@ -580,57 +684,34 @@
     "i": 1,
     "t": "span"
   },
+  "af43d47f47fecd78": "Ahorra horas cada semana con una forma más inteligente de gestionar todo lo que guardas en internet, desde 8&nbsp;$/mes.",
+  "afda415d2d75a5d3": "Conversación",
   "b0218088cb0cf61f": "Atajos de teclado",
   "b04df1727faed146": "Tus cuentas",
-  "b094c95a043884f2": [
-    {
-      "c": "Detecta lo obsoleto, quédate con lo útil",
-      "i": 1,
-      "t": "h2"
-    },
-    {
-      "c": "Crea una base de conocimiento a partir del contenido que ya has marcado como importante. Importa de una vez tus guardados dispersos y Cache los organiza en cuestión de minutos.",
-      "i": 2,
-      "t": "p"
-    }
-  ],
+  "b0aeb2ddd7f89636": "Haz un seguimiento de esta ejecución de automatización.",
+  "b127631d1a822ff6": "Enviando a Notion…",
   "b33e2234ec4ab823": "Plan gratuito",
   "b5d5276005980a36": "Creadores y desarrolladores",
   "b80f68728546aeb4": "Programa tareas para organizar tu biblioteca, investigar temas, resumir contenido y mucho más, todo en piloto automático",
+  "b9a07e47a8a8bd4d": "Aún no hay comentarios",
+  "b9a24a2ced57204c": "Sin guardar",
+  "ba6be79919a3606b": "Se eliminará en 1 día",
   "baf0f86dd08375f6": "Los elementos restaurados vuelven a tu biblioteca con sus colecciones y vistas previas intactas. Los elementos que se queden aquí se eliminarán para siempre al cabo de 30 días.",
+  "bc9419dbf504b966": "Fuentes",
   "bdca7a026d7dfe86": "Expandir o contraer la barra lateral",
   "be1da3273ffdb5bd": "Inténtalo de nuevo",
-  "be91a1ae4b09d55e": [
-    {
-      "c": [
-        "Guardas con un clic,",
-        {
-          "i": 2,
-          "t": "br"
-        },
-        {
-          "c": "y los agentes de IA se encargan del resto",
-          "i": 3,
-          "t": "span"
-        }
-      ],
-      "i": 1,
-      "t": "h2"
-    },
-    {
-      "c": "Resume, investiga, compara o redacta con los marcadores relevantes ya como contexto.",
-      "i": 4,
-      "t": "p"
-    }
-  ],
+  "bf0f37f53a4e2d62": "Vista previa",
   "c1172428bea235ca": "Normas que rigen el uso del servicio, la gestión de tu cuenta y el uso aceptable.",
-  "c14e30b692531169": "Cerrando sesión...",
+  "c154d98281ba13c7": "Inicia sesión para acceder a tu biblioteca de marcadores.",
   "c201feaf9ce6b5e7": "No hay comandos que coincidan",
   "c26fd6852bfece9e": "Continuar con Google",
+  "c27a41363d54f77c": "No hay pestañas recientes",
   "c3aef4418640a206": "Abrir el menú de la cuenta",
+  "c3c740f0509a6666": "Cerrar {title}",
   "c4244c4a6f71e511": "Abrir en una pestaña nueva",
   "c5295b7ae2709a4a": "Vista previa no disponible",
   "c5fc56c3b225be76": "Más",
+  "c6fa2905d56a750c": "Guardado",
   "c7b6b877e9f2b845": [
     "Eliminar permanentemente ",
     {
@@ -640,8 +721,8 @@
     },
     " de Cache. Esta acción no se puede deshacer."
   ],
+  "c7cc2f6d70115ecd": "Documentación, incidencias, código, tutoriales. Encuentra ese enlace justo cuando lo necesites.",
   "c884609397b72df2": "anual",
-  "cac379defffef8e1": "Guardar el logotipo como PNG",
   "cb96d2ca669800f2": "Automatizaciones",
   "cca6a310f45ce736": [
     {
@@ -670,6 +751,7 @@
     }
   ],
   "cf702c635fa32efc": "Acuerdo de Tratamiento de Datos",
+  "d03076d5acec1a0e": "Comentarios que añadiste a elementos guardados, con los más recientes primero.",
   "d127f26d5bae862d": [
     "Versión ",
     {
@@ -679,8 +761,11 @@
     }
   ],
   "d15d4ce9981708e9": "Cancelar",
-  "d1edcc74a0659fe9": "Pregunta acerca de Cache en",
+  "d31dc412ebd02566": "Comentarios",
   "d353ed81b71684aa": "Integraciones",
+  "d454bfdeea6f1129": "Abrir vista previa",
+  "d629568ad0f37c3b": "Expandir grupo",
+  "d6d332435e8999a5": "Mensaje de opinión",
   "d6db6a63bfbd1a36": "o ahorra con la facturación anual",
   "d70e4938efa65780": {
     "c": [
@@ -697,9 +782,30 @@
   "d726e831afa7781a": "Cerrar la barra lateral",
   "d83e1bdafb7ed7fd": "Todas las versiones",
   "d8c5029d8bebbcef": "Este elemento contiene una demostración interactiva para usuarios videntes en la que se muestra la interfaz de la aplicación Cache. La interfaz aparece sobre un fondo de marca liso y sutil.",
-  "da7d2d5def438189": "Mostrar menos",
   "daf8daec701f0863": "Cuenta",
+  "db724a3f3f831f1b": "Últimos 7 días",
   "db72ad3b2501e7a9": "Cargando cuentas",
+  "dc23b2ce392af966": "Abrir {title} en el panel lateral",
+  "dcd682bb19153efe": [
+    {
+      "c": [
+        "Casos de uso",
+        {
+          "i": 2,
+          "t": "br"
+        }
+      ],
+      "i": 1,
+      "t": "span"
+    },
+    {
+      "c": "Trabajo, vida y todo lo demás.",
+      "i": 3,
+      "t": "span"
+    },
+    " Cache es para…"
+  ],
+  "dce930d99de233a7": "Términos",
   "ddc161e16a7e8f5a": [
     {
       "i": 1,
@@ -713,6 +819,15 @@
       "v": "v"
     }
   ],
+  "de45b075b016cb14": [
+    "Mostrar ",
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    " más"
+  ],
   "de63b8aec42f9bee": [
     "Has iniciado sesión como ",
     {
@@ -722,10 +837,6 @@
     }
   ],
   "deb397e0176082b2": "¿Eliminar todos los elementos para siempre?",
-  "df1e129351e613b9": "Sincroniza tus marcadores de otros servicios en tu biblioteca.",
-  "e09a36ef3ffd9115": "Sin guardar",
-  "e1897047828fc955": "Documentación, incidencias, código, tutoriales. Encuentra ese enlace concreto al instante.",
-  "e1a353c384c700f1": "Buscar...",
   "e3fb410a95d4f393": [
     {
       "c": "Crea una biblioteca con todo el contenido que te encanta",
@@ -741,43 +852,14 @@
   "e60e285cd7ab0607": "Conecta solo cuentas de confianza. Cache puede acceder al contenido que elijas guardar con las aplicaciones conectadas. Siempre puedes cambiar de opinión.",
   "e6bf33cf97345f68": "¿Eliminar para siempre?",
   "e6c1109fa39e2f8d": "Eliminar definitivamente",
+  "e87675d6185bf140": "Cerrando sesión…",
+  "e8c281b1a85ac547": "Añade un comentario…",
   "e9582dee1da6d8e4": "Sugerido",
+  "e962025017569ce0": "Todo lo que has anotado en tu biblioteca.",
+  "ea2f542d81a80c1b": "Vista previa de {provider}",
   "ea84eb135ce31d0d": "Descubre Cache",
-  "ec2478c0cd1e54e0": [
-    {
-      "c": [
-        {
-          "i": 2,
-          "t": "Search"
-        },
-        {
-          "c": "Haz una pregunta y Cache encontrará lo que necesitas",
-          "i": 3,
-          "t": "span"
-        }
-      ],
-      "i": 1,
-      "t": "li"
-    },
-    {
-      "c": [
-        {
-          "i": 5,
-          "t": "Lightbulb"
-        },
-        {
-          "c": "Da forma a tus ideas más interesantes con el agente de IA de Cache",
-          "i": 6,
-          "t": "span"
-        }
-      ],
-      "i": 4,
-      "t": "li"
-    }
-  ],
-  "ece5e10bd5b5769d": "Guardando...",
   "ee89eff1a7866351": "Unifica tus marcadores en todas las plataformas",
-  "ef6e24a1af2bdcd8": "Deseleccionar",
+  "ef42d2346b2b1a85": "No se ha podido completar esta acción de integración.",
   "f01e24975e99850b": "Eliminar todo",
   "f044e94922dd62f5": "¿Listo para empezar?",
   "f3c979f1e51251d0": "Términos del Servicio",
@@ -790,5 +872,7 @@
     " marcadores duplicados se moverán a Eliminados recientemente. La copia más antigua de cada enlace permanecerá en tu biblioteca. Tienes 30 días para restaurarlos antes de que se eliminen de forma permanente."
   ],
   "fb9f72030cb6115c": "Abrir la barra lateral ({shortcut})",
-  "fe5ee6266a8106e0": "Tema"
+  "fdb65e4e340fb48c": "Visitados recientemente",
+  "fe5ee6266a8106e0": "Tema",
+  "ff8c65b5980a63b0": "La actividad reciente aparecerá aquí cuando se ejecuten tus automatizaciones."
 }

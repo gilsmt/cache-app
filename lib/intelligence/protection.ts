@@ -47,6 +47,15 @@ function denialMessage(reason: ReturnType<typeof denialReason>): string {
     }
 }
 
+export function isGenAILimitError(
+    error: unknown
+): error is InstanceType<typeof GenAiProtectionError> {
+    return (
+        GenAiProtectionError.isInstance(error) &&
+        error.data.reason === "quota_exceeded"
+    );
+}
+
 export async function protectGenAiRequest(args: {
     feature: string;
     request: ArcjetNextRequest;

@@ -51,6 +51,7 @@ import {
     type PasteCommandType,
     type RangeSelection,
     SELECTION_CHANGE_COMMAND,
+    type SerializedEditorState,
     type TextFormatType,
 } from "lexical";
 import {
@@ -140,7 +141,6 @@ import {
     extractNoteText,
     isNoteSerializedEditorState,
     NOTE_EMPTY_HTML,
-    type NoteSerializedEditorState,
     normalizeNoteHtml,
     serializeNoteEditorStateToHtml,
 } from "@/lib/integrations/notes/utils";
@@ -362,7 +362,7 @@ type SideEntry = SideNoteEntry | SideUrlEntry;
 
 export interface NoteDraft {
     contentHtml: string;
-    contentState: NoteSerializedEditorState | null;
+    contentState: SerializedEditorState | null;
 }
 
 type NoteSaveHandler = (
@@ -2019,7 +2019,7 @@ function normalizeDraft(draft: NoteDraft): NoteDraft {
 }
 
 function noteDraftFromEditorState(
-    contentState: NoteSerializedEditorState
+    contentState: SerializedEditorState
 ): NoteDraft {
     return normalizeDraft({
         contentHtml: serializeNoteEditorStateToHtml(contentState),

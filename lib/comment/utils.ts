@@ -1,4 +1,3 @@
-/** Maximum length of a comment's text, enforced on write. */
 export const COMMENT_TEXT_MAX_LENGTH = 5000;
 
 /**

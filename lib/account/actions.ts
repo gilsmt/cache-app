@@ -5,7 +5,7 @@ import { AccountError } from "@/lib/account/error";
 import * as service from "@/lib/account/service";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 
-export interface DeleteAccountActionState {
+interface DeleteAccountActionState {
     message: string;
     redirect: null | string;
     status: "error" | "success";

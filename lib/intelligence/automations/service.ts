@@ -62,6 +62,11 @@ const AUTOMATION_SELECT = {
             createdAt: "desc",
         },
         select: {
+            chat: {
+                select: {
+                    id: true,
+                },
+            },
             createdAt: true,
             errorCode: true,
             errorMessage: true,
@@ -1300,6 +1305,7 @@ function toAutomationListItem(automation: {
     payloadScope: AutomationPayloadScope;
     prompt: string;
     runs: Array<{
+        chat: { id: string } | null;
         createdAt: Date;
         errorCode: string | null;
         errorMessage: string | null;

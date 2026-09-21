@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import type { SerializedEditorState } from "lexical";
 import {
     LIBRARY_ITEM_COLLECTIONS_INCLUDE,
     type LibraryItemWithCollections,
@@ -12,7 +13,6 @@ import {
     escapeNoteHtmlText,
     extractNoteText,
     isNoteSerializedEditorState,
-    type NoteSerializedEditorState,
     sanitizeNoteHtml,
     serializeNoteEditorStateToHtml,
 } from "@/lib/integrations/notes/utils";
@@ -25,7 +25,7 @@ import {
 
 export interface NormalizedNotePayload {
     contentHtml: string;
-    contentState: NoteSerializedEditorState | null;
+    contentState: SerializedEditorState | null;
     contentText: string;
 }
 
@@ -48,11 +48,8 @@ export function normalizeNotePayload(input: {
     };
 }
 
-// Lexical's persistence path is toJSON → JSON.stringify. Round-trip here so
-// the Prisma Json column only ever sees pure JSON (client input is only
-// shallow-guarded). The cast is Prisma's index-signature gap, not a trust claim.
 function noteContentStateForPrisma(
-    contentState: NoteSerializedEditorState | null
+    contentState: SerializedEditorState | null
 ): InputJsonValue | typeof DbNull {
     return contentState === null
         ? DbNull

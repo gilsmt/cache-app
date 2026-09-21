@@ -12,6 +12,7 @@ import { SidebarNavigation } from "@/components/sidebar/navigation";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";
+import { listChats } from "@/lib/chats/service";
 import { listCollections } from "@/lib/collections/service";
 import { listAutomations } from "@/lib/intelligence/automations/service";
 
@@ -78,9 +79,10 @@ async function AutomationsPageBody() {
         return redirect("/");
     }
 
-    const [automations, collections] = await Promise.all([
+    const [automations, collections, chats] = await Promise.all([
         listAutomations({ userId }),
         listCollections({ userId }),
+        listChats({ userId }),
     ]);
 
     const collectionOptions = collections.map((collection) => ({
@@ -91,7 +93,7 @@ async function AutomationsPageBody() {
     return (
         <>
             <SidebarNavigation>
-                <AutomationChats automations={automations} />
+                <AutomationChats chats={chats} />
             </SidebarNavigation>
             <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col gap-6 p-8">
                 <FadeIn>

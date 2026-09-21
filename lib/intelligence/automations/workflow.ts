@@ -104,6 +104,8 @@ export async function executeReadOnlyAutomationRun(ready: ReadyAutomationRun) {
                 "This automation failed before producing a result.",
         });
     }
+
+    await ensureAutomationRunChat({ runId: ready.runId, userId: ready.userId });
 }
 
 async function protectAutomationAgentRun(args: {
@@ -181,6 +183,27 @@ async function finishAutomationRunForWorkflow(args: {
     "use step";
     const { finishAutomationRun } = await import("./service");
     await finishAutomationRun(args);
+}
+
+async function ensureAutomationRunChat(args: {
+    runId: string;
+    userId: string;
+}) {
+    "use step";
+
+    // The run already finished, so a chat failure must not fail the workflow.
+    // Upsert semantics keep this idempotent across retries.
+    try {
+        const { ensureChatForAutomationRun } = await import(
+            "@/lib/chats/service"
+        );
+        await ensureChatForAutomationRun(args);
+    } catch (error) {
+        log.warn("Failed to ensure automation run chat", {
+            error: error instanceof Error ? error.message : String(error),
+            runId: args.runId,
+        });
+    }
 }
 
 function isGenAiProtectionErrorData(

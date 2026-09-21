@@ -14,9 +14,9 @@ import {
     Trash2,
     Zap,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { Streamdown } from "streamdown";
 import {
     type AutomationCollectionOption,
     type AutomationComposerAutomation,
@@ -31,6 +31,7 @@ import {
     MenuSeparator,
     MenuTrigger,
 } from "@/components/ui/menu";
+import { getOrCreateChatForAutomationRun } from "@/lib/chats/actions";
 import { getMonthDayLabel } from "@/lib/common/date";
 import { dayjs } from "@/lib/common/dayjs";
 import {
@@ -194,28 +195,17 @@ export function getLastRunDisplay(
 ): {
     dotColor: string;
     label: string;
-    output: React.ReactNode;
 } | null {
     if (lastRun.status === AutomationRunStatus.succeeded) {
         return {
             dotColor: "bg-green-500",
-            label: `Last ran ${dayjs(lastRun.createdAt).fromNow()}`,
-            output: lastRun.summaryMarkdown ? (
-                <Streamdown className="text-muted-foreground/60 text-xs leading-5">
-                    {lastRun.summaryMarkdown}
-                </Streamdown>
-            ) : null,
+            label: `Ran ${dayjs(lastRun.createdAt).fromNow()}`,
         };
     }
     if (lastRun.status === AutomationRunStatus.failed) {
         return {
             dotColor: "bg-red-500",
             label: `Failed ${dayjs(lastRun.createdAt).fromNow()}`,
-            output: lastRun.errorMessage ? (
-                <p className="line-clamp-2 text-red-400/80 text-xs leading-5">
-                    {lastRun.errorMessage}
-                </p>
-            ) : null,
         };
     }
     if (
@@ -229,11 +219,19 @@ export function getLastRunDisplay(
                     ? "Skipped"
                     : "Canceled"
             } ${dayjs(lastRun.createdAt).fromNow()}`,
-            output: null,
         };
     }
 
     return null;
+}
+
+function isTerminalRun(run: AutomationListItem["recentRuns"][number]): boolean {
+    return (
+        run.status === AutomationRunStatus.succeeded ||
+        run.status === AutomationRunStatus.failed ||
+        run.status === AutomationRunStatus.skipped ||
+        run.status === AutomationRunStatus.canceled
+    );
 }
 
 interface AutomationsListProps {
@@ -329,9 +327,7 @@ function AutomationCard({ automation, collections }: AutomationCardProps) {
     const Icon = getAutomationTemplateIcon(automation.templateKey);
     const description = getAutomationDescription(automation);
     const scheduleLabel = formatSchedule(automation);
-    const lastRun = automation.lastRun
-        ? getLastRunDisplay(automation.lastRun)
-        : null;
+    const terminalRuns = automation.recentRuns.filter(isTerminalRun);
 
     const handleEditOpen = useStableCallback(() => {
         setIsEditOpen(true);
@@ -397,6 +393,18 @@ function AutomationCard({ automation, collections }: AutomationCardProps) {
                 return;
             }
             router.refresh();
+        });
+    });
+
+    const handleOpenRunChat = useStableCallback((runId: string) => {
+        setActionErrorMessage(null);
+        startTransition(async () => {
+            const result = await getOrCreateChatForAutomationRun({ runId });
+            if (result.status !== "SUCCESS") {
+                setActionErrorMessage(result.message);
+                return;
+            }
+            router.push(`/chats/${result.chatId}`);
         });
     });
 
@@ -486,18 +494,16 @@ function AutomationCard({ automation, collections }: AutomationCardProps) {
                 <p className="line-clamp-2 text-muted-foreground text-xs leading-5">
                     {description}
                 </p>
-                <div className="flex items-center gap-4">
-                    {scheduleLabel ? (
-                        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                            {scheduleLabel}
-                        </p>
-                    ) : null}
-                    {lastRun ? (
-                        <span className="text-[11px] text-muted-foreground/60">
-                            {lastRun.label}
-                        </span>
-                    ) : null}
-                </div>
+                {scheduleLabel ? (
+                    <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                        {scheduleLabel}
+                    </p>
+                ) : null}
+                <AutomationRunHistory
+                    isPending={isPending}
+                    onOpenChat={handleOpenRunChat}
+                    runs={terminalRuns}
+                />
                 {actionErrorMessage ? (
                     <p
                         aria-live="polite"
@@ -555,5 +561,93 @@ function SuggestedAutomationCard({
                 </p>
             </div>
         </article>
+    );
+}
+
+interface AutomationRunHistoryProps {
+    isPending: boolean;
+    onOpenChat: (runId: string) => void;
+    runs: AutomationListItem["recentRuns"];
+}
+
+function AutomationRunHistory({
+    isPending,
+    onOpenChat,
+    runs,
+}: AutomationRunHistoryProps) {
+    if (runs.length === 0) {
+        return null;
+    }
+
+    return (
+        <ul className="mt-1 flex flex-col gap-px border-border/40 border-t pt-2">
+            {runs.map((run) => (
+                <AutomationRunRow
+                    isPending={isPending}
+                    key={run.id}
+                    onOpenChat={onOpenChat}
+                    run={run}
+                />
+            ))}
+        </ul>
+    );
+}
+
+interface AutomationRunRowProps {
+    isPending: boolean;
+    onOpenChat: (runId: string) => void;
+    run: AutomationListItem["recentRuns"][number];
+}
+
+function AutomationRunRow({
+    isPending,
+    onOpenChat,
+    run,
+}: AutomationRunRowProps) {
+    const handleOpen = useStableCallback(() => {
+        onOpenChat(run.id);
+    });
+
+    const display = getLastRunDisplay(run);
+    if (!display) {
+        return null;
+    }
+    const title = dayjs(run.createdAt).format("MMM DD, YYYY, h:mm A");
+    const content = (
+        <>
+            <span
+                aria-hidden
+                className={`size-1.5 shrink-0 rounded-full ${display.dotColor}`}
+            />
+            <span className="truncate">{display.label}</span>
+        </>
+    );
+    const className =
+        "flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-[11px] text-muted-foreground/80 tabular-nums transition-colors hover:bg-background hover:text-foreground disabled:opacity-60";
+    if (run.chat) {
+        return (
+            <li>
+                <Link
+                    className={className}
+                    href={`/chats/${run.chat.id}`}
+                    title={title}
+                >
+                    {content}
+                </Link>
+            </li>
+        );
+    }
+    return (
+        <li>
+            <button
+                className={className}
+                disabled={isPending}
+                onClick={handleOpen}
+                title={title}
+                type="button"
+            >
+                {content}
+            </button>
+        </li>
     );
 }
