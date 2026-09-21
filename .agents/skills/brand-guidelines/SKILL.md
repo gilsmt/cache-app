@@ -3,7 +3,7 @@ name: brand-guidelines
 description: Write copy following brand guidelines. Use when writing UI text, error messages, empty states, onboarding flows, 404 pages, documentation, marketing copy, or any user-facing content. Covers both Plain Speech (default) and Cache Voice tones.
 ---
 
-<!-- Skill based on https://github.com/getsentry/skills/blob/main/skills/brand-guidelines/SKILL.md -->
+<!-- Based on https://github.com/getsentry/skills/blob/main/skills/brand-guidelines/SKILL.md -->
 
 # Brand Guidelines
 
@@ -60,15 +60,19 @@ Cache Voice adds personality in appropriate moments. It's empathetic, self-aware
 ### Examples
 
 **404 Pages:**
+
 > "This page doesn't exist. Maybe it never did. Maybe it was a dream. Either way, let's get you back on track."
 
 **Empty States:**
+
 > "No errors yet. Enjoy this moment of peace while it lasts."
 
 **Onboarding:**
+
 > "Let's get your first error. Don't worry, it's not as scary as it sounds."
 
 **Loading States:**
+
 > "Crunching the numbers..."
 > "Fetching your data..."
 

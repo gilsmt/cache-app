@@ -3,6 +3,8 @@ name: building-components
 description: Guide for building modern, accessible, and composable UI components. Use when building new components, implementing accessibility, creating composable APIs, setting up design tokens, publishing to npm/registry, or writing component documentation.
 ---
 
+<!-- Based on https://github.com/vercel/components.build -->
+
 # Building Components
 
 ## When to use this skill

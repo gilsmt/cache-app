@@ -3,7 +3,7 @@ name: ask-then-build
 description: "Clarify a feature, change, or refactor through questions, then write a build prompt for another agent. Use for /ask-then-build or requests to ask questions before producing an implementation prompt."
 ---
 
-<!-- From https://github.com/davidondrej/skills/blob/main/skills/thinking-and-docs/ask-then-build/SKILL.md -->
+<!-- Based on https://github.com/davidondrej/skills/blob/main/skills/thinking-and-docs/ask-then-build/SKILL.md -->
 
 Turn a feature idea into a build prompt for another agent, in two phases.
 

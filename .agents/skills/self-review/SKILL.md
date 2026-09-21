@@ -11,7 +11,7 @@ description: >-
     you are done coding and ready to hand off.
 ---
 
-<!-- Skill based on https://github.com/mattpocock/skills/blob/main/skills/engineering/code-review/SKILL.md -->
+<!-- Based on https://github.com/mattpocock/skills/blob/main/skills/engineering/code-review/SKILL.md -->
 
 You just finished some work. Before committing, step back and review it with a critical eye.
 
