@@ -386,16 +386,18 @@ model Chat {
 }
 
 /// Single persisted exchange inside a chat. Tool calls stream without being
-/// stored, so only user questions and assistant answers land here.
+/// stored, so only user questions and assistant answers land here. The
+/// database-assigned sequence preserves conversation order when timestamps tie.
 model ChatMessage {
     id        String         @id @default(cuid())
     chatId    String
     chat      Chat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
     role      ChatMessageRole
     content   String
+    sequence  Int            @default(autoincrement())
     createdAt DateTime       @default(now())
 
-    @@index([chatId, createdAt])
+    @@index([chatId, sequence])
     @@map("chat_message")
 }
 

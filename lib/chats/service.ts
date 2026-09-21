@@ -108,7 +108,7 @@ export async function getChat(args: {
                 },
             },
             messages: {
-                orderBy: { createdAt: "asc" },
+                orderBy: { sequence: "asc" },
                 select: {
                     content: true,
                     createdAt: true,
