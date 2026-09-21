@@ -185,7 +185,7 @@ export function SidebarContent({
         <section
             {...props}
             className={cn(
-                "no-scrollbar -mx-1 flex max-h-full min-h-0 w-full flex-col gap-6 overflow-auto p-1 lg:sticky lg:top-8 lg:max-h-[calc(100vh-(var(--spacing)*8))]",
+                "no-scrollbar -mx-1 flex max-h-full min-h-0 w-full min-w-0 flex-col gap-6 overflow-auto p-1 lg:sticky lg:top-8 lg:max-h-[calc(100vh-(var(--spacing)*8))]",
                 className
             )}
             data-sidebar="content"

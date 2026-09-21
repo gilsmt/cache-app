@@ -12,13 +12,13 @@ export function chunk<T>(items: readonly T[], size: number): T[][] {
     return chunks;
 }
 
-export function removeValue<T>(values: T[], value: T): T[] {
-    return values.filter((entry) => entry !== value);
+export function removeValue<T>(values: readonly T[], value: T): T[] {
+    return values.filter((entry) => !isSameValueZero(entry, value));
 }
 
-export function toggleValue<T>(values: T[], next: T): T[] {
+export function toggleValue<T>(values: readonly T[], next: T): T[] {
     return values.includes(next)
-        ? values.filter((entry) => entry !== next)
+        ? values.filter((entry) => !isSameValueZero(entry, next))
         : [...values, next];
 }
 
@@ -42,6 +42,7 @@ export function countBy<T, K extends PropertyKey>(
     items: readonly T[],
     getKey: (item: T) => K
 ): Partial<Record<K, number>> {
+    // Null prototype keeps "__proto__" keys as own counts.
     const counts: Partial<Record<K, number>> = Object.create(null);
     for (const item of items) {
         const key = getKey(item);
@@ -128,4 +129,8 @@ export async function mapConcurrent<T, R>(
         throw firstError;
     }
     return results;
+}
+
+function isSameValueZero<T>(first: T, second: T): boolean {
+    return first === second || (Number.isNaN(first) && Number.isNaN(second));
 }

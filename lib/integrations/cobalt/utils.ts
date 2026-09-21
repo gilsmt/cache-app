@@ -4,6 +4,7 @@
  * Cobalt-based media resolution.
  */
 import { tryParseUrl } from "@/lib/common/url";
+
 export const COBALT_SUPPORTED_HOSTS = new Set([
     "bilibili.com",
     "www.bilibili.com",

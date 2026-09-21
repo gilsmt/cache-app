@@ -193,11 +193,16 @@ export function canonicalBookmarkUrl(
     const keptParams = [...parsed.searchParams.entries()]
         .filter(([name]) => !isTrackingQueryParam(name))
         .sort(([aName, aValue], [bName, bValue]) => {
-            const byName = aName.localeCompare(bName);
-            if (byName !== 0) {
-                return byName;
+            if (aName < bName) {
+                return -1;
             }
-            return aValue.localeCompare(bValue);
+            if (aName > bName) {
+                return 1;
+            }
+            if (aValue < bValue) {
+                return -1;
+            }
+            return aValue > bValue ? 1 : 0;
         });
 
     let canonical = `${host}${pathname}`;

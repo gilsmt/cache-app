@@ -183,7 +183,7 @@ export function Attachment({
                 className={cn(
                     "group relative flex h-8 cursor-pointer select-none items-center gap-1",
                     "rounded-md border border-border px-1.5",
-                    "font-medium text-sm transition-all",
+                    "font-medium text-sm",
                     "hover:bg-accent hover:text-accent-foreground",
                     className
                 )}

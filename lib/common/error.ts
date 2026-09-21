@@ -39,6 +39,10 @@ export abstract class NamedError extends Error {
             static isInstance(
                 error: unknown
             ): error is InstanceType<typeof result> {
+                // Fast reject before the zod parse
+                if (!isRecord(error) || error.name !== name) {
+                    return false;
+                }
                 return z.validate(schema, error);
             }
 

@@ -13,7 +13,7 @@ import {
 import { Popover, PopoverPopup, PopoverTrigger } from "@/components/ui/popover";
 
 const MAX_VISIBLE_VERTICAL_DEFAULT = 15;
-const MAX_VISIBLE_HORIZONTAL_DEFAULT = 5;
+const MAX_VISIBLE_HORIZONTAL_DEFAULT = 8;
 
 interface CollapsibleListVerticalProps extends React.ComponentProps<"div"> {
     /** Items rendered inline before the rest collapse behind the overflow trigger. */
@@ -80,7 +80,7 @@ export function CollapsibleListHorizontal({
     return (
         <div
             {...props}
-            className={cn("flex items-center gap-1", className)}
+            className={cn("flex shrink-0 items-center gap-1", className)}
             data-slot="collapsible-list"
         >
             {visible}
@@ -97,7 +97,11 @@ export function CollapsibleListHorizontal({
                         <T>
                             +
                             <Var>
-                                <Calligraph className="-mx-0.5">
+                                <Calligraph
+                                    className={
+                                        badgeRender ? "-mx-0.5" : undefined
+                                    }
+                                >
                                     {hidden.length}
                                 </Calligraph>
                             </Var>{" "}

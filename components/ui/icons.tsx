@@ -397,7 +397,7 @@ export function ChevronDownFilledIcon({
             {...props}
             aria-label="Chevron down"
             className={cn(
-                "pointer-events-none inline-block size-4 shrink-0 opacity-80 transition-[opacity,transform] group-hover:opacity-80! group-data-panel-open:rotate-90 group-data-panel-open:opacity-30",
+                "pointer-events-none inline-block size-4 shrink-0 opacity-80 transition-transform group-hover:opacity-80! group-data-panel-open:rotate-90 group-data-panel-open:opacity-30",
                 className
             )}
             fill="currentColor"

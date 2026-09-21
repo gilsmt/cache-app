@@ -54,7 +54,7 @@ export function AvatarGroup({
         <div
             {...props}
             className={cn(
-                "relative flex items-center justify-center -space-x-3",
+                "relative flex shrink-0 items-center justify-center -space-x-3",
                 className
             )}
             data-slot="avatar-group"

@@ -46,16 +46,17 @@ export function RadialIcon({
                 strokeWidth={ICON_STROKE_WIDTH}
             />
             <circle
+                className="transition-[stroke-dashoffset] duration-300 ease-out motion-reduce:transition-none"
                 cx={ICON_CENTER}
                 cy={ICON_CENTER}
                 fill="none"
                 r={size}
                 stroke="var(--ring)"
-                strokeDasharray={`${circumference} ${circumference}`}
-                strokeDashoffset={dashOffset}
                 strokeLinecap="round"
                 strokeWidth={ICON_STROKE_WIDTH}
                 style={{
+                    strokeDasharray: `${circumference} ${circumference}`,
+                    strokeDashoffset: dashOffset,
                     transform: "rotate(-90deg)",
                     transformOrigin: "center",
                 }}

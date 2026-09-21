@@ -1,5 +1,5 @@
 import pRetry, { type Options } from "p-retry";
-import { abortReason } from "@/lib/common/abort";
+import { abortReason, isAbortError } from "@/lib/common/abort";
 import { HttpError } from "@/lib/common/http";
 import { isNetworkError } from "@/lib/common/network";
 
@@ -7,10 +7,12 @@ const DEFAULT_RETRIES = 2;
 const DEFAULT_MIN_TIMEOUT_MS = 500;
 const DEFAULT_FACTOR = 2;
 const DEFAULT_MAX_TIMEOUT_MS = 10_000;
+
 const DEFAULT_SHOULD_RETRY: NonNullable<Options["shouldRetry"]> = ({ error }) =>
-    !HttpError.isInstance(error) ||
-    error.isRetryable() ||
-    isNetworkError(error);
+    !isAbortError(error) &&
+    (!HttpError.isInstance(error) ||
+        error.isRetryable() ||
+        isNetworkError(error));
 
 export function withRetry<T>(
     input: (attemptNumber: number) => PromiseLike<T> | T,

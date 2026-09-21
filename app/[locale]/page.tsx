@@ -771,8 +771,8 @@ export default async function Home() {
                                     <T context="target audience">
                                         <span className="hidden opacity-50 sm:inline-block">
                                             Use cases
+                                            <br />
                                         </span>
-                                        <br />
                                         <span className="opacity-80">
                                             Work, life, and everything in
                                             between.

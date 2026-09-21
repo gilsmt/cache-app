@@ -179,7 +179,9 @@ export function executeSyncBehavior(
         case "google-photos-picker":
             return executeGooglePhotosPickerFlow();
         default:
-            return ((_: never) => _)(behavior);
+            throw new Error(
+                `Unhandled sync behavior: ${JSON.stringify(behavior)}.`
+            );
     }
 }
 

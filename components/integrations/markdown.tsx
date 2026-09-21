@@ -20,13 +20,13 @@ import {
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/error-message";
 import { Input } from "@/components/ui/input";
-import type { LibraryCollectionSummary } from "@/lib/collections/utils";
 import { type FILE_EXTENSION, fileOpen } from "@/lib/common/file";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
     createMarkdownImport,
     importMarkdownBatch,
     listMarkdownImports,
+    type MarkdownImportBatchData,
 } from "@/lib/integrations/markdown/actions";
 import type { MarkdownImportResult } from "@/lib/integrations/markdown/service";
 
@@ -34,9 +34,7 @@ const MARKDOWN_FILE_EXTENSIONS: FILE_EXTENSION[] = ["md", "markdown"];
 const MAX_FILE_SIZE_BYTES = 500_000;
 const MAX_FILES_PER_BATCH = 100;
 const MAX_BATCH_BYTES = 3_000_000;
-const BATCH_IMPORT_FAILURE_MESSAGE = "We couldn't import these files.";
 const FILE_SIZE_SKIP_MESSAGE = `Exceeds the ${(MAX_FILE_SIZE_BYTES / 1000).toFixed(0)} KB file size limit.`;
-const EMPTY_FILE_SKIP_MESSAGE = "This file is empty.";
 
 type ImportStep = "choose" | "create-new" | "pick-files" | "importing" | "done";
 
@@ -65,11 +63,12 @@ const STEP_TITLES: Record<ImportStep, string> = {
     "pick-files": "Select files",
 };
 
-const STEP_DESCRIPTIONS: Record<Exclude<ImportStep, "done">, string> = {
+const STEP_DESCRIPTIONS: Record<ImportStep, string> = {
     choose: "Create a new import namespace or choose an existing one. Each namespace keeps imports from a folder separate.",
     "create-new":
         'Name this import. For example, "Obsidian vault", "Bear notes", or "Research papers".',
-    importing: "",
+    done: "Review what was created, skipped, or failed.",
+    importing: "This can take a moment for large folders.",
     "pick-files":
         "Choose a folder or .md files to import. Nested folders create matching collections.",
 };
@@ -114,38 +113,10 @@ export function openMarkdownImportDialog() {
     markdownImportStoreActions.setIsOpen(true);
 }
 
-function buildResultSummary(result: MarkdownImportResult): string {
-    const parts: string[] = [];
-    if (result.createdCount > 0) {
-        parts.push(`${result.createdCount} created`);
-    }
-    if (result.updatedCount > 0) {
-        parts.push(`${result.updatedCount} updated`);
-    }
-    if (result.skippedCount > 0) {
-        parts.push(`${result.skippedCount} skipped`);
-    }
-    if (result.failedCount > 0) {
-        parts.push(`${result.failedCount} failed`);
-    }
-    return parts.length > 0
-        ? `Import finished: ${parts.join(", ")}.`
-        : "Import finished with no changes.";
-}
-
-function getStepDescription(
-    step: ImportStep,
-    result: MarkdownImportResult | null
-): string {
-    if (step === "done") {
-        return result ? buildResultSummary(result) : "";
-    }
-    return STEP_DESCRIPTIONS[step];
-}
-
 function isMarkdownFile(fileName: string): boolean {
+    const lowerCaseName = fileName.toLowerCase();
     return MARKDOWN_FILE_EXTENSIONS.some((extension) =>
-        fileName.endsWith(`.${extension}`)
+        lowerCaseName.endsWith(`.${extension}`)
     );
 }
 
@@ -186,7 +157,7 @@ async function readMarkdownFileEntries(
         const markdown = await file.text();
         if (markdown.trim().length === 0) {
             skippedFiles.push({
-                message: EMPTY_FILE_SKIP_MESSAGE,
+                message: "This file is empty.",
                 relativePath,
             });
             continue;
@@ -280,7 +251,7 @@ export function MarkdownImportDialog() {
 
     const [step, setStep] = React.useState<ImportStep>("choose");
     const [imports, setImports] = React.useState<
-        Array<{ id: string; name: string; createdAt: Date }>
+        Array<{ id: string; name: string }>
     >([]);
     const [selectedImportId, setSelectedImportId] = React.useState<
         string | null
@@ -297,16 +268,18 @@ export function MarkdownImportDialog() {
     const { replaceCollections } = useCollectionsContext();
     const { mergeImportedItems: mergeLibraryItems } = useItemsContext();
     const router = useRouter();
+    // Guards the import completion update against a close/reset mid-import.
     const importSessionIdRef = React.useRef(0);
-    const isCreateSubmissionPendingRef = React.useRef(false);
-    const isImportSubmissionPendingRef = React.useRef(false);
+    const isSubmissionPendingRef = React.useRef(false);
 
     const loadImports = useStableCallback(() => {
         startLoading(async () => {
             try {
                 const response = await listMarkdownImports();
                 if (response.status === "SUCCESS") {
-                    setImports(response.data);
+                    setImports(
+                        response.data.map(({ id, name }) => ({ id, name }))
+                    );
                     setErrorMessage(null);
                 } else {
                     log.error("Failed to load imports", response);
@@ -319,18 +292,13 @@ export function MarkdownImportDialog() {
         });
     });
 
-    const resetFileSelection = useStableCallback(() => {
-        setFileSelection(createEmptyFileSelection());
-    });
-
     const resetDialog = useStableCallback(() => {
         importSessionIdRef.current += 1;
-        isImportSubmissionPendingRef.current = false;
-        isCreateSubmissionPendingRef.current = false;
+        isSubmissionPendingRef.current = false;
         setStep("choose");
         setSelectedImportId(null);
         setNewImportName("");
-        resetFileSelection();
+        setFileSelection(createEmptyFileSelection());
         setResult(null);
         setErrorMessage(null);
     });
@@ -355,12 +323,12 @@ export function MarkdownImportDialog() {
             setErrorMessage("Enter a name for this import.");
             return;
         }
-        if (isCreateSubmissionPendingRef.current) {
+        if (isSubmissionPendingRef.current) {
             return;
         }
 
         setErrorMessage(null);
-        isCreateSubmissionPendingRef.current = true;
+        isSubmissionPendingRef.current = true;
         startLoading(async () => {
             try {
                 const response = await createMarkdownImport({ name: trimmed });
@@ -368,11 +336,7 @@ export function MarkdownImportDialog() {
                     setSelectedImportId(response.data.id);
                     setImports((prev) => [
                         ...prev,
-                        {
-                            createdAt: new Date(),
-                            id: response.data.id,
-                            name: trimmed,
-                        },
+                        { id: response.data.id, name: trimmed },
                     ]);
                     setStep("pick-files");
                 } else {
@@ -382,7 +346,7 @@ export function MarkdownImportDialog() {
                 log.error("Failed to create import", err);
                 setErrorMessage("We couldn't create this import.");
             } finally {
-                isCreateSubmissionPendingRef.current = false;
+                isSubmissionPendingRef.current = false;
             }
         });
     });
@@ -446,11 +410,11 @@ export function MarkdownImportDialog() {
         if (!selectedImportId || fileSelection.entries.length === 0) {
             return;
         }
-        if (isImportSubmissionPendingRef.current) {
+        if (isSubmissionPendingRef.current) {
             return;
         }
 
-        isImportSubmissionPendingRef.current = true;
+        isSubmissionPendingRef.current = true;
 
         try {
             const sessionId = importSessionIdRef.current + 1;
@@ -461,7 +425,9 @@ export function MarkdownImportDialog() {
                 fileSelection.skippedFiles
             );
 
-            let collectionsFromImport: LibraryCollectionSummary[] | null = null;
+            let collectionsFromImport:
+                | MarkdownImportBatchData["collections"]
+                | null = null;
 
             for (const batch of buildImportBatches(fileSelection.entries)) {
                 try {
@@ -486,7 +452,7 @@ export function MarkdownImportDialog() {
                     addBatchFailure(
                         aggregatedResult,
                         batch,
-                        BATCH_IMPORT_FAILURE_MESSAGE
+                        "We couldn't import these files."
                     );
                 }
             }
@@ -504,7 +470,7 @@ export function MarkdownImportDialog() {
                 setStep("done");
             }
         } finally {
-            isImportSubmissionPendingRef.current = false;
+            isSubmissionPendingRef.current = false;
         }
     });
 
@@ -523,16 +489,10 @@ export function MarkdownImportDialog() {
     );
 
     const handleBack = useStableCallback(() => {
-        if (step === "create-new" || step === "pick-files") {
-            setStep("choose");
-            resetFileSelection();
-            setErrorMessage(null);
-        }
+        setStep("choose");
+        setFileSelection(createEmptyFileSelection());
+        setErrorMessage(null);
     });
-
-    const sourceCount = fileSelection.entries.length;
-    const stepTitle = STEP_TITLES[step];
-    const stepDescription = getStepDescription(step, result);
 
     const renderChooseStep = (
         <div className="flex flex-col gap-3 py-2">
@@ -542,11 +502,11 @@ export function MarkdownImportDialog() {
                         {errorMessage}
                     </p>
                 ) : null}
-                {!errorMessage && imports.length === 0 && !isLoading ? (
+                {!errorMessage && imports.length === 0 && !isLoading && (
                     <p className="px-1 py-4 text-center text-muted-foreground text-sm">
                         No previous imports.
                     </p>
-                ) : null}
+                )}
                 {isLoading ? (
                     <div className="flex items-center justify-center py-4">
                         <Loader2 className="size-4 animate-spin" />
@@ -614,8 +574,8 @@ export function MarkdownImportDialog() {
         <div className="flex items-center justify-center gap-2 py-6">
             <Loader2 className="size-5 animate-spin" />
             <span className="text-muted-foreground text-sm">
-                Importing {sourceCount} file
-                {sourceCount === 1 ? "" : "s"}...
+                Importing {fileSelection.entries.length} file
+                {fileSelection.entries.length === 1 ? "" : "s"}...
             </span>
         </div>
     );
@@ -624,24 +584,35 @@ export function MarkdownImportDialog() {
         <div className="flex flex-col gap-2 py-2 text-sm">
             <p>
                 <strong>{result.createdCount}</strong> created
-                {result.updatedCount > 0 ? (
+                {result.updatedCount > 0 && (
                     <span>
                         , <strong>{result.updatedCount}</strong> updated
                     </span>
-                ) : null}
-                {result.skippedCount > 0 ? (
+                )}
+                {result.skippedCount > 0 && (
                     <span>
                         , <strong>{result.skippedCount}</strong> skipped
                     </span>
-                ) : null}
-                {result.failedCount > 0 ? (
+                )}
+                {result.failedCount > 0 && (
                     <span>
                         , <strong>{result.failedCount}</strong> failed
                     </span>
-                ) : null}
+                )}
             </p>
-            <UnsupportedConstructItems report={result.unsupportedReport} />
-            {result.skipped.length > 0 ? (
+            {UNSUPPORTED_CONSTRUCTS.map((construct) => {
+                const count = result.unsupportedReport[construct.key];
+                if (count === 0) {
+                    return null;
+                }
+                return (
+                    <p className="text-muted-foreground" key={construct.key}>
+                        {count} {pluralize(count, construct.singular)}{" "}
+                        {construct.description}
+                    </p>
+                );
+            })}
+            {result.skipped.length > 0 && (
                 <details className="mt-1">
                     <summary className="cursor-pointer text-muted-foreground text-xs">
                         {result.skipped.length}{" "}
@@ -658,8 +629,8 @@ export function MarkdownImportDialog() {
                         ))}
                     </ul>
                 </details>
-            ) : null}
-            {result.errors.length > 0 ? (
+            )}
+            {result.errors.length > 0 && (
                 <details className="mt-1">
                     <summary className="cursor-pointer text-destructive text-xs">
                         {result.errors.length}{" "}
@@ -674,7 +645,7 @@ export function MarkdownImportDialog() {
                         ))}
                     </ul>
                 </details>
-            ) : null}
+            )}
         </div>
     ) : null;
 
@@ -696,12 +667,12 @@ export function MarkdownImportDialog() {
                         Back
                     </Button>
                 )}
-                {step === "pick-files" && fileSelection.entries.length > 0 ? (
+                {step === "pick-files" && fileSelection.entries.length > 0 && (
                     <Button onClick={handleImport} size="sm">
                         Import {fileSelection.entries.length} file
                         {fileSelection.entries.length === 1 ? "" : "s"}
                     </Button>
-                ) : null}
+                )}
             </>
         );
     };
@@ -710,8 +681,10 @@ export function MarkdownImportDialog() {
         <Dialog onOpenChange={handleOpenChange} open={isOpen}>
             <DialogPopup>
                 <DialogHeader>
-                    <DialogTitle>{stepTitle}</DialogTitle>
-                    <DialogDescription>{stepDescription}</DialogDescription>
+                    <DialogTitle>{STEP_TITLES[step]}</DialogTitle>
+                    <DialogDescription>
+                        {STEP_DESCRIPTIONS[step]}
+                    </DialogDescription>
                 </DialogHeader>
                 <DialogPanel>
                     {step === "choose" && renderChooseStep}
@@ -746,20 +719,4 @@ function ImportItemButton({ id, name, onSelect }: ImportItemButtonProps) {
             <span className="min-w-0 flex-1 truncate">{name}</span>
         </Button>
     );
-}
-
-interface UnsupportedConstructItemsProps {
-    report: MarkdownImportResult["unsupportedReport"];
-}
-
-function UnsupportedConstructItems({ report }: UnsupportedConstructItemsProps) {
-    return UNSUPPORTED_CONSTRUCTS.map((construct) => {
-        const count = report[construct.key];
-        return count > 0 ? (
-            <p className="text-muted-foreground" key={construct.key}>
-                {count} {pluralize(count, construct.singular)}{" "}
-                {construct.description}
-            </p>
-        ) : null;
-    });
 }

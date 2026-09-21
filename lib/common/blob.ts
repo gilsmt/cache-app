@@ -12,9 +12,9 @@ export const blobToFile = (
 
 const normalizedFileSymbol = Symbol("fileNormalized");
 
-type NormalizedFile = File & {
+interface NormalizedFile extends File {
     [normalizedFileSymbol]: typeof normalizedFileSymbol | true;
-};
+}
 
 /**
  * Attempts to detect correct mimeType if none is set, or if an image

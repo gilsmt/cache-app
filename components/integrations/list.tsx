@@ -258,7 +258,7 @@ function resolveActionLabel(args: {
         case "import":
             return gt("Import");
         default:
-            return ((_: never) => _)(role);
+            throw new Error(`Unhandled integration action role: ${role}.`);
     }
 }
 
@@ -278,8 +278,29 @@ function resolveCapabilityMissingMessage(
         case "sync":
             return gt("This integration cannot sync yet.");
         default:
-            return ((_: never) => _)(role);
+            throw new Error(`Unhandled integration action role: ${role}.`);
     }
+}
+
+function resolveIntegrationDirection(
+    integration: SupportedIntegration
+): IntegrationDirection {
+    if (integration.source && integration.destination) {
+        throw new TypeError(
+            `Integration ${integration.id} must define exactly one of source or destination.`
+        );
+    }
+    return integration.source ? "source" : "destination";
+}
+
+function resolvePrimaryAction(
+    actions: IntegrationActionViewModel[]
+): IntegrationActionViewModel | undefined {
+    return (
+        actions.find((action) => action.role === "sync") ??
+        actions.find((action) => action.role !== "connect") ??
+        actions[0]
+    );
 }
 
 function isActionVisible(
@@ -356,7 +377,9 @@ async function executeIntegrationAction(args: {
             openMarkdownImportDialog();
             return NO_ACTION_FEEDBACK;
         default:
-            return ((_: never) => _)(behavior);
+            throw new Error(
+                `Unhandled behavior for integration action ${integration.id}/${role}.`
+            );
     }
 }
 
@@ -376,9 +399,7 @@ export function Integrations({ connectedIntegrations }: IntegrationsProps) {
                 <IntegrationsListContent>
                     {INTEGRATIONS.map((integration) => (
                         <IntegrationsListItem
-                            direction={
-                                integration.source ? "source" : "destination"
-                            }
+                            direction={resolveIntegrationDirection(integration)}
                             integration={integration}
                             isConnected={connectedIntegrations.has(
                                 integration.id
@@ -388,9 +409,9 @@ export function Integrations({ connectedIntegrations }: IntegrationsProps) {
                     ))}
                 </IntegrationsListContent>
                 <IntegrationsListDisclaimer />
-                <RssManageDialog />
-                <MarkdownImportDialog />
             </IntegrationsListPanel>
+            <RssManageDialog />
+            <MarkdownImportDialog />
         </IntegrationsList>
     );
 }
@@ -541,13 +562,14 @@ function IntegrationsListItem({
         isConnected,
         isExtensionInstalled,
     });
-    const [primaryAction] = actions;
-    const isPrimaryActionLoading = primaryAction?.isLoading ?? false;
+
+    const primaryAction = resolvePrimaryAction(actions);
+    const isAnyActionLoading = actions.some((action) => action.isLoading);
     const hasActionStatus = actionStatus !== null;
     const IntegrationIcon = integration.Icon;
 
-    const handleClick = useStableCallback(() => {
-        if (isPrimaryActionLoading) {
+    const handlePrimaryActionClick = useStableCallback(() => {
+        if (isAnyActionLoading) {
             return;
         }
         primaryAction?.onClick();
@@ -557,20 +579,9 @@ function IntegrationsListItem({
         <IntegrationsListItemPreviewTrigger
             {...props}
             integration={integration}
-            onClick={handleClick}
-            render={
-                <SidebarItem
-                    aria-disabled={isPrimaryActionLoading}
-                    className="opacity-100"
-                    role={primaryAction ? "button" : undefined}
-                    tabIndex={primaryAction ? 0 : undefined}
-                />
-            }
+            render={<SidebarItem className="opacity-100" />}
         >
-            <Avatar
-                aria-label={integration.label}
-                className="size-6 rounded-md"
-            >
+            <Avatar aria-hidden className="size-6 rounded-md">
                 <AvatarFallback className="rounded-md">
                     <IntegrationIcon
                         aria-hidden
@@ -579,9 +590,20 @@ function IntegrationsListItem({
                     />
                 </AvatarFallback>
             </Avatar>
-            <span className="min-w-0 flex-1 font-medium text-sm leading-snug">
-                {integration.label}
-            </span>
+            {primaryAction ? (
+                <button
+                    className="min-w-0 flex-1 cursor-pointer text-left font-medium text-sm leading-snug after:absolute after:inset-0 disabled:cursor-default"
+                    disabled={isAnyActionLoading}
+                    onClick={handlePrimaryActionClick}
+                    type="button"
+                >
+                    {integration.label}
+                </button>
+            ) : (
+                <span className="min-w-0 flex-1 font-medium text-sm leading-snug">
+                    {integration.label}
+                </span>
+            )}
             <div className="pointer-events-none grid w-fit items-center justify-self-end text-muted-foreground leading-snug">
                 <span
                     className={cn(
