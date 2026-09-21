@@ -126,12 +126,27 @@ const nextConfig: NextConfig = {
                 source: "/api/auth/oauth2/callback/:path*",
             },
             {
+                destination: "/signin",
+                permanent: true,
+                source: "/login",
+            },
+            {
+                destination: "/signin",
+                permanent: true,
+                source: "/signup",
+            },
+            {
+                destination: "/signin",
+                permanent: true,
+                source: "/register",
+            },
+            {
                 destination: "/library",
                 permanent: true,
                 source: "/collections",
             },
             {
-                destination: "https://github.com/rortan134/cache-app",
+                destination: "https://github.com/gilsmt/cache-app",
                 permanent: false,
                 source: "/github",
             },

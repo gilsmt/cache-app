@@ -55,6 +55,7 @@ import {
     BASE_URL,
     CACHE_EXTENSION_DOWNLOAD_URL,
     FOUNDING_DATE,
+    GITHUB_URL,
 } from "@/lib/common/constants";
 import { INTEGRATIONS } from "@/lib/integrations/support";
 import AiSectionLifestyleImage from "@/public/ai-section-lifestyle.webp";
@@ -76,6 +77,9 @@ const HOME_JSON_LD: Record<string, unknown> = {
             "@type": "WebSite",
             inLanguage: ["en-US", "es-ES"],
             name: APP_NAME,
+            publisher: {
+                "@id": `${BASE_URL}/#organization`,
+            },
             url: BASE_URL,
         },
         {
@@ -96,7 +100,7 @@ const HOME_JSON_LD: Record<string, unknown> = {
                 width: 96,
             },
             name: "CachdApp, Inc.",
-            sameAs: ["https://github.com/rortan134/cache-app"],
+            sameAs: [GITHUB_URL],
             url: BASE_URL,
         },
         {
@@ -113,6 +117,9 @@ const HOME_JSON_LD: Record<string, unknown> = {
                 url: BASE_URL,
             },
             operatingSystem: "Any",
+            publisher: {
+                "@id": `${BASE_URL}/#organization`,
+            },
             url: BASE_URL,
         },
     ],
@@ -198,7 +205,7 @@ export default async function Home() {
                     <SidebarContent>
                         <BrandLogo href="/library" src={LogoIconImage} />
                         <T context="'Cache' is the product's name">
-                            <h1 className="font-medium text-[3rem] leading-[98%] md:text-[4rem] md:tracking-[-0.21875rem]">
+                            <h1 className="font-medium text-[3rem] leading-[98%] tracking-[-0.2rem] md:text-[4rem]">
                                 <GradientWaveText
                                     ariaLabel="Bookmark Intelligence"
                                     className="pb-1.5"
@@ -247,7 +254,7 @@ export default async function Home() {
                     </SidebarFooter>
                 </Sidebar>
                 <div className="flex w-full max-w-5xl flex-col gap-12 p-8 pb-0 lg:gap-16 2xl:mx-auto">
-                    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-muted">
+                    <div className="relative aspect-video w-full min-w-0 overflow-hidden rounded-2xl bg-muted">
                         <div aria-live="polite" className="sr-only">
                             <T>
                                 This element contains an interactive demo for
@@ -259,12 +266,16 @@ export default async function Home() {
                         <Image
                             alt=""
                             aria-hidden
-                            className="absolute top-9.5 left-9 z-10 w-full rounded-xl"
+                            className="absolute top-9.5 left-9 w-full rounded-xl"
                             placeholder="blur"
                             preload
                             quality={90}
                             sizes={HERO_IMAGE_SIZES}
                             src={HeroImage}
+                        />
+                        <div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-black/3 ring-inset dark:ring-white/3"
                         />
                     </div>
                     <div className="mx-auto -mt-2 mb-3 flex flex-col gap-2 md:max-w-prose md:pl-24">
@@ -752,13 +763,13 @@ export default async function Home() {
                     </section>
                     <section className="flex w-full flex-col gap-8 md:gap-10">
                         <Carousel>
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-end justify-between gap-2">
                                 <h2
                                     className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]"
                                     id="target-audience-carousel-heading"
                                 >
                                     <T context="target audience">
-                                        <span className="opacity-50">
+                                        <span className="hidden opacity-50 sm:inline-block">
                                             Use cases
                                         </span>
                                         <br />
@@ -807,7 +818,7 @@ export default async function Home() {
                                     <p className="text-pretty font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
                                         <T>
                                             Docs, issues, code, tutorials. Find
-                                            that one link instantly.
+                                            that one link when you need it.
                                         </T>
                                     </p>
                                 </div>
