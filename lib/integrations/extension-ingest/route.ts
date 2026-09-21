@@ -2,6 +2,10 @@ import "server-only";
 
 import * as z from "zod";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import {
+    isChromeExtensionOrigin,
+    isTrustedCacheWebOrigin,
+} from "@/lib/integrations/extension-ingest/origins";
 import { resolveExtensionIngestUserId } from "@/lib/integrations/extension-ingest/service";
 
 const log = createLogger("integrations:extension-ingest");
@@ -22,20 +26,6 @@ const TOKEN_CORS_HEADERS = {
     "Access-Control-Max-Age": "86400",
 } as const;
 
-const TRUSTED_CACHE_WEB_ORIGIN_PATTERNS = [
-    /^https:\/\/cachd\.app$/,
-    /^https:\/\/[a-z0-9-]+\.cachd\.app$/,
-    /^http:\/\/localhost:\d+$/,
-];
-
-const CHROME_EXTENSION_ORIGIN_PATTERN = /^chrome-extension:\/\/[a-p]{32}$/;
-
-function isTrustedCacheWebOrigin(origin: string): boolean {
-    return TRUSTED_CACHE_WEB_ORIGIN_PATTERNS.some((pattern) =>
-        pattern.test(origin)
-    );
-}
-
 function trustedOriginForRequest(
     request: Request,
     config: { allowChromeExtensionOrigin: boolean }
@@ -47,10 +37,7 @@ function trustedOriginForRequest(
     if (isTrustedCacheWebOrigin(origin)) {
         return origin;
     }
-    if (
-        config.allowChromeExtensionOrigin &&
-        CHROME_EXTENSION_ORIGIN_PATTERN.test(origin)
-    ) {
+    if (config.allowChromeExtensionOrigin && isChromeExtensionOrigin(origin)) {
         return origin;
     }
     return null;
