@@ -5,7 +5,7 @@ import { MESSAGE_TYPES, resolveCacheOrigin } from "@/lib/runtime";
 export const config: PlasmoCSConfig = {
     matches: [
         "https://cachd.app/*",
-        "https://*.cachd.app/*",
+        "https://www.cachd.app/*",
         "$PLASMO_PUBLIC_CACHE_DEV_SITE_MATCH",
     ],
     run_at: "document_idle",
@@ -95,8 +95,8 @@ async function bridgeTokenToExtension(): Promise<boolean> {
     if (!token) {
         return false;
     }
-    // Endpoint is the origin; background derives per-source paths from it.
-    const endpoint = resolveCacheOrigin(origin) || origin;
+    // Background derives per-source paths from a trusted app origin.
+    const endpoint = resolveCacheOrigin(origin);
     try {
         await chrome.runtime.sendMessage({
             endpoint,

@@ -54,6 +54,20 @@ export type BookmarkSource = keyof typeof SOURCE_LABELS;
 
 const DEFAULT_CACHE_APP_ORIGIN = "https://cachd.app";
 
+/**
+ * The app's own web origins. The extension reads the ingest token from the
+ * page origin and posts library data to this origin, so only these hosts are
+ * first-party. A wildcard once trusted every cachd.app label, including
+ * subdomains delegated to third-party services.
+ */
+const TRUSTED_CACHE_WEB_ORIGINS = new Set([
+    "https://cachd.app",
+    "https://www.cachd.app",
+]);
+
+/** Local development serves the app on arbitrary localhost ports. */
+const LOCALHOST_ORIGIN_PATTERN = /^http:\/\/localhost:\d+$/;
+
 function normalizeOrigin(value: string): string {
     return value.trim().replace(/\/+$/, "");
 }
@@ -70,12 +84,27 @@ function originFromUrl(raw: string): string {
     }
 }
 
+export function isTrustedCacheWebOrigin(origin: string): boolean {
+    return (
+        TRUSTED_CACHE_WEB_ORIGINS.has(origin) ||
+        LOCALHOST_ORIGIN_PATTERN.test(origin)
+    );
+}
+
 export function getConfiguredCacheAppOrigin(): string {
     return DEFAULT_CACHE_APP_ORIGIN;
 }
 
+/**
+ * Resolve a stored endpoint or page origin to a trusted app origin. A value
+ * outside the allowlist falls back to the configured origin so a third-party
+ * host under cachd.app cannot become the upload target.
+ */
 export function resolveCacheOrigin(raw: string): string {
-    return originFromUrl(raw) || getConfiguredCacheAppOrigin();
+    const origin = originFromUrl(raw);
+    return isTrustedCacheWebOrigin(origin)
+        ? origin
+        : getConfiguredCacheAppOrigin();
 }
 
 export function buildOriginPath(origin: string, path: string): string {
@@ -188,12 +217,7 @@ export function isSocialImportUrl(rawUrl: string): boolean {
 /** True when the URL is a Cache web app origin we may bridge auth from. */
 export function isCacheSiteUrl(rawUrl: string): boolean {
     try {
-        const url = new URL(rawUrl);
-        if (url.protocol !== "https:") {
-            return false;
-        }
-        const host = url.hostname;
-        return host === "cachd.app" || host.endsWith(".cachd.app");
+        return isTrustedCacheWebOrigin(new URL(rawUrl).origin);
     } catch {
         return false;
     }
@@ -216,7 +240,7 @@ export function isUnsupportedClipUrl(rawUrl: string): boolean {
 /** Hosts where the Cache web app can bridge auth into the extension. */
 export const CACHE_SITE_MATCHES = [
     "https://cachd.app/*",
-    "https://*.cachd.app/*",
+    "https://www.cachd.app/*",
 ] as const;
 
 export const SOCIAL_SAVE_MATCHES = [

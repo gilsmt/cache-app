@@ -1,7 +1,7 @@
 {
     "name": "cache-app-extension",
     "displayName": "Save to Cache",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Save pages into your Cache App. Sync Instagram Saved, TikTok Favorites, YouTube Watch Later, and Chrome bookmarks.",
     "homepage": "https://cachd.app",
     "private": true,
@@ -33,7 +33,7 @@
             "https://www.tiktok.com/*",
             "https://www.youtube.com/*",
             "https://cachd.app/*",
-            "https://*.cachd.app/*",
+            "https://www.cachd.app/*",
             "$PLASMO_PUBLIC_CACHE_DEV_SITE_MATCH"
         ],
         "permissions": [
