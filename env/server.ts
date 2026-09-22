@@ -23,6 +23,8 @@ export const serverEnv = createEnv({
             .string()
             .regex(/^[a-p]{32}$/)
             .optional(),
+        /** Cobalt media resolver base URL. Media resolution is disabled when unset. */
+        COBALT_API_BASE: z.url().optional(),
         CRON_SECRET: z.string().optional(),
         DATABASE_URL: z
             .string()

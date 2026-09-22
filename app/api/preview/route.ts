@@ -868,7 +868,10 @@ async function resolveVideoPreview(
                     429
                 );
             }
-            if (errorCategory === "fetch_failed") {
+            if (
+                errorCategory === "fetch_failed" ||
+                errorCategory === "unavailable"
+            ) {
                 return textResponse(
                     "Video preview temporarily unavailable",
                     503

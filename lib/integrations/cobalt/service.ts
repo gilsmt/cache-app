@@ -1,10 +1,27 @@
 import * as z from "zod";
+import { serverEnv } from "@/env/server";
 import { isAbortError } from "@/lib/common/abort";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
 const log = createLogger("integrations:cobalt");
 
-export const COBALT_API_BASE = "https://preview.cachd.app";
+const COBALT_NOT_CONFIGURED_ERROR_CODE = "cobalt.not_configured";
+const COBALT_NOT_CONFIGURED_MESSAGE =
+    "Media resolution is temporarily unavailable.";
+
+/**
+ * Base URL of the Cobalt media resolver. Resolution stays disabled until the
+ * deployment sets one, so the app never posts to a host it does not control.
+ */
+function cobaltApiBase(): string | null {
+    return serverEnv.COBALT_API_BASE ?? null;
+}
+
+function warnResolverNotConfigured(): void {
+    log.warn("Cobalt media resolver is not configured", {
+        envVar: "COBALT_API_BASE",
+    });
+}
 
 const CobaltPickerItemSchema = z.object({
     thumb: z.string().optional(),
@@ -48,8 +65,17 @@ export async function resolveCobaltDownloadUrl(
         };
     }
 
+    const base = cobaltApiBase();
+    if (!base) {
+        warnResolverNotConfigured();
+        return {
+            message: COBALT_NOT_CONFIGURED_MESSAGE,
+            status: "ERROR",
+        };
+    }
+
     try {
-        const response = await fetch(`${COBALT_API_BASE}/`, {
+        const response = await fetch(`${base}/`, {
             body: JSON.stringify({ url: normalizedUrl }),
             cache: "no-store",
             headers: {
@@ -122,6 +148,7 @@ export type CobaltErrorCategory =
     | "rate_limited"
     | "fetch_failed"
     | "not_found"
+    | "unavailable"
     | "other";
 
 export function classifyCobaltError(
@@ -129,6 +156,9 @@ export function classifyCobaltError(
 ): CobaltErrorCategory {
     if (!code) {
         return "other";
+    }
+    if (code === COBALT_NOT_CONFIGURED_ERROR_CODE) {
+        return "unavailable";
     }
     if (code.includes("rate")) {
         return "rate_limited";
@@ -171,14 +201,15 @@ function normalizeCandidateType(
     }
 }
 
-function normalizeCobaltMediaUrl(url: string): string {
-    return new URL(url, COBALT_API_BASE).href;
+function normalizeCobaltMediaUrl(url: string, base: string): string {
+    return new URL(url, base).href;
 }
 
 function previewFromDirectUrl(
-    url: string
+    url: string,
+    base: string
 ): Extract<ResolveCobaltPreviewResult, { status: "SUCCESS" }> {
-    const sourceUrl = normalizeCobaltMediaUrl(url);
+    const sourceUrl = normalizeCobaltMediaUrl(url, base);
     log.debug("sourceUrl", sourceUrl);
     return {
         mediaType: "video",
@@ -190,7 +221,8 @@ function previewFromDirectUrl(
 }
 
 function previewFromPicker(
-    picker: NonNullable<CobaltResponse["picker"]>
+    picker: NonNullable<CobaltResponse["picker"]>,
+    base: string
 ): ResolveCobaltPreviewResult {
     interface MappedCandidate {
         mediaType: CobaltPreviewMediaType;
@@ -205,9 +237,11 @@ function previewFromPicker(
         const mapped: MappedCandidate = {
             mediaType: normalizeCandidateType(candidate.type),
             thumb: candidate.thumb
-                ? normalizeCobaltMediaUrl(candidate.thumb)
+                ? normalizeCobaltMediaUrl(candidate.thumb, base)
                 : null,
-            url: candidate.url ? normalizeCobaltMediaUrl(candidate.url) : null,
+            url: candidate.url
+                ? normalizeCobaltMediaUrl(candidate.url, base)
+                : null,
         };
 
         if (!(mapped.url || mapped.thumb)) {
@@ -260,7 +294,8 @@ function previewFromPicker(
 }
 
 export function resolveCobaltPreviewFromResponse(
-    data: CobaltResponse
+    data: CobaltResponse,
+    base: string
 ): ResolveCobaltPreviewResult {
     if (data.status === "error") {
         return {
@@ -280,7 +315,7 @@ export function resolveCobaltPreviewFromResponse(
     }
 
     if (data.status === "picker") {
-        return previewFromPicker(data.picker ?? []);
+        return previewFromPicker(data.picker ?? [], base);
     }
 
     if (
@@ -289,7 +324,7 @@ export function resolveCobaltPreviewFromResponse(
             data.status === "stream") &&
         data.url
     ) {
-        return previewFromDirectUrl(data.url);
+        return previewFromDirectUrl(data.url, base);
     }
 
     return {
@@ -330,8 +365,18 @@ export async function resolveCobaltPreview(
         };
     }
 
+    const base = cobaltApiBase();
+    if (!base) {
+        warnResolverNotConfigured();
+        return {
+            errorCode: COBALT_NOT_CONFIGURED_ERROR_CODE,
+            message: COBALT_NOT_CONFIGURED_MESSAGE,
+            status: "ERROR",
+        };
+    }
+
     try {
-        const response = await fetch(`${COBALT_API_BASE}/`, {
+        const response = await fetch(`${base}/`, {
             body: JSON.stringify({ url: normalizedUrl }),
             cache: "no-store",
             headers: {
@@ -355,7 +400,7 @@ export async function resolveCobaltPreview(
 
         if (!response.ok) {
             if (data?.status === "error") {
-                return resolveCobaltPreviewFromResponse(data);
+                return resolveCobaltPreviewFromResponse(data, base);
             }
 
             return {
@@ -366,7 +411,7 @@ export async function resolveCobaltPreview(
             };
         }
 
-        return resolveCobaltPreviewFromResponse(data ?? {});
+        return resolveCobaltPreviewFromResponse(data ?? {}, base);
     } catch (error) {
         if (isAbortError(error)) {
             throw error;
