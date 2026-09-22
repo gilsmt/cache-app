@@ -3,6 +3,7 @@ import { automationRunWorkflow } from "@/app/workflows/automation";
 import { serverEnv } from "@/env/server";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { withRetry } from "@/lib/common/retry";
+import { safeCompare } from "@/lib/common/security/compare";
 import {
     attachWorkflowRunId,
     claimDueAutomationRuns,
@@ -109,5 +110,9 @@ function isAuthorizedCronRequest(request: Request): boolean {
     }
 
     const authorization = request.headers.get("authorization");
-    return authorization === `Bearer ${expected}`;
+    if (!authorization) {
+        return false;
+    }
+
+    return safeCompare(authorization, `Bearer ${expected}`);
 }
