@@ -5,7 +5,7 @@ import { createLogger } from "@/lib/common/logs/console/logger";
 import {
     isChromeExtensionOrigin,
     isTrustedCacheWebOrigin,
-} from "@/lib/integrations/extension-ingest/origins";
+} from "@/lib/common/security/origins";
 import { resolveExtensionIngestUserId } from "@/lib/integrations/extension-ingest/service";
 
 const log = createLogger("integrations:extension-ingest");
