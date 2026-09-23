@@ -2,7 +2,10 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { getRun } from "workflow/api";
-import { userHasActiveSubscription } from "@/lib/billing/service";
+import {
+    getUserActiveSubscriptionStatus,
+    userHasActiveSubscription,
+} from "@/lib/billing/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import type { GenerationUsage } from "@/lib/intelligence/generation";
 import { DEFAULT_REGISTERED_MODEL } from "@/lib/intelligence/providers/model-registry";
@@ -1146,6 +1149,20 @@ async function claimAutomationRun(args: {
                 return { status: "skipped" };
             }
 
+            const subscription = await getUserActiveSubscriptionStatus(
+                run.userId,
+                tx
+            );
+            if (!subscription) {
+                await pauseAutomationForInactiveSubscription(tx, {
+                    automationId: run.automation.id,
+                    now: args.now,
+                    runId: run.id,
+                    userId: run.userId,
+                });
+                return { status: "skipped" };
+            }
+
             const activeRun = await tx.automationRun.findFirst({
                 select: { id: true },
                 where: {
@@ -1282,6 +1299,55 @@ async function pauseAutomationForMissingCollection(args: {
             },
         }),
     ]);
+}
+
+/**
+ * Stops an automation whose owner no longer has an active subscription. The
+ * scheduled path must re-check entitlement because the paid capability is a
+ * recurring obligation, not a check that runs only when the user creates or
+ * resumes the automation. Pausing here ends the obligation; the user resumes
+ * it through the entitlement-checked resume action once the subscription is
+ * active again.
+ */
+async function pauseAutomationForInactiveSubscription(
+    tx: AutomationTransaction,
+    args: {
+        automationId: string;
+        now: Date;
+        runId: string;
+        userId: string;
+    }
+) {
+    await tx.automation.update({
+        data: {
+            lastFailureCode: "subscription_inactive",
+            nextRunAtUtc: null,
+            status: AutomationStatus.paused,
+        },
+        where: { id: args.automationId },
+    });
+    await tx.automationRun.update({
+        data: {
+            errorCode: "subscription_inactive",
+            errorMessage:
+                "The automation paused because the subscription is not active.",
+            finishedAt: args.now,
+            status: AutomationRunStatus.canceled,
+        },
+        where: { id: args.runId },
+    });
+    await tx.automationRun.deleteMany({
+        where: {
+            automationId: args.automationId,
+            status: AutomationRunStatus.pending,
+        },
+    });
+
+    log.warn("Paused automation because the subscription is not active", {
+        automationId: args.automationId,
+        runId: args.runId,
+        userId: args.userId,
+    });
 }
 
 function toAutomationListItem(automation: {
