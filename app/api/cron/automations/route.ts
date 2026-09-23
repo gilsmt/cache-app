@@ -16,10 +16,7 @@ const log = createLogger("automations:cron");
 const NO_STORE_HEADERS = { "Cache-Control": "private, no-store" };
 
 export async function GET(request: Request) {
-    if (
-        !isAuthorizedCronRequest(request) &&
-        serverEnv.NODE_ENV === "production"
-    ) {
+    if (!isAuthorizedCronRequest(request)) {
         return Response.json(
             { error: "Unauthorized" },
             { headers: NO_STORE_HEADERS, status: 401 }

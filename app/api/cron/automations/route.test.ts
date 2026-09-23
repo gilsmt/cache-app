@@ -10,8 +10,13 @@ const recoverStaleAutomationRuns = mock(async () => ({
 const attachWorkflowRunId = mock(async () => undefined);
 const markAutomationRunStartFailed = mock(async () => undefined);
 
+const serverEnv: { CRON_SECRET?: string; NODE_ENV?: string } = {
+    CRON_SECRET,
+    NODE_ENV: "production",
+};
+
 mock.module("@/env/server", () => ({
-    serverEnv: { CRON_SECRET, NODE_ENV: "production" },
+    serverEnv,
 }));
 
 mock.module("workflow/api", () => ({
@@ -41,6 +46,8 @@ function cronRequest(authorization?: string): Request {
 
 describe("automation cron authorization", () => {
     beforeEach(() => {
+        serverEnv.CRON_SECRET = CRON_SECRET;
+        serverEnv.NODE_ENV = "production";
         claimDueAutomationRuns.mockClear();
         recoverStaleAutomationRuns.mockClear();
     });
@@ -73,5 +80,27 @@ describe("automation cron authorization", () => {
         const response = await GET(cronRequest(`Bearer ${CRON_SECRET}-extra`));
         expect(response.status).toBe(401);
         expect(claimDueAutomationRuns).not.toHaveBeenCalled();
+    });
+
+    test("rejects an unauthenticated request when NODE_ENV is not production", async () => {
+        serverEnv.NODE_ENV = "development";
+        const response = await GET(cronRequest());
+        expect(response.status).toBe(401);
+        expect(claimDueAutomationRuns).not.toHaveBeenCalled();
+    });
+
+    test("rejects an unauthenticated request when NODE_ENV is undefined", async () => {
+        serverEnv.NODE_ENV = undefined;
+        const response = await GET(cronRequest());
+        expect(response.status).toBe(401);
+        expect(claimDueAutomationRuns).not.toHaveBeenCalled();
+    });
+
+    test("allows an unauthenticated local request when no secret is configured outside production", async () => {
+        serverEnv.CRON_SECRET = "";
+        serverEnv.NODE_ENV = "development";
+        const response = await GET(cronRequest());
+        expect(response.status).toBe(200);
+        expect(claimDueAutomationRuns).toHaveBeenCalledTimes(1);
     });
 });
