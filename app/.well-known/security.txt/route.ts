@@ -9,23 +9,20 @@ export function GET() {
 # https://securitytxt.org/
 # RFC 9116: https://www.rfc-editor.org/rfc/rfc9116.html
 
-# Required: Contact information for security reports
+# If you discover a security vulnerability, please report it privately by email
 Contact: mailto:notices@cachd.app
 
-# Required: When this file expires (ISO 8601 format, within 1 year)
+# When this file expires (ISO 8601 format, within 1 year)
 Expires: ${expires}
 
-# Preferred languages for security reports
-Preferred-Languages: en
-
-# Canonical URL for this security.txt file
-Canonical: ${BASE_URL}/.well-known/security.txt
-
-# Link to security policy page
+# Security policy
 Policy: ${BASE_URL}/security
 
-# If you discover a security vulnerability, please report it responsibly.
-# We appreciate your help in keeping Cache and our users secure.
+# General (non-security) issues
+Contact: https://github.com/gilsmt/cache-app/issues/new?assignees=&labels=bug
+
+Preferred-Languages: en
+Canonical: ${BASE_URL}/.well-known/security.txt
 `;
 
     return new Response(securityTxt, {
