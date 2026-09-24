@@ -2753,9 +2753,7 @@ function CollectionsListFavoritesItem({
     return (
         <div className="group relative flex select-none items-center">
             <div className="pointer-events-none absolute top-1/2 left-1.25 z-10 size-6 -translate-y-1/2 overflow-hidden rounded-md">
-                {isNote ? (
-                    <span className="block size-full bg-linear-to-br from-note-surface-from via-background to-note-surface-to" />
-                ) : (
+                {isNote ? null : (
                     <CollectionsListFavoritesItemImage
                         alt=""
                         className="size-full object-cover"
