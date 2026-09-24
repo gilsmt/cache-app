@@ -91,6 +91,20 @@ describe("resolveComposerPatchContradictions", () => {
         expect(resolved.collectionMembershipFilter).toBe("all");
     });
 
+    test("clears contradictory selections in reset patches", () => {
+        const resolved = resolveComposerPatchContradictions(
+            patch({
+                collectionMembershipFilter: "not-in-collections",
+                reset: true,
+                selectedCollectionIds: ["col-1"],
+            }),
+            request().composerState
+        );
+        expect(resolved.reset).toBe(true);
+        expect(resolved.collectionMembershipFilter).toBe("not-in-collections");
+        expect(resolved.selectedCollectionIds).toEqual([]);
+    });
+
     test("heals contradictory existing state on partial updates", () => {
         const state = request({
             composerState: {
@@ -105,14 +119,6 @@ describe("resolveComposerPatchContradictions", () => {
         );
         expect(resolved.selectedCollectionIds).toEqual([]);
         expect(resolved.searchTerms).toEqual(["poster"]);
-    });
-
-    test("respects an explicit reset", () => {
-        const resolved = resolveComposerPatchContradictions(
-            patch({ reset: true, selectedCollectionIds: ["col-1"] }),
-            request().composerState
-        );
-        expect(resolved.reset).toBe(true);
     });
 });
 

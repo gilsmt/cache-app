@@ -19,7 +19,6 @@ const INITIAL_PUBLIC_FEEDBACK_STATE = {
     status: "idle",
 } satisfies FeedbackActionState;
 
-const FEEDBACK_PAGE_PATH = "/feedback";
 const MESSAGE_MAX_LENGTH = 1000;
 
 interface FeedbackFormProps {
@@ -70,7 +69,7 @@ export function FeedbackForm({ initialEmail }: FeedbackFormProps) {
             ref={formRef}
         >
             <input name="context" type="hidden" value={FEEDBACK_PAGE_CONTEXT} />
-            <input name="pagePath" type="hidden" value={FEEDBACK_PAGE_PATH} />
+            <input name="pagePath" type="hidden" value="/feedback" />
             <input name="email" type="hidden" value={initialEmail ?? ""} />
             <input
                 aria-hidden="true"

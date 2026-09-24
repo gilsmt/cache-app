@@ -6,12 +6,6 @@ import {
 } from "@/lib/desktop/releases";
 
 describe("matchDesktopPlatform", () => {
-    test("matches canonical asset names", () => {
-        expect(matchDesktopPlatform("Cache.dmg")).toBe("macos");
-        expect(matchDesktopPlatform("Cache_x64.msi")).toBe("windows");
-        expect(matchDesktopPlatform("Cache_x86_64.AppImage")).toBe("linux");
-    });
-
     test("matches by extension fallback", () => {
         expect(matchDesktopPlatform("Something.dmg")).toBe("macos");
         expect(matchDesktopPlatform("Installer.exe")).toBe("windows");

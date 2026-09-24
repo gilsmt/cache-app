@@ -33,7 +33,6 @@ const LEADING_SLASH = /^[/\\]+/;
 const WINDOWS_DRIVE = /^[A-Za-z]:[/\\]/;
 const MD_EXT = /\.md$/i;
 const LINK_SCHEME = /^([a-z][a-z0-9+.-]*):/i;
-const FILE_IMPORT_FAILURE_MESSAGE = "We couldn't import this file.";
 const MAX_FILE_SIZE_BYTES = 500_000;
 const MAX_RELATIVE_PATH_LENGTH = 512;
 const FILE_SIZE_SKIP_MESSAGE = `Exceeds the ${(MAX_FILE_SIZE_BYTES / 1000).toFixed(0)} KB file size limit.`;
@@ -636,7 +635,7 @@ export async function importMarkdownFiles(args: {
             });
             result.failedCount += 1;
             result.errors.push({
-                message: FILE_IMPORT_FAILURE_MESSAGE,
+                message: "We couldn't import this file.",
                 relativePath: file.relativePath,
             });
         }

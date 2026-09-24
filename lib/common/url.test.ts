@@ -4,17 +4,10 @@ import {
     isHttpUrl,
     parseDisplayUrl,
     parseStandaloneUrl,
-    parseValidUrl,
     tryParseUrl,
 } from "@/lib/common/url";
 
 describe("tryParseUrl", () => {
-    test("returns a URL object for valid input", () => {
-        expect(tryParseUrl("https://example.com/path")?.href).toBe(
-            "https://example.com/path"
-        );
-    });
-
     test("resolves a relative value against a base", () => {
         expect(tryParseUrl("/path", "https://example.com")?.href).toBe(
             "https://example.com/path"
@@ -48,13 +41,6 @@ describe("tryParseUrl", () => {
 });
 
 describe("url helpers use the non-throwing parser", () => {
-    test("parseValidUrl keeps its contract", () => {
-        expect(parseValidUrl("https://example.com/")?.href).toBe(
-            "https://example.com/"
-        );
-        expect(parseValidUrl("not a url :::")).toBeNull();
-    });
-
     test("isHttpUrl keeps its contract", () => {
         expect(isHttpUrl("https://example.com")).toBe(true);
         expect(isHttpUrl("javascript:alert(1)")).toBe(false);

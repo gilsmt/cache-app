@@ -615,8 +615,6 @@ export function duplicateCollection({
     assignedItemIds: string[];
     collection: LibraryCollectionSummary;
 }> {
-    const operation = "duplicateCollection";
-
     return prisma.$transaction(async (tx) => {
         const sourceCollection = await tx.collection.findFirst({
             select: {
@@ -633,7 +631,7 @@ export function duplicateCollection({
 
         if (!sourceCollection) {
             throwCollectionNotFound(
-                operation,
+                "duplicateCollection",
                 "That collection is no longer available."
             );
         }

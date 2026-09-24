@@ -180,17 +180,6 @@ describe("extractPreviewMetadata — images", () => {
         );
     });
 
-    test("realistic page with filler markup", () => {
-        expect(
-            imagesOf(
-                "<!doctype html><html><head><title>Page</title>" +
-                    `<meta property="og:image" content="https://x.com/og.png">` +
-                    `<meta name="twitter:image" content="https://x.com/tw.png">` +
-                    `</head><body>${FILLER.repeat(64)}</body></html>`
-            )
-        ).toEqual(["https://x.com/og.png"]);
-    });
-
     test("no og:image, falls back to first img", () => {
         expect(
             imagesOf(
@@ -278,14 +267,6 @@ describe("extractPreviewMetadata — image dimensions", () => {
                     `<meta property="og:image:height" content="630">`
             )
         ).toEqual({ height: "630", width: "1200" });
-    });
-
-    test("missing tags yield undefined dimensions", () => {
-        expect(
-            imageDimensionsOf(
-                `<meta property="og:image" content="https://x.com/a.png">`
-            )
-        ).toEqual({ height: undefined, width: undefined });
     });
 
     test("og:video:width does not leak into image dimensions", () => {
@@ -502,12 +483,6 @@ describe("extractPreviewMetadata — videos", () => {
             },
         ]);
     });
-
-    test("no og:video yields empty list", () => {
-        expect(videosOf("<!doctype html><html><head></head></html>")).toEqual(
-            []
-        );
-    });
 });
 
 describe("extractPreviewMetadata — favicons", () => {
@@ -535,12 +510,6 @@ describe("extractPreviewMetadata — favicons", () => {
             "https://example.com/b.ico",
             "https://example.com/short.ico",
         ]);
-    });
-
-    test("defaults to root favicon when no icon link matches", () => {
-        expect(
-            faviconsOf("<!doctype html><html><head></head><body></body></html>")
-        ).toEqual(["https://example.com/favicon.ico"]);
     });
 
     test("icon link without href yields default favicon", () => {

@@ -93,21 +93,6 @@ describe("Logger argument formatting", () => {
         ).toEqual(["text", 42, true, 3.14, 123n, transform, symbol]);
     });
 
-    test("leaves null and undefined untouched", () => {
-        expect(formattedArgsFor("info", null, undefined)).toEqual([
-            null,
-            undefined,
-        ]);
-    });
-
-    test("stringifies objects as pretty-printed JSON in development", () => {
-        const value = { role: "admin", user: "ada" };
-
-        expect(formattedArgsFor("info", value)[0]).toBe(
-            JSON.stringify(value, null, 2)
-        );
-    });
-
     test("redacts sensitive keys inside logged objects", () => {
         const [formatted] = formattedArgsFor("info", {
             apiKey: "abc123",

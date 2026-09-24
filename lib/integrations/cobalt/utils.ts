@@ -1,11 +1,6 @@
-/**
- * When adding a new integration that supports media (Instagram, Pinterest,
- * TikTok, X, YouTube, etc.), its hostnames must also be added here for
- * Cobalt-based media resolution.
- */
 import { tryParseUrl } from "@/lib/common/url";
 
-export const COBALT_SUPPORTED_HOSTS = new Set([
+export const TRUSTED_HOSTS = new Set([
     "bilibili.com",
     "www.bilibili.com",
     "bsky.app",
@@ -66,5 +61,5 @@ export const COBALT_SUPPORTED_HOSTS = new Set([
 
 export function isCobaltHost(url: string): boolean {
     const parsed = tryParseUrl(url);
-    return parsed ? COBALT_SUPPORTED_HOSTS.has(parsed.hostname) : false;
+    return parsed ? TRUSTED_HOSTS.has(parsed.hostname) : false;
 }

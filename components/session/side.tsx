@@ -375,12 +375,12 @@ interface SideQueueState {
     items: SideEntry[];
 }
 
-interface SideContextValue {
+interface SideContext {
     onSaveNote: NoteSaveHandler;
     onUrlPaste: (url: string) => Promise<void> | void;
 }
 
-interface SideTabsContextValue {
+interface SideTabsContext {
     onKeyDown: (
         index: number,
         event: React.KeyboardEvent<HTMLButtonElement>
@@ -436,10 +436,11 @@ const NOTE_EDITOR_EXTENSION = defineExtension({
     theme: NOTE_EDITOR_THEME,
 });
 
-const SideContext = createContext<SideContextValue | null>(null);
-const SideTabsContext = createContext<SideTabsContextValue | null>(null);
+const SideContext = createContext<SideContext | null>(null);
 
-function useSideContext(): SideContextValue {
+const SideTabsContext = createContext<SideTabsContext | null>(null);
+
+function useSideContext(): SideContext {
     const context = use(SideContext);
     if (!context) {
         throw new Error("Side components must be used inside <SideRoot>.");
@@ -447,7 +448,7 @@ function useSideContext(): SideContextValue {
     return context;
 }
 
-function useSideTabsContext(): SideTabsContextValue {
+function useSideTabsContext(): SideTabsContext {
     const context = use(SideTabsContext);
     if (!context) {
         throw new Error("Side tabs must be rendered inside <SideList>.");
@@ -1957,7 +1958,7 @@ function toSideNote(note: LibraryItemWithCollections): SideNote {
     };
 }
 
-interface NoteContextValue {
+interface NoteContext {
     contentEditableRef?: React.RefObject<HTMLDivElement | null>;
     contentHtml: string;
     editorKey: number;
@@ -1999,9 +2000,9 @@ interface ExportContentProvider {
     id: string;
 }
 
-const NoteContext = createContext<NoteContextValue | null>(null);
+const NoteContext = createContext<NoteContext | null>(null);
 
-function useNoteContext(): NoteContextValue {
+function useNoteContext(): NoteContext {
     const context = use(NoteContext);
     if (!context) {
         throw new Error(

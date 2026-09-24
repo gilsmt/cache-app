@@ -64,10 +64,6 @@ export function resolveComposerPatchContradictions(
     patch: AskCacheComposerPatch,
     state: AskCacheRequest["composerState"]
 ): AskCacheComposerPatch {
-    if (patch.reset) {
-        return patch;
-    }
-
     const resultingMembership =
         patch.collectionMembershipFilter ?? state.collectionMembershipFilter;
     const resultingSelectedCollectionIds =

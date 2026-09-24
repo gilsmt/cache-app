@@ -60,8 +60,6 @@ import {
 import AppIconSmall from "@/public/cache-icon-small.png";
 
 const ALL_LIBRARY_COLLECTION_ID = "all_library";
-const SAVE_AUTOMATION_FAILURE_MESSAGE =
-    "We couldn't save this automation. Please try again.";
 
 const DEFAULT_WEEK_DAY = 1;
 const DEFAULT_MONTH_DAY = 1;
@@ -294,6 +292,7 @@ export function AutomationComposerDialog({
 }: AutomationComposerDialogProps) {
     const router = useRouter();
     const locale = useLocale();
+
     const titleId = React.useId();
     const promptId = React.useId();
     const collectionId = React.useId();
@@ -302,6 +301,7 @@ export function AutomationComposerDialog({
     const weekDayId = React.useId();
     const monthDayId = React.useId();
     const errorId = React.useId();
+
     const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
     const isOpenControlled = open !== undefined;
     const isOpen = isOpenControlled ? open : uncontrolledOpen;
@@ -311,13 +311,13 @@ export function AutomationComposerDialog({
         getInitialFormState(automation, collections)
     );
     const isEditing = automation !== undefined;
+    const shouldRenderTrigger = trigger !== null;
     const shouldResumeAfterSave = automation?.status === "paused";
     const submitLabel = getSubmitLabel({
         isEditing,
         shouldResumeAfterSave,
     });
     const timeOptions = getTimeOfDayOptions(locale);
-    const shouldRenderTrigger = trigger !== null;
 
     const handleOpenChange = useStableCallback((nextOpen: boolean) => {
         if (nextOpen || !submissionPendingRef.current) {
@@ -471,7 +471,8 @@ export function AutomationComposerDialog({
                     log.error("Automation submit action failed", error);
                     setFormState((currentState) => ({
                         ...currentState,
-                        errorMessage: SAVE_AUTOMATION_FAILURE_MESSAGE,
+                        errorMessage:
+                            "We couldn't save this automation. Please try again.",
                     }));
                 } finally {
                     submissionPendingRef.current = false;
@@ -733,15 +734,13 @@ function AutomationCollectionCombobox({
                 <ComboboxEmpty>No matching collections</ComboboxEmpty>
                 <ComboboxList>
                     <ComboboxCollection>
-                        {(collectionOption: AutomationCollectionOption) => (
+                        {(option: AutomationCollectionOption) => (
                             <ComboboxItem
-                                key={collectionOption.id}
+                                key={option.id}
                                 shouldShowIndicatorLast
-                                value={collectionOption}
+                                value={option}
                             >
-                                <span className="truncate">
-                                    {collectionOption.name}
-                                </span>
+                                <span className="truncate">{option.name}</span>
                             </ComboboxItem>
                         )}
                     </ComboboxCollection>
@@ -789,13 +788,13 @@ function AutomationCadenceCombobox({
             <ComboboxPopup className="min-w-36">
                 <ComboboxList>
                     <ComboboxCollection>
-                        {(cadenceOption: CadenceOption) => (
+                        {(option: CadenceOption) => (
                             <ComboboxItem
-                                key={cadenceOption.value}
+                                key={option.value}
                                 shouldShowIndicatorLast
-                                value={cadenceOption}
+                                value={option}
                             >
-                                {cadenceOption.label}
+                                {option.label}
                             </ComboboxItem>
                         )}
                     </ComboboxCollection>
@@ -908,14 +907,14 @@ function AutomationTimeCombobox({
                 <ComboboxEmpty>No matching times</ComboboxEmpty>
                 <ComboboxList>
                     <ComboboxCollection>
-                        {(timeOption: TimeOfDayOption) => (
+                        {(option: TimeOfDayOption) => (
                             <ComboboxItem
                                 className="tabular-nums"
-                                key={timeOption.value}
+                                key={option.value}
                                 shouldShowIndicatorLast
-                                value={timeOption}
+                                value={option}
                             >
-                                {timeOption.label}
+                                {option.label}
                             </ComboboxItem>
                         )}
                     </ComboboxCollection>
@@ -963,13 +962,13 @@ function AutomationWeekDayCombobox({
             <ComboboxPopup className="min-w-36">
                 <ComboboxList>
                     <ComboboxCollection>
-                        {(weekDayOption: WeekDayOption) => (
+                        {(option: WeekDayOption) => (
                             <ComboboxItem
-                                key={weekDayOption.value}
+                                key={option.value}
                                 shouldShowIndicatorLast
-                                value={weekDayOption}
+                                value={option}
                             >
-                                {weekDayOption.label}
+                                {option.label}
                             </ComboboxItem>
                         )}
                     </ComboboxCollection>
@@ -1023,13 +1022,13 @@ function AutomationMonthDayCombobox({
                 <ComboboxEmpty>No matching days</ComboboxEmpty>
                 <ComboboxList>
                     <ComboboxCollection>
-                        {(monthDayOption: MonthDayOption) => (
+                        {(option: MonthDayOption) => (
                             <ComboboxItem
-                                key={monthDayOption.value}
+                                key={option.value}
                                 shouldShowIndicatorLast
-                                value={monthDayOption}
+                                value={option}
                             >
-                                {monthDayOption.label}
+                                {option.label}
                             </ComboboxItem>
                         )}
                     </ComboboxCollection>

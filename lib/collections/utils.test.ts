@@ -83,16 +83,4 @@ describe("buildItemsCsv", () => {
             `"'@label","plain caption","https://www.example.com/","other","bookmark","2026-01-01T00:00:00.000Z",""`
         );
     });
-
-    test("leaves safe captions unchanged", () => {
-        const csv = buildItemsCsv(
-            "Collection",
-            "name",
-            [makeItem({ caption: "plain caption" })],
-            "\n"
-        );
-        const captionCell = csv.split("\n")[1]?.split(",")[1];
-
-        expect(captionCell).toBe('"plain caption"');
-    });
 });

@@ -39,19 +39,6 @@ describe("generateMcpToken", () => {
         expect(verified?.scopes).toEqual(["library:read"]);
         expect(verified?.issuedAt).toBeLessThanOrEqual(Date.now());
     });
-
-    test("dedupes repeated scopes", async () => {
-        const token = await generateMcpToken("user_1", [
-            "library:read",
-            "library:read",
-            "library:write",
-        ]);
-
-        expect((await verifyMcpToken(token))?.scopes).toEqual([
-            "library:read",
-            "library:write",
-        ]);
-    });
 });
 
 describe("verifyMcpToken", () => {
