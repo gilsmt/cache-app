@@ -5074,7 +5074,7 @@ export function BrowserContent({
             >
                 <BrowserContext value={browserContextValue}>
                     {children}
-                    <div className="z-0 flex min-h-0 w-full flex-1 items-stretch">
+                    <div className="z-0 flex min-h-0 w-full min-w-0 flex-1 items-stretch">
                         <div
                             className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-8"
                             style={

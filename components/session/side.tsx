@@ -70,6 +70,7 @@ import {
     PanelRight,
     PlusIcon,
     RotateCcwIcon,
+    SquarePen,
     StrikethroughIcon,
     UnderlineIcon,
     XIcon,
@@ -1188,7 +1189,7 @@ export function SideContent() {
                 className={cn(
                     "group/side relative z-50 flex min-h-0 shrink-0 flex-col overflow-hidden border-s bg-background transition-[width,transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
                     "fixed inset-y-0 right-0 w-[calc(100%-3rem)] max-w-lg data-[state=collapsed]:translate-x-full",
-                    "lg:w-[480px]",
+                    "lg:w-1/2 lg:max-w-full",
                     "lg:sticky lg:top-0 lg:right-auto lg:h-dvh lg:max-h-dvh lg:translate-x-0 lg:data-[state=collapsed]:w-0 lg:data-[state=collapsed]:border-transparent lg:data-[state=collapsed]:opacity-0"
                 )}
                 data-side="right"
@@ -1201,11 +1202,11 @@ export function SideContent() {
                 <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
                     <div
                         className={cn(
-                            "flex shrink-0 flex-col gap-2 p-2 pr-10",
+                            "flex min-w-0 shrink-0 flex-col gap-2 p-2 pr-10",
                             { "p-0": !activeEntry }
                         )}
                     >
-                        <div className="flex max-w-full flex-nowrap items-center gap-1">
+                        <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-1">
                             <SideList
                                 items={items}
                                 onTabSelect={selectQueueIndex}
@@ -1339,7 +1340,7 @@ function SideUrlPanel({
         <div
             aria-busy={isLoading}
             aria-labelledby={getSideTabId(entry)}
-            className="relative min-h-0 flex-1"
+            className="relative min-h-0 min-w-0 flex-1"
             id={getSidePanelId(entry)}
             role="tabpanel"
             // biome-ignore lint/a11y/noNoninteractiveTabindex: tabpanel needs keyboard focus per ARIA tabs pattern; matches previous DrawerPanel behavior
@@ -1377,7 +1378,7 @@ function SidePanelEmpty() {
     const recentItems = getRecentSideItems(items, lastVisitedItemIds);
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="min-h-0 flex-1">
                 <Placeholder className="bg-background">
                     <Globe
@@ -1390,7 +1391,7 @@ function SidePanelEmpty() {
             {recentItems.length > 0 ? (
                 <section className="shrink-0 border-t p-4">
                     <h2 className="font-medium text-foreground text-sm">
-                        <T>Recently visited</T>
+                        <T>Recents</T>
                     </h2>
                     <ul className="mt-2 flex flex-col gap-1">
                         {recentItems.map((item) => (
@@ -1693,6 +1694,7 @@ function SideNewTabMenu() {
 
     const recentItems = getRecentSideItems(items, lastVisitedItemIds);
     const triggerLabel = gt("Open recent tabs");
+    const handleCreateNote = useStableCallback(() => openSideNote(null));
 
     return (
         <Menu>
@@ -1706,12 +1708,21 @@ function SideNewTabMenu() {
                     />
                 }
             >
-                <PlusIcon aria-hidden className="size-4" focusable="false" />
+                <PlusIcon aria-hidden className="size-4.5" focusable="false" />
             </MenuTrigger>
             <MenuPopup align="end" className="w-72">
+                <MenuItem onClick={handleCreateNote}>
+                    <SquarePen
+                        aria-hidden
+                        className="size-4 text-muted-foreground"
+                        focusable="false"
+                    />
+                    <T>Add new</T>
+                </MenuItem>
+                <MenuSeparator />
                 <MenuGroup>
                     <MenuGroupLabel>
-                        <T>Recently visited</T>
+                        <T>Recents</T>
                     </MenuGroupLabel>
                     {recentItems.length > 0 ? (
                         recentItems.map((item) => (
@@ -1931,15 +1942,15 @@ function SideNotePanel({
                 aria-hidden={!isActive}
                 aria-labelledby={getSideTabId(entry)}
                 className={cn(
-                    "min-h-0 flex-1 flex-col",
+                    "min-h-0 min-w-0 flex-1 flex-col",
                     isActive ? "flex" : "hidden"
                 )}
                 id={getSidePanelId(entry)}
                 role="tabpanel"
                 tabIndex={isActive ? 0 : -1}
             >
-                <ScrollArea className="min-h-0 flex-1">
-                    <div className="p-4">
+                <ScrollArea className="min-h-0 min-w-0 flex-1">
+                    <div className="w-full min-w-0 p-4">
                         <NoteEditor />
                         <NoteMetrics />
                     </div>
@@ -2438,13 +2449,13 @@ function NoteToolbarControls() {
     });
 
     return (
-        <div className="inline-flex items-center justify-end gap-1">
+        <div className="ms-auto inline-flex items-center justify-end gap-0.5">
             <NoteSaveStatus />
             <Button
                 aria-label={gt("Copy note")}
                 disabled={!hasQuery}
                 onClick={handleCopyNote}
-                size="icon-xs"
+                size="icon-sm"
                 variant="ghost"
             >
                 {isCopied ? (
@@ -2454,7 +2465,7 @@ function NoteToolbarControls() {
                         focusable="false"
                     />
                 ) : (
-                    <Copy aria-hidden className="size-3" focusable="false" />
+                    <Copy aria-hidden className="size-3.5" focusable="false" />
                 )}
             </Button>
             <Menu>
@@ -2462,7 +2473,7 @@ function NoteToolbarControls() {
                     render={
                         <Button
                             disabled={!hasQuery}
-                            size="xs"
+                            size="sm"
                             variant="ghost"
                         />
                     }
@@ -2754,7 +2765,7 @@ function FormattingToolbarControls() {
         <div
             aria-label={gt("Text formatting")}
             aria-orientation="horizontal"
-            className="inline-flex items-center justify-start gap-3"
+            className="flex min-w-0 flex-wrap items-center justify-start gap-3"
             ref={mergedRef}
             role="toolbar"
         >
@@ -2849,14 +2860,14 @@ function ContentPlugin({
 
     return (
         <>
-            <div className="mt-2 mb-3 flex items-center justify-between">
+            <div className="mt-2 mb-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                 <FormattingToolbarControls />
                 <NoteToolbarControls />
             </div>
-            <div className="relative min-h-96 flex-1">
+            <div className="relative min-h-96 w-full min-w-0 flex-1">
                 <ContentEditable
                     className={cn(
-                        "prose prose-stone h-full min-h-96 max-w-none overflow-y-auto text-[15px] leading-7 outline-none",
+                        "prose prose-stone h-full min-h-96 w-full min-w-0 max-w-full overflow-y-auto whitespace-pre-wrap text-[15px] leading-7 outline-none [overflow-wrap:anywhere]",
                         "prose-p:my-0 prose-p:min-h-[1.75rem]",
                         "prose-mark:rounded-sm prose-mark:bg-amber-200/90 prose-mark:px-0.5",
                         "prose-strong:font-semibold prose-em:italic prose-u:underline prose-s:line-through"
@@ -2884,7 +2895,7 @@ function NotePlaceholder() {
             aria-hidden
             className="pointer-events-none absolute inset-0 text-base text-muted-foreground"
         >
-            <T>Start typing or paste a link to add...</T>
+            <T>Start writing, or paste a link to add</T>
         </div>
     );
 }
