@@ -67,13 +67,10 @@ interface ChatsListProps {
 }
 
 export function ChatsList({ chats, nowMs }: ChatsListProps) {
-    const sortedChats = chats.toSorted(
-        (left, right) => right.updatedAt.getTime() - left.updatedAt.getTime()
-    );
-    const updateCount = getChatsUpdateCount(sortedChats, nowMs);
+    const updateCount = getChatsUpdateCount(chats, nowMs);
 
     return (
-        <ChatsListContext value={sortedChats}>
+        <ChatsListContext value={chats}>
             <ChatsListCollapsible
                 className="group/collapsible"
                 data-sidebar-collapsible=""
