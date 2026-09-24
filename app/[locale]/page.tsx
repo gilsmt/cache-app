@@ -148,21 +148,6 @@ const ASK_CACHE_GEMINI_URL = `https://gemini.google.com/app?${new URLSearchParam
 const ASK_CACHE_GROK_URL = `https://grok.com/?${new URLSearchParams({
     q: ASK_CACHE_QUERY,
 })}`;
-const ASK_CACHE_PROVIDERS = [
-    { Icon: OpenAIIcon, label: "ChatGPT", url: ASK_CACHE_CHATGPT_URL },
-    { Icon: ClaudeIcon, label: "Claude", url: ASK_CACHE_CLAUDE_URL },
-    {
-        Icon: PerplexityIcon,
-        label: "Perplexity",
-        url: ASK_CACHE_PERPLEXITY_URL,
-    },
-    { Icon: GeminiIcon, label: "Gemini", url: ASK_CACHE_GEMINI_URL },
-    { Icon: GrokIcon, label: "Grok", url: ASK_CACHE_GROK_URL },
-] satisfies ReadonlyArray<{
-    Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-    label: string;
-    url: string;
-}>;
 
 export async function generateMetadata({
     params,
@@ -194,6 +179,7 @@ export async function generateMetadata({
 
 export default async function Home() {
     const session = await getServerSession();
+    const gt = await getGT();
 
     return (
         <PageShell>
@@ -207,7 +193,7 @@ export default async function Home() {
                         <T context="'Cache' is the product's name">
                             <h1 className="font-medium text-[3rem] leading-[98%] tracking-[-0.2rem] md:text-[4rem]">
                                 <GradientWaveText
-                                    ariaLabel="Bookmark Intelligence"
+                                    ariaLabel={gt("Bookmark Intelligence")}
                                     className="pb-1.5"
                                 >
                                     Bookmark Intelligence
@@ -291,7 +277,7 @@ export default async function Home() {
                             nativeButton={false}
                             render={
                                 <a
-                                    aria-label="GitHub Repository"
+                                    aria-label={gt("GitHub Repository")}
                                     href="/github"
                                     rel="noopener noreferrer"
                                     target="_blank"
@@ -593,8 +579,10 @@ export default async function Home() {
                                         <div className="flex items-center gap-2 rounded-xl border bg-background p-3 shadow-sm">
                                             <CircleCheck className="size-4.5 fill-emerald-500/15 text-emerald-500" />
                                             <span className="font-medium text-foreground text-sm">
-                                                All done — Content library
-                                                organized
+                                                <T context="Status in the Cache interface demo. Use the same Spanish terms as the product UI.">
+                                                    All done — Content library
+                                                    organized
+                                                </T>
                                             </span>
                                         </div>
                                         <div className="relative space-y-4 pt-6 pl-6">
@@ -604,9 +592,13 @@ export default async function Home() {
                                                 <div className="flex items-center gap-2 rounded-xl border bg-background p-3 shadow-sm">
                                                     <ChromeIcon className="size-3.5" />
                                                     <span className="font-medium text-[11px] text-muted-foreground">
-                                                        Bookmarks imported
+                                                        <T context="Status in the Cache interface demo. Translate bookmarks consistently as marcadores.">
+                                                            Bookmarks imported
+                                                        </T>
                                                         <span className="pl-3 text-foreground/50">
-                                                            1m ago
+                                                            <T context="Relative time in the Cache interface demo.">
+                                                                1m ago
+                                                            </T>
                                                         </span>
                                                     </span>
                                                 </div>
@@ -616,9 +608,13 @@ export default async function Home() {
                                                 <div className="flex items-center gap-2 rounded-xl border bg-background p-3 shadow-sm">
                                                     <TikTokIcon className="size-3.5" />
                                                     <span className="font-medium text-[11px] text-muted-foreground">
-                                                        Bookmarks imported
+                                                        <T context="Status in the Cache interface demo. Translate bookmarks consistently as marcadores.">
+                                                            Bookmarks imported
+                                                        </T>
                                                         <span className="pl-3 text-foreground/50">
-                                                            1m ago
+                                                            <T context="Relative time in the Cache interface demo.">
+                                                                1m ago
+                                                            </T>
                                                         </span>
                                                     </span>
                                                 </div>
@@ -628,10 +624,14 @@ export default async function Home() {
                                                 <div className="flex items-center gap-2 rounded-xl border bg-background p-3 shadow-sm">
                                                     <Component className="size-3.5" />
                                                     <span className="font-medium text-[11px] text-muted-foreground">
-                                                        Smart Collections sorted
-                                                        40 entries
+                                                        <T context="Status in the Cache interface demo. Use the same Spanish terms as the product UI.">
+                                                            Smart Collections
+                                                            sorted 40 entries
+                                                        </T>
                                                         <span className="pl-3 text-foreground/50">
-                                                            24s ago
+                                                            <T context="Relative time in the Cache interface demo.">
+                                                                24s ago
+                                                            </T>
                                                         </span>
                                                     </span>
                                                 </div>
@@ -641,9 +641,13 @@ export default async function Home() {
                                                 <div className="flex items-center gap-2 rounded-xl border bg-background p-3 shadow-sm">
                                                     <Search className="size-3.5" />
                                                     <span className="font-medium text-[11px] text-muted-foreground">
-                                                        OCR search indexed
+                                                        <T context="Status in the Cache interface demo.">
+                                                            OCR search indexed
+                                                        </T>
                                                         <span className="pl-3 text-foreground/50">
-                                                            8s ago
+                                                            <T context="Relative time in the Cache interface demo.">
+                                                                8s ago
+                                                            </T>
                                                         </span>
                                                     </span>
                                                 </div>
@@ -653,9 +657,14 @@ export default async function Home() {
                                                 <div className="flex items-center gap-2 rounded-xl border bg-background p-3 shadow-sm">
                                                     <CloudDownload className="size-3.5" />
                                                     <span className="font-medium text-[11px] text-muted-foreground">
-                                                        Export & Share ready
+                                                        <T context="Status in the Cache interface demo.">
+                                                            Export &amp; Share
+                                                            ready
+                                                        </T>
                                                         <span className="pl-3 text-foreground/50">
-                                                            now
+                                                            <T context="Relative time in the Cache interface demo.">
+                                                                now
+                                                            </T>
                                                         </span>
                                                     </span>
                                                 </div>
@@ -771,8 +780,8 @@ export default async function Home() {
                                     <T context="target audience">
                                         <span className="hidden opacity-50 sm:inline-block">
                                             Use cases
+                                            <br />
                                         </span>
-                                        <br />
                                         <span className="opacity-80">
                                             Work, life, and everything in
                                             between.
@@ -894,24 +903,91 @@ export default async function Home() {
                             <T>Ask about the Cache App on</T>
                         </p>
                         <div className="flex items-center gap-2">
-                            {ASK_CACHE_PROVIDERS.map(({ Icon, label, url }) => (
-                                <Button
-                                    aria-label={`Ask about the Cache App on ${label}`}
-                                    key={label}
-                                    nativeButton={false}
-                                    render={
-                                        <a
-                                            href={url}
-                                            rel="noopener noreferrer"
-                                            target="_blank"
-                                        />
-                                    }
-                                    size="icon-lg"
-                                    variant="secondary"
-                                >
-                                    <Icon className="size-5 sm:size-4" />
-                                </Button>
-                            ))}
+                            <Button
+                                aria-label={gt(
+                                    "Ask about the Cache App on ChatGPT"
+                                )}
+                                nativeButton={false}
+                                render={
+                                    <a
+                                        href={ASK_CACHE_CHATGPT_URL}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    />
+                                }
+                                size="icon-lg"
+                                variant="secondary"
+                            >
+                                <OpenAIIcon className="size-5 sm:size-4" />
+                            </Button>
+                            <Button
+                                aria-label={gt(
+                                    "Ask about the Cache App on Claude"
+                                )}
+                                nativeButton={false}
+                                render={
+                                    <a
+                                        href={ASK_CACHE_CLAUDE_URL}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    />
+                                }
+                                size="icon-lg"
+                                variant="secondary"
+                            >
+                                <ClaudeIcon className="size-5 sm:size-4" />
+                            </Button>
+                            <Button
+                                aria-label={gt(
+                                    "Ask about the Cache App on Perplexity"
+                                )}
+                                nativeButton={false}
+                                render={
+                                    <a
+                                        href={ASK_CACHE_PERPLEXITY_URL}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    />
+                                }
+                                size="icon-lg"
+                                variant="secondary"
+                            >
+                                <PerplexityIcon className="size-5 sm:size-4" />
+                            </Button>
+                            <Button
+                                aria-label={gt(
+                                    "Ask about the Cache App on Gemini"
+                                )}
+                                nativeButton={false}
+                                render={
+                                    <a
+                                        href={ASK_CACHE_GEMINI_URL}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    />
+                                }
+                                size="icon-lg"
+                                variant="secondary"
+                            >
+                                <GeminiIcon className="size-5 sm:size-4" />
+                            </Button>
+                            <Button
+                                aria-label={gt(
+                                    "Ask about the Cache App on Grok"
+                                )}
+                                nativeButton={false}
+                                render={
+                                    <a
+                                        href={ASK_CACHE_GROK_URL}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    />
+                                }
+                                size="icon-lg"
+                                variant="secondary"
+                            >
+                                <GrokIcon className="size-5 sm:size-4" />
+                            </Button>
                         </div>
                     </div>
                     <Footer />

@@ -1,5 +1,6 @@
 "use client";
 
+import { T, Var } from "gt-next";
 import Link from "next/link";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { buttonVariants } from "@/components/ui/button";
@@ -13,16 +14,18 @@ export default function NotFoundPage() {
             <div className="mx-auto flex h-svh max-w-md flex-col items-center justify-center gap-5 text-center">
                 <BrandLogo className="scale-80" src={LogoIconImage} />
                 <h1 className="font-medium text-foreground text-lg">
-                    Page not found
+                    <T>Page not found</T>
                 </h1>
                 <p className="text-base text-muted-foreground">
-                    This page does not exist or has been moved.
+                    <T>This page does not exist or has been moved.</T>
                 </p>
                 <Link
                     className={buttonVariants({ variant: "default" })}
                     href="/"
                 >
-                    Back to {APP_NAME}
+                    <T>
+                        Back to <Var>{APP_NAME}</Var>
+                    </T>
                 </Link>
             </div>
         </PageShell>

@@ -54,7 +54,7 @@ export default async function SignInPage() {
                             Cache App
                         </h1>
                         <p className="text-base text-muted-foreground">
-                            Sign up or log in to continue
+                            <T>Sign up or log in to continue</T>
                         </p>
                     </div>
                     <SignInButton hasServerSession={!!session} />
