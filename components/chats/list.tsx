@@ -233,7 +233,7 @@ function ChatsListEntry({ entry }: ChatsListEntryProps) {
                 href={href}
                 render={
                     <SidebarItem
-                        className="pr-8"
+                        className="pointer-fine:pr-8 pr-15"
                         render={<Link href={href} title={entry.title} />}
                     />
                 }
@@ -256,28 +256,12 @@ function ChatsListEntry({ entry }: ChatsListEntryProps) {
                         <T>Failed</T>
                     </span>
                 ) : null}
-                <time
-                    className="shrink-0 text-[11px] text-muted-foreground/80 tabular-nums"
-                    data-sidebar-collapsible=""
-                    dateTime={entry.updatedAt.toISOString()}
-                    title={dayjs(entry.updatedAt).format(
-                        "MMM DD, YYYY, h:mm A"
-                    )}
-                >
-                    {dayjs(entry.updatedAt).fromNow(true)}
-                </time>
             </ActivePathname>
-            <Button
-                aria-label={gt("Archive chat")}
-                className="pointer-fine:pointer-events-none absolute top-1/2 right-1 size-6 -translate-y-1/2 text-muted-foreground pointer-fine:opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 group-focus-within/chat-entry:pointer-events-auto group-focus-within/chat-entry:opacity-100 pointer-fine:group-hover/chat-entry:pointer-events-auto pointer-fine:group-hover/chat-entry:opacity-100"
-                isLoading={isPending}
-                onClick={handleArchive}
-                size="icon-xs"
-                title={gt("Archive chat")}
-                variant="ghost"
-            >
-                <Archive aria-hidden className="size-4" focusable="false" />
-            </Button>
+            <ChatsListEntryControls
+                entry={entry}
+                isPending={isPending}
+                onArchive={handleArchive}
+            />
             {actionErrorMessage ? (
                 <p
                     className="px-2 py-1 text-[11px] text-destructive"
@@ -287,5 +271,43 @@ function ChatsListEntry({ entry }: ChatsListEntryProps) {
                 </p>
             ) : null}
         </li>
+    );
+}
+
+interface ChatsListEntryControlsProps {
+    entry: ChatListItem;
+    isPending: boolean;
+    onArchive: () => void;
+}
+
+function ChatsListEntryControls({
+    entry,
+    isPending,
+    onArchive,
+}: ChatsListEntryControlsProps) {
+    const gt = useGT();
+
+    return (
+        <div className="absolute top-1/2 pointer-fine:right-0 right-1 flex pointer-fine:size-9 h-9 -translate-y-1/2 items-center justify-end pointer-fine:justify-center gap-1 pointer-fine:gap-0">
+            <time
+                className="pointer-events-none shrink-0 text-nowrap text-[11px] text-muted-foreground/80 tabular-nums pointer-fine:group-focus-within/chat-entry:opacity-0 pointer-fine:group-hover/chat-entry:opacity-0"
+                data-sidebar-collapsible=""
+                dateTime={entry.updatedAt.toISOString()}
+                title={dayjs(entry.updatedAt).format("MMM DD, YYYY, h:mm A")}
+            >
+                {dayjs(entry.updatedAt).fromNow(true)}
+            </time>
+            <Button
+                aria-label={gt("Archive chat")}
+                className="pointer-fine:pointer-events-none pointer-fine:absolute relative size-6 shrink-0 text-muted-foreground pointer-fine:opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 group-focus-within/chat-entry:pointer-events-auto group-focus-within/chat-entry:opacity-100 pointer-fine:group-hover/chat-entry:pointer-events-auto pointer-fine:group-hover/chat-entry:opacity-100"
+                isLoading={isPending}
+                onClick={onArchive}
+                size="icon-xs"
+                title={gt("Archive chat")}
+                variant="ghost"
+            >
+                <Archive aria-hidden className="size-4" focusable="false" />
+            </Button>
+        </div>
     );
 }
