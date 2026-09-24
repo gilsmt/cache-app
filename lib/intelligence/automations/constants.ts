@@ -1,6 +1,6 @@
 import type { AutomationTemplateKey } from "@/prisma/client/enums";
 
-export const AUTOMATION_AGENT_MODEL_DEFAULT = "openai/gpt-5.6-luna";
+export const AUTOMATION_AGENT_MODEL_DEFAULT = "openai/gpt-6-luna";
 export const AUTOMATION_DUE_BATCH_LIMIT = 10;
 export const AUTOMATION_INSPECTED_ITEM_COUNT_MAX = 120;
 export const AUTOMATION_ITEM_PAGE_LIMIT_DEFAULT = 20;
