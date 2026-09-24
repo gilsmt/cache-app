@@ -41,6 +41,8 @@ Cache exists because that signal is too valuable to waste. It treats the act of 
 
 You can self-host Cache for total control over your data and design. Cache has zero telemetry by default.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fgilsmt%2Fcache-app&env=DATABASE_URL,BETTER_AUTH_SECRET,GEMINI_API_KEY,AI_GATEWAY_API_KEY)
+
 ### Prerequisites
 
 - [Node.js 24+](https://nodejs.org/)
