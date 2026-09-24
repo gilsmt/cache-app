@@ -375,6 +375,7 @@ model Chat {
     userId          String
     user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
     title           String
+    archivedAt      DateTime?
     automationRunId String?        @unique
     automationRun   AutomationRun? @relation(fields: [automationRunId], references: [id], onDelete: SetNull)
     /// User message whose assistant reply is still being generated. One
@@ -386,7 +387,7 @@ model Chat {
     createdAt       DateTime       @default(now())
     updatedAt       DateTime       @updatedAt
 
-    @@index([userId, updatedAt])
+    @@index([userId, archivedAt, updatedAt])
     @@map("chat")
 }
 

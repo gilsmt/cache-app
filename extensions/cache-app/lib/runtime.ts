@@ -60,7 +60,7 @@ const DEFAULT_CACHE_APP_ORIGIN = "https://cachd.app";
  * first-party. A wildcard once trusted every cachd.app label, including
  * subdomains delegated to third-party services.
  */
-const TRUSTED_CACHE_WEB_ORIGINS = new Set([
+const TRUSTED_WEB_ORIGINS = new Set([
     "https://cachd.app",
     "https://www.cachd.app",
 ]);
@@ -86,7 +86,7 @@ function originFromUrl(raw: string): string {
 
 export function isTrustedCacheWebOrigin(origin: string): boolean {
     return (
-        TRUSTED_CACHE_WEB_ORIGINS.has(origin) ||
+        TRUSTED_WEB_ORIGINS.has(origin) ||
         LOCALHOST_ORIGIN_PATTERN.test(origin)
     );
 }

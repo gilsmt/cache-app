@@ -6,6 +6,7 @@ import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
 import { AutomationRunStatus, ChatMessageRole } from "@/prisma/client/enums";
 import {
+    CHAT_ARCHIVE_PAGE_SIZE,
     CHAT_LIST_LIMIT_DEFAULT,
     CHAT_LIST_LIMIT_MAX,
     CHAT_TURN_LEASE_DURATION_MS,
@@ -14,6 +15,15 @@ import { ChatError } from "./error";
 import { type ChatSource, parseChatSources } from "./sources";
 
 const log = createLogger("chats:service");
+const CHAT_LIST_INCLUDE = {
+    automationRun: {
+        select: { status: true },
+    },
+} satisfies Prisma.ChatInclude;
+
+type ChatListRecord = Prisma.ChatGetPayload<{
+    include: typeof CHAT_LIST_INCLUDE;
+}>;
 
 export interface ChatListItem {
     automationRunId: string | null;
@@ -22,6 +32,12 @@ export interface ChatListItem {
     runStatus: AutomationRunStatus | null;
     title: string;
     updatedAt: Date;
+}
+
+export interface ArchivedChatListPage {
+    chats: ChatListItem[];
+    page: number;
+    pageCount: number;
 }
 
 export interface ChatMessageItem {
@@ -59,27 +75,56 @@ export async function listChats(args: {
     userId: string;
 }): Promise<ChatListItem[]> {
     const chats = await prisma.chat.findMany({
-        include: {
-            automationRun: {
-                select: { status: true },
-            },
-        },
+        include: CHAT_LIST_INCLUDE,
         orderBy: { updatedAt: "desc" },
         take: Math.min(
             args.limit ?? CHAT_LIST_LIMIT_DEFAULT,
             CHAT_LIST_LIMIT_MAX
         ),
-        where: { userId: args.userId },
+        where: { archivedAt: null, userId: args.userId },
     });
 
-    return chats.map((chat) => ({
+    return chats.map(toChatListItem);
+}
+
+export async function listArchivedChats(args: {
+    page: number;
+    userId: string;
+}): Promise<ArchivedChatListPage> {
+    const where = {
+        archivedAt: { not: null },
+        userId: args.userId,
+    } satisfies Prisma.ChatWhereInput;
+    const totalCount = await prisma.chat.count({ where });
+    const pageCount = Math.max(
+        1,
+        Math.ceil(totalCount / CHAT_ARCHIVE_PAGE_SIZE)
+    );
+    const page = Math.min(args.page, pageCount);
+    const chats = await prisma.chat.findMany({
+        include: CHAT_LIST_INCLUDE,
+        orderBy: [{ archivedAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * CHAT_ARCHIVE_PAGE_SIZE,
+        take: CHAT_ARCHIVE_PAGE_SIZE,
+        where,
+    });
+
+    return {
+        chats: chats.map(toChatListItem),
+        page,
+        pageCount,
+    };
+}
+
+function toChatListItem(chat: ChatListRecord): ChatListItem {
+    return {
         automationRunId: chat.automationRunId,
         createdAt: chat.createdAt,
         id: chat.id,
         runStatus: chat.automationRun?.status ?? null,
         title: chat.title,
         updatedAt: chat.updatedAt,
-    }));
+    };
 }
 
 export async function getChat(args: {
@@ -149,6 +194,30 @@ export async function getChat(args: {
         title: chat.title,
         updatedAt: chat.updatedAt,
     };
+}
+
+export async function setChatArchived(args: {
+    chatId: string;
+    isArchived: boolean;
+    userId: string;
+}): Promise<void> {
+    const result = await prisma.chat.updateMany({
+        data: { archivedAt: args.isArchived ? new Date() : null },
+        where: {
+            id: args.chatId,
+            userId: args.userId,
+        },
+    });
+
+    if (result.count === 1) {
+        return;
+    }
+
+    throw new ChatError({
+        code: "not_found",
+        message: "That chat is no longer available.",
+        operation: "setChatArchived",
+    });
 }
 
 export async function createChatForAutomationRun(args: {

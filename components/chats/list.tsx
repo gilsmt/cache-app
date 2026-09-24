@@ -1,12 +1,15 @@
 "use client";
 
-import { Plural, T, Var } from "gt-next";
-import { History, MessageCircle } from "lucide-react";
+import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { Plural, T, useGT, Var } from "gt-next";
+import { Archive, History, MessageCircle } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import { ActivePathname } from "@/components/ui/active-pathname";
+import { Button } from "@/components/ui/button";
 import {
     Collapsible,
     CollapsiblePanel,
@@ -19,13 +22,19 @@ import {
     SidebarItem,
     SidebarItemValue,
 } from "@/components/ui/sidebar";
+import { Ticker } from "@/components/ui/ticker";
+import { setChatArchived } from "@/lib/chats/actions";
 import type { ChatListItem } from "@/lib/chats/service";
+import { ACTION_STATUS } from "@/lib/common/constants";
 import { dayjs } from "@/lib/common/dayjs";
+import { createLogger } from "@/lib/common/logs/console/logger";
 import { AutomationRunStatus } from "@/prisma/client/enums";
 
 const CHATS_OPEN_STORAGE_KEY = "cache:chats:open";
 const CHAT_SIDEBAR_MAX = 10;
 const CHAT_SIDEBAR_UPDATE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+const log = createLogger("chats:list");
 
 const ChatsListContext = React.createContext<ChatListItem[] | null>(null);
 
@@ -185,14 +194,46 @@ interface ChatsListEntryProps {
 }
 
 function ChatsListEntry({ entry }: ChatsListEntryProps) {
+    const gt = useGT();
+    const router = useRouter();
+    const [isPending, startTransition] = React.useTransition();
+    const [actionErrorMessage, setActionErrorMessage] = React.useState<
+        string | null
+    >(null);
     const href = getChatHref(entry);
 
+    const handleArchive = useStableCallback(() => {
+        setActionErrorMessage(null);
+        startTransition(async () => {
+            try {
+                const result = await setChatArchived({
+                    chatId: entry.id,
+                    isArchived: true,
+                });
+                if (result.status !== ACTION_STATUS.UPDATED) {
+                    setActionErrorMessage(result.message);
+                    return;
+                }
+                router.refresh();
+            } catch (error) {
+                log.error("Failed to archive chat", {
+                    chatId: entry.id,
+                    error,
+                });
+                setActionErrorMessage(
+                    gt("We couldn't archive this chat right now.")
+                );
+            }
+        });
+    });
+
     return (
-        <li>
+        <li className="group/chat-entry relative">
             <ActivePathname
                 href={href}
                 render={
                     <SidebarItem
+                        className="pr-8"
                         render={<Link href={href} title={entry.title} />}
                     />
                 }
@@ -204,7 +245,9 @@ function ChatsListEntry({ entry }: ChatsListEntryProps) {
                         focusable="false"
                     />
                 </span>
-                <SidebarItemValue>{entry.title}</SidebarItemValue>
+                <SidebarItemValue>
+                    <Ticker className="pt-px">{entry.title}</Ticker>
+                </SidebarItemValue>
                 {entry.runStatus === AutomationRunStatus.failed ? (
                     <span
                         className="mr-1 shrink-0 text-[11px] text-destructive/80"
@@ -224,6 +267,25 @@ function ChatsListEntry({ entry }: ChatsListEntryProps) {
                     {dayjs(entry.updatedAt).fromNow(true)}
                 </time>
             </ActivePathname>
+            <Button
+                aria-label={gt("Archive chat")}
+                className="pointer-fine:pointer-events-none absolute top-1/2 right-1 size-6 -translate-y-1/2 text-muted-foreground pointer-fine:opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 group-focus-within/chat-entry:pointer-events-auto group-focus-within/chat-entry:opacity-100 pointer-fine:group-hover/chat-entry:pointer-events-auto pointer-fine:group-hover/chat-entry:opacity-100"
+                isLoading={isPending}
+                onClick={handleArchive}
+                size="icon-xs"
+                title={gt("Archive chat")}
+                variant="ghost"
+            >
+                <Archive aria-hidden className="size-4" focusable="false" />
+            </Button>
+            {actionErrorMessage ? (
+                <p
+                    className="px-2 py-1 text-[11px] text-destructive"
+                    role="alert"
+                >
+                    {actionErrorMessage}
+                </p>
+            ) : null}
         </li>
     );
 }

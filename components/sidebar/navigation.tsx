@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { T } from "gt-next";
 import {
+    ArchiveRestore,
     ChevronRight,
     ClockFading,
     Compass,
@@ -134,6 +135,19 @@ export function SidebarNavigation({
                                 positionMethod="fixed"
                                 side="inline-end"
                             >
+                                <MenuLinkItem
+                                    className="group"
+                                    href="/c/archived"
+                                >
+                                    <ArchiveRestore
+                                        aria-hidden
+                                        className="inline-block size-4 shrink-0"
+                                        focusable="false"
+                                    />
+                                    <span className="truncate">
+                                        <T>Archived chats</T>
+                                    </span>
+                                </MenuLinkItem>
                                 <MenuLinkItem
                                     className="group"
                                     href="/comments"
