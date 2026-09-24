@@ -178,10 +178,9 @@ export async function POST(request: Request, { params }: ChatRouteParams) {
     let messages: UIMessage[];
     try {
         messages = await validateUIMessages({
-            // The opening message is the raw automation run output. It is
-            // untrusted, so it reaches the model only through the delimited
-            // context message, never as ordinary assistant history.
-            messages: toUIMessages(getTrustedHistory(history, chat.run)),
+            // Keep the opening assistant message out of normal history. The
+            // run context is included separately while the run link exists.
+            messages: toUIMessages(getTrustedHistory(history)),
             tools,
         });
         modelMessages = [
@@ -310,15 +309,11 @@ export async function POST(request: Request, { params }: ChatRouteParams) {
 }
 
 /**
- * The opening message of a run chat is the automation's own output. It is
- * supplied to the model as delimited untrusted context instead, so it is
- * dropped from the conversation the model reads.
+ * A run chat starts with raw automation output. Keep it out of trusted history
+ * even after the link to its run is cleared.
  */
-function getTrustedHistory(
-    history: ChatMessageItem[],
-    run: ChatDetail["run"]
-): ChatMessageItem[] {
-    if (!run || history[0]?.role !== ChatMessageRole.assistant) {
+function getTrustedHistory(history: ChatMessageItem[]): ChatMessageItem[] {
+    if (history[0]?.role !== ChatMessageRole.assistant) {
         return history;
     }
 
