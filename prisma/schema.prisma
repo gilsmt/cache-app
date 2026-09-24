@@ -377,7 +377,12 @@ model Chat {
     title           String
     automationRunId String?        @unique
     automationRun   AutomationRun? @relation(fields: [automationRunId], references: [id], onDelete: SetNull)
-    messages        ChatMessage[]
+    /// User message whose assistant reply is still being generated. One
+    /// in-flight turn at a time keeps the stored sequence aligned with request
+    /// order. The expiry releases the claim when a process dies mid-stream.
+    pendingMessageId String?
+    pendingExpiresAt DateTime?
+    messages         ChatMessage[]
     createdAt       DateTime       @default(now())
     updatedAt       DateTime       @updatedAt
 

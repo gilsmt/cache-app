@@ -2,6 +2,10 @@ export const CHAT_FOLLOWUP_MESSAGE_MAX_LENGTH = 2000;
 
 export const CHAT_FOLLOWUP_OUTPUT_TOKEN_LIMIT = 8192;
 
+export const CHAT_FOLLOWUP_STEP_LIMIT = 6;
+
+export const CHAT_TURN_LEASE_DURATION_MS = 5 * 60 * 1000;
+
 export const CHAT_LIST_LIMIT_DEFAULT = 20;
 
 export const CHAT_LIST_LIMIT_MAX = 50;

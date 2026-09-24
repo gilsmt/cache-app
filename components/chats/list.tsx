@@ -23,97 +23,88 @@ import type { ChatListItem } from "@/lib/chats/service";
 import { dayjs } from "@/lib/common/dayjs";
 import { AutomationRunStatus } from "@/prisma/client/enums";
 
-const AUTOMATION_CHATS_OPEN_STORAGE_KEY = "cache:automations:chats-open";
+const CHATS_OPEN_STORAGE_KEY = "cache:chats:open";
 const CHAT_SIDEBAR_MAX = 10;
 const CHAT_SIDEBAR_UPDATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-const AutomationChatsContext = React.createContext<ChatListItem[] | null>(null);
+const ChatsListContext = React.createContext<ChatListItem[] | null>(null);
 
-function useAutomationChatsContext(): ChatListItem[] {
-    const context = React.use(AutomationChatsContext);
+function useChatsListContext(): ChatListItem[] {
+    const context = React.use(ChatsListContext);
     if (!context) {
         throw new Error(
-            "AutomationChats compound components must be used within AutomationChats."
+            "ChatsList compound components must be used within ChatsList."
         );
     }
     return context;
 }
 
-const { useStore: useAutomationChatsStore } = createStore({
-    isChatsOpen: storage(true, {
-        storageKey: AUTOMATION_CHATS_OPEN_STORAGE_KEY,
+const { useStore: useChatsListStore } = createStore({
+    isOpen: storage(true, {
+        storageKey: CHATS_OPEN_STORAGE_KEY,
     }),
 });
 
-function getChatsUpdateCount(chats: ChatListItem[]): number {
-    const cutoff = Date.now() - CHAT_SIDEBAR_UPDATE_WINDOW_MS;
+function getChatsUpdateCount(chats: ChatListItem[], nowMs: number): number {
+    const cutoff = nowMs - CHAT_SIDEBAR_UPDATE_WINDOW_MS;
     return chats.filter((chat) => chat.updatedAt.getTime() >= cutoff).length;
 }
 
 function getChatHref(chat: ChatListItem): string {
-    return `/chats/${chat.id}`;
+    return `/c/${chat.id}`;
 }
 
-interface AutomationChatsProps {
+interface ChatsListProps {
     chats: ChatListItem[];
+    nowMs: number;
 }
 
-export function AutomationChats({ chats }: AutomationChatsProps) {
+export function ChatsList({ chats, nowMs }: ChatsListProps) {
     const sortedChats = chats.toSorted(
         (left, right) => right.updatedAt.getTime() - left.updatedAt.getTime()
     );
-    const updateCount = getChatsUpdateCount(sortedChats);
+    const updateCount = getChatsUpdateCount(sortedChats, nowMs);
     const entries = sortedChats.slice(0, CHAT_SIDEBAR_MAX);
 
     return (
-        <AutomationChatsContext value={entries}>
-            <AutomationChatsCollapsible
+        <ChatsListContext value={entries}>
+            <ChatsListCollapsible
                 className="group/collapsible"
                 data-sidebar-collapsible=""
             >
-                <AutomationChatsTrigger updateCount={updateCount}>
+                <ChatsListTrigger updateCount={updateCount}>
                     <T>Chats</T>
-                </AutomationChatsTrigger>
-                <AutomationChatsPanel>
-                    <AutomationChatsEmpty />
-                    <AutomationChatsList />
-                </AutomationChatsPanel>
-            </AutomationChatsCollapsible>
-        </AutomationChatsContext>
+                </ChatsListTrigger>
+                <ChatsListPanel>
+                    <ChatsListEmpty />
+                    <ChatsListEntries />
+                </ChatsListPanel>
+            </ChatsListCollapsible>
+        </ChatsListContext>
     );
 }
 
-function AutomationChatsCollapsible(
-    props: React.ComponentProps<typeof Collapsible>
-) {
-    const { isChatsOpen, setIsChatsOpen } = useAutomationChatsStore();
+function ChatsListCollapsible(props: React.ComponentProps<typeof Collapsible>) {
+    const { isOpen, setIsOpen } = useChatsListStore();
 
-    return (
-        <Collapsible
-            {...props}
-            onOpenChange={setIsChatsOpen}
-            open={isChatsOpen}
-        />
-    );
+    return <Collapsible {...props} onOpenChange={setIsOpen} open={isOpen} />;
 }
 
-function AutomationChatsPanel(
-    props: React.ComponentProps<typeof CollapsiblePanel>
-) {
+function ChatsListPanel(props: React.ComponentProps<typeof CollapsiblePanel>) {
     return <CollapsiblePanel {...props} />;
 }
 
-interface AutomationChatsTriggerProps
+interface ChatsListTriggerProps
     extends React.ComponentProps<typeof CollapsibleTrigger> {
     updateCount: number;
 }
 
-function AutomationChatsTrigger({
+function ChatsListTrigger({
     children,
     render,
     updateCount,
     ...props
-}: AutomationChatsTriggerProps) {
+}: ChatsListTriggerProps) {
     return (
         <CollapsibleTrigger
             {...props}
@@ -139,20 +130,20 @@ function AutomationChatsTrigger({
     );
 }
 
-function AutomationChatsList() {
-    const entries = useAutomationChatsContext();
+function ChatsListEntries() {
+    const entries = useChatsListContext();
 
     return (
         <SidebarGroup>
             {entries.map((entry) => (
-                <AutomationChatsItem entry={entry} key={entry.id} />
+                <ChatsListEntry entry={entry} key={entry.id} />
             ))}
         </SidebarGroup>
     );
 }
 
-function AutomationChatsEmpty() {
-    const entries = useAutomationChatsContext();
+function ChatsListEmpty() {
+    const entries = useChatsListContext();
 
     if (entries.length > 0) {
         return null;
@@ -177,11 +168,11 @@ function AutomationChatsEmpty() {
     );
 }
 
-interface AutomationChatsItemProps {
+interface ChatsListEntryProps {
     entry: ChatListItem;
 }
 
-function AutomationChatsItem({ entry }: AutomationChatsItemProps) {
+function ChatsListEntry({ entry }: ChatsListEntryProps) {
     const href = getChatHref(entry);
 
     return (

@@ -1,7 +1,7 @@
 import { BASE_URL } from "@/lib/common/constants";
 
 function getPublicCollectionSharePath(shareId: string): string {
-    return `/c/${encodeURIComponent(shareId)}`;
+    return `/s/${encodeURIComponent(shareId)}`;
 }
 
 export function buildPublicCollectionShareUrl(

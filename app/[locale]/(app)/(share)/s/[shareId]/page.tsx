@@ -1,3 +1,4 @@
+import { getGT } from "gt-next/server";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
@@ -26,14 +27,17 @@ interface CollectionSharePageProps {
     }>;
 }
 
-function getSharedItemTitle(item: {
-    caption: string | null;
-    kind: string;
-    noteContentText: string | null;
-    url: string;
-}): string {
+function getSharedItemTitle(
+    item: {
+        caption: string | null;
+        kind: string;
+        noteContentText: string | null;
+        url: string;
+    },
+    untitledNoteLabel: string
+): string {
     if (item.kind === ITEM_KIND_NOTE) {
-        return getNoteExcerpt(item.noteContentText, 80) || "Untitled note";
+        return getNoteExcerpt(item.noteContentText, 80) || untitledNoteLabel;
     }
     const caption = item.caption?.trim();
     return caption && caption.length > 0 ? caption : normalizeURL(item.url);
@@ -54,22 +58,42 @@ function getSharedItemPreviewImageUrl(
     return `/api/preview?url=${encodeURIComponent(href)}`;
 }
 
-async function getCachedShareMetadata(shareId: string): Promise<Metadata> {
+async function getCachedShareMetadata(shareId: string) {
     "use cache";
     cacheLife("hours");
     cacheTag(publicCollectionShareMetadataTag(shareId));
 
     const collection = await getPublicCollectionShareById(shareId);
+    if (!collection) {
+        return null;
+    }
 
+    return {
+        description: collection.description,
+        name: collection.name,
+        ownerName: collection.ownerName,
+    };
+}
+
+export async function generateMetadata(
+    props: CollectionSharePageProps
+): Promise<Metadata> {
+    const { shareId } = await props.params;
+    const collection = await getCachedShareMetadata(shareId);
+    const gt = await getGT();
     const title = collection
-        ? `${collection.name} shared collection`
-        : "Shared collection";
-    const description = `${
-        collection?.description ??
-        (collection
-            ? `A read-only collection shared by ${collection.ownerName} on Cache.`
-            : "A shared collection on Cache.")
-    } Create your own.`;
+        ? gt("{collectionName} shared collection", {
+              collectionName: collection.name,
+          })
+        : gt("Shared collection");
+    const fallbackDescription = collection
+        ? gt("A read-only collection shared by {ownerName} on Cache.", {
+              ownerName: collection.ownerName,
+          })
+        : gt("A shared collection on Cache.");
+    const description = `${collection?.description ?? fallbackDescription} ${gt(
+        "Create your own."
+    )}`;
     const images = [
         {
             alt: DEFAULT_OG_IMAGE_ALT,
@@ -107,16 +131,10 @@ async function getCachedShareMetadata(shareId: string): Promise<Metadata> {
     };
 }
 
-export async function generateMetadata(
-    props: CollectionSharePageProps
-): Promise<Metadata> {
-    const { shareId } = await props.params;
-    return getCachedShareMetadata(shareId);
-}
-
 async function CollectionShareBody(props: CollectionSharePageProps) {
     await connection();
 
+    const gt = await getGT();
     const { shareId } = await props.params;
     const collection = await getPublicCollectionShareById(shareId);
 
@@ -124,6 +142,7 @@ async function CollectionShareBody(props: CollectionSharePageProps) {
         notFound();
     }
 
+    const untitledNoteLabel = gt("Untitled note");
     const items: PublicShareGridItem[] = collection.items.map((item) => {
         const href = getSharedItemHref(item);
 
@@ -136,7 +155,7 @@ async function CollectionShareBody(props: CollectionSharePageProps) {
                     ? getNoteExcerpt(item.noteContentText, 320)
                     : null,
             previewImageUrl: getSharedItemPreviewImageUrl(item, href),
-            title: getSharedItemTitle(item),
+            title: getSharedItemTitle(item, untitledNoteLabel),
         };
     });
 
@@ -150,7 +169,9 @@ async function CollectionShareBody(props: CollectionSharePageProps) {
                         </h1>
                         <span className="tabular-nums">
                             {collection.itemCount}{" "}
-                            {collection.itemCount === 1 ? "entry" : "entries"}
+                            {collection.itemCount === 1
+                                ? gt("item")
+                                : gt("items")}
                         </span>
                     </div>
                 ) : null}
@@ -162,7 +183,7 @@ async function CollectionShareBody(props: CollectionSharePageProps) {
 
 export default function CollectionSharePage(props: CollectionSharePageProps) {
     return (
-        <div className="flex w-full flex-1 flex-col justify-stretch gap-6 px-2 py-2 sm:px-4 sm:py-4">
+        <div className="flex w-full flex-1 flex-col justify-stretch gap-6 p-2 sm:px-4 sm:py-4">
             <BrandLogo
                 className="mx-auto my-3 scale-80"
                 href="/library"

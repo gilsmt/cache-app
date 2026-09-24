@@ -47,35 +47,56 @@ export function ChatComposer({ isBusy, onStop, onSubmit }: ChatComposerProps) {
     );
 
     return (
-        <form className="flex items-end gap-2" onSubmit={handleSubmit}>
-            <Textarea
-                aria-label={gt("Chat message")}
-                className="flex-1"
-                onChange={handleInputChange}
-                onKeyDown={handleInputKeyDown}
-                placeholder={gt("Ask a follow-up…")}
-                value={input}
-            />
-            {isBusy ? (
-                <Button
-                    aria-label={gt("Stop generating")}
-                    onClick={onStop}
-                    size="icon"
-                    type="button"
-                    variant="outline"
-                >
-                    <Square aria-hidden focusable="false" />
-                </Button>
-            ) : (
-                <Button
-                    aria-label={gt("Send message")}
-                    disabled={!input.trim()}
-                    size="icon"
-                    type="submit"
-                >
-                    <ArrowUp aria-hidden focusable="false" />
-                </Button>
-            )}
+        <form onSubmit={handleSubmit}>
+            <div className="squircle relative rounded-3xl px-1 py-2 shadow-xs/10 dark:bg-input">
+                <Textarea
+                    aria-label={gt("Chat message")}
+                    className="block w-full text-base sm:text-sm"
+                    isUnstyled
+                    onChange={handleInputChange}
+                    onKeyDown={handleInputKeyDown}
+                    placeholder={gt("Ask a follow-up")}
+                    size="sm"
+                    style={{ minHeight: "2.5rem" }}
+                    value={input}
+                />
+                <div className="flex items-center justify-end px-1 pt-1">
+                    {isBusy ? (
+                        <Button
+                            aria-label={gt("Stop generating")}
+                            className="rounded-full"
+                            onClick={onStop}
+                            size="icon"
+                            type="button"
+                            variant="outline"
+                        >
+                            <Square
+                                aria-hidden
+                                className="size-4.5"
+                                focusable="false"
+                            />
+                        </Button>
+                    ) : (
+                        <Button
+                            aria-label={gt("Send message")}
+                            className="rounded-full"
+                            disabled={!input.trim()}
+                            size="icon"
+                            type="submit"
+                        >
+                            <ArrowUp
+                                aria-hidden
+                                className="size-4.5"
+                                focusable="false"
+                            />
+                        </Button>
+                    )}
+                </div>
+                <div
+                    aria-hidden
+                    className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/10 ring-inset dark:ring-white/10"
+                />
+            </div>
         </form>
     );
 }

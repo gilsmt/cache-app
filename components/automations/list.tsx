@@ -14,7 +14,6 @@ import {
     Trash2,
     Zap,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
@@ -31,7 +30,6 @@ import {
     MenuSeparator,
     MenuTrigger,
 } from "@/components/ui/menu";
-import { getOrCreateChatForAutomationRun } from "@/lib/chats/actions";
 import { getMonthDayLabel } from "@/lib/common/date";
 import { dayjs } from "@/lib/common/dayjs";
 import {
@@ -45,23 +43,9 @@ import {
 } from "@/lib/intelligence/automations/actions";
 import { AUTOMATION_TEMPLATE_DEFINITIONS } from "@/lib/intelligence/automations/constants";
 import type { AutomationListItem } from "@/lib/intelligence/automations/service";
-import { AutomationRunStatus } from "@/prisma/client/enums";
-
-const TEMPLATE_ICON: Record<string, LucideIcon> = {
-    daily_digest: CalendarClock,
-    next_actions: ListTodo,
-    worth_revisiting: History,
-};
-
-const TEMPLATE_SUMMARY = Object.fromEntries(
-    AUTOMATION_TEMPLATE_DEFINITIONS.map((definition) => [
-        definition.templateKey,
-        definition.summary,
-    ])
-) as Record<string, string>;
 
 const DEFAULT_WEEK_DAY = 1;
-const DEFAULT_CADENCE = "weekly" as const;
+const DEFAULT_CADENCE = "weekly";
 const WEEK_DAY_LABELS = [
     "Sunday",
     "Monday",
@@ -72,16 +56,48 @@ const WEEK_DAY_LABELS = [
     "Saturday",
 ] as const;
 
+type AutomationTemplateKey = NonNullable<AutomationListItem["templateKey"]>;
+
+type AutomationTemplateDefinition =
+    (typeof AUTOMATION_TEMPLATE_DEFINITIONS)[number];
+
+type AutomationRunStatus = AutomationListItem["recentRuns"][number]["status"];
+
+const TEMPLATE_ICON: Record<AutomationTemplateKey, LucideIcon> = {
+    daily_digest: CalendarClock,
+    next_actions: ListTodo,
+    worth_revisiting: History,
+};
+
+const TEMPLATE_DEFINITION_BY_KEY = new Map<
+    AutomationTemplateKey,
+    AutomationTemplateDefinition
+>(
+    AUTOMATION_TEMPLATE_DEFINITIONS.map(
+        (definition): [AutomationTemplateKey, AutomationTemplateDefinition] => [
+            definition.templateKey,
+            definition,
+        ]
+    )
+);
+
+const RUN_LABEL_BY_STATUS: Record<AutomationRunStatus, string | null> = {
+    canceled: "Canceled",
+    failed: "Failed",
+    pending: null,
+    running: null,
+    skipped: "Skipped",
+    starting: null,
+    succeeded: "Last ran",
+};
+
 function getAutomationTemplateIcon(
     templateKey: AutomationListItem["templateKey"]
 ) {
-    if (templateKey) {
-        const icon = TEMPLATE_ICON[templateKey];
-        if (icon) {
-            return icon;
-        }
+    if (!templateKey) {
+        return Zap;
     }
-    return Zap;
+    return TEMPLATE_ICON[templateKey];
 }
 
 function toComposerAutomation(
@@ -109,13 +125,10 @@ function toComposerAutomation(
 }
 
 function getAutomationDescription(automation: AutomationListItem) {
-    if (automation.templateKey) {
-        const summary = TEMPLATE_SUMMARY[automation.templateKey];
-        if (summary) {
-            return summary;
-        }
-    }
-    return automation.prompt;
+    const definition = automation.templateKey
+        ? TEMPLATE_DEFINITION_BY_KEY.get(automation.templateKey)
+        : undefined;
+    return definition?.summary ?? automation.prompt;
 }
 
 function getTemplateDefaultCadence(
@@ -124,9 +137,7 @@ function getTemplateDefaultCadence(
     if (!templateKey) {
         return;
     }
-    return AUTOMATION_TEMPLATE_DEFINITIONS.find(
-        (definition) => definition.templateKey === templateKey
-    )?.cadence;
+    return TEMPLATE_DEFINITION_BY_KEY.get(templateKey)?.cadence;
 }
 
 function formatSchedule(automation: AutomationListItem): string | null {
@@ -164,13 +175,13 @@ function isCompleteSchedule(
     timeOfDayMinutes: number;
     timezone: string;
 } {
-    if (
-        !(
-            automation.cadence &&
-            automation.timezone &&
-            automation.timeOfDayMinutes !== null
-        )
-    ) {
+    if (!automation.cadence) {
+        return false;
+    }
+    if (!automation.timezone) {
+        return false;
+    }
+    if (automation.timeOfDayMinutes === null) {
         return false;
     }
     if (automation.cadence === "weekly" && automation.weekDay === null) {
@@ -190,48 +201,18 @@ function isSuggestedAutomation(automation: AutomationListItem) {
     );
 }
 
-export function getLastRunDisplay(
+function getLastRunLabel(
     lastRun: NonNullable<AutomationListItem["lastRun"]>
-): {
-    dotColor: string;
-    label: string;
-} | null {
-    if (lastRun.status === AutomationRunStatus.succeeded) {
-        return {
-            dotColor: "bg-green-500",
-            label: `Ran ${dayjs(lastRun.createdAt).fromNow()}`,
-        };
+): string | null {
+    const label = RUN_LABEL_BY_STATUS[lastRun.status];
+    if (!label) {
+        return null;
     }
-    if (lastRun.status === AutomationRunStatus.failed) {
-        return {
-            dotColor: "bg-red-500",
-            label: `Failed ${dayjs(lastRun.createdAt).fromNow()}`,
-        };
-    }
-    if (
-        lastRun.status === AutomationRunStatus.skipped ||
-        lastRun.status === AutomationRunStatus.canceled
-    ) {
-        return {
-            dotColor: "bg-gray-400",
-            label: `${
-                lastRun.status === AutomationRunStatus.skipped
-                    ? "Skipped"
-                    : "Canceled"
-            } ${dayjs(lastRun.createdAt).fromNow()}`,
-        };
-    }
-
-    return null;
+    return `${label} ${dayjs(lastRun.createdAt).fromNow()}`;
 }
 
 function isTerminalRun(run: AutomationListItem["recentRuns"][number]): boolean {
-    return (
-        run.status === AutomationRunStatus.succeeded ||
-        run.status === AutomationRunStatus.failed ||
-        run.status === AutomationRunStatus.skipped ||
-        run.status === AutomationRunStatus.canceled
-    );
+    return RUN_LABEL_BY_STATUS[run.status] !== null;
 }
 
 interface AutomationsListProps {
@@ -248,10 +229,7 @@ export function AutomationsList({
     );
     const suggestedAutomations = automations.filter(isSuggestedAutomation);
 
-    if (
-        configuredAutomations.length === 0 &&
-        suggestedAutomations.length === 0
-    ) {
+    if (automations.length === 0) {
         return (
             <section className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl bg-muted/50 p-8 text-center">
                 <Zap
@@ -287,7 +265,6 @@ export function AutomationsList({
                     ))}
                 </section>
             ) : null}
-
             {suggestedAutomations.length > 0 ? (
                 <section className="flex flex-col gap-3">
                     <h2 className="font-medium text-muted-foreground text-sm">
@@ -327,7 +304,10 @@ function AutomationCard({ automation, collections }: AutomationCardProps) {
     const Icon = getAutomationTemplateIcon(automation.templateKey);
     const description = getAutomationDescription(automation);
     const scheduleLabel = formatSchedule(automation);
-    const terminalRuns = automation.recentRuns.filter(isTerminalRun);
+    const lastTerminalRun = automation.recentRuns.find(isTerminalRun);
+    const lastRunLabel = lastTerminalRun
+        ? getLastRunLabel(lastTerminalRun)
+        : null;
 
     const handleEditOpen = useStableCallback(() => {
         setIsEditOpen(true);
@@ -393,18 +373,6 @@ function AutomationCard({ automation, collections }: AutomationCardProps) {
                 return;
             }
             router.refresh();
-        });
-    });
-
-    const handleOpenRunChat = useStableCallback((runId: string) => {
-        setActionErrorMessage(null);
-        startTransition(async () => {
-            const result = await getOrCreateChatForAutomationRun({ runId });
-            if (result.status !== "SUCCESS") {
-                setActionErrorMessage(result.message);
-                return;
-            }
-            router.push(`/chats/${result.chatId}`);
         });
     });
 
@@ -494,16 +462,18 @@ function AutomationCard({ automation, collections }: AutomationCardProps) {
                 <p className="line-clamp-2 text-muted-foreground text-xs leading-5">
                     {description}
                 </p>
-                {scheduleLabel ? (
-                    <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                        {scheduleLabel}
-                    </p>
-                ) : null}
-                <AutomationRunHistory
-                    isPending={isPending}
-                    onOpenChat={handleOpenRunChat}
-                    runs={terminalRuns}
-                />
+                <div className="flex items-center gap-4">
+                    {scheduleLabel ? (
+                        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                            {scheduleLabel}
+                        </p>
+                    ) : null}
+                    {lastRunLabel ? (
+                        <span className="text-[11px] text-muted-foreground/60">
+                            {lastRunLabel}
+                        </span>
+                    ) : null}
+                </div>
                 {actionErrorMessage ? (
                     <p
                         aria-live="polite"
@@ -561,93 +531,5 @@ function SuggestedAutomationCard({
                 </p>
             </div>
         </article>
-    );
-}
-
-interface AutomationRunHistoryProps {
-    isPending: boolean;
-    onOpenChat: (runId: string) => void;
-    runs: AutomationListItem["recentRuns"];
-}
-
-function AutomationRunHistory({
-    isPending,
-    onOpenChat,
-    runs,
-}: AutomationRunHistoryProps) {
-    if (runs.length === 0) {
-        return null;
-    }
-
-    return (
-        <ul className="mt-1 flex flex-col gap-px border-border/40 border-t pt-2">
-            {runs.map((run) => (
-                <AutomationRunRow
-                    isPending={isPending}
-                    key={run.id}
-                    onOpenChat={onOpenChat}
-                    run={run}
-                />
-            ))}
-        </ul>
-    );
-}
-
-interface AutomationRunRowProps {
-    isPending: boolean;
-    onOpenChat: (runId: string) => void;
-    run: AutomationListItem["recentRuns"][number];
-}
-
-function AutomationRunRow({
-    isPending,
-    onOpenChat,
-    run,
-}: AutomationRunRowProps) {
-    const handleOpen = useStableCallback(() => {
-        onOpenChat(run.id);
-    });
-
-    const display = getLastRunDisplay(run);
-    if (!display) {
-        return null;
-    }
-    const title = dayjs(run.createdAt).format("MMM DD, YYYY, h:mm A");
-    const content = (
-        <>
-            <span
-                aria-hidden
-                className={`size-1.5 shrink-0 rounded-full ${display.dotColor}`}
-            />
-            <span className="truncate">{display.label}</span>
-        </>
-    );
-    const className =
-        "flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-[11px] text-muted-foreground/80 tabular-nums transition-colors hover:bg-background hover:text-foreground disabled:opacity-60";
-    if (run.chat) {
-        return (
-            <li>
-                <Link
-                    className={className}
-                    href={`/chats/${run.chat.id}`}
-                    title={title}
-                >
-                    {content}
-                </Link>
-            </li>
-        );
-    }
-    return (
-        <li>
-            <button
-                className={className}
-                disabled={isPending}
-                onClick={handleOpen}
-                title={title}
-                type="button"
-            >
-                {content}
-            </button>
-        </li>
     );
 }
