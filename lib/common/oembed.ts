@@ -80,10 +80,10 @@ const OEMBED_PROVIDERS: OembedProvider[] = [
         pattern: /tiktok\.com\/@[\w.-]+\/video\/(\d+)/,
     },
     {
-        // Instagram's oEmbed needs the Graph API (access token), which the
-        // consumer route requests directly. Detect-only: endpoint null means
-        // fetchOembed() returns null instead of hitting the retired
-        // api.instagram.com/oembed endpoint.
+        // Instagram's oEmbed is served by the Graph API, which the consumer
+        // route requests directly. Detect-only: endpoint null means fetchOembed()
+        // returns null instead of hitting the retired api.instagram.com/oembed
+        // endpoint.
         endpoint: () => null,
         name: "instagram",
         pattern: /instagram\.com\/(?:p|reel)\/([a-zA-Z0-9_-]+)/,
