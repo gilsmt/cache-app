@@ -1621,6 +1621,17 @@ interface ListCollectionsArgs {
     userId: string;
 }
 
+export function listCollectionOptions(
+    args: ListCollectionsArgs
+): Promise<Array<{ id: string; name: string }>> {
+    return prisma.collection.findMany({
+        orderBy: { name: SORT_ASC },
+        select: { id: true, name: true },
+        take: COLLECTION_LIST_LIMIT_MAX,
+        where: { userId: args.userId },
+    });
+}
+
 export async function listCollections(
     args: ListCollectionsArgs
 ): Promise<LibraryCollectionSummary[]> {

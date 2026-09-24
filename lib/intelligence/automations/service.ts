@@ -64,14 +64,7 @@ const AUTOMATION_SELECT = {
         },
         select: {
             createdAt: true,
-            errorCode: true,
-            errorMessage: true,
-            finishedAt: true,
-            id: true,
-            scheduledForUtc: true,
-            startedAt: true,
             status: true,
-            summaryMarkdown: true,
         },
         take: 3,
     },
@@ -1399,14 +1392,7 @@ function toAutomationListItem(automation: {
     prompt: string;
     runs: Array<{
         createdAt: Date;
-        errorCode: string | null;
-        errorMessage: string | null;
-        finishedAt: Date | null;
-        id: string;
-        scheduledForUtc: Date;
-        startedAt: Date | null;
         status: AutomationRunStatus;
-        summaryMarkdown: string | null;
     }>;
     status: AutomationStatus;
     templateKey: AutomationTemplateKey | null;

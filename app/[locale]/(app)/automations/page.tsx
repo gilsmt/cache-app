@@ -13,7 +13,7 @@ import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";
 import { listChats } from "@/lib/chats/service";
-import { listCollections } from "@/lib/collections/service";
+import { listCollectionOptions } from "@/lib/collections/service";
 import { listAutomations } from "@/lib/intelligence/automations/service";
 
 export async function generateMetadata({
@@ -77,17 +77,12 @@ async function AutomationsPageBody() {
         return redirect("/");
     }
 
-    const [automations, collections, chats] = await Promise.all([
+    const [automations, collectionOptions, chats] = await Promise.all([
         listAutomations({ userId }),
-        listCollections({ userId }),
+        listCollectionOptions({ userId }),
         listChats({ userId }),
     ]);
     const nowMs = Date.now();
-
-    const collectionOptions = collections.map((collection) => ({
-        id: collection.id,
-        name: collection.name,
-    }));
 
     return (
         <>
