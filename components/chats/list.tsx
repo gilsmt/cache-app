@@ -1,6 +1,6 @@
 "use client";
 
-import { T, Var } from "gt-next";
+import { Plural, T, Var } from "gt-next";
 import { History, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
@@ -63,8 +63,8 @@ export function ChatsList({ chats, nowMs }: ChatsListProps) {
     const sortedChats = chats.toSorted(
         (left, right) => right.updatedAt.getTime() - left.updatedAt.getTime()
     );
-    const updateCount = getChatsUpdateCount(sortedChats, nowMs);
     const entries = sortedChats.slice(0, CHAT_SIDEBAR_MAX);
+    const updateCount = getChatsUpdateCount(entries, nowMs);
 
     return (
         <ChatsListContext value={entries}>
@@ -122,7 +122,19 @@ function ChatsListTrigger({
                     key={updateCount}
                 >
                     <T>
-                        <Var>{updateCount}</Var> updates
+                        <Plural
+                            n={updateCount}
+                            plural={
+                                <>
+                                    <Var>{updateCount}</Var> updates
+                                </>
+                            }
+                            singular={
+                                <>
+                                    <Var>{updateCount}</Var> update
+                                </>
+                            }
+                        />
                     </T>
                 </HighlightIn>
             ) : null}
