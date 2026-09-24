@@ -1,6 +1,7 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { cn } from "cn";
 import { Plural, T, useGT, Var } from "gt-next";
 import { Archive, History, MessageCircle } from "lucide-react";
 import Link from "next/link";
@@ -15,13 +16,10 @@ import {
     CollapsiblePanel,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { CollapsibleListVertical } from "@/components/ui/collapsible-list";
 import { HighlightIn } from "@/components/ui/highlight-in";
 import { ChevronDownFilledIcon } from "@/components/ui/icons";
-import {
-    SidebarGroup,
-    SidebarItem,
-    SidebarItemValue,
-} from "@/components/ui/sidebar";
+import { SidebarItem, SidebarItemValue } from "@/components/ui/sidebar";
 import { Ticker } from "@/components/ui/ticker";
 import { setChatArchived } from "@/lib/chats/actions";
 import type { ChatListItem } from "@/lib/chats/service";
@@ -31,7 +29,7 @@ import { createLogger } from "@/lib/common/logs/console/logger";
 import { AutomationRunStatus } from "@/prisma/client/enums";
 
 const CHATS_OPEN_STORAGE_KEY = "cache:chats:open";
-const CHAT_SIDEBAR_MAX = 10;
+
 const CHAT_SIDEBAR_UPDATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const log = createLogger("chats:list");
@@ -72,11 +70,10 @@ export function ChatsList({ chats, nowMs }: ChatsListProps) {
     const sortedChats = chats.toSorted(
         (left, right) => right.updatedAt.getTime() - left.updatedAt.getTime()
     );
-    const entries = sortedChats.slice(0, CHAT_SIDEBAR_MAX);
-    const updateCount = getChatsUpdateCount(entries, nowMs);
+    const updateCount = getChatsUpdateCount(sortedChats, nowMs);
 
     return (
-        <ChatsListContext value={entries}>
+        <ChatsListContext value={sortedChats}>
             <ChatsListCollapsible
                 className="group/collapsible"
                 data-sidebar-collapsible=""
@@ -155,11 +152,14 @@ function ChatsListEntries() {
     const entries = useChatsListContext();
 
     return (
-        <SidebarGroup>
+        <CollapsibleListVertical
+            className="relative ml-1.25 w-full min-w-0 gap-px"
+            maxVisible={5}
+        >
             {entries.map((entry) => (
                 <ChatsListEntry entry={entry} key={entry.id} />
             ))}
-        </SidebarGroup>
+        </CollapsibleListVertical>
     );
 }
 
@@ -228,18 +228,18 @@ function ChatsListEntry({ entry }: ChatsListEntryProps) {
     });
 
     return (
-        <li>
+        <div>
             <div className="group/chat-entry relative">
                 <ActivePathname
                     href={href}
                     render={
                         <SidebarItem
-                            className="pointer-fine:pr-8 pr-15"
+                            className="pointer-fine:pr-8 pr-15 pl-8.5"
                             render={<Link href={href} title={entry.title} />}
                         />
                     }
                 >
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted/90">
+                    <span className="pointer-events-none absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md bg-muted/90">
                         <MessageCircle
                             aria-hidden
                             className="size-4"
@@ -247,7 +247,9 @@ function ChatsListEntry({ entry }: ChatsListEntryProps) {
                         />
                     </span>
                     <SidebarItemValue>
-                        <Ticker className="pt-px">{entry.title}</Ticker>
+                        <Ticker className="font-medium text-sm leading-none tracking-tight">
+                            {entry.title}
+                        </Ticker>
                     </SidebarItemValue>
                     {entry.runStatus === AutomationRunStatus.failed ? (
                         <span
@@ -272,7 +274,7 @@ function ChatsListEntry({ entry }: ChatsListEntryProps) {
                     {actionErrorMessage}
                 </p>
             ) : null}
-        </li>
+        </div>
     );
 }
 
@@ -292,7 +294,10 @@ function ChatsListEntryControls({
     return (
         <div className="absolute top-1/2 pointer-fine:right-0 right-1 flex pointer-fine:size-9 h-9 -translate-y-1/2 items-center justify-end pointer-fine:justify-center gap-1 pointer-fine:gap-0">
             <time
-                className="pointer-events-none shrink-0 text-nowrap text-[11px] text-muted-foreground/80 tabular-nums pointer-fine:group-focus-within/chat-entry:opacity-0 pointer-fine:group-hover/chat-entry:opacity-0"
+                className={cn(
+                    "pointer-events-none shrink-0 text-nowrap text-[11px] text-muted-foreground/80 tabular-nums pointer-fine:group-focus-within/chat-entry:opacity-0 pointer-fine:group-hover/chat-entry:opacity-0",
+                    isPending && "opacity-0"
+                )}
                 data-sidebar-collapsible=""
                 dateTime={entry.updatedAt.toISOString()}
                 title={dayjs(entry.updatedAt).format("MMM DD, YYYY, h:mm A")}
@@ -301,14 +306,18 @@ function ChatsListEntryControls({
             </time>
             <Button
                 aria-label={gt("Archive chat")}
-                className="pointer-fine:pointer-events-none pointer-fine:absolute relative size-6 shrink-0 text-muted-foreground pointer-fine:opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 group-focus-within/chat-entry:pointer-events-auto group-focus-within/chat-entry:opacity-100 pointer-fine:group-hover/chat-entry:pointer-events-auto pointer-fine:group-hover/chat-entry:opacity-100"
+                className={cn(
+                    "pointer-fine:pointer-events-none pointer-fine:absolute relative size-6 shrink-0 text-muted-foreground pointer-fine:opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 group-focus-within/chat-entry:pointer-events-auto group-focus-within/chat-entry:opacity-100 pointer-fine:group-hover/chat-entry:pointer-events-auto pointer-fine:group-hover/chat-entry:opacity-100",
+                    isPending &&
+                        "pointer-fine:pointer-events-auto pointer-fine:opacity-100"
+                )}
                 isLoading={isPending}
                 onClick={onArchive}
                 size="icon-xs"
                 title={gt("Archive chat")}
                 variant="ghost"
             >
-                <Archive aria-hidden className="size-4" focusable="false" />
+                <Archive aria-hidden className="size-3" focusable="false" />
             </Button>
         </div>
     );

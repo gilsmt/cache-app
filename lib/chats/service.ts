@@ -7,8 +7,6 @@ import type { Prisma } from "@/prisma/client/client";
 import { AutomationRunStatus, ChatMessageRole } from "@/prisma/client/enums";
 import {
     CHAT_ARCHIVE_PAGE_SIZE,
-    CHAT_LIST_LIMIT_DEFAULT,
-    CHAT_LIST_LIMIT_MAX,
     CHAT_TURN_LEASE_DURATION_MS,
 } from "./constants";
 import { ChatError } from "./error";
@@ -71,16 +69,11 @@ export interface ChatDetail {
 }
 
 export async function listChats(args: {
-    limit?: number;
     userId: string;
 }): Promise<ChatListItem[]> {
     const chats = await prisma.chat.findMany({
         include: CHAT_LIST_INCLUDE,
         orderBy: { updatedAt: "desc" },
-        take: Math.min(
-            args.limit ?? CHAT_LIST_LIMIT_DEFAULT,
-            CHAT_LIST_LIMIT_MAX
-        ),
         where: { archivedAt: null, userId: args.userId },
     });
 

@@ -1950,7 +1950,7 @@ function SideNotePanel({
                 tabIndex={isActive ? 0 : -1}
             >
                 <ScrollArea className="min-h-0 min-w-0 flex-1">
-                    <div className="w-full min-w-0 p-4">
+                    <div className="w-full min-w-0 p-4 pt-0">
                         <NoteEditor />
                         <NoteMetrics />
                     </div>
@@ -2449,7 +2449,7 @@ function NoteToolbarControls() {
     });
 
     return (
-        <div className="ms-auto inline-flex items-center justify-end gap-0.5">
+        <div className="ms-auto inline-flex items-center justify-end gap-px">
             <NoteSaveStatus />
             <Button
                 aria-label={gt("Copy note")}
@@ -2461,7 +2461,7 @@ function NoteToolbarControls() {
                 {isCopied ? (
                     <CheckIcon
                         aria-hidden
-                        className="size-3"
+                        className="size-3.5"
                         focusable="false"
                     />
                 ) : (
