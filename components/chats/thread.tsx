@@ -55,10 +55,18 @@ export function ChatThread({
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: streamed text must trigger the effect so the viewport follows each new chunk; the effect only reads refs.
     React.useEffect(() => {
-        const viewport = scrollViewportRef.current;
-        if (viewport && shouldStickRef.current) {
-            viewport.scrollTop = viewport.scrollHeight;
+        if (!shouldStickRef.current) {
+            return;
         }
+
+        const animationFrameId = requestAnimationFrame(() => {
+            const viewport = scrollViewportRef.current;
+            if (viewport && shouldStickRef.current) {
+                viewport.scrollTop = viewport.scrollHeight;
+            }
+        });
+
+        return () => cancelAnimationFrame(animationFrameId);
     }, [lastMessageId, lastMessageText, status]);
 
     const handleViewportScroll = useStableCallback(
