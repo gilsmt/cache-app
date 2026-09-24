@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
     isChromeExtensionOrigin,
     isTrustedCacheWebOrigin,
-} from "@/lib/integrations/extension-ingest/origins";
+} from "@/lib/common/security/origins";
 
 describe("isTrustedCacheWebOrigin", () => {
     test("accepts the app's own hosts", () => {
@@ -10,9 +10,10 @@ describe("isTrustedCacheWebOrigin", () => {
         expect(isTrustedCacheWebOrigin("https://www.cachd.app")).toBe(true);
     });
 
-    test("accepts localhost on any port", () => {
+    test("accepts loopback on any port", () => {
         expect(isTrustedCacheWebOrigin("http://localhost:3000")).toBe(true);
         expect(isTrustedCacheWebOrigin("http://localhost:8080")).toBe(true);
+        expect(isTrustedCacheWebOrigin("http://127.0.0.1:3000")).toBe(true);
     });
 
     test("rejects cachd.app subdomains served by third parties", () => {

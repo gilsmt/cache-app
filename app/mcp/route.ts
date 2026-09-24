@@ -17,7 +17,7 @@ import {
     listLibraryItems,
 } from "@/lib/collections/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { tryParseUrl } from "@/lib/common/url";
+import { isTrustedCacheWebOrigin } from "@/lib/common/security/origins";
 import { IntegrationApiError } from "@/lib/integrations/error";
 import { MCP_SCOPES, type McpScope } from "@/lib/integrations/mcp/auth";
 import {
@@ -526,30 +526,17 @@ const mcpHandler = withMcpAuth(baseHandler, verifyMcpAuthToken, {
  * Browser MCP clients need CORS on both the OPTIONS preflight and the real
  * GET/POST response. `mcp-handler` does not attach ACAO on streamable HTTP,
  * so we own the full CORS surface here:
- * - Allowlisted Origin only (never `*`) so `Authorization` can be sent
+ * - The app's own web origins only (never `*`) so `Authorization` can be sent
  * - Same allow-list on preflight and actual responses
  */
 const CORS_ALLOWED_HEADERS = "authorization,content-type,accept,mcp-session-id";
 const CORS_ALLOWED_METHODS = "POST, GET, OPTIONS";
 const CORS_MAX_AGE = "86400";
 
-function isAllowedOrigin(origin: string): boolean {
-    if (!origin) {
-        return false;
-    }
-    const host = tryParseUrl(origin)?.hostname;
-    return (
-        host === "cachd.app" ||
-        host?.endsWith(".cachd.app") === true ||
-        host === "localhost" ||
-        host === "127.0.0.1"
-    );
-}
-
 function applyCorsHeaders(request: Request, headers: Headers): void {
     const origin = request.headers.get("origin") ?? "";
     headers.set("Vary", "Origin");
-    if (!isAllowedOrigin(origin)) {
+    if (!isTrustedCacheWebOrigin(origin)) {
         return;
     }
     headers.set("Access-Control-Allow-Origin", origin);
