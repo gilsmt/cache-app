@@ -13,7 +13,10 @@ const log = createLogger("Auth:session");
 export type Session = typeof auth.$Infer.Session;
 
 export const getServerSession = cache(async () =>
-    auth.api.getSession({ headers: await headers() })
+    auth.api.getSession({
+        headers: await headers(),
+        query: { disableCookieCache: true },
+    })
 );
 
 export const getSessionUserId = cache(async (): Promise<string | null> => {

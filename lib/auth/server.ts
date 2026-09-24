@@ -11,6 +11,7 @@ import { genericOAuth, multiSession, oneTap } from "better-auth/plugins";
 import * as z from "zod";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/billing/client";
 import { getPlanPriceIds } from "@/lib/billing/prices";
+import { cancelUserNonterminalSubscriptions } from "@/lib/billing/service";
 import { APP_NAME, BASE_URL, CACHE_EXTENSION_ID } from "@/lib/common/constants";
 import { getErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
@@ -470,6 +471,9 @@ export const auth = betterAuth({
          * confirmation dialog for authorization instead of a password.
          */
         deleteUser: {
+            beforeDelete: async (user) => {
+                await cancelUserNonterminalSubscriptions(user.id);
+            },
             enabled: true,
         },
     },

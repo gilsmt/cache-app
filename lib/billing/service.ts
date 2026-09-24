@@ -1,6 +1,7 @@
 import "server-only";
 
 import { withStripe } from "@/lib/billing/client";
+import { StripeError } from "@/lib/billing/error";
 import type { PriceType } from "@/lib/billing/prices";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { prisma } from "@/prisma";
@@ -8,6 +9,7 @@ import type { Prisma } from "@/prisma/client/client";
 import {
     ACTIVE_SUBSCRIPTION_STATUSES,
     isActiveSubscriptionStatus,
+    TERMINAL_SUBSCRIPTION_STATUSES,
 } from "./subscription-status";
 
 const log = createLogger("billing:service");
@@ -53,21 +55,27 @@ export async function getUserPlanType(userId: string): Promise<PriceType> {
 }
 
 /**
- * Hard-cancels every active or trialing Stripe subscription owned by the user.
+ * Hard-cancels every non-terminal Stripe subscription owned by the user.
  *
- * Used by the account-deletion flow: the user has explicitly chosen to leave,
- * so we terminate billing immediately rather than scheduling it for the end
- * of the current period. Stripe refunds unused time automatically; a user
- * with no active subscription is a no-op so this stays safe to call.
+ * Used by the account-deletion flow to stop billing immediately. A user with no
+ * non-terminal subscription is a no-op. Any query or cancellation failure
+ * rejects so account deletion cannot leave a Stripe subscription behind.
  */
-export async function cancelUserActiveSubscriptions(
+export async function cancelUserNonterminalSubscriptions(
     userId: string
 ): Promise<void> {
     const subscriptions = await prisma.subscription.findMany({
         select: { stripeSubscriptionId: true },
         where: {
+            OR: [
+                { status: null },
+                {
+                    status: {
+                        notIn: [...TERMINAL_SUBSCRIPTION_STATUSES],
+                    },
+                },
+            ],
             referenceId: userId,
-            status: { in: [...ACTIVE_SUBSCRIPTION_STATUSES] },
             stripeSubscriptionId: { not: null },
         },
     });
@@ -81,22 +89,48 @@ export async function cancelUserActiveSubscriptions(
     }
 
     await withStripe(async (stripe) => {
-        await Promise.all(
-            stripeSubscriptionIds.map((stripeSubscriptionId) =>
-                stripe.subscriptions
-                    .cancel(stripeSubscriptionId)
-                    .catch((error) => {
-                        log.error(
-                            "Failed to cancel subscription during account deletion",
-                            error,
-                            {
-                                operation: "cancelUserActiveSubscriptions",
-                                stripeSubscriptionId,
-                                userId,
-                            }
-                        );
-                    })
-            )
+        const cancellationResults = await Promise.all(
+            stripeSubscriptionIds.map(async (stripeSubscriptionId) => {
+                try {
+                    await stripe.subscriptions.cancel(stripeSubscriptionId);
+                    return { status: "fulfilled" };
+                } catch (error) {
+                    return { error, status: "rejected", stripeSubscriptionId };
+                }
+            })
+        );
+        const failedCancellations = cancellationResults.filter(
+            (result) => result.status === "rejected"
+        );
+
+        for (const { error, stripeSubscriptionId } of failedCancellations) {
+            log.error(
+                "Failed to cancel subscription during account deletion",
+                error,
+                {
+                    operation: "cancelUserNonterminalSubscriptions",
+                    stripeSubscriptionId,
+                    userId,
+                }
+            );
+        }
+
+        if (failedCancellations.length === 0) {
+            return;
+        }
+
+        throw new StripeError(
+            {
+                message:
+                    "Unable to cancel Stripe subscriptions before account deletion.",
+                operation: "billing::cancelUserNonterminalSubscriptions",
+            },
+            {
+                cause: new AggregateError(
+                    failedCancellations.map(({ error }) => error),
+                    "One or more Stripe subscription cancellations failed."
+                ),
+            }
         );
     });
 }

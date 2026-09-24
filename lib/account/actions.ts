@@ -24,10 +24,7 @@ export async function deleteAccountAction(): Promise<DeleteAccountActionState> {
     }
 
     try {
-        const result = await service.deleteUserAccount(
-            auth.userId,
-            await headers()
-        );
+        const result = await service.deleteUserAccount(await headers());
 
         return {
             message: "",

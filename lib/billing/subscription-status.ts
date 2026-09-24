@@ -1,5 +1,10 @@
 export const ACTIVE_SUBSCRIPTION_STATUSES = ["active", "trialing"] as const;
 
+export const TERMINAL_SUBSCRIPTION_STATUSES = [
+    "canceled",
+    "incomplete_expired",
+] as const;
+
 export function isActiveSubscriptionStatus(
     status: string | null | undefined
 ): boolean {
