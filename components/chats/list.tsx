@@ -228,40 +228,42 @@ function ChatsListEntry({ entry }: ChatsListEntryProps) {
     });
 
     return (
-        <li className="group/chat-entry relative">
-            <ActivePathname
-                href={href}
-                render={
-                    <SidebarItem
-                        className="pointer-fine:pr-8 pr-15"
-                        render={<Link href={href} title={entry.title} />}
-                    />
-                }
-            >
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted/90">
-                    <MessageCircle
-                        aria-hidden
-                        className="size-4"
-                        focusable="false"
-                    />
-                </span>
-                <SidebarItemValue>
-                    <Ticker className="pt-px">{entry.title}</Ticker>
-                </SidebarItemValue>
-                {entry.runStatus === AutomationRunStatus.failed ? (
-                    <span
-                        className="mr-1 shrink-0 text-[11px] text-destructive/80"
-                        data-sidebar-collapsible=""
-                    >
-                        <T>Failed</T>
+        <li>
+            <div className="group/chat-entry relative">
+                <ActivePathname
+                    href={href}
+                    render={
+                        <SidebarItem
+                            className="pointer-fine:pr-8 pr-15"
+                            render={<Link href={href} title={entry.title} />}
+                        />
+                    }
+                >
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted/90">
+                        <MessageCircle
+                            aria-hidden
+                            className="size-4"
+                            focusable="false"
+                        />
                     </span>
-                ) : null}
-            </ActivePathname>
-            <ChatsListEntryControls
-                entry={entry}
-                isPending={isPending}
-                onArchive={handleArchive}
-            />
+                    <SidebarItemValue>
+                        <Ticker className="pt-px">{entry.title}</Ticker>
+                    </SidebarItemValue>
+                    {entry.runStatus === AutomationRunStatus.failed ? (
+                        <span
+                            className="mr-1 shrink-0 text-[11px] text-destructive/80"
+                            data-sidebar-collapsible=""
+                        >
+                            <T>Failed</T>
+                        </span>
+                    ) : null}
+                </ActivePathname>
+                <ChatsListEntryControls
+                    entry={entry}
+                    isPending={isPending}
+                    onArchive={handleArchive}
+                />
+            </div>
             {actionErrorMessage ? (
                 <p
                     className="px-2 py-1 text-[11px] text-destructive"
