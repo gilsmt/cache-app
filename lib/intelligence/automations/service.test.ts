@@ -10,14 +10,14 @@ interface AutomationUpdateArgs {
     where: { id: string };
 }
 
-interface AutomationRunUpdateArgs {
+interface AutomationRunUpdateManyArgs {
     data: {
         errorCode?: string | null;
         errorMessage?: string;
         finishedAt?: Date;
         status?: string;
     };
-    where: { id: string };
+    where: { id: string; status?: string };
 }
 
 interface AutomationRunLeaseArgs {
@@ -55,15 +55,17 @@ interface FakeRun {
 const state: {
     activeSubscription: { status: string } | null;
     automationUpdates: AutomationUpdateArgs[];
+    cancelUpdateCount: number;
     createManyCalls: number;
     deleteManyCalls: number;
     dueRuns: Array<{ id: string }>;
     leaseUpdates: AutomationRunLeaseArgs[];
     run: FakeRun | null;
-    runUpdates: AutomationRunUpdateArgs[];
+    runUpdates: AutomationRunUpdateManyArgs[];
 } = {
     activeSubscription: null,
     automationUpdates: [],
+    cancelUpdateCount: 1,
     createManyCalls: 0,
     deleteManyCalls: 0,
     dueRuns: [],
@@ -97,13 +99,19 @@ const tx = {
         },
         findFirst: () => null,
         findUnique: () => state.run,
-        update: (args: AutomationRunUpdateArgs) => {
+        update: (args: AutomationRunUpdateManyArgs) => {
             state.runUpdates.push(args);
             return state.run;
         },
-        updateMany: (args: AutomationRunLeaseArgs) => {
-            state.leaseUpdates.push(args);
-            return { count: 1 };
+        updateMany: (
+            args: AutomationRunUpdateManyArgs | AutomationRunLeaseArgs
+        ) => {
+            if ("leaseId" in args.data) {
+                state.leaseUpdates.push(args as AutomationRunLeaseArgs);
+                return { count: 1 };
+            }
+            state.runUpdates.push(args as AutomationRunUpdateManyArgs);
+            return { count: state.cancelUpdateCount };
         },
     },
 };
@@ -154,6 +162,7 @@ describe("claimDueAutomationRuns subscription entitlement", () => {
     beforeEach(() => {
         state.activeSubscription = null;
         state.automationUpdates = [];
+        state.cancelUpdateCount = 1;
         state.createManyCalls = 0;
         state.deleteManyCalls = 0;
         state.dueRuns = [{ id: "run-1" }];
@@ -216,9 +225,25 @@ describe("claimDueAutomationRuns subscription entitlement", () => {
                     finishedAt: NOW,
                     status: AutomationRunStatus.canceled,
                 },
-                where: { id: "run-1" },
+                where: {
+                    id: "run-1",
+                    status: AutomationRunStatus.pending,
+                },
             },
         ]);
         expect(state.deleteManyCalls).toBe(1);
+    });
+
+    test("does not pause the automation when a concurrent claim already took the run", async () => {
+        state.activeSubscription = null;
+        state.cancelUpdateCount = 0;
+        const { claimDueAutomationRuns } = await import("./service");
+
+        const result = await claimDueAutomationRuns({ now: NOW });
+
+        expect(result.claimed).toHaveLength(0);
+        expect(result.skipped).toBe(0);
+        expect(state.automationUpdates).toHaveLength(0);
+        expect(state.deleteManyCalls).toBe(0);
     });
 });

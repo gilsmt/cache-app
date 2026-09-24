@@ -1154,13 +1154,16 @@ async function claimAutomationRun(args: {
                 tx
             );
             if (!subscription) {
-                await pauseAutomationForInactiveSubscription(tx, {
-                    automationId: run.automation.id,
-                    now: args.now,
-                    runId: run.id,
-                    userId: run.userId,
-                });
-                return { status: "skipped" };
+                const paused = await pauseAutomationForInactiveSubscription(
+                    tx,
+                    {
+                        automationId: run.automation.id,
+                        now: args.now,
+                        runId: run.id,
+                        userId: run.userId,
+                    }
+                );
+                return paused ? { status: "skipped" } : null;
             }
 
             const activeRun = await tx.automationRun.findFirst({
@@ -1317,16 +1320,8 @@ async function pauseAutomationForInactiveSubscription(
         runId: string;
         userId: string;
     }
-) {
-    await tx.automation.update({
-        data: {
-            lastFailureCode: "subscription_inactive",
-            nextRunAtUtc: null,
-            status: AutomationStatus.paused,
-        },
-        where: { id: args.automationId },
-    });
-    await tx.automationRun.update({
+): Promise<boolean> {
+    const canceled = await tx.automationRun.updateMany({
         data: {
             errorCode: "subscription_inactive",
             errorMessage:
@@ -1334,7 +1329,22 @@ async function pauseAutomationForInactiveSubscription(
             finishedAt: args.now,
             status: AutomationRunStatus.canceled,
         },
-        where: { id: args.runId },
+        where: {
+            id: args.runId,
+            status: AutomationRunStatus.pending,
+        },
+    });
+    if (canceled.count !== 1) {
+        return false;
+    }
+
+    await tx.automation.update({
+        data: {
+            lastFailureCode: "subscription_inactive",
+            nextRunAtUtc: null,
+            status: AutomationStatus.paused,
+        },
+        where: { id: args.automationId },
     });
     await tx.automationRun.deleteMany({
         where: {
@@ -1348,6 +1358,7 @@ async function pauseAutomationForInactiveSubscription(
         runId: args.runId,
         userId: args.userId,
     });
+    return true;
 }
 
 function toAutomationListItem(automation: {
