@@ -9,8 +9,7 @@ import * as React from "react";
 const DEFAULT_DURATION_SECONDS = 5;
 const MAX_SPEED_PX_PER_SECOND = 92;
 
-const REPEAT_KEYS = ["primary", "clone"] as const;
-const REPEAT_COUNT = REPEAT_KEYS.length;
+const DEFAULT_REPEAT_COUNT = 2;
 
 function getDurationInSeconds(travelDistancePx: number) {
     if (travelDistancePx <= 0 || !Number.isFinite(travelDistancePx)) {
@@ -79,10 +78,9 @@ export function Ticker({
     }, []);
 
     const isOverflowing = contentWidthPx > 0 && !prefersReducedMotion;
-    const repeatCount = isOverflowing ? REPEAT_COUNT : 1;
 
     const trackStyle = {
-        "--animation-distance": `${-100 / REPEAT_COUNT}%`,
+        "--animation-distance": `${-100 / DEFAULT_REPEAT_COUNT}%`,
         "--duration": `${getDurationInSeconds(contentWidthPx)}s`,
         ...(direction === "right"
             ? { animationDirection: "reverse" as const }
@@ -106,19 +104,12 @@ export function Ticker({
                 )}
                 style={trackStyle}
             >
-                {REPEAT_KEYS.slice(0, repeatCount).map((repeatKey, index) => {
-                    const isClone = index > 0;
-                    return (
-                        <span
-                            aria-hidden={isClone || undefined}
-                            className="shrink-0 p-px pr-4"
-                            inert={isClone || undefined}
-                            key={repeatKey}
-                        >
-                            {children}
-                        </span>
-                    );
-                })}
+                <span className="shrink-0 p-px pr-4">{children}</span>
+                {isOverflowing ? (
+                    <span aria-hidden className="shrink-0 p-px pr-4" inert>
+                        {children}
+                    </span>
+                ) : null}
             </span>
         </span>
     );

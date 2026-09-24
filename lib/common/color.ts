@@ -1,6 +1,6 @@
-import { clampChroma, converter, formatHex, parse } from "culori";
+import { converter, formatHex, parse } from "culori";
 import * as z from "zod";
-import { djb2Hash } from "@/lib/common/hash";
+import { djb2Hash, fnv1aHash } from "@/lib/common/hash";
 import { clamp } from "@/lib/common/number";
 
 const COLORS: readonly string[] = [
@@ -27,7 +27,7 @@ const COLORS: readonly string[] = [
     "#FF78CB", // Pink
     "#4E5A65", // Gray
     "#01FF70", // Lime
-    "#85144b", // Pink
+    "#85144B", // Pink
     "#F012BE", // Purple
     "#7FDBFF", // Sky Blue
     "#3D9970", // Olive
@@ -35,7 +35,7 @@ const COLORS: readonly string[] = [
     "#111111", // Black
     "#0074D9", // Blue
     "#39CCCC", // Teal
-    "#001f3f", // Navy
+    "#001F3F", // Navy
     "#FF9F1C", // Orange
     "#5E6A71", // Ash
     "#75D701", // Neon Green
@@ -77,23 +77,23 @@ const COLORS: readonly string[] = [
     "#696969", // Dim Gray
 ];
 
-export const isValidColor = (color: string): boolean => {
+export function isValidColor(color: string): boolean {
     try {
         return parse(color) !== null;
     } catch {
         return false;
     }
-};
+}
 
-export const parseToValidColor = (color: string) => {
+export function parseToValidColor(color: string) {
     const parsed = parse(color);
     if (!parsed) {
         throw new Error(`Invalid color format: ${color}`);
     }
     return parsed;
-};
+}
 
-export const parseToHex = (color: string): string => {
+export function parseToHex(color: string): string {
     try {
         const parsed = parse(color);
         if (!parsed) {
@@ -106,27 +106,21 @@ export const parseToHex = (color: string): string => {
             { cause: error }
         );
     }
-};
+}
 
-export const parseToRgb = (color: string) => {
+export function parseToRgb(color: string) {
     const parsed = parse(color);
     if (!parsed) {
         throw new Error(`Invalid color format: ${color}`);
     }
     return converter("rgb")(parsed);
-};
+}
 
 const RGB_MAX = 255;
 const HUE_DEFAULT = 272;
 const HUE_SECTOR_DEGREES = 60;
 const HUE_FULL_CIRCLE = 360;
 const LUMINANCE_THRESHOLD = 0.55;
-
-/** Mid lightness: readable solid fills on light and dark surfaces. */
-const CHART_LIGHTNESS = 0.64;
-/** Moderate chroma: distinct without neon or washed pastels. */
-const CHART_CHROMA = 0.14;
-const CHART_FALLBACK_HEX = "#94a3b8";
 
 const GRADIENT_CHROMA_CLAMP_MIN = 0.6;
 const GRADIENT_CHROMA_CLAMP_MAX = 2.2;
@@ -140,22 +134,29 @@ const GRADIENT_HUE_OFFSET = 10;
 const GRADIENT_ANGLE = "90deg";
 
 /**
- * Computes an index for a color based on a given string.
- * @param value - The input string.
- * @param arrayLength - The length of the color array.
- * @returns An index within the array range.
- * @internal
+ * Mirror COLORS entries but stay pinned as literals, so reordering
+ * that array can't reshuffle charts
  */
-function getColorIndex(value: string, arrayLength: number): number {
-    const hashValue = djb2Hash(value);
-    return hashValue % arrayLength;
-}
+const CHART_COLORS: readonly string[] = [
+    "#CD346C", // Raspberry
+    "#00D084", // Emerald
+    "#0693E3", // Blue
+    "#FCB900", // Yellow
+    "#8492A6", // Slate
+    "#FF6900", // Orange
+    "#B388EB", // Lavender
+    "#EB144C", // Red
+    "#39CCCC", // Teal
+    "#E04F9F", // Orchid Pink
+    "#4682B4", // Steel Blue
+    "#FF5A5F", // Coral
+    "#3D9970", // Olive
+];
 
-/**
- * Retrieves a color from the colors array based on a given name.
- * @param value - The name from which to derive the color.
- * @returns A color string from the colors array.
- */
+const CHART_DARK_LIGHTNESS_LIFT = 24;
+/** Stays short of white. */
+const CHART_DARK_LIGHTNESS_MAX = 78;
+
 export function getHexColorFromName(value: string): string {
     const index = getColorIndex(value, COLORS.length);
     const color = COLORS[index];
@@ -167,66 +168,12 @@ export function getHexColorFromName(value: string): string {
     return color;
 }
 
-/**
- * Assign maximally distinct chart colors to a set of keys.
- * Hues are evenly spaced; the set is sorted so the same membership always maps
- * the same way. A hash of membership rotates the wheel so small sets don't
- * always land in the same hue family.
- */
-export function getChartColorsForKeys(
-    keys: readonly string[]
-): Map<string, string> {
-    const uniqueKeys = Array.from(new Set(keys)).sort((first, second) =>
-        first.localeCompare(second)
-    );
-    const count = uniqueKeys.length;
-    const colors = new Map<string, string>();
-    if (count === 0) {
-        return colors;
-    }
-
-    const startHue = djb2Hash(uniqueKeys.join("\0")) % HUE_FULL_CIRCLE;
-
-    for (let index = 0; index < count; index += 1) {
-        const key = uniqueKeys[index];
-        if (key === undefined) {
-            throw new Error(
-                `Invariant violated: missing key at index ${index}`
-            );
-        }
-        const hue =
-            count === 1
-                ? startHue
-                : (startHue + (index * HUE_FULL_CIRCLE) / count) %
-                  HUE_FULL_CIRCLE;
-        colors.set(key, chartHexFromHue(hue));
-    }
-
-    return colors;
+/** @internal */
+function getColorIndex(value: string, arrayLength: number): number {
+    const hashValue = djb2Hash(value);
+    return hashValue % arrayLength;
 }
 
-function chartHexFromHue(hue: number): string {
-    const hex = formatHex(
-        clampChroma(
-            {
-                c: CHART_CHROMA,
-                h: hue,
-                l: CHART_LIGHTNESS,
-                mode: "oklch",
-            },
-            "oklch"
-        )
-    );
-    if (!hex) {
-        return CHART_FALLBACK_HEX;
-    }
-    return hex;
-}
-
-/**
- * Retrieves a random color from the colors array.
- * @returns A random color string.
- */
 export function getRandomHexColor(): string {
     const randomIndex = Math.floor(Math.random() * COLORS.length);
     const color = COLORS[randomIndex];
@@ -238,7 +185,7 @@ export function getRandomHexColor(): string {
     return color;
 }
 
-export function rgbToHue(r: number, g: number, b: number): number {
+export function getHueFromRgb(r: number, g: number, b: number): number {
     const rn = r / RGB_MAX;
     const gn = g / RGB_MAX;
     const bn = b / RGB_MAX;
@@ -262,7 +209,8 @@ export function rgbToHue(r: number, g: number, b: number): number {
     return (hue * HUE_SECTOR_DEGREES + HUE_FULL_CIRCLE) % HUE_FULL_CIRCLE;
 }
 
-function themeAwareLch(
+/** @internal */
+function buildThemeAwareLch(
     lightnessLight: number,
     lightnessDark: number,
     chroma: number,
@@ -276,7 +224,7 @@ function themeAwareLch(
 export function getColorGradientFromName(name: string): string {
     const color = parseToRgb(getHexColorFromName(name));
     const rgb = [color.r, color.g, color.b] as const;
-    const hue = rgbToHue(rgb[0], rgb[1], rgb[2]);
+    const hue = getHueFromRgb(rgb[0], rgb[1], rgb[2]);
     const chromaBias = clamp(
         Math.max(...rgb) - Math.min(...rgb),
         GRADIENT_CHROMA_CLAMP_MIN,
@@ -287,13 +235,13 @@ export function getColorGradientFromName(name: string): string {
     const endChroma =
         GRADIENT_END_CHROMA + chromaBias * GRADIENT_END_CHROMA_BIAS;
     const endHue = (hue + GRADIENT_HUE_OFFSET) % HUE_FULL_CIRCLE;
-    const start = themeAwareLch(
+    const start = buildThemeAwareLch(
         GRADIENT_LIGHTNESS_LIGHT,
         GRADIENT_LIGHTNESS_DARK,
         startChroma,
         hue
     );
-    const end = themeAwareLch(
+    const end = buildThemeAwareLch(
         GRADIENT_LIGHTNESS_LIGHT,
         GRADIENT_LIGHTNESS_DARK,
         endChroma,
@@ -302,21 +250,62 @@ export function getColorGradientFromName(name: string): string {
     return `linear-gradient(${GRADIENT_ANGLE}, ${start} 0%, ${end} 100%), ${end}`;
 }
 
-/**
- * Calculates a contrasting text color based on the luminance of the background.
- * It converts the hex background color to RGB values, computes the brightness,
- * and returns white (#FFFFFF) for dark backgrounds or black (#000000) for light ones.
- * @param hexColor - A hex string representing the background color (#RRGGBB).
- * @returns A contrasting text color (#FFFFFF or #000000).
- */
-export const getContrastColor = (hexColor: string) => {
-    const r = Number.parseInt(hexColor.slice(1, 3), 16) / 255;
-    const g = Number.parseInt(hexColor.slice(3, 5), 16) / 255;
-    const b = Number.parseInt(hexColor.slice(5, 7), 16) / 255;
+export function getChartColorsFromKeys(
+    keys: readonly string[]
+): Map<string, string> {
+    const uniqueKeys = Array.from(new Set(keys)).sort((first, second) =>
+        first.localeCompare(second)
+    );
+    const count = uniqueKeys.length;
+    const colors = new Map<string, string>();
+    if (count === 0) {
+        return colors;
+    }
+
+    const startIndex = fnv1aHash(uniqueKeys.join("\0")) % CHART_COLORS.length;
+
+    for (let index = 0; index < count; index += 1) {
+        const key = uniqueKeys[index];
+        if (key === undefined) {
+            throw new Error(
+                `Invariant violated: missing key at index ${index}`
+            );
+        }
+        const color = CHART_COLORS[(startIndex + index) % CHART_COLORS.length];
+        if (color === undefined) {
+            throw new Error(
+                `Invariant violated: missing palette entry at index ${index}`
+            );
+        }
+        colors.set(key, buildChartColor(color));
+    }
+
+    return colors;
+}
+
+/** @internal */
+function buildChartColor(hex: string): string {
+    const { c, h, l } = converter("lch")(parseToValidColor(hex));
+    const lightnessDark = Math.min(
+        l + CHART_DARK_LIGHTNESS_LIFT,
+        CHART_DARK_LIGHTNESS_MAX
+    );
+    return buildThemeAwareLch(
+        Number(l.toFixed(1)),
+        Number(lightnessDark.toFixed(1)),
+        c,
+        h ?? HUE_DEFAULT
+    );
+}
+
+export function getContrastColor(hexColor: string) {
+    const r = Number.parseInt(hexColor.slice(1, 3), 16) / RGB_MAX;
+    const g = Number.parseInt(hexColor.slice(3, 5), 16) / RGB_MAX;
+    const b = Number.parseInt(hexColor.slice(5, 7), 16) / RGB_MAX;
     return (Math.min(r, g, b) + Math.max(r, g, b)) / 2 < LUMINANCE_THRESHOLD
         ? "#FFFFFF"
         : "#000000";
-};
+}
 
 export const ColorSchema = z
     .string()

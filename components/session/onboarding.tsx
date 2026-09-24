@@ -1,6 +1,5 @@
 "use client";
 
-import { Toolbar } from "@base-ui/react";
 import { Checkbox } from "@base-ui/react/checkbox";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
@@ -125,6 +124,7 @@ const PAIN_POINT_OPTIONS = [
 ] as const;
 
 type OnboardingTaskId = (typeof ONBOARDING_TASK_META)[number]["id"];
+
 type PainPointId = (typeof PAIN_POINT_OPTIONS)[number]["id"];
 
 type StoredOnboardingTaskId = Extract<
@@ -186,7 +186,11 @@ function isSharedCollection(
     return !!(collection.shareId && collection.sharedAt);
 }
 
-interface OnboardingMenuProps {
+interface OnboardingMenuProps
+    extends Omit<
+        React.ComponentProps<typeof MenuTrigger>,
+        "children" | "aria-label"
+    > {
     connectedIntegrationCount: number;
     onCreateCollection: () => void;
     onCreateNote: () => void;
@@ -198,6 +202,8 @@ export function OnboardingMenu({
     onCreateCollection,
     onCreateNote,
     onOpenComposer,
+    openOnHover = true,
+    ...props
 }: OnboardingMenuProps) {
     const gt = useGT();
     const { isCollectionActionPending } = useCollectionsPendingActionsContext();
@@ -363,42 +369,30 @@ export function OnboardingMenu({
             share: handleRequestShare,
         };
 
+    const triggerLabel = gt(
+        "Get to know Cache, {completedTaskCount} of {totalTasks} checklist items complete",
+        {
+            completedTaskCount: String(completedTaskCount),
+            totalTasks: String(ONBOARDING_TASK_COUNT),
+        }
+    );
     return (
         <>
             {isOnboardingCompleted ? null : (
                 <Menu>
-                    <Toolbar.Button
-                        render={
-                            <MenuTrigger
-                                openOnHover
-                                render={
-                                    <Button
-                                        aria-label={gt(
-                                            "Get to know Cache, {completedTaskCount} of {totalTasks} checklist items complete",
-                                            {
-                                                completedTaskCount:
-                                                    String(completedTaskCount),
-                                                totalTasks: String(
-                                                    ONBOARDING_TASK_COUNT
-                                                ),
-                                            }
-                                        )}
-                                        className="rounded-full"
-                                        size="xs"
-                                        variant="ghost"
-                                    >
-                                        <RadialIcon
-                                            aria-hidden
-                                            className="inline-block size-4 shrink-0"
-                                            size={9}
-                                            value={progressValue}
-                                        />
-                                        &nbsp;<T>Get to know Cache</T>
-                                    </Button>
-                                }
-                            />
-                        }
-                    />
+                    <MenuTrigger
+                        {...props}
+                        aria-label={triggerLabel}
+                        openOnHover={openOnHover}
+                    >
+                        <RadialIcon
+                            aria-hidden
+                            className="inline-block size-4 shrink-0"
+                            size={9}
+                            value={progressValue}
+                        />
+                        &nbsp;<T>Get to know Cache</T>
+                    </MenuTrigger>
                     <MenuPopup align="start" className="min-w-72">
                         <MenuGroup>
                             <MenuGroupLabel>

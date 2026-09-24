@@ -53,7 +53,7 @@ export function StackedBarChart({
             }
             className={cn(
                 "h-2 w-full overflow-hidden rounded-full bg-muted",
-                !isEmpty && "flex",
+                !isEmpty && "flex gap-px",
                 className
             )}
             data-slot="stacked-bar-chart"

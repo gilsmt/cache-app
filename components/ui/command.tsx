@@ -126,7 +126,7 @@ export function CommandPopup({
                 <Autocomplete.Popup
                     {...props}
                     className={cn(
-                        "relative w-full min-w-(--anchor-width) max-w-(--available-width) rounded-2xl border bg-popover not-dark:bg-clip-padding shadow-lg/5 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-2xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle relative w-full min-w-(--anchor-width) max-w-(--available-width) rounded-2xl border bg-popover not-dark:bg-clip-padding shadow-lg/5 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-2xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot="command-popup"

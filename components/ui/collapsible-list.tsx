@@ -90,7 +90,7 @@ export function CollapsibleListHorizontal({
                         className={
                             badgeRender
                                 ? undefined
-                                : "flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground"
+                                : "inline-flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground"
                         }
                         render={badgeRender}
                     >
@@ -104,8 +104,8 @@ export function CollapsibleListHorizontal({
                                 >
                                     {hidden.length}
                                 </Calligraph>
-                            </Var>{" "}
-                            more
+                            </Var>
+                            &nbsp;more
                         </T>
                     </PopoverTrigger>
                     <PopoverPopup>

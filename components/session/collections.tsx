@@ -80,6 +80,7 @@ import {
 } from "@/components/ui/combobox";
 import {
     DataList,
+    DataListGroup,
     DataListItem,
     DataListSection,
 } from "@/components/ui/data-list";
@@ -2751,7 +2752,7 @@ function CollectionsListFavoritesItem({
 
     return (
         <div className="group relative flex select-none items-center">
-            <div className="pointer-events-none absolute top-1/2 left-1.25 z-10 size-6 -translate-y-1/2 overflow-hidden rounded-md outline-1 outline-black/5 -outline-offset-1 dark:outline-white/5">
+            <div className="pointer-events-none absolute top-1/2 left-1.25 z-10 size-6 -translate-y-1/2 overflow-hidden rounded-md">
                 {isNote ? (
                     <span className="block size-full bg-linear-to-br from-note-surface-from via-background to-note-surface-to" />
                 ) : (
@@ -2761,6 +2762,10 @@ function CollectionsListFavoritesItem({
                         src={previewImageUrl ?? undefined}
                     />
                 )}
+                <div
+                    aria-hidden
+                    className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
+                />
             </div>
             <PreviewCard>
                 <PreviewCardTrigger
@@ -2790,10 +2795,14 @@ function CollectionsListFavoritesItem({
                     ) : (
                         <CollectionsListFavoritesItemImage
                             alt=""
-                            className="aspect-auto h-auto w-full outline-1 outline-black/5 -outline-offset-1 dark:outline-white/5"
+                            className="aspect-auto h-auto w-full"
                             src={previewImageUrl ?? undefined}
                         />
                     )}
+                    <div
+                        aria-hidden
+                        className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
+                    />
                 </PreviewCardPopup>
             </PreviewCard>
             <Button
@@ -3464,20 +3473,22 @@ function CollectionsListBreakdown({ entries }: CollectionsListBreakdownProps) {
     return (
         <DataList>
             <DataListSection>
-                {entries.map(({ count, icon: Icon, label, value }) => (
-                    <DataListItem
-                        icon={
-                            <Icon
-                                aria-hidden
-                                className="size-3.5 shrink-0 text-muted-foreground"
-                                focusable="false"
-                            />
-                        }
-                        key={value}
-                        label={label}
-                        value={count}
-                    />
-                ))}
+                <DataListGroup className="mt-0">
+                    {entries.map(({ count, icon: Icon, label, value }) => (
+                        <DataListItem
+                            icon={
+                                <Icon
+                                    aria-hidden
+                                    className="size-4 text-muted-foreground sm:size-3.5"
+                                    focusable="false"
+                                />
+                            }
+                            key={value}
+                            label={label}
+                            value={count}
+                        />
+                    ))}
+                </DataListGroup>
             </DataListSection>
         </DataList>
     );
@@ -3616,7 +3627,7 @@ function CollectionsListItemTrigger({
                 }
             />
             <PreviewCardPopup
-                className="flex flex-col overflow-hidden p-0"
+                className="p-0"
                 positionMethod="fixed"
                 side="right"
             >
@@ -3657,7 +3668,7 @@ function CollectionsListItemPreviewImage({
                 <motion.img
                     alt={`${name} preview`}
                     animate={{ opacity: 1 }}
-                    className="drag-none absolute inset-0 size-full object-cover outline-1 outline-black/5 -outline-offset-1 dark:outline-white/5"
+                    className="drag-none absolute inset-0 size-full object-cover"
                     decoding="async"
                     draggable={false}
                     exit={{ opacity: 0 }}
@@ -3670,6 +3681,10 @@ function CollectionsListItemPreviewImage({
                     }}
                 />
             </AnimatePresence>
+            <div
+                aria-hidden
+                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
+            />
         </div>
     );
 }

@@ -66,15 +66,16 @@ import {
     COMBOBOX_ESCAPE_KEY_REASON,
     COMBOBOX_ITEM_PRESS_REASON,
     Composer,
-    ComposerActionMetrics,
     ComposerActionNew,
     ComposerActionRemoveDuplicates,
     ComposerActionsList,
+    ComposerActionTrigger,
     type ComposerAttachment,
     ComposerInput,
     type ComposerInputActions,
     type ComposerSortMode,
     ComposerSuggestionsList,
+    ComposerSummary,
     CopyResponseButton,
     DEFAULT_COLUMN_COUNT_MODE,
     DEFAULT_SORT_MODE,
@@ -5095,16 +5096,9 @@ export function BrowserContent({
                                     stackEntries={stackEntries}
                                 />
                                 <ComposerActionsList
-                                    canClear={canClear}
                                     duplicatesFilterEnabled={
                                         duplicatesFilterEnabled
                                     }
-                                    groupBy={groupBy}
-                                    metrics={buildComposerMetrics({
-                                        getSourceLabel,
-                                        items: filteredItems,
-                                    })}
-                                    onClearPalette={clearLibraryPalette}
                                     onCreateNote={handleCreateNote}
                                     onRemoveDuplicates={
                                         handleRequestRemoveDuplicates
@@ -5112,11 +5106,19 @@ export function BrowserContent({
                                     removableDuplicateCount={
                                         removableDuplicateIds.length
                                     }
-                                    resultsSummary={resultsSummary}
-                                    sectionsLength={groups.length}
                                 >
                                     <ComposerActionNew />
-                                    <ComposerActionMetrics />
+                                    <ComposerSummary
+                                        canClear={canClear}
+                                        effectiveGroupBy={effectiveGroupBy}
+                                        metrics={buildComposerMetrics({
+                                            getSourceLabel,
+                                            items: filteredItems,
+                                        })}
+                                        onClear={clearLibraryPalette}
+                                        resultsSummary={resultsSummary}
+                                        sectionsLength={groups.length}
+                                    />
                                     <OnboardingMenu
                                         connectedIntegrationCount={
                                             connectedIntegrationCount
@@ -5125,6 +5127,9 @@ export function BrowserContent({
                                         onCreateNote={handleCreateNote}
                                         onOpenComposer={
                                             handleOpenComposerFromOnboarding
+                                        }
+                                        render={
+                                            <ComposerActionTrigger className="rounded-full" />
                                         }
                                     />
                                     <ComposerActionRemoveDuplicates />

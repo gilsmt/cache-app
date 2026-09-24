@@ -15,7 +15,10 @@ export function DataList({
     ...props
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
-        className: cn("flex w-full min-w-56 flex-col gap-3", className),
+        className: cn(
+            "grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2.5 [&>*]:col-span-2",
+            className
+        ),
         "data-slot": "data-list",
     };
 
@@ -31,8 +34,14 @@ interface DataListChartProps
     segments: readonly StackedBarChartSegment[];
 }
 
-export function DataListChart(props: DataListChartProps) {
-    return <StackedBarChart {...props} data-slot="data-list-chart" />;
+export function DataListChart({ className, ...props }: DataListChartProps) {
+    return (
+        <StackedBarChart
+            {...props}
+            className={cn("col-span-2", className)}
+            data-slot="data-list-chart"
+        />
+    );
 }
 
 export function DataListHeader({
@@ -41,7 +50,7 @@ export function DataListHeader({
     ...props
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
-        className: cn("flex flex-col gap-0.5", className),
+        className: cn("flex flex-col gap-1", className),
         "data-slot": "data-list-header",
     };
 
@@ -58,7 +67,7 @@ export function DataListTitle({
     ...props
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
-        className: cn("font-normal text-muted-foreground text-xs", className),
+        className: cn("font-medium text-muted-foreground text-xs", className),
         "data-slot": "data-list-title",
     };
 
@@ -75,7 +84,10 @@ export function DataListSection({
     ...props
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
-        className: cn("flex flex-col gap-2", className),
+        className: cn(
+            "col-span-2 grid min-w-0 grid-cols-subgrid gap-3",
+            className
+        ),
         "data-slot": "data-list-section",
     };
 
@@ -92,7 +104,10 @@ export function DataListGroup({
     ...props
 }: useRender.ComponentProps<"dl">) {
     const defaultProps = {
-        className: cn("mt-1.5 flex flex-col gap-1.5", className),
+        className: cn(
+            "col-span-2 mt-1.5 grid grid-cols-subgrid gap-x-3 gap-y-1.5",
+            className
+        ),
         "data-slot": "data-list-group",
     };
 
@@ -124,23 +139,27 @@ export function DataListItem({
     const defaultProps = {
         children: (
             <>
-                <dt className="flex min-w-0 items-center gap-1.5 text-foreground">
-                    {color ? (
-                        <span
-                            aria-hidden
-                            className="size-2 shrink-0 rounded-full"
-                            style={{ backgroundColor: color }}
-                        />
-                    ) : (
-                        (icon ?? null)
-                    )}
+                <dt className="flex min-w-0 items-center text-foreground">
                     <span className="min-w-0 truncate">{label}</span>
                 </dt>
-                <dd className="text-foreground tabular-nums">{value}</dd>
+                <dd className="flex items-center justify-start gap-1.5 text-left text-foreground tabular-nums [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5">
+                    <span className="flex size-4 shrink-0 items-center justify-center sm:size-3.5">
+                        {color ? (
+                            <span
+                                aria-hidden
+                                className="size-2 shrink-0 rounded-full"
+                                style={{ backgroundColor: color }}
+                            />
+                        ) : (
+                            (icon ?? null)
+                        )}
+                    </span>
+                    <span className="text-left">{value}</span>
+                </dd>
             </>
         ),
         className: cn(
-            "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs",
+            "col-span-2 grid grid-cols-subgrid items-center gap-x-3 text-sm sm:text-xs",
             className
         ),
         "data-slot": "data-list-item",

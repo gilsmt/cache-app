@@ -9,13 +9,13 @@ import { CheckmarkIcon } from "@/components/ui/icons";
 import { Input, type InputSize } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface ComboboxContextValue {
+interface ComboboxContext {
     chipsRef: React.RefObject<HTMLDivElement | null> | null;
     multiple: boolean;
 }
 
-const ComboboxContext: React.Context<ComboboxContextValue> =
-    React.createContext<ComboboxContextValue>({
+const ComboboxContext: React.Context<ComboboxContext> =
+    React.createContext<ComboboxContext>({
         chipsRef: null,
         multiple: false,
     });
@@ -204,7 +204,7 @@ export function ComboboxPopup({
             >
                 <span
                     className={cn(
-                        "relative flex max-h-full min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) rounded-[calc(var(--radius-lg)+1px)] border bg-popover not-dark:bg-clip-padding shadow-lg/5 transition-[scale,opacity] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle relative flex max-h-full min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) rounded-[calc(var(--radius-lg)+1px)] border bg-popover not-dark:bg-clip-padding shadow-lg/5 transition-[scale,opacity] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                 >

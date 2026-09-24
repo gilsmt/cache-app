@@ -1,5 +1,5 @@
 import { collectDuplicateBookmarkItemIds } from "@/lib/collections/library-quality";
-import { getChartColorsForKeys } from "@/lib/common/color";
+import { getChartColorsFromKeys } from "@/lib/common/color";
 import { ITEM_KIND_NOTE } from "@/lib/common/constants";
 import {
     LibraryItemLinkReachability,
@@ -65,7 +65,7 @@ export function buildComposerMetrics({
     }
 
     const sourceEntries = Array.from(sourceCounts.entries());
-    const colorsBySource = getChartColorsForKeys(
+    const colorsBySource = getChartColorsFromKeys(
         sourceEntries.map(([source]) => source)
     );
 

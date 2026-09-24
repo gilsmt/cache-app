@@ -40,6 +40,7 @@ import {
     DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
     getLibraryItemDomain,
 } from "@/components/session/filters";
+import { SummaryDataList } from "@/components/session/summary";
 import {
     Attachment,
     AttachmentInfo,
@@ -53,6 +54,7 @@ import {
     getMediaCategory,
 } from "@/components/ui/attachments";
 import { Badge } from "@/components/ui/badge";
+import { Bubble, BubbleContent, BubbleGroup } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsiblePanel } from "@/components/ui/collapsible";
 import { CollapsibleListHorizontal } from "@/components/ui/collapsible-list";
@@ -70,26 +72,14 @@ import {
     CommandShortcut,
     useCommandFilter,
 } from "@/components/ui/command";
-import {
-    DataList,
-    DataListChart,
-    DataListGroup,
-    DataListHeader,
-    DataListItem,
-    DataListSection,
-    DataListTitle,
-} from "@/components/ui/data-list";
-import { GradientWaveText } from "@/components/ui/gradient-wave-text";
 import { CmdKbd, Kbd } from "@/components/ui/kbd";
 import {
     Popover,
     PopoverClose,
     PopoverPopup,
-    PopoverTitle,
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis";
 import { itemCanonicalGroupKey } from "@/lib/collections/library-quality";
@@ -103,7 +93,6 @@ import { CACHE_EXTENSION_DOWNLOAD_URL } from "@/lib/common/constants";
 import type { createFileAttachment } from "@/lib/common/file";
 import { filterValidImageUrls } from "@/lib/common/image";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { formatSharePercent } from "@/lib/common/number";
 import { truncateLabel } from "@/lib/common/string";
 import { openExternalUrl } from "@/lib/common/url";
 import { LibraryItemSource } from "@/prisma/client/enums";
@@ -513,20 +502,11 @@ interface RankedComposerItem {
     rank: ComposerItemRank;
 }
 
-interface ComposerActions {
-    canClear: boolean;
+interface ComposerActionsContext {
     duplicatesFilterEnabled: boolean;
-    groupBy: string;
-    onClearPalette: () => void;
     onCreateNote: () => void;
     onRemoveDuplicates: () => void;
     removableDuplicateCount: number;
-    resultsSummary: string;
-    sectionsLength: number;
-}
-
-interface ComposerActionsContext extends ComposerActions {
-    metrics: LibraryMetricsSnapshot;
 }
 
 const log = createLogger("library:composer");
@@ -2296,72 +2276,50 @@ export function AskCacheResponsePanel({
 }) {
     if (!response || response.status === "loading") {
         return (
-            <div className="flex min-w-0 flex-1 flex-col gap-2 py-1 pr-2">
-                <div className="flex items-center gap-2">
+            <BubbleGroup className="w-full min-w-0 flex-1 py-1 pr-2">
+                {response?.prompt ? (
+                    <Bubble align="end" variant="muted">
+                        <BubbleContent>{response.prompt}</BubbleContent>
+                    </Bubble>
+                ) : null}
+                <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
                     <ThinkingOrb size={20} state="shaping" />
-                    <GradientWaveText
-                        ariaLabel="Ask Cache"
-                        className="font-medium text-muted-foreground text-xs"
-                    >
-                        Cache AI
-                    </GradientWaveText>
-                    {response?.prompt ? (
-                        <span className="min-w-0 max-w-xs truncate text-muted-foreground text-xs">
-                            {response.prompt}
-                        </span>
-                    ) : null}
+                    <span className="text-muted-foreground text-xs">
+                        <T>Thinking…</T>
+                    </span>
                 </div>
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-2/3" />
-            </div>
+            </BubbleGroup>
         );
     }
 
     if (response.status === "error") {
         return (
-            <div className="flex min-w-0 flex-1 flex-col gap-1 py-1 pr-2">
-                <GradientWaveText
-                    ariaLabel="Ask Cache"
-                    className="font-medium text-muted-foreground text-xs"
-                >
-                    Cache AI
-                </GradientWaveText>
-                <p className="text-sm">{response.message}</p>
-            </div>
+            <BubbleGroup className="w-full min-w-0 flex-1 py-1 pr-2">
+                <Bubble align="end" variant="muted">
+                    <BubbleContent>{response.prompt}</BubbleContent>
+                </Bubble>
+                <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
+                    <p className="text-sm">{response.message}</p>
+                </div>
+            </BubbleGroup>
         );
     }
 
     return (
-        <div className="flex min-w-0 flex-1 flex-col gap-2 py-1 pr-2">
-            <GradientWaveText
-                ariaLabel="Ask Cache"
-                className="font-medium text-muted-foreground text-xs"
-            >
-                Cache AI
-            </GradientWaveText>
-            <Streamdown className="whitespace-pre-line text-sm leading-relaxed">
-                {response.markdown}
-            </Streamdown>
-            <div className="flex items-center gap-1">
-                <CopyResponseButton value={response.markdown} />
-                <SpeakResponseButton value={response.markdown} />
+        <BubbleGroup className="w-full min-w-0 flex-1 py-1 pr-2">
+            <Bubble align="end" variant="muted">
+                <BubbleContent>{response.prompt}</BubbleContent>
+            </Bubble>
+            <div className="flex min-w-0 flex-1 flex-col gap-2 py-1">
+                <Streamdown className="whitespace-pre-line text-sm leading-relaxed">
+                    {response.markdown}
+                </Streamdown>
+                <div className="flex items-center gap-1">
+                    <CopyResponseButton value={response.markdown} />
+                    <SpeakResponseButton value={response.markdown} />
+                </div>
             </div>
-        </div>
-    );
-}
-
-function formatShareValue(value: number, total: number): React.ReactNode {
-    if (total <= 0) {
-        return value;
-    }
-    return (
-        <>
-            {value}
-            <span className="text-muted-foreground/50">
-                {" "}
-                · {formatSharePercent(value, total)}
-            </span>
-        </>
+        </BubbleGroup>
     );
 }
 
@@ -2546,35 +2504,21 @@ function ComposerInputEndAddonShortcut() {
 
 interface ComposerActionsListProps
     extends React.ComponentProps<typeof Toolbar.Group>,
-        ComposerActions {
-    metrics: LibraryMetricsSnapshot;
-}
+        ComposerActionsContext {}
 
 export function ComposerActionsList({
     className,
-    canClear,
     duplicatesFilterEnabled,
-    groupBy,
-    metrics,
-    onClearPalette,
     onCreateNote,
     onRemoveDuplicates,
     removableDuplicateCount,
-    resultsSummary,
-    sectionsLength,
     ...props
 }: ComposerActionsListProps) {
     const contextValue: ComposerActionsContext = {
-        canClear,
         duplicatesFilterEnabled,
-        groupBy,
-        metrics,
-        onClearPalette,
         onCreateNote,
         onRemoveDuplicates,
         removableDuplicateCount,
-        resultsSummary,
-        sectionsLength,
     };
 
     return (
@@ -2600,17 +2544,6 @@ export function ComposerActionNew() {
             <SquarePen className="inline-block size-3.5 shrink-0" />
             &nbsp;Add new
         </ComposerActionTrigger>
-    );
-}
-
-export function ComposerActionMetrics() {
-    return (
-        <Popover>
-            <PopoverTrigger openOnHover render={<ComposerMetricsTrigger />} />
-            <PopoverPopup align="start" positionMethod="fixed" side="top">
-                <ComposerMetricsPopoverPanel />
-            </PopoverPopup>
-        </Popover>
     );
 }
 
@@ -2640,6 +2573,75 @@ export function ComposerActionRemoveDuplicates() {
             <CopyX className="inline-block size-3.5 shrink-0" />
             &nbsp;Remove duplicates
         </ComposerActionTrigger>
+    );
+}
+
+export interface ComposerSummaryProps {
+    canClear: boolean;
+    effectiveGroupBy: EffectiveGroupByMode;
+    metrics: LibraryMetricsSnapshot;
+    onClear: () => void;
+    resultsSummary: string;
+    sectionsLength: number;
+}
+
+export function ComposerSummary({
+    canClear,
+    effectiveGroupBy,
+    metrics,
+    onClear,
+    resultsSummary,
+    sectionsLength,
+}: ComposerSummaryProps) {
+    return (
+        <Popover>
+            <PopoverTrigger
+                openOnHover
+                render={
+                    <ComposerActionTrigger>
+                        {canClear ? (
+                            <Grid2x2X className="inline-block size-3.5 shrink-0" />
+                        ) : (
+                            <Grid2x2 className="inline-block size-3.5 shrink-0" />
+                        )}
+                        <span className="min-w-0 truncate tabular-nums">
+                            &nbsp;Showing{" "}
+                            <Calligraph>{resultsSummary}</Calligraph>
+                            {effectiveGroupBy === "none" ? null : (
+                                <>
+                                    , <Calligraph>{sectionsLength}</Calligraph>{" "}
+                                    group
+                                    {sectionsLength === 1 ? "" : "s"}
+                                </>
+                            )}
+                        </span>
+                    </ComposerActionTrigger>
+                }
+            />
+            <PopoverPopup
+                align="start"
+                className="w-72"
+                positionMethod="fixed"
+                side="top"
+            >
+                <SummaryDataList metrics={metrics}>
+                    {canClear ? (
+                        <PopoverClose
+                            render={
+                                <Button
+                                    className="w-full"
+                                    onClick={onClear}
+                                    size="sm"
+                                    variant="secondary"
+                                />
+                            }
+                        >
+                            Reset filters
+                        </PopoverClose>
+                    ) : null}
+                </SummaryDataList>
+            </PopoverPopup>
+        </Popover>
     );
 }
 
@@ -2702,126 +2704,7 @@ function ComposerItem({ item, isHorizontal = false }: ComposerItemProps) {
     );
 }
 
-function ComposerMetricsTrigger(props: React.ComponentProps<typeof Button>) {
-    const { canClear, groupBy, resultsSummary, sectionsLength } =
-        useComposerActionsContext();
-
-    return (
-        <ComposerActionTrigger {...props}>
-            {canClear ? (
-                <Grid2x2X className="inline-block size-3.5 shrink-0" />
-            ) : (
-                <Grid2x2 className="inline-block size-3.5 shrink-0" />
-            )}
-            <span className="min-w-0 tabular-nums">
-                &nbsp;Showing <Calligraph>{resultsSummary}</Calligraph>
-                {groupBy === "none" ? null : (
-                    <>
-                        , <Calligraph>{sectionsLength}</Calligraph> group
-                        {sectionsLength === 1 ? "" : "s"}
-                    </>
-                )}
-            </span>
-        </ComposerActionTrigger>
-    );
-}
-
-function ComposerMetricsPopoverPanel() {
-    const { canClear, metrics, onClearPalette } = useComposerActionsContext();
-
-    const {
-        duplicateCount,
-        favoriteCount,
-        inCollectionCount,
-        itemCount,
-        noteCount,
-        sourceSegments,
-        uncollectedCount,
-        unreachableCount,
-    } = metrics;
-
-    const additionalRows = [
-        {
-            key: "uncollected",
-            label: "Not in Collections",
-            value: uncollectedCount,
-        },
-        {
-            key: "duplicates",
-            label: "Duplicates",
-            value: duplicateCount,
-        },
-        {
-            key: "unreachable",
-            label: "Unreachable",
-            value: unreachableCount,
-        },
-    ].filter((row) => row.value > 0);
-
-    return (
-        <DataList>
-            {canClear ? (
-                <PopoverClose
-                    render={
-                        <Button
-                            className="w-full"
-                            onClick={onClearPalette}
-                            size="sm"
-                            variant="secondary"
-                        />
-                    }
-                >
-                    Reset filters
-                </PopoverClose>
-            ) : null}
-            <DataListHeader>
-                <DataListTitle render={<PopoverTitle />}>
-                    Library Breakdown
-                </DataListTitle>
-            </DataListHeader>
-            <DataListSection>
-                <DataListChart segments={sourceSegments} />
-                <DataListGroup>
-                    {sourceSegments.map((segment) => (
-                        <DataListItem
-                            color={segment.color}
-                            key={segment.key}
-                            label={segment.label}
-                            value={formatShareValue(segment.value, itemCount)}
-                        />
-                    ))}
-                </DataListGroup>
-            </DataListSection>
-            <DataListSection>
-                <DataListGroup>
-                    <DataListItem
-                        label="Favorites"
-                        value={formatShareValue(favoriteCount, itemCount)}
-                    />
-                    <DataListItem
-                        label="Notes"
-                        value={formatShareValue(noteCount, itemCount)}
-                    />
-                </DataListGroup>
-                <DataListGroup>
-                    <DataListItem
-                        label="In Collections"
-                        value={formatShareValue(inCollectionCount, itemCount)}
-                    />
-                    {additionalRows.map((row) => (
-                        <DataListItem
-                            key={row.key}
-                            label={row.label}
-                            value={formatShareValue(row.value, itemCount)}
-                        />
-                    ))}
-                </DataListGroup>
-            </DataListSection>
-        </DataList>
-    );
-}
-
-function ComposerActionTrigger({
+export function ComposerActionTrigger({
     render,
     ...props
 }: React.ComponentProps<typeof Toolbar.Button>) {
