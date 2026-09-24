@@ -133,7 +133,9 @@ export function ChatThread({
                 {error ? (
                     <Alert variant="error">
                         <AlertTitle>{gt("Request failed")}</AlertTitle>
-                        <AlertDescription>{error.message}</AlertDescription>
+                        <AlertDescription>
+                            {getChatErrorMessage(error)}
+                        </AlertDescription>
                     </Alert>
                 ) : null}
                 <ChatComposer
@@ -144,6 +146,24 @@ export function ChatThread({
             </div>
         </div>
     );
+}
+
+function getChatErrorMessage(error: Error): string {
+    try {
+        const parsed: unknown = JSON.parse(error.message);
+        if (
+            typeof parsed === "object" &&
+            parsed !== null &&
+            "error" in parsed &&
+            typeof parsed.error === "string" &&
+            parsed.error.length > 0
+        ) {
+            return parsed.error;
+        }
+    } catch {
+        // Non-JSON message; use the raw message below.
+    }
+    return error.message;
 }
 
 function isScrolledToBottom(viewport: HTMLElement): boolean {
