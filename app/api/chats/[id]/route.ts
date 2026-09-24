@@ -21,10 +21,10 @@ import {
 import { ChatError } from "@/lib/chats/error";
 import { getMessageText } from "@/lib/chats/messages";
 import {
-    type ChatDetail,
+    type ChatFollowupContext,
     type ChatMessageItem,
     completeChatTurn,
-    getChat,
+    getChatForFollowup,
     releaseChatTurn,
     startChatTurn,
     toUIMessages,
@@ -100,9 +100,9 @@ export async function POST(request: Request, { params }: ChatRouteParams) {
         );
     }
 
-    let chat: ChatDetail;
+    let chat: ChatFollowupContext;
     try {
-        chat = await getChat({ chatId, userId });
+        chat = await getChatForFollowup({ chatId, userId });
     } catch (error) {
         if (ChatError.isInstance(error) && error.data.code === "not_found") {
             return Response.json(
@@ -320,7 +320,7 @@ function getTrustedHistory(history: ChatMessageItem[]): ChatMessageItem[] {
     return history.slice(1);
 }
 
-function getChatModelContext(chat: ChatDetail): {
+function getChatModelContext(chat: ChatFollowupContext): {
     messages: ModelMessage[];
     system: string;
     tools: ToolSet;

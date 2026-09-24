@@ -13,14 +13,39 @@ import { ChatError } from "./error";
 import { type ChatSource, parseChatSources } from "./sources";
 
 const log = createLogger("chats:service");
+
 const CHAT_LIST_INCLUDE = {
     automationRun: {
         select: { status: true },
     },
 } satisfies Prisma.ChatInclude;
 
+const CHAT_RUN_CONTEXT_SELECT = {
+    automationRun: {
+        select: {
+            automation: {
+                select: { id: true, title: true },
+            },
+            createdAt: true,
+            errorMessage: true,
+            id: true,
+            promptSnapshot: true,
+            scheduledForUtc: true,
+            sources: true,
+            status: true,
+            summaryMarkdown: true,
+        },
+    },
+    automationRunId: true,
+    id: true,
+} satisfies Prisma.ChatSelect;
+
 type ChatListRecord = Prisma.ChatGetPayload<{
     include: typeof CHAT_LIST_INCLUDE;
+}>;
+
+type ChatRunContextRecord = Prisma.ChatGetPayload<{
+    select: typeof CHAT_RUN_CONTEXT_SELECT;
 }>;
 
 export interface ChatListItem {
@@ -58,12 +83,15 @@ export interface ChatRunContext {
     summaryMarkdown: string | null;
 }
 
-export interface ChatDetail {
+export interface ChatFollowupContext {
     automationRunId: string | null;
-    createdAt: Date;
     id: string;
-    messages: ChatMessageItem[];
     run: ChatRunContext | null;
+}
+
+export interface ChatDetail extends ChatFollowupContext {
+    createdAt: Date;
+    messages: ChatMessageItem[];
     title: string;
     updatedAt: Date;
 }
@@ -120,19 +148,54 @@ function toChatListItem(chat: ChatListRecord): ChatListItem {
     };
 }
 
+export async function getChatTitle(args: {
+    chatId: string;
+    userId: string;
+}): Promise<{ id: string; title: string }> {
+    const chat = await prisma.chat.findFirst({
+        select: { id: true, title: true },
+        where: { id: args.chatId, userId: args.userId },
+    });
+
+    if (!chat) {
+        throw new ChatError({
+            code: "not_found",
+            message: "That chat is no longer available.",
+            operation: "getChatTitle",
+        });
+    }
+
+    return chat;
+}
+
+export async function getChatForFollowup(args: {
+    chatId: string;
+    userId: string;
+}): Promise<ChatFollowupContext> {
+    const chat = await prisma.chat.findFirst({
+        select: CHAT_RUN_CONTEXT_SELECT,
+        where: { id: args.chatId, userId: args.userId },
+    });
+
+    if (!chat) {
+        throw new ChatError({
+            code: "not_found",
+            message: "That chat is no longer available.",
+            operation: "getChatForFollowup",
+        });
+    }
+
+    return toChatFollowupContext(chat);
+}
+
 export async function getChat(args: {
     chatId: string;
     userId: string;
 }): Promise<ChatDetail> {
     const chat = await prisma.chat.findFirst({
-        include: {
-            automationRun: {
-                include: {
-                    automation: {
-                        select: { id: true, title: true },
-                    },
-                },
-            },
+        select: {
+            ...CHAT_RUN_CONTEXT_SELECT,
+            createdAt: true,
             messages: {
                 orderBy: { sequence: "asc" },
                 select: {
@@ -142,6 +205,8 @@ export async function getChat(args: {
                     role: true,
                 },
             },
+            title: true,
+            updatedAt: true,
         },
         where: { id: args.chatId, userId: args.userId },
     });
@@ -154,38 +219,37 @@ export async function getChat(args: {
         });
     }
 
-    const run = chat.automationRun;
-    if (!run) {
-        return {
-            automationRunId: null,
-            createdAt: chat.createdAt,
-            id: chat.id,
-            messages: chat.messages,
-            run: null,
-            title: chat.title,
-            updatedAt: chat.updatedAt,
-        };
-    }
-
     return {
-        automationRunId: run.id,
+        ...toChatFollowupContext(chat),
         createdAt: chat.createdAt,
-        id: chat.id,
         messages: chat.messages,
-        run: {
-            automationId: run.automation.id,
-            automationTitle: run.automation.title,
-            createdAt: run.createdAt,
-            errorMessage: run.errorMessage,
-            promptSnapshot: run.promptSnapshot,
-            runId: run.id,
-            scheduledForUtc: run.scheduledForUtc,
-            sources: parseSources(run.sources, run.id),
-            status: run.status,
-            summaryMarkdown: run.summaryMarkdown,
-        },
         title: chat.title,
         updatedAt: chat.updatedAt,
+    };
+}
+
+function toChatFollowupContext(
+    chat: ChatRunContextRecord
+): ChatFollowupContext {
+    const run = chat.automationRun;
+
+    return {
+        automationRunId: run?.id ?? null,
+        id: chat.id,
+        run: run
+            ? {
+                  automationId: run.automation.id,
+                  automationTitle: run.automation.title,
+                  createdAt: run.createdAt,
+                  errorMessage: run.errorMessage,
+                  promptSnapshot: run.promptSnapshot,
+                  runId: run.id,
+                  scheduledForUtc: run.scheduledForUtc,
+                  sources: parseSources(run.sources, run.id),
+                  status: run.status,
+                  summaryMarkdown: run.summaryMarkdown,
+              }
+            : null,
     };
 }
 

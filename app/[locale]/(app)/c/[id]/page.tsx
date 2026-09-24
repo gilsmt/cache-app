@@ -9,7 +9,12 @@ import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";
 import { ChatError } from "@/lib/chats/error";
-import { type ChatDetail, getChat, toUIMessages } from "@/lib/chats/service";
+import {
+    type ChatDetail,
+    getChat,
+    getChatTitle,
+    toUIMessages,
+} from "@/lib/chats/service";
 
 interface ChatPageParams {
     params: Promise<{ id: string; locale: string }>;
@@ -35,7 +40,7 @@ export async function generateMetadata({
     }
 
     try {
-        const chat = await getChat({ chatId: id, userId });
+        const chat = await getChatTitle({ chatId: id, userId });
         return {
             ...buildPageMetadata({
                 description: gt("Follow up on this automation run."),
