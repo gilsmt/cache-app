@@ -36,7 +36,7 @@ async function registerPageWorldScripts() {
         {
             id: PAGE_WORLD_SCRIPT_IDS.cacheSite,
             js: [cacheSiteJs],
-            matches: ["https://cachd.app/*", "https://*.cachd.app/*"],
+            matches: ["https://cachd.app/*", "https://www.cachd.app/*"],
             runAt: "document_idle",
             world: "MAIN",
         },
