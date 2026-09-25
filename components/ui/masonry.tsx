@@ -310,16 +310,18 @@ export class Positioner {
         hi: number,
         visit: (index: number, left: number, top: number) => void
     ): void {
+        const { columnItems, tops } = this.layout;
+        const { columnCount, columnGap, columnWidth } = this.options;
         const queue: number[] = [];
-        const stride = this.options.columnWidth + this.options.columnGap;
-        for (let col = 0; col < this.options.columnCount; col += 1) {
-            const items = this.layout.columnItems[col];
+        const stride = columnWidth + columnGap;
+        for (let col = 0; col < columnCount; col += 1) {
+            const items = columnItems[col];
             if (items.length === 0) {
                 continue;
             }
             const { end, start } = findColumnRange(
                 items,
-                this.layout.tops,
+                tops,
                 this.heights,
                 lo,
                 hi
@@ -330,7 +332,7 @@ export class Positioner {
         }
         queue.sort((a, b) => a - b);
         for (const index of queue) {
-            visit(index, this.cols[index] * stride, this.layout.tops[index]);
+            visit(index, this.cols[index] * stride, tops[index]);
         }
     }
     private setItemHeight(index: number, height: number): boolean {
@@ -411,13 +413,9 @@ export class Positioner {
         const colByKey = new Map<React.Key, number>();
         for (let i = 0; i < prevKeys.length; i += 1) {
             const key = prevKeys[i];
-            const height = this.heights[i];
-            if (key !== null && height !== undefined) {
-                heightByKey.set(key, height);
-                const col = this.cols[i];
-                if (col !== undefined) {
-                    colByKey.set(key, col);
-                }
+            if (key !== null) {
+                heightByKey.set(key, this.heights[i]);
+                colByKey.set(key, this.cols[i]);
             }
         }
         const nextSet = new Set<React.Key>();
