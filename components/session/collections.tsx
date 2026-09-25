@@ -2754,16 +2754,18 @@ function CollectionsListFavoritesItem({
         <div className="group relative flex select-none items-center">
             <div className="pointer-events-none absolute top-1/2 left-1.25 z-10 size-6 -translate-y-1/2 overflow-hidden rounded-md">
                 {isNote ? null : (
-                    <CollectionsListFavoritesItemImage
-                        alt=""
-                        className="size-full object-cover"
-                        src={previewImageUrl ?? undefined}
-                    />
+                    <>
+                        <CollectionsListFavoritesItemImage
+                            alt=""
+                            className="size-full object-cover"
+                            src={previewImageUrl ?? undefined}
+                        />
+                        <div
+                            aria-hidden
+                            className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
+                        />
+                    </>
                 )}
-                <div
-                    aria-hidden
-                    className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
-                />
             </div>
             <PreviewCard>
                 <PreviewCardTrigger
