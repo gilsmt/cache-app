@@ -1783,7 +1783,7 @@ function SideLoading() {
             <Spinner className="size-5 text-muted-foreground" />
             <div className="space-y-1">
                 <p className="font-medium text-foreground text-sm">
-                    <T>Loading preview...</T>
+                    <T>Loading preview…</T>
                 </p>
                 <p className="max-w-sm text-balance text-muted-foreground text-sm">
                     <T>Opening the page.</T>
@@ -2615,7 +2615,7 @@ function NoteSaveStatus() {
     let isError = false;
 
     if (saveStatus === "saving") {
-        message = gt("Saving...");
+        message = gt("Saving…");
     } else if (saveStatus === "error") {
         message = gt("Not saved");
         isError = true;

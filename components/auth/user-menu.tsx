@@ -615,7 +615,7 @@ function UserMenuAccountSwitcherContent() {
                 ) : (
                     <UserRoundPlus className="size-4 text-muted-foreground" />
                 )}
-                <T>Add another account...</T>
+                <T>Add another account…</T>
             </MenuItem>
         </>
     );

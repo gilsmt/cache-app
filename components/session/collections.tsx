@@ -3170,7 +3170,7 @@ function CollectionsListSortingCombobox({
                             <CmdKbd />F
                         </Kbd>
                     }
-                    placeholder="Organize collections"
+                    placeholder="Filter…"
                 />
                 <ComboboxEmpty>No matching options</ComboboxEmpty>
                 <ComboboxList>

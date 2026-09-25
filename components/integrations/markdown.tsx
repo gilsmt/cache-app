@@ -575,7 +575,7 @@ export function MarkdownImportDialog() {
             <Loader2 className="size-5 animate-spin" />
             <span className="text-muted-foreground text-sm">
                 Importing {fileSelection.entries.length} file
-                {fileSelection.entries.length === 1 ? "" : "s"}...
+                {fileSelection.entries.length === 1 ? "" : "s"}…
             </span>
         </div>
     );

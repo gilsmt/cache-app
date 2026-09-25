@@ -180,7 +180,7 @@ function RssFeedList({
 function RssFeedListLoading() {
     return (
         <p className="text-muted-foreground text-sm" role="status">
-            Loading feeds...
+            Loading feeds…
         </p>
     );
 }
