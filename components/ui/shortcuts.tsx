@@ -214,7 +214,6 @@ export function KeyboardShortcutsDialogTrigger(
                     </DrawerHeader>
                     <DrawerPanel
                         className="px-5"
-                        isScrollable={false}
                         onKeyDown={stopPropagationForPrintableKeys}
                     >
                         <Command
@@ -240,7 +239,10 @@ export function KeyboardShortcutsDialogTrigger(
                             <CommandEmpty>
                                 <T>No shortcuts found</T>
                             </CommandEmpty>
-                            <CommandList className="px-0">
+                            <CommandList
+                                className="px-0"
+                                shouldUseScrollArea={false}
+                            >
                                 {(group: ShortcutGroup) => (
                                     <CommandGroup
                                         items={group.items}

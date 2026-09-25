@@ -64,7 +64,7 @@ export function CommandInput({
                     "squircle min-h-11 rounded-full p-1.5",
                     "border border-input/50 bg-card shadow-xs outline-none ring-0 before:hidden has-focus-visible:border-border has-focus-visible:ring-0 has-focus-visible:ring-offset-0",
                     startAddon &&
-                        "data-[size=sm]:*:data-[slot=command-input]:ps-[calc(--spacing(7.5)-1px)] *:data-[slot=command-input]:ps-[calc(--spacing(8.5)-1px)] sm:data-[size=sm]:*:data-[slot=command-input]:ps-[calc(--spacing(7)-1px)] sm:*:data-[slot=command-input]:ps-[calc(--spacing(9)-1px)]",
+                        "data-[size=sm]:*:data-[slot=input]:ps-[calc(--spacing(7.5)-1px)] *:data-[slot=input]:ps-[calc(--spacing(8.5)-1px)] sm:data-[size=sm]:*:data-[slot=input]:ps-[calc(--spacing(7)-1px)] sm:*:data-[slot=input]:ps-[calc(--spacing(9)-1px)]",
                     size === "sm"
                         ? "has-[+[data-slot=command-trigger],+[data-slot=command-clear]]:*:data-[slot=command-input]:pe-6.5"
                         : "has-[+[data-slot=command-trigger],+[data-slot=command-clear]]:*:data-[slot=command-input]:pe-7",
@@ -138,28 +138,41 @@ export function CommandPopup({
 
 interface CommandListProps extends Autocomplete.List.Props {
     shouldScrollFade?: boolean;
+    /** Set to false when a parent scroll area owns scrolling. */
+    shouldUseScrollArea?: boolean;
     shouldUseScrollbarGutter?: boolean;
 }
 
 export function CommandList({
     className,
     shouldScrollFade = false,
+    shouldUseScrollArea = true,
     shouldUseScrollbarGutter = false,
     ...props
 }: CommandListProps) {
+    const list = (
+        <Autocomplete.List
+            {...props}
+            className={cn(
+                shouldUseScrollArea &&
+                    "max-h-[min(32rem,var(--available-height))] overscroll-contain in-data-has-overflow-y:pe-3",
+                "not-empty:scroll-py-2 not-empty:p-2 outline-0",
+                className
+            )}
+            data-slot="command-list"
+        />
+    );
+
+    if (!shouldUseScrollArea) {
+        return list;
+    }
+
     return (
         <ScrollArea
             shouldScrollFade={shouldScrollFade}
             shouldUseScrollbarGutter={shouldUseScrollbarGutter}
         >
-            <Autocomplete.List
-                {...props}
-                className={cn(
-                    "max-h-[min(32rem,var(--available-height))] not-empty:scroll-py-2 overscroll-contain not-empty:p-2 in-data-has-overflow-y:pe-3 outline-0",
-                    className
-                )}
-                data-slot="command-list"
-            />
+            {list}
         </ScrollArea>
     );
 }
