@@ -82,7 +82,6 @@ import {
     DataList,
     DataListGroup,
     DataListItem,
-    DataListSection,
 } from "@/components/ui/data-list";
 import {
     Dialog,
@@ -3472,24 +3471,22 @@ interface CollectionsListBreakdownProps {
 function CollectionsListBreakdown({ entries }: CollectionsListBreakdownProps) {
     return (
         <DataList>
-            <DataListSection>
-                <DataListGroup className="mt-0">
-                    {entries.map(({ count, icon: Icon, label, value }) => (
-                        <DataListItem
-                            icon={
-                                <Icon
-                                    aria-hidden
-                                    className="size-4 text-muted-foreground sm:size-3.5"
-                                    focusable="false"
-                                />
-                            }
-                            key={value}
-                            label={label}
-                            value={count}
-                        />
-                    ))}
-                </DataListGroup>
-            </DataListSection>
+            <DataListGroup className="mt-0">
+                {entries.map(({ count, icon: Icon, label, value }) => (
+                    <DataListItem
+                        icon={
+                            <Icon
+                                aria-hidden
+                                className="size-4 text-muted-foreground sm:size-3.5"
+                                focusable="false"
+                            />
+                        }
+                        key={value}
+                        label={label}
+                        value={count}
+                    />
+                ))}
+            </DataListGroup>
         </DataList>
     );
 }

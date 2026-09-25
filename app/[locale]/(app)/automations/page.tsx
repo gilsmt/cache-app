@@ -57,8 +57,8 @@ function AutomationsPageHeader({ children }: { children: React.ReactNode }) {
                 </h1>
                 <p className="text-muted-foreground text-sm">
                     <T>
-                        Schedule tasks that organize your library, research
-                        topics, summarize and much more — all on autopilot
+                        Ask Cache to do more with your library, research topics,
+                        schedule tasks, or monitor for updates
                     </T>
                 </p>
             </div>

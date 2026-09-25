@@ -3,7 +3,14 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cn } from "cn";
+import { ChevronDown } from "lucide-react";
 import type * as React from "react";
+import {
+    Collapsible,
+    CollapsiblePanel,
+    CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
 import {
     StackedBarChart,
     type StackedBarChartSegment,
@@ -16,7 +23,7 @@ export function DataList({
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
         className: cn(
-            "grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2.5 [&>*]:col-span-2",
+            "grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 [&>*]:col-span-2",
             className
         ),
         "data-slot": "data-list",
@@ -44,58 +51,74 @@ export function DataListChart({ className, ...props }: DataListChartProps) {
     );
 }
 
-export function DataListHeader({
+export function DataListSeparator({
     className,
-    render,
     ...props
-}: useRender.ComponentProps<"div">) {
-    const defaultProps = {
-        className: cn("flex flex-col gap-1", className),
-        "data-slot": "data-list-header",
-    };
-
-    return useRender({
-        defaultTagName: "div",
-        props: mergeProps<"div">(defaultProps, props),
-        render,
-    });
-}
-
-export function DataListTitle({
-    className,
-    render,
-    ...props
-}: useRender.ComponentProps<"div">) {
-    const defaultProps = {
-        className: cn("font-medium text-muted-foreground text-xs", className),
-        "data-slot": "data-list-title",
-    };
-
-    return useRender({
-        defaultTagName: "div",
-        props: mergeProps<"div">(defaultProps, props),
-        render,
-    });
+}: React.ComponentProps<typeof Separator>) {
+    return (
+        <Separator
+            {...props}
+            className={cn("col-span-2 my-0.5", className)}
+            orientation="horizontal"
+        />
+    );
 }
 
 export function DataListSection({
     className,
-    render,
     ...props
-}: useRender.ComponentProps<"div">) {
-    const defaultProps = {
-        className: cn(
-            "col-span-2 grid min-w-0 grid-cols-subgrid gap-3",
-            className
-        ),
-        "data-slot": "data-list-section",
-    };
+}: React.ComponentProps<typeof Collapsible>) {
+    return (
+        <Collapsible
+            {...props}
+            className={cn(
+                "group/collapsible col-span-2 grid min-w-0 grid-cols-subgrid gap-3",
+                className
+            )}
+        />
+    );
+}
 
-    return useRender({
-        defaultTagName: "div",
-        props: mergeProps<"div">(defaultProps, props),
-        render,
-    });
+export function DataListSectionTrigger({
+    children,
+    className,
+    endAddon = null,
+    ...props
+}: React.ComponentProps<typeof CollapsibleTrigger> & {
+    endAddon?: React.ReactNode;
+}) {
+    return (
+        <CollapsibleTrigger
+            {...props}
+            className={cn(
+                "group col-span-2 flex pointer-coarse:min-h-11 w-full items-center gap-1 text-left text-muted-foreground text-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:text-xs",
+                className
+            )}
+        >
+            <span className="min-w-0 truncate">{children}</span>
+            <ChevronDown
+                aria-hidden
+                className="size-3.5 -rotate-90 transition-transform group-data-open/collapsible:rotate-0 group-data-open/collapsible:opacity-0 group-data-open/collapsible:group-hover:opacity-100"
+                focusable="false"
+            />
+            {endAddon}
+        </CollapsibleTrigger>
+    );
+}
+
+export function DataListSectionContent({
+    className,
+    ...props
+}: React.ComponentProps<typeof CollapsiblePanel>) {
+    return (
+        <CollapsiblePanel
+            {...props}
+            className={cn(
+                "col-span-2 grid min-w-0 grid-cols-subgrid gap-3",
+                className
+            )}
+        />
+    );
 }
 
 export function DataListGroup({
@@ -105,7 +128,7 @@ export function DataListGroup({
 }: useRender.ComponentProps<"dl">) {
     const defaultProps = {
         className: cn(
-            "col-span-2 mt-1.5 grid grid-cols-subgrid gap-x-3 gap-y-1.5",
+            "col-span-2 mt-1.5 grid grid-cols-subgrid gap-x-3 gap-y-2",
             className
         ),
         "data-slot": "data-list-group",

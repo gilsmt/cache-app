@@ -6,15 +6,14 @@ import {
     DataList,
     DataListChart,
     DataListGroup,
-    DataListHeader,
     DataListItem,
     DataListSection,
-    DataListTitle,
+    DataListSectionContent,
+    DataListSectionTrigger,
+    DataListSeparator,
 } from "@/components/ui/data-list";
 import type { LibraryMetricsSnapshot } from "@/lib/collections/metrics";
 import { formatSharePercent } from "@/lib/common/number";
-
-const DEFAULT_SUMMARY_TITLE = "Summary";
 
 function formatShareValue(value: number, total: number): React.ReactNode {
     if (total <= 0) {
@@ -33,16 +32,14 @@ function formatShareValue(value: number, total: number): React.ReactNode {
 }
 
 interface SummaryDataListProps
-    extends Omit<React.ComponentProps<typeof DataList>, "children" | "title"> {
+    extends Omit<React.ComponentProps<typeof DataList>, "children"> {
     children?: React.ReactNode;
     metrics: LibraryMetricsSnapshot;
-    title?: React.ReactElement;
 }
 
 export function SummaryDataList({
     children,
     metrics,
-    title,
     ...props
 }: SummaryDataListProps) {
     const {
@@ -98,70 +95,85 @@ export function SummaryDataList({
     return (
         <DataList {...props}>
             {children}
-            <DataListHeader>
-                <DataListTitle render={title}>
-                    {DEFAULT_SUMMARY_TITLE}
-                </DataListTitle>
-            </DataListHeader>
-            <DataListSection>
-                <DataListChart segments={sourceSegments} />
-                <DataListGroup>
-                    {sourceSegments.map((segment) => (
-                        <DataListItem
-                            color={segment.color}
-                            key={segment.key}
-                            label={segment.label}
-                            value={formatShareValue(segment.value, itemCount)}
+            <DataListSection defaultOpen>
+                <DataListSectionTrigger
+                    endAddon={
+                        <DataListChart
+                            className="ml-auto max-w-1/3 group-data-open/collapsible:hidden"
+                            segments={sourceSegments}
                         />
-                    ))}
-                </DataListGroup>
+                    }
+                >
+                    Summary
+                </DataListSectionTrigger>
+                <DataListSectionContent>
+                    <DataListChart segments={sourceSegments} />
+                    <DataListGroup>
+                        {sourceSegments.map((segment) => (
+                            <DataListItem
+                                color={segment.color}
+                                key={segment.key}
+                                label={segment.label}
+                                value={formatShareValue(
+                                    segment.value,
+                                    itemCount
+                                )}
+                            />
+                        ))}
+                    </DataListGroup>
+                </DataListSectionContent>
             </DataListSection>
+            <DataListSeparator />
             <DataListSection>
-                <DataListGroup>
-                    <DataListItem
-                        icon={
-                            <Star
-                                aria-hidden
-                                className="size-4 sm:size-3.5"
-                                focusable="false"
-                            />
-                        }
-                        label="Favorites"
-                        value={formatShareValue(favoriteCount, itemCount)}
-                    />
-                    <DataListItem
-                        icon={
-                            <NotebookPen
-                                aria-hidden
-                                className="size-4 sm:size-3.5"
-                                focusable="false"
-                            />
-                        }
-                        label="Notes"
-                        value={formatShareValue(noteCount, itemCount)}
-                    />
-                </DataListGroup>
-                <DataListGroup>
-                    <DataListItem
-                        icon={
-                            <Folders
-                                aria-hidden
-                                className="size-4 sm:size-3.5"
-                                focusable="false"
-                            />
-                        }
-                        label="In Collections"
-                        value={formatShareValue(inCollectionCount, itemCount)}
-                    />
-                    {additionalRows.map((row) => (
+                <DataListSectionTrigger>Library</DataListSectionTrigger>
+                <DataListSectionContent>
+                    <DataListGroup>
                         <DataListItem
-                            icon={row.icon}
-                            key={row.key}
-                            label={row.label}
-                            value={formatShareValue(row.value, itemCount)}
+                            icon={
+                                <Star
+                                    aria-hidden
+                                    className="size-4 sm:size-3.5"
+                                    focusable="false"
+                                />
+                            }
+                            label="Favorites"
+                            value={formatShareValue(favoriteCount, itemCount)}
                         />
-                    ))}
-                </DataListGroup>
+                        <DataListItem
+                            icon={
+                                <NotebookPen
+                                    aria-hidden
+                                    className="size-4 sm:size-3.5"
+                                    focusable="false"
+                                />
+                            }
+                            label="Notes"
+                            value={formatShareValue(noteCount, itemCount)}
+                        />
+                        <DataListItem
+                            icon={
+                                <Folders
+                                    aria-hidden
+                                    className="size-4 sm:size-3.5"
+                                    focusable="false"
+                                />
+                            }
+                            label="In Collections"
+                            value={formatShareValue(
+                                inCollectionCount,
+                                itemCount
+                            )}
+                        />
+                        {additionalRows.map((row) => (
+                            <DataListItem
+                                icon={row.icon}
+                                key={row.key}
+                                label={row.label}
+                                value={formatShareValue(row.value, itemCount)}
+                            />
+                        ))}
+                    </DataListGroup>
+                </DataListSectionContent>
             </DataListSection>
         </DataList>
     );

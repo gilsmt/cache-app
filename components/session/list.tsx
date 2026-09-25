@@ -2935,7 +2935,7 @@ function MediaCardMenuDetails() {
     const createdLabel = itemDateLabel(item.createdAt);
 
     return (
-        <Collapsible>
+        <Collapsible className="group/collapsible">
             <CollapsibleTrigger
                 render={
                     <Button
@@ -2947,11 +2947,11 @@ function MediaCardMenuDetails() {
                 <span className="block min-w-0 truncate text-xs">
                     {getLibraryItemPrimaryText(item)}
                 </span>
-                <ChevronDown className="ml-auto inline-block size-4" />
+                <ChevronDown className="ml-auto inline-block size-4 -rotate-90 transition-transform group-data-open/collapsible:rotate-0" />
             </CollapsibleTrigger>
             <CollapsiblePanel className="px-2.5 text-[11px] text-muted-foreground">
                 {isNote ? null : (
-                    <span className="inline-block min-w-0 max-w-42 truncate py-0.5 text-muted-foreground underline">
+                    <span className="inline-block min-w-0 max-w-52 truncate py-0.5 text-muted-foreground underline">
                         {item.url}
                     </span>
                 )}
