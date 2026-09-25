@@ -27,6 +27,8 @@ const DEFAULT_ITEM_HEIGHT = 360;
 const DEFAULT_OVERSCAN = 2;
 const DEFAULT_FORWARD_OVERSCAN = 0.8;
 const MINIMUM_COLUMN_WIDTH = 1;
+// Sub-pixel offsets cannot move the visible window; ignore them.
+const OFFSET_DRIFT_THRESHOLD_PX = 1;
 
 const MasonryDataAttributes = {
     /**
@@ -49,6 +51,22 @@ function getNodeDataIndex(node: Element): number | null {
     }
     const index = Number(attr);
     return index >>> 0 === index ? index : null;
+}
+
+function measureContainerOffset(
+    root: HTMLElement,
+    scrollY: number,
+    container: HTMLElement | null
+): number {
+    const rootTop = root.getBoundingClientRect().top;
+    if (container === null) {
+        return rootTop + scrollY;
+    }
+    return (
+        rootTop -
+        (container.getBoundingClientRect().top + container.clientTop) +
+        scrollY
+    );
 }
 
 function parseMinNumber(
@@ -760,6 +778,7 @@ export function MasonryRoot<T>(
     const isDirtyRef = React.useRef(true);
     const lastWidthRef = React.useRef(0);
     const syncFlushQueuedRef = React.useRef(false);
+    const forceFullMeasureRef = React.useRef(false);
 
     const buildOptions = React.useCallback(
         (width: number) =>
@@ -820,6 +839,8 @@ export function MasonryRoot<T>(
         let measured: Measurements | null = null;
 
         if (isDirty) {
+            const forceFullMeasure = forceFullMeasureRef.current;
+            forceFullMeasureRef.current = false;
             const nextContainerWidth =
                 lastWidthRef.current > 0
                     ? lastWidthRef.current
@@ -827,17 +848,14 @@ export function MasonryRoot<T>(
             lastWidthRef.current = nextContainerWidth;
 
             const isWidthOnlyChange =
+                !forceFullMeasure &&
+                previous.containerWidth > 0 &&
                 scrollY === previous.scrollY &&
                 nextContainerWidth !== previous.containerWidth;
 
             const containerOffset = isWidthOnlyChange
                 ? previous.containerOffset
-                : root.getBoundingClientRect().top -
-                  (container
-                      ? container.getBoundingClientRect().top +
-                        container.clientTop
-                      : 0) +
-                  scrollY;
+                : measureContainerOffset(root, scrollY, container);
 
             let nextWindowHeight = previous.windowHeight;
 
@@ -898,6 +916,12 @@ export function MasonryRoot<T>(
         requestFlush();
     });
 
+    const requestFullFlush = useStableCallback(() => {
+        forceFullMeasureRef.current = true;
+        isDirtyRef.current = true;
+        requestFlush();
+    });
+
     const itemResizeObserver = useRefWithInit(() => {
         if (typeof ResizeObserver !== "function") {
             return null;
@@ -934,17 +958,38 @@ export function MasonryRoot<T>(
             }
             requestDirtyFlush();
 
+            const verifyRootOffset = () => {
+                const scrollY = container
+                    ? container.scrollTop
+                    : ownerWindow(root).scrollY;
+                const offset = measureContainerOffset(root, scrollY, container);
+                if (
+                    Math.abs(
+                        offset - measurementsRef.current.containerOffset
+                    ) >= OFFSET_DRIFT_THRESHOLD_PX
+                ) {
+                    forceFullMeasureRef.current = true;
+                    isDirtyRef.current = true;
+                    requestSyncFlush();
+                }
+            };
+
             const resizeObserver = new ResizeObserver((entries) => {
                 let shouldMeasure = false;
                 for (const entry of entries) {
-                    if (entry.target !== root) {
+                    if (entry.target === root) {
+                        const nextWidth = root.clientWidth;
+                        if (nextWidth === lastWidthRef.current) {
+                            verifyRootOffset();
+                        } else {
+                            lastWidthRef.current = nextWidth;
+                            shouldMeasure = true;
+                        }
+                    } else if (entry.target === container) {
+                        forceFullMeasureRef.current = true;
                         shouldMeasure = true;
-                        break;
-                    }
-                    const nextWidth = root.clientWidth;
-                    if (nextWidth !== lastWidthRef.current) {
-                        lastWidthRef.current = nextWidth;
-                        shouldMeasure = true;
+                    } else {
+                        verifyRootOffset();
                     }
                 }
                 if (shouldMeasure) {
@@ -953,6 +998,7 @@ export function MasonryRoot<T>(
                 }
             });
             resizeObserver.observe(root);
+            resizeObserver.observe(ownerDocument(root).body);
             if (container) {
                 resizeObserver.observe(container);
             }
@@ -962,11 +1008,17 @@ export function MasonryRoot<T>(
                 addEventListener(container ?? win, "scroll", requestFlush, {
                     passive: true,
                 }),
-                addEventListener(win, "resize", requestDirtyFlush),
+                addEventListener(win, "resize", requestFullFlush),
                 () => resizeObserver.disconnect()
             );
         },
-        [requestFlush, requestSyncFlush, requestDirtyFlush, container]
+        [
+            requestFlush,
+            requestSyncFlush,
+            requestDirtyFlush,
+            requestFullFlush,
+            container,
+        ]
     );
 
     useIsoLayoutEffect(
