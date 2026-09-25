@@ -17,9 +17,7 @@ export function Footer() {
                                     rel="noopener noreferrer"
                                     target="_blank"
                                 >
-                                    <p>
-                                        <T>Docs</T>
-                                    </p>
+                                    <p>Docs</p>
                                 </Link>
                                 <Link
                                     className="underline"

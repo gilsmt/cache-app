@@ -1,3 +1,4 @@
+import { T } from "gt-next";
 import { getGT, getLocale } from "gt-next/server";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -35,7 +36,6 @@ interface FeedbackPageProps {
 export default async function FeedbackPage({
     searchParams,
 }: FeedbackPageProps) {
-    const gt = await getGT();
     const rawEmail = (await searchParams).email;
     const emailParam = Array.isArray(rawEmail) ? rawEmail[0] : rawEmail;
     const parsedEmail = emailParam
@@ -56,12 +56,14 @@ export default async function FeedbackPage({
                 />
                 <div className="flex flex-col gap-2 text-center">
                     <h1 className="font-semibold text-foreground text-lg">
-                        {gt("Thanks for trying Cache")}
+                        <T>Thanks for trying Cache</T>
                     </h1>
                     <p className="text-muted-foreground text-sm">
-                        {gt(
-                            "If you have a moment, please share what didn't work or where Cache didn't meet your expectations. Your feedback helps make the Cache App better."
-                        )}
+                        <T>
+                            If you have a moment, please share what didn't work
+                            or where Cache didn't meet your expectations. Your
+                            feedback helps make the Cache App better.
+                        </T>
                     </p>
                 </div>
                 <FeedbackForm initialEmail={initialEmail} />

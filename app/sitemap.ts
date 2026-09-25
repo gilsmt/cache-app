@@ -11,8 +11,6 @@ interface SitemapRoute {
 
 /**
  * Public static routes that do not require authentication.
- * Authenticated-only routes (e.g. /library) are intentionally excluded
- * because they redirect anonymous users and should not be indexed.
  * Redirect-only paths (/changelog, /security → docs.cachd.app) are also
  * excluded to avoid sitemap redirect chains.
  */

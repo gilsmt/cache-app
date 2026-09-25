@@ -16,8 +16,7 @@ const DISALLOWED_PATHS = [
 ];
 
 export default function robots(): MetadataRoute.Robots {
-    // Preview and development deployments must never be indexed. Only the
-    // production deployment is crawlable.
+    // Preview and development deployments must never be indexed
     if (process.env.VERCEL_ENV !== "production") {
         return {
             rules: {

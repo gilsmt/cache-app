@@ -1,4 +1,4 @@
-import * as React from "react";
+import type * as React from "react";
 import { PageShell } from "@/components/ui/page-shell";
 
 export default function LegalLayout({
@@ -9,7 +9,7 @@ export default function LegalLayout({
     return (
         <PageShell>
             <div className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-                <React.Suspense fallback={null}>{children}</React.Suspense>
+                {children}
             </div>
         </PageShell>
     );
