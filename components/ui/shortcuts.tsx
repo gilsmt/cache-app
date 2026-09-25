@@ -1,5 +1,6 @@
 "use client";
 
+import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T, useGT } from "gt-next";
 import { SearchIcon } from "lucide-react";
 import * as React from "react";
@@ -31,6 +32,9 @@ import { stopPropagationForPrintableKeys } from "@/lib/common/dom";
 export { HotkeysProvider as ShortcutsProvider } from "react-hotkeys-hook";
 
 const SYSTEM_MODIFIER_KEYS = new Set(["mod", "alt", "shift"]);
+const NAVIGATION_ACTION_DESCRIPTION_PATTERN =
+    /^(?:navigate to|go to|open (?:parent )?issue|open team archive)\b/;
+const NAVIGATION_CONTROL_DESCRIPTION_PATTERN = /(?:sidebar|panel|preview)$/;
 
 interface ShortcutItem {
     description: string;
@@ -71,10 +75,8 @@ function getShortcutGroupName(
     }
 
     if (
-        /^(?:navigate to|go to|open (?:parent )?issue|open team archive)\b/.test(
-            normalizedDescription
-        ) ||
-        /(?:sidebar|panel|preview)$/.test(normalizedDescription)
+        NAVIGATION_ACTION_DESCRIPTION_PATTERN.test(normalizedDescription) ||
+        NAVIGATION_CONTROL_DESCRIPTION_PATTERN.test(normalizedDescription)
     ) {
         return "navigation";
     }
@@ -118,10 +120,9 @@ export function KeyboardShortcutsDialogTrigger(
     const [searchQuery, setSearchQuery] = React.useState("");
     const filter = useCommandFilter();
     const { hotkeys } = useHotkeysContext();
-    const navigationDescriptionPrefix = gt(
-        "Navigate to {label}",
-        { label: "" }
-    ).trim();
+    const navigationDescriptionPrefix = gt("Navigate to {label}", {
+        label: "",
+    }).trim();
     const shortcutsPanelDescription = gt("Open keyboard shortcuts panel");
     const navigationDescriptions = new Set([
         gt("Expand or collapse sidebar"),
@@ -133,12 +134,12 @@ export function KeyboardShortcutsDialogTrigger(
         useKey: true,
     });
 
-    const handleOpenChange = (shouldOpen: boolean) => {
+    const handleOpenChange = useStableCallback((shouldOpen: boolean) => {
         setIsOpen(shouldOpen);
         if (!shouldOpen) {
             setSearchQuery("");
         }
-    };
+    });
 
     const shortcutHotkeysByDescription = new Map<string, string[]>();
     for (const shortcut of hotkeys) {
@@ -160,10 +161,10 @@ export function KeyboardShortcutsDialogTrigger(
 
     const shortcutItems: ShortcutItem[] = Array.from(
         shortcutHotkeysByDescription,
-        ([description, hotkeys]) => ({
+        ([description, shortcutHotkeys]) => ({
             description,
-            hotkeys,
-            searchValue: `${description} ${hotkeys.join(" ")}`,
+            hotkeys: shortcutHotkeys,
+            searchValue: `${description} ${shortcutHotkeys.join(" ")}`,
         })
     );
 
@@ -236,10 +237,10 @@ export function KeyboardShortcutsDialogTrigger(
                                     />
                                 }
                             />
+                            <CommandEmpty>
+                                <T>No shortcuts found</T>
+                            </CommandEmpty>
                             <CommandList className="px-0">
-                                <CommandEmpty>
-                                    <T>No shortcuts found</T>
-                                </CommandEmpty>
                                 {(group: ShortcutGroup) => (
                                     <CommandGroup
                                         items={group.items}
@@ -259,7 +260,9 @@ export function KeyboardShortcutsDialogTrigger(
                                                             {item.description}
                                                         </span>
                                                         <ShortcutKeys
-                                                            hotkeys={item.hotkeys}
+                                                            hotkeys={
+                                                                item.hotkeys
+                                                            }
                                                         />
                                                     </div>
                                                 </CommandItem>
@@ -291,10 +294,10 @@ function ShortcutKeys({ hotkeys }: ShortcutKeysProps) {
                         </span>
                     )}
                     <KbdGroup className="gap-1">
-                        {hotkey.split("+").map((key, keyIndex) => (
+                        {hotkey.split("+").map((key) => (
                             <Kbd
                                 className="h-6 min-w-6 rounded-sm border border-border/60 bg-background px-1.5 font-normal text-muted-foreground text-xs normal-case shadow-none max-sm:inline-flex"
-                                key={`${key}-${keyIndex}`}
+                                key={key}
                             >
                                 {SYSTEM_MODIFIER_KEYS.has(key.toLowerCase()) ? (
                                     <KbdCombo keys={key} />
