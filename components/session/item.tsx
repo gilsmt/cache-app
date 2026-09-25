@@ -32,9 +32,7 @@ const FAVORITE_REVEAL_TIMEOUT_MS = 2000;
 
 const log = createLogger("session:preview");
 
-interface PreviewImageProps
-    extends Omit<React.ComponentProps<"div">, "children"> {
-    children?: React.ReactNode;
+interface PreviewImageProps extends React.ComponentProps<"div"> {
     src: string | null;
 }
 
@@ -179,25 +177,6 @@ export function NoteContentPreview({
     );
 }
 
-interface NoteExcerptPreviewProps {
-    excerpt: string;
-}
-
-export function NoteExcerptPreview({
-    excerpt,
-}: NoteExcerptPreviewProps): React.ReactElement {
-    return (
-        <div className="relative flex h-auto min-h-56 w-full flex-col justify-between bg-linear-to-br from-note-surface-from via-background to-note-surface-to p-3">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.18),transparent_45%)]" />
-            <div className="relative flex flex-1 flex-col gap-2 pt-1.5">
-                <p className="whitespace-pre-wrap text-[11px] text-foreground leading-relaxed opacity-90">
-                    {excerpt}
-                </p>
-            </div>
-        </div>
-    );
-}
-
 interface MediaPreviewProps {
     src: string | null;
     videoSrc?: string | null;
@@ -241,10 +220,6 @@ export function MediaPreview({
         setHasVideoFailed(false);
     });
 
-    const handlePointerLeave = useStableCallback(() => {
-        stopHoverPlayback();
-    });
-
     const handlePointerDown = useStableCallback(
         (event: React.PointerEvent<HTMLDivElement>) => {
             const ownerWindow = getOwnerWindow(event.currentTarget);
@@ -259,27 +234,37 @@ export function MediaPreview({
         }
     );
 
-    const handleCanPlay = useStableCallback(() => {
-        setHasVideoStarted(true);
-        const video = videoRef.current;
-        if (video && isHovered && !hasVideoFailed) {
+    const handleCanPlay = useStableCallback(
+        (event: React.SyntheticEvent<HTMLVideoElement>) => {
+            const video = event.currentTarget;
+            if (video !== videoRef.current) {
+                return;
+            }
+            setHasVideoStarted(true);
+            if (!isHovered || hasVideoFailed) {
+                return;
+            }
             video.play().catch((error: unknown) => {
                 log.debug("Failed to play hover preview", { error });
             });
         }
-    });
+    );
 
-    const handleVideoError = useStableCallback(() => {
-        const video = videoRef.current;
-        const mediaError = video?.error;
-        log.debug("Video source failed to load", {
-            mediaError,
-            networkState: video?.networkState,
-            readyState: video?.readyState,
-            videoSrc,
-        });
-        setHasVideoFailed(true);
-    });
+    const handleVideoError = useStableCallback(
+        (event: React.SyntheticEvent<HTMLVideoElement>) => {
+            const video = event.currentTarget;
+            if (video !== videoRef.current) {
+                return;
+            }
+            log.debug("Video source failed to load", {
+                mediaError: video.error,
+                networkState: video.networkState,
+                readyState: video.readyState,
+                videoSrc,
+            });
+            setHasVideoFailed(true);
+        }
+    );
 
     const handleSoundToggle = useStableCallback((event: React.MouseEvent) => {
         event.preventDefault();
@@ -289,14 +274,20 @@ export function MediaPreview({
 
     React.useEffect(() => {
         const video = videoRef.current;
-        if (!(video && shouldLoadVideo)) {
+        if (
+            !(
+                video &&
+                shouldLoadVideo &&
+                video.getAttribute("src") === videoSrc
+            )
+        ) {
             return;
         }
 
         video.play().catch((error: unknown) => {
             log.debug("Failed to resume hover preview", { error });
         });
-    }, [shouldLoadVideo]);
+    }, [shouldLoadVideo, videoSrc]);
 
     React.useEffect(() => {
         if (!shouldLoadVideo) {
@@ -339,7 +330,7 @@ export function MediaPreview({
         <PreviewImage
             onPointerDown={handlePointerDown}
             onPointerEnter={handlePointerEnter}
-            onPointerLeave={handlePointerLeave}
+            onPointerLeave={stopHoverPlayback}
             src={src}
         >
             {shouldLoadVideo ? (
@@ -348,6 +339,7 @@ export function MediaPreview({
                         className="squircle drag-none pointer-events-none absolute inset-0 size-full rounded-xl object-contain transition-opacity ease-out"
                         crossOrigin="use-credentials"
                         draggable="false"
+                        key={videoSrc}
                         loop
                         muted={!isSoundEnabled}
                         onCanPlay={handleCanPlay}
@@ -421,8 +413,6 @@ export function MediaCardPreview({
     onZoomChange,
     ...props
 }: MediaCardPreviewProps): React.ReactElement {
-    const { isLastVisited } = useLastVisited();
-
     const isNote = item.kind === ITEM_KIND_NOTE;
     const hasNoteContent = (item.noteContentText ?? "").trim().length > 0;
     const previewImageUrl = itemPreviewImageUrl(item);
@@ -499,24 +489,7 @@ export function MediaCardPreview({
                             videoSrc={previewVideoUrl}
                         />
                     </ControlledZoom>
-                    {isLastVisited(item.id) ? (
-                        <span className="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-xl bg-black/45 px-1.5 py-px font-medium text-white text-xs leading-normal">
-                            <T>Last visited</T>
-                            <ArrowUpRight
-                                aria-hidden
-                                className="hidden size-4 group-hover:inline-block"
-                                focusable="false"
-                            />
-                        </span>
-                    ) : (
-                        <span className="absolute right-2 bottom-2 rounded-xl bg-black/50 px-1.5 py-px font-medium text-white text-xs leading-normal opacity-0 group-hover:opacity-100">
-                            <ArrowUpRight
-                                aria-hidden
-                                className="size-4"
-                                focusable="false"
-                            />
-                        </span>
-                    )}
+                    <MediaCardVisitedIndicator itemId={item.id} />
                     <MediaCardFavoriteButton
                         isFavorite={isFavorite}
                         isRevealed={isFavoriteRevealed}
@@ -529,6 +502,38 @@ export function MediaCardPreview({
                 className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
             />
         </div>
+    );
+}
+
+interface MediaCardVisitedIndicatorProps {
+    itemId: string;
+}
+
+function MediaCardVisitedIndicator({
+    itemId,
+}: MediaCardVisitedIndicatorProps): React.ReactElement {
+    const { isLastVisited } = useLastVisited();
+    const isItemLastVisited = isLastVisited(itemId);
+
+    return (
+        <span
+            className={cn(
+                "absolute right-2 bottom-2 rounded-xl px-1.5 py-px font-medium text-white text-xs leading-normal",
+                isItemLastVisited
+                    ? "inline-flex items-center gap-1 bg-black/45"
+                    : "bg-black/50 opacity-0 group-hover:opacity-100"
+            )}
+        >
+            {isItemLastVisited ? <T>Last visited</T> : null}
+            <ArrowUpRight
+                aria-hidden
+                className={cn(
+                    "size-4",
+                    isItemLastVisited && "hidden group-hover:inline-block"
+                )}
+                focusable="false"
+            />
+        </span>
     );
 }
 

@@ -12,6 +12,7 @@ import { cn } from "cn";
 import { T } from "gt-next";
 import {
     ArrowDownWideNarrow,
+    ArrowUpRight,
     Check,
     CopyIcon,
     CopyX,
@@ -23,7 +24,6 @@ import {
     Grid2x2X,
     History,
     Layers3,
-    MessageSquarePlus,
     RotateCcw,
     SearchIcon,
     SearchX,
@@ -2966,8 +2966,8 @@ function ContinueInChatButton({ markdown, prompt }: ContinueInChatButtonProps) {
                 size="xs"
                 variant="secondary"
             >
-                <MessageSquarePlus className="size-3.5 shrink-0" />
                 <T>Continue in Chat</T>
+                <ArrowUpRight className="size-3.5 shrink-0" />
             </Button>
         </span>
     );
