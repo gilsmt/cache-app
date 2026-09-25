@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import {
     DESKTOP_ASSETS,
     DESKTOP_GITHUB_REPO,
