@@ -97,7 +97,7 @@ Naming should match what the code actually does and follow sibling file/function
 
 ## Comments
 
-Use mostly ASD-STE100 Simplified Technical English. Use active voice, simple tenses, one idea per sentence, and consistent terms. Explain why, not what, and only when a future reader (with no access to this PR or chat) would otherwise be confused. If appropriate, prefer no comments at all.
+Use mostly ASD-STE100 Simplified Technical English. Use active voice, simple tenses, one idea per sentence, and consistent terms. Explain why, not what, and only when a future reader (with no access to this PR or chat) would otherwise be confused. Prefer no inline comments at all.
 
 Never log change history or chat context in code — no "previously did X, now does Y", "per <task/PR>", "changed because…", or "AI:"/"agent:" notes. That goes in the commit message and PR description.
 
@@ -162,12 +162,13 @@ If rebase conflicts occur: Resolve conflicts only in files you modified. If a co
 
 Never force push.
 
-## Branch Names
+Don't make a PR unless the user explicitly asks.
 
-Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`.
-
-Examples: `session-recovery`, `fix-scroll-state`, `regenerate-sdk`.
+Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`. Examples: `session-recovery`, `fix-scroll-state`, `regenerate-sdk`.
 
 ## User Override
 
 If the user's instructions conflict with any rule in this document, ask for explicit confirmation before overriding. Only then execute their instructions.
+
+Don't verify with browsers or computer use unless the user explicitly agrees or requests it.
+
