@@ -1,9 +1,21 @@
+import * as z from "zod";
 import {
     DESKTOP_ASSETS,
     DESKTOP_GITHUB_REPO,
     DESKTOP_PLATFORMS,
     type DesktopPlatform,
 } from "@/lib/desktop/constants";
+
+export const githubReleaseSchema = z.object({
+    assets: z.array(
+        z.object({
+            browser_download_url: z.url({ protocol: /^https$/ }),
+            name: z.string(),
+        })
+    ),
+    html_url: z.url({ protocol: /^https$/ }),
+    tag_name: z.string(),
+});
 
 export interface DesktopDownload {
     fileName: string;
@@ -19,16 +31,7 @@ export interface DesktopReleaseDownloads {
     version: string;
 }
 
-interface GitHubReleaseAsset {
-    browser_download_url: string;
-    name: string;
-}
-
-interface GitHubRelease {
-    assets: GitHubReleaseAsset[];
-    html_url: string;
-    tag_name: string;
-}
+export type GitHubRelease = z.infer<typeof githubReleaseSchema>;
 
 const CANONICAL_FILE_BY_PLATFORM: Record<DesktopPlatform, string> = {
     linux: DESKTOP_ASSETS.linux.fileName,
@@ -184,5 +187,3 @@ function normalizeReleaseVersion(tagName: string): string {
     }
     return trimmed;
 }
-
-export type { GitHubRelease };
