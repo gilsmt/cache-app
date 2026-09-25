@@ -776,6 +776,7 @@ function AutomationCadenceCombobox({
     return (
         <Combobox<CadenceOption>
             autoHighlight
+            filter={null}
             items={CADENCE_OPTIONS}
             itemToStringLabel={getOptionLabel}
             itemToStringValue={getStringOptionValue}
@@ -950,6 +951,7 @@ function AutomationWeekDayCombobox({
     return (
         <Combobox<WeekDayOption>
             autoHighlight
+            filter={null}
             items={WEEK_DAYS}
             itemToStringLabel={getOptionLabel}
             itemToStringValue={getNumericOptionValue}
