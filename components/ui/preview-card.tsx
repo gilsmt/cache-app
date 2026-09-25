@@ -46,7 +46,7 @@ export function PreviewCardPopup({
                 align={align}
                 alignOffset={alignOffset}
                 anchor={anchor}
-                className="z-50 transition-none"
+                className="z-50"
                 data-slot="preview-card-positioner"
                 positionMethod={positionMethod}
                 side={side}

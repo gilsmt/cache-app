@@ -23,6 +23,7 @@ import {
     Grid2x2X,
     History,
     Layers3,
+    MessageSquarePlus,
     RotateCcw,
     SearchIcon,
     SearchX,
@@ -32,6 +33,7 @@ import {
     Volume2,
     XIcon,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Streamdown } from "streamdown";
 import { ThinkingOrb } from "thinking-orbs";
@@ -82,6 +84,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis";
+import { createChatFromAskCache } from "@/lib/chats/actions";
 import { itemCanonicalGroupKey } from "@/lib/collections/library-quality";
 import type { LibraryMetricsSnapshot } from "@/lib/collections/metrics";
 import type {
@@ -89,7 +92,10 @@ import type {
     LibraryItemWithCollections,
 } from "@/lib/collections/utils";
 import { removeValue, toggleValue } from "@/lib/common/array";
-import { CACHE_EXTENSION_DOWNLOAD_URL } from "@/lib/common/constants";
+import {
+    ACTION_STATUS,
+    CACHE_EXTENSION_DOWNLOAD_URL,
+} from "@/lib/common/constants";
 import type { createFileAttachment } from "@/lib/common/file";
 import { filterValidImageUrls } from "@/lib/common/image";
 import { createLogger } from "@/lib/common/logs/console/logger";
@@ -2314,9 +2320,13 @@ export function AskCacheResponsePanel({
                 <Streamdown className="whitespace-pre-line text-sm leading-relaxed">
                     {response.markdown}
                 </Streamdown>
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1">
                     <CopyResponseButton value={response.markdown} />
                     <SpeakResponseButton value={response.markdown} />
+                    <ContinueInChatButton
+                        markdown={response.markdown}
+                        prompt={response.prompt}
+                    />
                 </div>
             </div>
         </BubbleGroup>
@@ -2907,5 +2917,58 @@ export function ComposerAttachmentChip({
                 </AttachmentPreviewCardPopup>
             </AttachmentPreviewCard>
         </Attachments>
+    );
+}
+
+interface ContinueInChatButtonProps {
+    markdown: string;
+    prompt: string;
+}
+
+function ContinueInChatButton({ markdown, prompt }: ContinueInChatButtonProps) {
+    const router = useRouter();
+    const [isPending, startTransition] = React.useTransition();
+    const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+    const handleContinue = useStableCallback(() => {
+        setErrorMessage(null);
+        startTransition(async () => {
+            try {
+                const result = await createChatFromAskCache({
+                    markdown,
+                    prompt,
+                });
+                if (result.status !== ACTION_STATUS.CREATED) {
+                    setErrorMessage(result.message);
+                    return;
+                }
+                router.push(`/c/${result.chatId}`);
+            } catch (error) {
+                log.error("Failed to continue Ask Cache in chat", error);
+                setErrorMessage("We couldn't start this chat right now.");
+            }
+        });
+    });
+
+    return (
+        <span className="ml-auto inline-flex max-w-full items-center gap-2">
+            {errorMessage ? (
+                <span
+                    className="truncate text-destructive text-xs"
+                    role="alert"
+                >
+                    {errorMessage}
+                </span>
+            ) : null}
+            <Button
+                isLoading={isPending}
+                onClick={handleContinue}
+                size="xs"
+                variant="secondary"
+            >
+                <MessageSquarePlus className="size-3.5 shrink-0" />
+                <T>Continue in Chat</T>
+            </Button>
+        </span>
     );
 }

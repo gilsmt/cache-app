@@ -263,6 +263,7 @@ export default async function Home() {
                             alt=""
                             aria-hidden
                             className="absolute top-9.5 left-9 w-full rounded-xl"
+                            fetchPriority="high"
                             placeholder="blur"
                             preload
                             quality={90}

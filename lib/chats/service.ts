@@ -2,11 +2,15 @@ import "server-only";
 
 import type { UIMessage } from "ai";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { normalizeWhitespace, truncateText } from "@/lib/common/string";
 import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
 import { AutomationRunStatus, ChatMessageRole } from "@/prisma/client/enums";
 import {
     CHAT_ARCHIVE_PAGE_SIZE,
+    CHAT_STANDALONE_MARKDOWN_MAX_LENGTH,
+    CHAT_STANDALONE_PROMPT_MAX_LENGTH,
+    CHAT_TITLE_MAX_LENGTH,
     CHAT_TURN_LEASE_DURATION_MS,
 } from "./constants";
 import { ChatError } from "./error";
@@ -324,6 +328,68 @@ export async function createChatForAutomationRun(args: {
         update: {},
         where: { automationRunId: run.id },
     });
+}
+
+export async function createStandaloneChat(args: {
+    markdown: string;
+    prompt: string;
+    userId: string;
+}): Promise<{ id: string }> {
+    const prompt = args.prompt.trim();
+    if (prompt.length === 0) {
+        throw new ChatError({
+            code: "invalid_input",
+            message: "Enter a valid prompt to continue in chat.",
+            operation: "createStandaloneChat",
+        });
+    }
+    if (prompt.length > CHAT_STANDALONE_PROMPT_MAX_LENGTH) {
+        throw new ChatError({
+            code: "invalid_input",
+            message: "This prompt is too long to continue in chat.",
+            operation: "createStandaloneChat",
+        });
+    }
+
+    const markdown = args.markdown.trim();
+    if (markdown.length === 0) {
+        throw new ChatError({
+            code: "invalid_input",
+            message: "There is no Ask Cache answer to continue.",
+            operation: "createStandaloneChat",
+        });
+    }
+    if (markdown.length > CHAT_STANDALONE_MARKDOWN_MAX_LENGTH) {
+        throw new ChatError({
+            code: "invalid_input",
+            message: "This answer is too long to continue in chat.",
+            operation: "createStandaloneChat",
+        });
+    }
+
+    const chat = await prisma.chat.create({
+        data: {
+            messages: {
+                create: [
+                    { content: prompt, role: ChatMessageRole.user },
+                    { content: markdown, role: ChatMessageRole.assistant },
+                ],
+            },
+            title: buildStandaloneChatTitle(prompt),
+            userId: args.userId,
+        },
+        select: { id: true },
+    });
+
+    return chat;
+}
+
+export function buildStandaloneChatTitle(prompt: string): string {
+    const title = truncateText(
+        normalizeWhitespace(prompt),
+        CHAT_TITLE_MAX_LENGTH
+    );
+    return title.length > 0 ? title : "Ask Cache chat";
 }
 
 export async function startChatTurn(args: {
