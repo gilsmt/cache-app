@@ -29,6 +29,8 @@ Cache exists because that signal is too valuable to waste. It treats the act of 
 - **Export & integrate** — Pipe results into other tools you already use.
 - **Minimal** — Cache is designed to be simple, low-maintenance, and highly portable.
 
+The Cache App is still evolving, and its features and workflows will continue to change.
+
 ---
 
 ## Quickstart
