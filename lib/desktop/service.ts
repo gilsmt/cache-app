@@ -3,10 +3,10 @@ import "server-only";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { fetchWithTimeout } from "@/lib/common/timeout";
 import {
-    GITHUB_RELEASE_SCHEMA,
     buildDesktopReleaseDownloads,
     type DesktopReleaseDownloads,
     getDesktopLatestReleaseApiUrl,
+    githubReleaseSchema,
 } from "@/lib/desktop/releases";
 
 const log = createLogger("desktop:releases");
@@ -45,7 +45,7 @@ export async function getLatestDesktopDownloads(): Promise<DesktopReleaseDownloa
         }
 
         const payload: unknown = await response.json();
-        const release = GITHUB_RELEASE_SCHEMA.safeParse(payload);
+        const release = githubReleaseSchema.safeParse(payload);
         if (!release.success) {
             log.warn("GitHub latest release payload was invalid", {
                 issues: release.error.issues,
