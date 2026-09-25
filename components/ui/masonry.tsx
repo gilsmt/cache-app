@@ -568,7 +568,7 @@ const MasonryItemSlot = React.memo(function MasonryItemSlotInner<T>({
         insetInlineStart: 0,
         margin: 0,
         position: "absolute",
-        transform: `translateX(${left}px) translateY(${top}px)`,
+        transform: `translate3d(${left}px, ${top}px, 0)`,
         width,
         writingMode: "horizontal-tb",
     };
@@ -758,6 +758,8 @@ export function MasonryRoot<T>(
         React.useState<Measurements>(INITIAL_MEASUREMENTS);
     const measurementsRef = useValueAsRef(measurements);
     const isDirtyRef = React.useRef(true);
+    const lastWidthRef = React.useRef(0);
+    const syncFlushQueuedRef = React.useRef(false);
 
     const buildOptions = React.useCallback(
         (width: number) =>
@@ -818,17 +820,32 @@ export function MasonryRoot<T>(
         let measured: Measurements | null = null;
 
         if (isDirty) {
-            const containerOffset =
-                root.getBoundingClientRect().top -
-                (container
-                    ? container.getBoundingClientRect().top +
-                      container.clientTop
-                    : 0) +
-                scrollY;
-            const nextContainerWidth = root.clientWidth;
-            const nextWindowHeight = container
-                ? container.clientHeight
-                : ownerDocument(root).documentElement.clientHeight;
+            const nextContainerWidth =
+                lastWidthRef.current > 0
+                    ? lastWidthRef.current
+                    : root.clientWidth;
+            lastWidthRef.current = nextContainerWidth;
+
+            const isWidthOnlyChange =
+                scrollY === previous.scrollY &&
+                nextContainerWidth !== previous.containerWidth;
+
+            const containerOffset = isWidthOnlyChange
+                ? previous.containerOffset
+                : root.getBoundingClientRect().top -
+                  (container
+                      ? container.getBoundingClientRect().top +
+                        container.clientTop
+                      : 0) +
+                  scrollY;
+
+            let nextWindowHeight = previous.windowHeight;
+
+            if (!(isWidthOnlyChange && container)) {
+                nextWindowHeight = container
+                    ? container.clientHeight
+                    : ownerDocument(root).documentElement.clientHeight;
+            }
 
             const nextOptions = buildOptions(nextContainerWidth);
             layoutDidChange =
@@ -865,6 +882,17 @@ export function MasonryRoot<T>(
         animationFrame.request(flush);
     });
 
+    const requestSyncFlush = useStableCallback(() => {
+        if (syncFlushQueuedRef.current) {
+            return;
+        }
+        syncFlushQueuedRef.current = true;
+        queueMicrotask(() => {
+            syncFlushQueuedRef.current = false;
+            flush();
+        });
+    });
+
     const requestDirtyFlush = useStableCallback(() => {
         isDirtyRef.current = true;
         requestFlush();
@@ -878,7 +906,7 @@ export function MasonryRoot<T>(
             for (const entry of entries) {
                 pendingMap.set(entry.target, entry.borderBoxSize[0].blockSize);
             }
-            requestFlush();
+            requestSyncFlush();
         });
     }).current;
 
@@ -906,9 +934,25 @@ export function MasonryRoot<T>(
             }
             requestDirtyFlush();
 
-            const resizeObserver = new ResizeObserver(requestDirtyFlush);
+            const resizeObserver = new ResizeObserver((entries) => {
+                let shouldMeasure = false;
+                for (const entry of entries) {
+                    if (entry.target !== root) {
+                        shouldMeasure = true;
+                        break;
+                    }
+                    const nextWidth = root.clientWidth;
+                    if (nextWidth !== lastWidthRef.current) {
+                        lastWidthRef.current = nextWidth;
+                        shouldMeasure = true;
+                    }
+                }
+                if (shouldMeasure) {
+                    isDirtyRef.current = true;
+                    requestSyncFlush();
+                }
+            });
             resizeObserver.observe(root);
-            resizeObserver.observe(ownerDocument(root).body);
             if (container) {
                 resizeObserver.observe(container);
             }
@@ -922,7 +966,7 @@ export function MasonryRoot<T>(
                 () => resizeObserver.disconnect()
             );
         },
-        [requestFlush, requestDirtyFlush, container]
+        [requestFlush, requestSyncFlush, requestDirtyFlush, container]
     );
 
     useIsoLayoutEffect(
