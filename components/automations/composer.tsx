@@ -665,7 +665,7 @@ function AutomationOptionTrigger({
             render={
                 <Button
                     aria-labelledby={labelId}
-                    className="h-7 min-w-0 max-w-full justify-start gap-1 rounded-md px-2 font-normal text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="min-w-0 max-w-full justify-start gap-1.5 px-2 font-normal text-muted-foreground hover:bg-muted hover:text-foreground"
                     size="xs"
                     variant="ghost"
                 />
