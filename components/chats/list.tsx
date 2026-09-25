@@ -76,7 +76,7 @@ export function ChatsList({ chats, nowMs }: ChatsListProps) {
                 data-sidebar-collapsible=""
             >
                 <ChatsListTrigger updateCount={updateCount}>
-                    <T>Chats</T>
+                    <T>Recents</T>
                 </ChatsListTrigger>
                 <ChatsListPanel>
                     <ChatsListEmpty />

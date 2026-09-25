@@ -128,6 +128,19 @@ export async function listAutomations(args: {
     return automations.map(toAutomationListItem);
 }
 
+export function countEnabledAutomations({
+    userId,
+}: {
+    userId: string;
+}): Promise<number> {
+    return prisma.automation.count({
+        where: {
+            status: AutomationStatus.active,
+            userId,
+        },
+    });
+}
+
 export async function listAutomationRuns(args: {
     automationId: string;
     limit?: number;
