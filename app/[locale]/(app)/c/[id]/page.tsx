@@ -16,6 +16,8 @@ import {
     toUIMessages,
 } from "@/lib/chats/service";
 
+export const instant = false;
+
 interface ChatPageParams {
     params: Promise<{ id: string; locale: string }>;
 }
