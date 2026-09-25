@@ -89,11 +89,12 @@ export const blobToArrayBuffer = (blob: Blob): Promise<ArrayBuffer> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (event) => {
-            if (!event.target?.result) {
+            const result = event.target?.result;
+            if (!(result instanceof ArrayBuffer)) {
                 reject(new Error("Couldn't convert blob to ArrayBuffer"));
                 return;
             }
-            resolve(event.target.result as ArrayBuffer);
+            resolve(result);
         };
         reader.onerror = () => {
             reject(reader.error ?? new Error("FileReader error"));
@@ -136,7 +137,11 @@ export const blobToText = async (blob: Blob): Promise<string> =>
         }
         const reader = new FileReader();
         reader.onload = () => {
-            resolve(reader.result as string);
+            if (typeof reader.result !== "string") {
+                reject(new Error("Failed to convert blob to text"));
+                return;
+            }
+            resolve(reader.result);
         };
         reader.onerror = () => {
             reject(reader.error ?? new Error("FileReader error"));
