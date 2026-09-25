@@ -195,8 +195,7 @@ import {
     downloadMedia,
 } from "@/lib/collections/actions";
 import {
-    buildCollectionItemIndexes,
-    buildFavoriteItemIndexes,
+    buildLibraryItemIndexes,
     type LibraryItemIndexes,
 } from "@/lib/collections/indexes";
 import {
@@ -1060,10 +1059,7 @@ function useLibraryItemIndexes(
     const previewUrlCache =
         cached?.previewUrlCache ??
         new WeakMap<LibraryItemWithCollections, string | null>();
-    const indexes: LibraryItemIndexes = {
-        ...buildCollectionItemIndexes(items, previewUrlCache),
-        ...buildFavoriteItemIndexes(items),
-    };
+    const indexes = buildLibraryItemIndexes(items, previewUrlCache);
     cacheRef.current = { indexes, items, previewUrlCache };
     return indexes;
 }
@@ -1542,14 +1538,19 @@ function getUnreachableProbeBatch(
     currentItems: LibraryItemWithCollections[],
     probedItemIds: ReadonlySet<string>
 ) {
-    const probeableItems = currentItems.filter((item) =>
-        isLinkProbeCandidate(item)
-    );
-    const candidates = probeableItems.filter(
-        (item) =>
-            !probedItemIds.has(item.id) && needsLinkReachabilityProbe(item)
-    );
-    const totalProbeable = probeableItems.length;
+    const candidates: LibraryItemWithCollections[] = [];
+    let totalProbeable = 0;
+    for (const item of currentItems) {
+        if (!isLinkProbeCandidate(item)) {
+            continue;
+        }
+        totalProbeable += 1;
+        if (probedItemIds.has(item.id) || !needsLinkReachabilityProbe(item)) {
+            continue;
+        }
+        candidates.push(item);
+    }
+
     return {
         batch: candidates.slice(0, LINK_REACHABILITY_BATCH_MAX),
         checked: totalProbeable - candidates.length,

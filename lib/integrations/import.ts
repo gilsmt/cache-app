@@ -557,16 +557,23 @@ async function importSnapshotProfileRows(args: {
         };
     }
 
-    const liveRows = existingRows.filter((row) => row.deletedAt === null);
     const retainedExternalIds = args.rows.map((row) => row.externalId);
     const retainedSet = new Set(retainedExternalIds);
-    const removableCount = liveRows.filter(
-        (row) => !retainedSet.has(row.externalId)
-    ).length;
+    let liveRowCount = 0;
+    let removableCount = 0;
+    for (const row of existingRows) {
+        if (row.deletedAt !== null) {
+            continue;
+        }
+        liveRowCount += 1;
+        if (!retainedSet.has(row.externalId)) {
+            removableCount += 1;
+        }
+    }
 
-    if (shouldAbortPrune({ liveRowCount: liveRows.length, removableCount })) {
+    if (shouldAbortPrune({ liveRowCount, removableCount })) {
         log.warn("Snapshot prune aborted by guard", {
-            liveRowCount: liveRows.length,
+            liveRowCount,
             removableCount,
             source: args.source,
             userId: args.userId,

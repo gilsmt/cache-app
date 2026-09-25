@@ -5,8 +5,8 @@ import { fetchWithTimeout } from "@/lib/common/timeout";
 import {
     buildDesktopReleaseDownloads,
     type DesktopReleaseDownloads,
+    GithubReleaseSchema,
     getDesktopLatestReleaseApiUrl,
-    githubReleaseSchema,
 } from "@/lib/desktop/releases";
 
 const log = createLogger("desktop:releases");
@@ -45,7 +45,7 @@ export async function getLatestDesktopDownloads(): Promise<DesktopReleaseDownloa
         }
 
         const payload: unknown = await response.json();
-        const release = githubReleaseSchema.safeParse(payload);
+        const release = GithubReleaseSchema.safeParse(payload);
         if (!release.success) {
             log.warn("GitHub latest release payload was invalid", {
                 issues: release.error.issues,

@@ -224,11 +224,6 @@ export function AutomationsList({
     automations,
     collections,
 }: AutomationsListProps) {
-    const configuredAutomations = automations.filter(
-        (automation) => !isSuggestedAutomation(automation)
-    );
-    const suggestedAutomations = automations.filter(isSuggestedAutomation);
-
     if (automations.length === 0) {
         return (
             <section className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl bg-muted/50 p-8 text-center">
@@ -250,6 +245,16 @@ export function AutomationsList({
                 </div>
             </section>
         );
+    }
+
+    const configuredAutomations: AutomationListItem[] = [];
+    const suggestedAutomations: AutomationListItem[] = [];
+    for (const automation of automations) {
+        if (isSuggestedAutomation(automation)) {
+            suggestedAutomations.push(automation);
+            continue;
+        }
+        configuredAutomations.push(automation);
     }
 
     return (

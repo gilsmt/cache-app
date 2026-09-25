@@ -23,17 +23,21 @@ export interface LibraryItemIndexes {
     itemsByCollectionId: Map<string, LibraryItemWithCollections[]>;
 }
 
-export function buildCollectionItemIndexes(
+export function buildLibraryItemIndexes(
     items: readonly LibraryItemWithCollections[],
     previewUrlCache: LibraryItemPreviewUrlCache = new WeakMap()
-): Pick<
-    LibraryItemIndexes,
-    "collectionPreviewThumbnailUrlsById" | "itemsByCollectionId"
-> {
+): LibraryItemIndexes {
     const itemsByCollectionId = new Map<string, LibraryItemWithCollections[]>();
     const previewEntriesByCollectionId = new Map<string, PreviewEntry[]>();
+    const favoriteItems: Array<
+        LibraryItemWithCollections & { favoritedAt: Date }
+    > = [];
 
     for (const item of items) {
+        if (isFavoritedItem(item)) {
+            favoriteItems.push(item);
+        }
+
         let previewUrl: string | null = null;
         if (item.collections.length > 0) {
             const cachedPreviewUrl = previewUrlCache.get(item);
@@ -79,30 +83,21 @@ export function buildCollectionItemIndexes(
         );
     }
 
-    return {
-        collectionPreviewThumbnailUrlsById,
-        itemsByCollectionId,
-    };
-}
-
-export function buildFavoriteItemIndexes(
-    items: readonly LibraryItemWithCollections[]
-): Pick<LibraryItemIndexes, "favoriteItemIdSet" | "favoriteItems"> {
-    const favoriteItems: Array<
-        LibraryItemWithCollections & { favoritedAt: Date }
-    > = [];
-    for (const item of items) {
-        if (isFavoritedItem(item)) {
-            favoriteItems.push(item);
-        }
-    }
     favoriteItems.sort(
         (left, right) =>
             right.favoritedAt.getTime() - left.favoritedAt.getTime()
     );
-    const favoriteItemIdSet = new Set(favoriteItems.map((item) => item.id));
+    const favoriteItemIdSet = new Set<string>();
+    for (const item of favoriteItems) {
+        favoriteItemIdSet.add(item.id);
+    }
 
-    return { favoriteItemIdSet, favoriteItems };
+    return {
+        collectionPreviewThumbnailUrlsById,
+        favoriteItemIdSet,
+        favoriteItems,
+        itemsByCollectionId,
+    };
 }
 
 function addPreviewEntry(

@@ -6,7 +6,7 @@ import {
     type DesktopPlatform,
 } from "@/lib/desktop/constants";
 
-export const githubReleaseSchema = z.object({
+export const GithubReleaseSchema = z.object({
     assets: z.array(
         z.object({
             browser_download_url: z.url({ protocol: /^https$/ }),
@@ -31,7 +31,7 @@ export interface DesktopReleaseDownloads {
     version: string;
 }
 
-export type GitHubRelease = z.infer<typeof githubReleaseSchema>;
+export type GitHubRelease = z.infer<typeof GithubReleaseSchema>;
 
 const CANONICAL_FILE_BY_PLATFORM: Record<DesktopPlatform, string> = {
     linux: DESKTOP_ASSETS.linux.fileName,
