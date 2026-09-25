@@ -13,7 +13,7 @@
     "type": "module",
     "scripts": {
         "analyze": "next experimental-analyze",
-        "build": "bunx gt translate --ignore-errors && bun run next build",
+        "build": "bun run next build",
         "clean": "find . -name node_modules -o -name .next -o -name .swc -o -name tsconfig.buildinfo -type d -prune | xargs rm -rf",
         "db-deploy": "prisma migrate deploy",
         "db-migrate": "prisma migrate dev",
@@ -25,6 +25,7 @@
         "start": "bun run next start",
         "static-check": "fr",
         "test": "bun test",
+        "translate": "bunx gt translate --ignore-errors",
         "type-check": "tsc --noEmit"
     },
     "dependencies": {
