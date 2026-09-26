@@ -13,11 +13,15 @@
  * constant). The window is short enough that an attacker can't amortize
  * the burst and long enough not to feel like a quota.
  *
- * When Redis is unavailable, `incrementMcpRateCounter` returns `null`
- * (fail-open) because we'd rather degrade UX than block legitimate user
- * actions during an infrastructure blip. The danger is bounded: stealing
- * a token still gives the user their existing library access; rate-limits
- * are a defense in depth, not the only line.
+ * Redis is the counter's only home, so the limit cannot be enforced without
+ * it. When Redis is configured but unreachable this fails closed
+ * (`unavailable`) rather than letting the request through: the counter is
+ * the blast-radius control for a stolen token, and letting the request
+ * through would remove the only throttle. `getReadyRedisClient` waits out the
+ * connect window of a freshly created client, so a cold start is not read as
+ * an outage. A deployment with no `REDIS_URL` at all is a deliberate
+ * Redis-less setup, so that case stays fail-open; the Redis client logs it
+ * separately from an outage.
  *
  * No `import "server-only"` here on purpose: this module's only callers are
  * the MCP route handler (a Next.js server route); pulling in the client
@@ -25,7 +29,10 @@
  * marker would also keep us from unit-testing the decision helpers without a
  * preload hack.
  */
-import { getRedisClient } from "@/lib/common/redis";
+import { createLogger } from "@/lib/common/logs/console/logger";
+import { getReadyRedisClient, isRedisConfigured } from "@/lib/common/redis";
+
+const log = createLogger("mcp.rate-limit");
 
 const WINDOW_SECONDS = 60;
 
@@ -41,52 +48,46 @@ export const MCP_RATE_BUCKETS = {
     write: { limit: 30, name: "write" },
 } as const satisfies Record<string, Bucket>;
 
-export interface RateLimitDecision {
-    count: number;
-    limit: number;
-    retryAfterSeconds: number;
-}
+export type McpRateLimitOutcome =
+    | { status: "allowed" }
+    | { status: "limited"; retryAfterSeconds: number }
+    | { status: "unavailable" };
 
 /**
- * Atomically increment the counter for the user's bucket and return the new
- * count. Returns `null` when Redis isn't reachable so callers can decide
- * whether to fail-open or surface the error.
+ * Count the request against the user's bucket and decide whether it is over
+ * the limit. Counts the request atomically and returns `unavailable` when the
+ * counter cannot be read, instead of throwing.
  */
-export async function incrementMcpRateCounter(
+export async function checkMcpRateLimit(
     userId: string,
     bucket: Bucket
-): Promise<RateLimitDecision | null> {
-    const redis = getRedisClient();
+): Promise<McpRateLimitOutcome> {
+    const redis = await getReadyRedisClient();
     if (!redis) {
-        return null;
+        return isRedisConfigured()
+            ? { status: "unavailable" }
+            : { status: "allowed" };
     }
-    const key = `mcp:rate:${bucket.name}:${userId}`;
-    const count = await redis.incr(key);
-    if (count === 1) {
-        // First request in a fresh window — establish the TTL atomically.
-        // `pexpire` is preferred so a partial-second drift doesn't cut the
-        // window short; the worst case is we let a request through on the
-        // 60.0001-second boundary, which is fine for a defense-in-depth cap.
-        await redis.pExpire(key, WINDOW_SECONDS * 1000);
-    }
-    const retryAfterSeconds = count > bucket.limit ? WINDOW_SECONDS : 0;
-    return {
-        count,
-        limit: bucket.limit,
-        retryAfterSeconds,
-    };
-}
 
-/**
- * Centralized gate. `null` means Redis is absent — fall through and let the
- * tool run. A `decision` with `count > limit` means fail-closed at this call.
- */
-export function isOverLimit(
-    decision: RateLimitDecision | null,
-    bucket: Bucket
-): boolean {
-    if (!decision) {
-        return false;
+    try {
+        const key = `mcp:rate:${bucket.name}:${userId}`;
+        const count = await redis.incr(key);
+        if (count === 1) {
+            // First request in a fresh window — establish the TTL atomically.
+            // `pexpire` is preferred so a partial-second drift doesn't cut the
+            // window short; the worst case is we let a request through on the
+            // 60.0001-second boundary, which is fine for a defense-in-depth cap.
+            await redis.pExpire(key, WINDOW_SECONDS * 1000);
+        }
+        return count > bucket.limit
+            ? { retryAfterSeconds: WINDOW_SECONDS, status: "limited" }
+            : { status: "allowed" };
+    } catch (error) {
+        log.warn("MCP rate limit counter failed; failing closed", {
+            bucket: bucket.name,
+            error,
+            userId,
+        });
+        return { status: "unavailable" };
     }
-    return decision.count > bucket.limit;
 }

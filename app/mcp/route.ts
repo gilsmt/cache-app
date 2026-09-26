@@ -31,8 +31,7 @@ import {
     McpLibraryItemSchema,
 } from "@/lib/integrations/mcp/protocol";
 import {
-    incrementMcpRateCounter,
-    isOverLimit,
+    checkMcpRateLimit,
     MCP_RATE_BUCKETS,
 } from "@/lib/integrations/mcp/rate-limit";
 import {
@@ -120,24 +119,46 @@ async function authorizeToolCall(
         required === "library:write"
             ? MCP_RATE_BUCKETS.write
             : MCP_RATE_BUCKETS.read;
-    const decision = await incrementMcpRateCounter(auth.userId, bucket);
-    if (decision !== null && isOverLimit(decision, bucket)) {
-        return { result: rateLimitResult(bucket, decision) };
+    const rateLimit = await checkMcpRateLimit(auth.userId, bucket);
+    if (rateLimit.status === "limited") {
+        return {
+            result: rateLimitResult(bucket, rateLimit.retryAfterSeconds),
+        };
+    }
+    if (rateLimit.status === "unavailable") {
+        return { result: rateLimitUnavailableResult(auth.userId, bucket) };
     }
     return { userId: auth.userId };
 }
 
 function rateLimitResult(
-    bucket: { limit: number; name: string },
-    decision: { retryAfterSeconds: number }
+    bucket: { name: string },
+    retryAfterSeconds: number
 ): CallToolResult {
-    log.warn(`rate limit hit (${bucket.name})`, {
-        retryAfterSeconds: decision.retryAfterSeconds,
+    log.warn(`rate limit hit (${bucket.name})`, { retryAfterSeconds });
+    return {
+        content: [
+            {
+                text: `Rate limit reached for \`${bucket.name}\` operations. Retry in about ${retryAfterSeconds} seconds.`,
+                type: "text",
+            },
+        ],
+        isError: true,
+    };
+}
+
+function rateLimitUnavailableResult(
+    userId: string,
+    bucket: { name: string }
+): CallToolResult {
+    log.warn("rate limit unavailable; rejecting request", {
+        bucket: bucket.name,
+        userId,
     });
     return {
         content: [
             {
-                text: `Rate limit reached for \`${bucket.name}\` operations. Retry in about ${decision.retryAfterSeconds} seconds.`,
+                text: "Rate limiting is unavailable right now. Retry shortly.",
                 type: "text",
             },
         ],
