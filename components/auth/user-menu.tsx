@@ -28,7 +28,7 @@ import {
     useSubscriptionBillingPortalAction,
     useSubscriptionUpgradeAction,
 } from "@/components/billing/subscription";
-import { FeedbackWidget } from "@/components/support/feedback-widget";
+import { FeedbackPopup } from "@/components/support/feedback-popup";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ErrorMessage } from "@/components/ui/error-message";
@@ -363,14 +363,14 @@ export function UserMenuHeader() {
 export function UserMenuContent() {
     return (
         <>
-            <FeedbackWidget
+            <FeedbackPopup
                 context="user-menu"
                 nativeButton={false}
                 render={<MenuItem closeOnClick={false} />}
             >
                 Send feedback
                 <Megaphone className="ml-auto inline-block size-4 text-muted-foreground" />
-            </FeedbackWidget>
+            </FeedbackPopup>
             <MenuSeparator />
             <MenuGroup>
                 <div className="flex items-center justify-between pr-2 pl-2.5">

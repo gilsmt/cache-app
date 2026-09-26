@@ -22,7 +22,7 @@ interface FeedbackWidgetProps
     context: string;
 }
 
-export function FeedbackWidget({
+export function FeedbackPopup({
     context,
     openOnHover = true,
     ...props
