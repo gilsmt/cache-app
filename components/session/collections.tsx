@@ -252,7 +252,7 @@ const SHARE_COLLECTION_ERROR_MESSAGE =
     "We couldn't create a public link right now.";
 
 const PREVIEW_SLIDE_INTERVAL_MS = 1400;
-const PREVIEW_CROSSFADE_MS = 400;
+const PREVIEW_CROSSFADE_MS = 200;
 
 const COLLECTIONS_LIST_SORT_FIELD_STORAGE_KEY = "cache:collections:sort-field";
 const COLLECTIONS_LIST_TEXT_MATCH_QUERY_STORAGE_KEY =
@@ -458,7 +458,7 @@ interface ComboboxValue {
 interface ComboboxGroupData {
     group: "sort" | "text-match" | "view";
     items: ComboboxValue[];
-    label: string;
+    label?: string;
 }
 
 interface ReadyPreviewSlide {
@@ -1423,10 +1423,7 @@ function useCollectionPreviewPlayback({
         setActiveSrc((currentSrc) => (currentSrc === src ? null : currentSrc));
     });
 
-    return {
-        activeSlide,
-        reportSlideError,
-    };
+    return { activeSlide, reportSlideError };
 }
 
 function resolveActivePreviewSlide(
@@ -1971,7 +1968,6 @@ function getComboboxCollectionsSortingGroups(
             items: matchingViewOptions.map((option) =>
                 toComboboxValue(option, currentValue, { view: option.value })
             ),
-            label: "Visibility",
         });
     }
 
@@ -2484,11 +2480,11 @@ function CollectionsListContent({
 function CollectionsListFavoritesContent({
     children,
 }: CollectionsListChildrenProps<LibraryCollectionSummary>) {
-    const favoriteCollections = useFavoriteCollections();
+    const collections = useFavoriteCollections();
 
     return (
         <CollapsibleListVertical className="ml-1.25" maxVisible={10}>
-            {favoriteCollections.map(children)}
+            {collections.map(children)}
         </CollapsibleListVertical>
     );
 }
@@ -2509,8 +2505,8 @@ function CollectionsListGroup({
 }: CollectionsListGroupProps) {
     return (
         <div className="flex flex-col">
-            <div className="flex items-center justify-between px-2.5 py-1.5">
-                <span className="min-w-0 truncate font-medium text-[11px] text-muted-foreground/50">
+            <div className="sticky -top-9 flex items-center justify-between bg-white p-2.5">
+                <span className="min-w-0 truncate text-[11px] text-muted-foreground">
                     {label}
                 </span>
             </div>
@@ -2788,7 +2784,7 @@ function CollectionsListFavoritesItem({
                     side="right"
                 >
                     {isNote ? (
-                        <div className="overflow-hidden bg-linear-to-br from-note-surface-from via-background to-note-surface-to p-3">
+                        <div className="overflow-hidden bg-muted p-3">
                             <p className="line-clamp-6 whitespace-pre-wrap text-left text-foreground text-xs leading-snug">
                                 {noteExcerpt || "Empty note"}
                             </p>
@@ -3179,9 +3175,11 @@ function CollectionsListSortingCombobox({
                     {(group: ComboboxGroupData) => (
                         <React.Fragment key={group.group}>
                             <ComboboxGroup items={group.items}>
-                                <ComboboxGroupLabel>
-                                    {group.label}
-                                </ComboboxGroupLabel>
+                                {group.label ? (
+                                    <ComboboxGroupLabel>
+                                        {group.label}
+                                    </ComboboxGroupLabel>
+                                ) : null}
                                 <ComboboxCollection>
                                     {(option: ComboboxValue) => (
                                         <ComboboxItem
@@ -3274,7 +3272,7 @@ function CollectionsListSmartCollectionsPopover() {
             <div className="flex items-center gap-0.5 text-nowrap font-medium text-[11px] opacity-40">
                 Smart Collections
                 <span>is</span>
-                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-18" />
             </div>
         );
     }

@@ -43,8 +43,6 @@
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
-    --color-note-surface-from: var(--note-surface-from);
-    --color-note-surface-to: var(--note-surface-to);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -70,7 +68,7 @@
     --secondary: oklch(0.96 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.96 0 0);
-    --muted-foreground: oklch(0.5 0 0);
+    --muted-foreground: oklch(0.6 0 0);
     --accent: oklch(0.96 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.55 0.22 27);
@@ -86,8 +84,6 @@
     --warning: oklch(0.75 0.15 75);
     --warning-foreground: oklch(0.48 0.12 60);
     --gradient-wave-base: oklch(0.2 0 0);
-    --note-surface-from: oklch(0.98 0.02 85);
-    --note-surface-to: oklch(0.95 0.005 80);
     color-scheme: light;
 }
 
@@ -119,8 +115,6 @@
     --warning: oklch(0.78 0.14 80);
     --warning-foreground: oklch(0.86 0.1 85);
     --gradient-wave-base: oklch(0.97 0 0);
-    --note-surface-from: oklch(0.22 0.03 75);
-    --note-surface-to: oklch(0.2 0.01 80);
     color-scheme: dark;
 }
 

@@ -102,13 +102,13 @@ export function parseRange(
     };
 }
 
-function nextMeasurements(
+function nextDimensions(
     positioner: Positioner,
-    previous: Measurements,
+    previous: Dimensions,
     scrollY: number,
     overscan: number,
-    measured: Measurements | null
-): Measurements | null {
+    measured: Dimensions | null
+): Dimensions | null {
     if (
         measured !== null &&
         (measured.containerOffset !== previous.containerOffset ||
@@ -567,10 +567,10 @@ function correctScrollForAnchor(
     positioner: Positioner,
     anchor: ScrollAnchor | null,
     shouldCorrect: boolean,
-    measured: Measurements | null,
-    previous: Measurements,
+    measured: Dimensions | null,
+    previous: Dimensions,
     scrollY: number
-): { measured: Measurements | null; scrollY: number } {
+): { measured: Dimensions | null; scrollY: number } {
     if (anchor === null || !shouldCorrect) {
         return { measured, scrollY };
     }
@@ -595,14 +595,14 @@ function correctScrollForAnchor(
     return { measured, scrollY: desiredScrollY };
 }
 
-interface Measurements {
+interface Dimensions {
     containerOffset: number;
     containerWidth: number;
     scrollY: number;
     windowHeight: number;
 }
 
-const INITIAL_MEASUREMENTS: Measurements = {
+const INITIAL_DIMENSIONS: Dimensions = {
     containerOffset: 0,
     containerWidth: 0,
     scrollY: 0,
@@ -863,12 +863,13 @@ export function MasonryRoot<T>(
     const animationFrame = useAnimationFrame();
     const rerender = useForcedRerendering();
 
-    const [measurements, setMeasurements] =
-        React.useState<Measurements>(INITIAL_MEASUREMENTS);
-    const measurementsRef = useValueAsRef(measurements);
+    const [dimensions, setDimensions] =
+        React.useState<Dimensions>(INITIAL_DIMENSIONS);
+    const latestDimensionsRef = useValueAsRef(dimensions);
+
     const isDirtyRef = React.useRef(true);
     const lastWidthRef = React.useRef(0);
-    const syncFlushQueuedRef = React.useRef(false);
+    const shouldSyncFlushQueuedRef = React.useRef(false);
     const forceFullMeasureRef = React.useRef(false);
 
     const buildOptions = React.useCallback(
@@ -889,7 +890,7 @@ export function MasonryRoot<T>(
             verticalGap,
         ]
     );
-    const { windowHeight, containerWidth } = measurements;
+    const { windowHeight, containerWidth } = dimensions;
     const currentOptions = React.useMemo(
         () => buildOptions(containerWidth),
         [buildOptions, containerWidth]
@@ -914,7 +915,7 @@ export function MasonryRoot<T>(
             return;
         }
 
-        const previous = measurementsRef.current;
+        const previous = latestDimensionsRef.current;
         let scrollY = container
             ? container.scrollTop
             : ownerWindow(root).scrollY;
@@ -930,16 +931,17 @@ export function MasonryRoot<T>(
             scrollY === previous.scrollY &&
             previous.containerWidth > 0
         ) {
-            anchor = captureScrollAnchor(
-                positioner,
-                Math.max(0, previous.scrollY - previous.containerOffset)
-            );
+            const relativeScrollTop =
+                previous.scrollY - previous.containerOffset;
+            if (relativeScrollTop > 0) {
+                anchor = captureScrollAnchor(positioner, relativeScrollTop);
+            }
         }
 
         let layoutDidChange = positioner.flush(pendingMap);
         isDirtyRef.current = false;
 
-        let measured: Measurements | null = null;
+        let measured: Dimensions | null = null;
         let didRepack = false;
 
         if (isDirty) {
@@ -994,7 +996,7 @@ export function MasonryRoot<T>(
         scrollY = correction.scrollY;
         measured = correction.measured;
 
-        const next = nextMeasurements(
+        const next = nextDimensions(
             positioner,
             previous,
             scrollY,
@@ -1008,7 +1010,7 @@ export function MasonryRoot<T>(
             if (next === null) {
                 rerender();
             } else {
-                setMeasurements(next);
+                setDimensions(next);
             }
         });
     });
@@ -1018,12 +1020,12 @@ export function MasonryRoot<T>(
     });
 
     const requestSyncFlush = useStableCallback(() => {
-        if (syncFlushQueuedRef.current) {
+        if (shouldSyncFlushQueuedRef.current) {
             return;
         }
-        syncFlushQueuedRef.current = true;
+        shouldSyncFlushQueuedRef.current = true;
         queueMicrotask(() => {
-            syncFlushQueuedRef.current = false;
+            shouldSyncFlushQueuedRef.current = false;
             flush();
         });
     });
@@ -1082,7 +1084,7 @@ export function MasonryRoot<T>(
                 const offset = measureContainerOffset(root, scrollY, container);
                 if (
                     Math.abs(
-                        offset - measurementsRef.current.containerOffset
+                        offset - latestDimensionsRef.current.containerOffset
                     ) >= OFFSET_DRIFT_THRESHOLD_PX
                 ) {
                     forceFullMeasureRef.current = true;
@@ -1114,8 +1116,8 @@ export function MasonryRoot<T>(
                     requestSyncFlush();
                 }
             });
+
             resizeObserver.observe(root);
-            resizeObserver.observe(ownerDocument(root).body);
             if (container) {
                 resizeObserver.observe(container);
             }
@@ -1157,7 +1159,7 @@ export function MasonryRoot<T>(
 
     const scrollTop = Math.max(
         0,
-        measurements.scrollY - measurements.containerOffset
+        dimensions.scrollY - dimensions.containerOffset
     );
     const { start: rangeStart, end: rangeEnd } = parseRange(
         scrollTop,
