@@ -1,9 +1,7 @@
 import { requireRouteUserId } from "@/lib/auth/session";
+import { mintExtensionIngestToken } from "@/lib/integrations/extension-ingest/auth";
 import { extensionTokenCorsHeaders } from "@/lib/integrations/extension-ingest/route";
-import {
-    getOrCreateExtensionIngestToken,
-    rotateExtensionIngestToken,
-} from "@/lib/integrations/extension-ingest/service";
+import { rotateExtensionIngestToken } from "@/lib/integrations/extension-ingest/service";
 
 export function OPTIONS(request: Request) {
     return new Response(null, {
@@ -22,7 +20,7 @@ export async function GET(request: Request) {
     }
     const { userId } = session;
 
-    const token = await getOrCreateExtensionIngestToken({ userId });
+    const token = mintExtensionIngestToken(userId);
     // The ingest token is a bearer secret, so it must never be cached.
     const responseHeaders = new Headers(cors);
     responseHeaders.set("Cache-Control", "private, no-store");

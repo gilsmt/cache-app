@@ -127,9 +127,11 @@ model User {
     /// Stripe customer id is duplicated here for fast account-level lookups even
     /// though subscription state lives in the plugin-managed table.
     stripeCustomerId        String?
-    /// Bearer token used by browser extensions to ingest into this user's library
-    /// without exposing session cookies.
-    extensionIngestToken    String?                @unique
+    /// Extension ingest tokens minted before this instant are revoked; null
+    /// means no revocation has been performed. The tokens are stateless HMACs
+    /// that store nothing, so `rotateExtensionIngestToken` moves this point
+    /// forward to cut a leaked token without rotating `BETTER_AUTH_SECRET`.
+    ingestTokenMinIssuedAt  DateTime?
     /// MCP tokens minted before this instant are revoked; null means no
     /// revocation has been performed. `rotateMcpTokens` moves it to now so a
     /// leaked MCP grant can be cut without rotating `BETTER_AUTH_SECRET`.
