@@ -8,7 +8,7 @@ import { buildPageMetadata } from "@/app/metadata";
 import { AutomationComposerDialog } from "@/components/automations/composer";
 import { AutomationsList } from "@/components/automations/list";
 import { ChatsList } from "@/components/chats/list";
-import { SidebarNavigation } from "@/components/sidebar/navigation";
+import { SidebarPanel } from "@/components/session/sidebar";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";
@@ -86,9 +86,9 @@ async function AutomationsPageBody() {
 
     return (
         <>
-            <SidebarNavigation>
+            <SidebarPanel>
                 <ChatsList chats={chats} nowMs={nowMs} />
-            </SidebarNavigation>
+            </SidebarPanel>
             <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col gap-6 p-8">
                 <FadeIn>
                     <div className="flex flex-col gap-8">
@@ -111,7 +111,7 @@ async function AutomationsPageBody() {
 function AutomationsPageSkeleton() {
     return (
         <>
-            <SidebarNavigation>
+            <SidebarPanel>
                 <div
                     className="relative flex flex-col gap-0.5"
                     data-sidebar-collapsible=""
@@ -123,7 +123,7 @@ function AutomationsPageSkeleton() {
                         <Skeleton className="h-8 w-full rounded-lg" />
                     </div>
                 </div>
-            </SidebarNavigation>
+            </SidebarPanel>
             <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col gap-6 p-8">
                 <AutomationsPageHeader>
                     <Skeleton className="h-8 w-36 rounded-xl" />

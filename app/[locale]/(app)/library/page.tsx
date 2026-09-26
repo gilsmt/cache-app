@@ -11,7 +11,7 @@ import {
 import { DimensionCacheProvider } from "@/components/session/dimension-cache";
 import { ItemsStateProvider } from "@/components/session/items";
 import { BrowserContent } from "@/components/session/list";
-import { SidebarNavigation } from "@/components/sidebar/navigation";
+import { SidebarPanel } from "@/components/session/sidebar";
 import { getServerSession } from "@/lib/auth/session";
 import { userHasActiveSubscription } from "@/lib/billing/service";
 import { getLibrary, listCollections } from "@/lib/collections/service";
@@ -91,12 +91,12 @@ export default async function LibraryPage() {
                         lockedItemCount={lockedItemCount}
                         totalItemCount={totalItemCount}
                     >
-                        <SidebarNavigation>
+                        <SidebarPanel>
                             <Integrations
                                 connectedIntegrations={connectedIntegrations}
                             />
                             <Collections />
-                        </SidebarNavigation>
+                        </SidebarPanel>
                     </BrowserContent>
                 </CollectionsProvider>
             </ItemsStateProvider>

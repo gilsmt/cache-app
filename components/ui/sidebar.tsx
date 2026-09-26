@@ -6,17 +6,29 @@ import { useRender } from "@base-ui/react/use-render";
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
-import { useGT } from "gt-next";
-import { PanelLeft, PanelLeftOpen } from "lucide-react";
+import { useGT, useMessages } from "gt-next";
+import { ChevronRight, PanelLeft, PanelLeftOpen } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { ActivePathname } from "@/components/ui/active-pathname";
 import { Button } from "@/components/ui/button";
+import { Kbd, KbdCombo } from "@/components/ui/kbd";
+import {
+    Menu,
+    MenuLinkItem,
+    MenuPopup,
+    MenuShortcut,
+    MenuTrigger,
+} from "@/components/ui/menu";
 import {
     getOwnerDocument,
     getOwnerWindow,
     isTextEntryTarget,
 } from "@/lib/common/dom";
 import { getSystemControlKey } from "@/lib/common/keyboard";
+import { normalizePathname } from "@/lib/common/url";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -42,21 +54,6 @@ export function useSidebarContext() {
         );
     }
     return context;
-}
-
-function isSidebarKeyboardShortcut(event: KeyboardEvent): boolean {
-    return (
-        event.key.toLowerCase() === SIDEBAR_KEYBOARD_SHORTCUT &&
-        !event.altKey &&
-        (event.metaKey || event.ctrlKey)
-    );
-}
-
-function getSidebarToggleLabel(
-    gt: ReturnType<typeof useGT>,
-    open: boolean
-): string {
-    return open ? gt("Close sidebar") : gt("Open sidebar");
 }
 
 function getSidebarToggleTitle(
@@ -124,12 +121,16 @@ export function SidebarProvider({
 
     const handleKeyDown = useStableCallback((event: KeyboardEvent) => {
         const ownerWindow = getOwnerWindow();
+        const isToggleShortcut =
+            event.key.toLowerCase() === SIDEBAR_KEYBOARD_SHORTCUT &&
+            !event.altKey &&
+            (event.metaKey || event.ctrlKey);
 
         if (
             event.defaultPrevented ||
             event.isComposing ||
             !ownerWindow.matchMedia(SIDEBAR_DESKTOP_MEDIA_QUERY).matches ||
-            !isSidebarKeyboardShortcut(event) ||
+            !isToggleShortcut ||
             isTextEntryTarget(event.target)
         ) {
             return;
@@ -215,7 +216,7 @@ export function SidebarTrigger({
     return (
         <Button
             {...props}
-            aria-label={getSidebarToggleLabel(gt, open)}
+            aria-label={open ? gt("Close sidebar") : gt("Open sidebar")}
             className={cn(
                 "hidden h-8 min-h-8 min-w-8 shrink-0 opacity-50 hover:opacity-100 lg:inline-flex",
                 open ? "cursor-w-resize" : "cursor-e-resize",
@@ -336,5 +337,208 @@ export function SidebarRail({
             tabIndex={-1}
             title={getSidebarToggleTitle(gt, open)}
         />
+    );
+}
+
+export function SidebarMenu({
+    children,
+    ...props
+}: React.ComponentProps<typeof Menu>) {
+    return (
+        <li data-sidebar="menu" data-slot="sidebar-menu">
+            <Menu {...props}>{children}</Menu>
+        </li>
+    );
+}
+
+interface SidebarMenuTriggerProps
+    extends React.ComponentProps<typeof MenuTrigger> {
+    icon: React.ReactNode;
+}
+
+export function SidebarMenuTrigger({
+    icon,
+    children,
+    nativeButton = false,
+    openOnHover = true,
+    render = <SidebarItem />,
+    ...props
+}: SidebarMenuTriggerProps) {
+    return (
+        <MenuTrigger
+            {...props}
+            nativeButton={nativeButton}
+            openOnHover={openOnHover}
+            render={render}
+        >
+            {icon}
+            <SidebarItemValue>{children}</SidebarItemValue>
+            <ChevronRight
+                aria-hidden
+                className="invisible ml-auto inline-block size-4 shrink-0 text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
+                data-sidebar-label=""
+                focusable="false"
+            />
+        </MenuTrigger>
+    );
+}
+
+export function SidebarMenuPopup({
+    align = "start",
+    collisionAvoidance = { fallbackAxisSide: "end" },
+    positionMethod = "fixed",
+    side = "inline-end",
+    ...props
+}: React.ComponentProps<typeof MenuPopup>) {
+    return (
+        <MenuPopup
+            {...props}
+            align={align}
+            collisionAvoidance={collisionAvoidance}
+            positionMethod={positionMethod}
+            side={side}
+        />
+    );
+}
+
+interface SidebarMenuLinkItemProps
+    extends React.ComponentProps<typeof MenuLinkItem> {
+    href: string;
+    icon: React.ReactNode;
+    shortcutKeys?: string;
+}
+
+export function SidebarMenuLinkItem({
+    className,
+    href,
+    icon,
+    shortcutKeys,
+    children,
+    ...props
+}: SidebarMenuLinkItemProps) {
+    return (
+        <MenuLinkItem {...props} className={cn("group", className)} href={href}>
+            {icon}
+            <span className="truncate">{children}</span>
+            {shortcutKeys ? <SidebarMenuShortcut keys={shortcutKeys} /> : null}
+        </MenuLinkItem>
+    );
+}
+
+interface SidebarMenuShortcutProps
+    extends React.ComponentProps<typeof MenuShortcut> {
+    keys: string;
+}
+
+export function SidebarMenuShortcut({
+    className,
+    keys,
+    ...props
+}: SidebarMenuShortcutProps) {
+    return (
+        <MenuShortcut
+            {...props}
+            className={cn(
+                "invisible text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-highlighted:visible",
+                className
+            )}
+        >
+            <KbdCombo keys={keys} />
+        </MenuShortcut>
+    );
+}
+
+interface SidebarNavigationShortcutProps {
+    href: string;
+    label: string;
+    shortcutKeys: string;
+}
+
+export function SidebarNavigationShortcut({
+    href,
+    label,
+    shortcutKeys,
+}: SidebarNavigationShortcutProps) {
+    const gt = useGT();
+    const m = useMessages();
+    const router = useRouter();
+
+    const pathname = usePathname();
+
+    const handleShortcut = useStableCallback(() => {
+        if (normalizePathname(pathname) === normalizePathname(href)) {
+            return;
+        }
+        router.push(href);
+    });
+
+    const translatedLabel = m(label);
+
+    useHotkeys(shortcutKeys, handleShortcut, {
+        description: gt("Navigate to {label}", { label: translatedLabel }),
+        preventDefault: true,
+    });
+
+    return null;
+}
+
+interface SidebarNavigationItemProps extends React.ComponentProps<typeof Link> {
+    href: string;
+    icon: React.ReactNode;
+    label: string;
+    shortcutKeys?: string;
+}
+
+export function SidebarNavigationItem({
+    href,
+    icon,
+    label,
+    shortcutKeys,
+    children,
+    "aria-label": ariaLabelProp,
+    title: titleProp,
+    ...props
+}: SidebarNavigationItemProps) {
+    const m = useMessages();
+
+    const ariaLabel = ariaLabelProp ?? m(label);
+    const title = titleProp ?? ariaLabel;
+
+    return (
+        <li data-sidebar="navigation-item" data-slot="sidebar-navigation-item">
+            {shortcutKeys ? (
+                <SidebarNavigationShortcut
+                    href={href}
+                    label={label}
+                    shortcutKeys={shortcutKeys}
+                />
+            ) : null}
+            <ActivePathname
+                href={href}
+                render={
+                    <SidebarItem
+                        render={
+                            <Link
+                                {...props}
+                                aria-label={ariaLabel}
+                                href={href}
+                                title={title}
+                            />
+                        }
+                    >
+                        {icon}
+                        <SidebarItemValue>{children}</SidebarItemValue>
+                        {shortcutKeys ? (
+                            <Kbd
+                                className="invisible ml-auto bg-transparent opacity-80 group-hover:visible group-focus-visible:visible"
+                                data-sidebar-label=""
+                            >
+                                <KbdCombo keys={shortcutKeys} />
+                            </Kbd>
+                        ) : null}
+                    </SidebarItem>
+                }
+            />
+        </li>
     );
 }

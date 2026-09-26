@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import * as React from "react";
 import { ChatsList } from "@/components/chats/list";
-import { SidebarNavigation } from "@/components/sidebar/navigation";
+import { SidebarPanel } from "@/components/session/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";
 import { listChats } from "@/lib/chats/service";
@@ -24,22 +24,22 @@ async function ChatsSidebar() {
     const userId = session?.user?.id;
 
     if (!userId) {
-        return <SidebarNavigation />;
+        return <SidebarPanel />;
     }
 
     const chats = await listChats({ userId });
     const nowMs = Date.now();
 
     return (
-        <SidebarNavigation>
+        <SidebarPanel>
             <ChatsList chats={chats} nowMs={nowMs} />
-        </SidebarNavigation>
+        </SidebarPanel>
     );
 }
 
 function ChatsSidebarSkeleton() {
     return (
-        <SidebarNavigation>
+        <SidebarPanel>
             <div
                 className="relative flex flex-col gap-0.5"
                 data-sidebar-collapsible=""
@@ -51,6 +51,6 @@ function ChatsSidebarSkeleton() {
                     <Skeleton className="h-8 w-full rounded-lg" />
                 </div>
             </div>
-        </SidebarNavigation>
+        </SidebarPanel>
     );
 }

@@ -1,8 +1,7 @@
 import { cn } from "cn";
-import { T } from "gt-next";
+import { msg, T } from "gt-next";
 import {
     ArchiveRestore,
-    ChevronRight,
     ClockFading,
     Compass,
     Ellipsis,
@@ -18,25 +17,18 @@ import {
     UserMenuPopup,
     UserMenuTrigger,
 } from "@/components/auth/user-menu";
-import {
-    SidebarNavigationItem,
-    SidebarNavigationShortcut,
-} from "@/components/sidebar/navigation-item";
-import { KbdCombo } from "@/components/ui/kbd";
-import {
-    Menu,
-    MenuLinkItem,
-    MenuPopup,
-    MenuShortcut,
-    MenuTrigger,
-} from "@/components/ui/menu";
 import { OfflineBadge } from "@/components/ui/offline";
 import {
     Sidebar,
     SidebarContent,
     SidebarGroup,
     SidebarItem,
-    SidebarItemValue,
+    SidebarMenu,
+    SidebarMenuLinkItem,
+    SidebarMenuPopup,
+    SidebarMenuTrigger,
+    SidebarNavigationItem,
+    SidebarNavigationShortcut,
     SidebarRail,
     SidebarTrigger,
 } from "@/components/ui/sidebar";
@@ -44,7 +36,7 @@ import {
 const COMMENTS_SHORTCUT_KEYS = "mod+alt+c";
 const RECENTLY_DELETED_SHORTCUT_KEYS = "mod+alt+r";
 
-export function SidebarNavigation({
+export function SidebarPanel({
     children,
     className,
     ...props
@@ -78,7 +70,7 @@ export function SidebarNavigation({
                                 focusable="false"
                             />
                         }
-                        label="Library"
+                        label={msg("Library")}
                         shortcutKeys="mod+alt+h"
                     >
                         <T>Library</T>
@@ -92,103 +84,74 @@ export function SidebarNavigation({
                                 focusable="false"
                             />
                         }
-                        label="Automations"
+                        label={msg("Automations")}
                         shortcutKeys="mod+alt+a"
                     >
                         <T>Automations</T>
                     </SidebarNavigationItem>
                     <SidebarNavigationShortcut
                         href="/comments"
-                        label="Comments"
+                        label={msg("Comments")}
                         shortcutKeys={COMMENTS_SHORTCUT_KEYS}
                     />
                     <SidebarNavigationShortcut
                         href="/recently-deleted"
-                        label="Recently deleted"
+                        label={msg("Recently deleted")}
                         shortcutKeys={RECENTLY_DELETED_SHORTCUT_KEYS}
                     />
-                    <li>
-                        <Menu>
-                            <MenuTrigger
-                                nativeButton={false}
-                                openOnHover
-                                render={<SidebarItem />}
-                            >
+                    <SidebarMenu>
+                        <SidebarMenuTrigger
+                            icon={
                                 <Ellipsis
                                     aria-hidden
                                     className="inline-block size-4 shrink-0"
                                     focusable="false"
                                 />
-                                <SidebarItemValue>
-                                    <T context="sidebar.more-menu">More</T>
-                                </SidebarItemValue>
-                                <ChevronRight
-                                    aria-hidden
-                                    className="invisible ml-auto inline-block size-4 shrink-0 text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
-                                    data-sidebar-label=""
-                                    focusable="false"
-                                />
-                            </MenuTrigger>
-                            <MenuPopup
-                                align="start"
-                                collisionAvoidance={{ fallbackAxisSide: "end" }}
-                                positionMethod="fixed"
-                                side="inline-end"
-                            >
-                                <MenuLinkItem
-                                    className="group"
-                                    href="/c/archived"
-                                >
+                            }
+                        >
+                            <T context="sidebar.more-menu">More</T>
+                        </SidebarMenuTrigger>
+                        <SidebarMenuPopup>
+                            <SidebarMenuLinkItem
+                                href="/c/archived"
+                                icon={
                                     <ArchiveRestore
                                         aria-hidden
                                         className="inline-block size-4 shrink-0"
                                         focusable="false"
                                     />
-                                    <span className="truncate">
-                                        <T>Archived chats</T>
-                                    </span>
-                                </MenuLinkItem>
-                                <MenuLinkItem
-                                    className="group"
-                                    href="/comments"
-                                >
+                                }
+                            >
+                                <T>Archived chats</T>
+                            </SidebarMenuLinkItem>
+                            <SidebarMenuLinkItem
+                                href="/comments"
+                                icon={
                                     <MessageSquare
                                         aria-hidden
                                         className="inline-block size-4 shrink-0"
                                         focusable="false"
                                     />
-                                    <span className="truncate">
-                                        <T>Comments</T>
-                                    </span>
-                                    <MenuShortcut className="invisible text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-highlighted:visible">
-                                        <KbdCombo
-                                            keys={COMMENTS_SHORTCUT_KEYS}
-                                        />
-                                    </MenuShortcut>
-                                </MenuLinkItem>
-                                <MenuLinkItem
-                                    className="group"
-                                    href="/recently-deleted"
-                                >
+                                }
+                                shortcutKeys={COMMENTS_SHORTCUT_KEYS}
+                            >
+                                <T>Comments</T>
+                            </SidebarMenuLinkItem>
+                            <SidebarMenuLinkItem
+                                href="/recently-deleted"
+                                icon={
                                     <History
                                         aria-hidden
                                         className="inline-block size-4 shrink-0"
                                         focusable="false"
                                     />
-                                    <span className="truncate">
-                                        <T>Recently deleted</T>
-                                    </span>
-                                    <MenuShortcut className="invisible text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-highlighted:visible">
-                                        <KbdCombo
-                                            keys={
-                                                RECENTLY_DELETED_SHORTCUT_KEYS
-                                            }
-                                        />
-                                    </MenuShortcut>
-                                </MenuLinkItem>
-                            </MenuPopup>
-                        </Menu>
-                    </li>
+                                }
+                                shortcutKeys={RECENTLY_DELETED_SHORTCUT_KEYS}
+                            >
+                                <T>Recently deleted</T>
+                            </SidebarMenuLinkItem>
+                        </SidebarMenuPopup>
+                    </SidebarMenu>
                 </SidebarGroup>
                 {children}
             </SidebarContent>
