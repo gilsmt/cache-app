@@ -1,6 +1,7 @@
 "use client";
 
 import type { BaseUIEvent } from "@base-ui/react";
+import { Combobox as BaseUICombobox } from "@base-ui/react/combobox";
 import { Toolbar } from "@base-ui/react/toolbar";
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
@@ -162,9 +163,7 @@ import {
 import { buildPublicCollectionShareUrl } from "@/lib/collections/sharing/url";
 import {
     type CollectionTemplateOption,
-    TEMPLATE_BY_VALUE,
     TEMPLATES,
-    type TemplateValue,
 } from "@/lib/collections/templates";
 import {
     buildItemsCsv,
@@ -288,12 +287,6 @@ const PRIORITY_RANK: Record<CollectionPriority, number> = {
     very_relevant: 0,
 };
 
-const GROUP_LABELS: Record<ComboboxGroupData["group"], string> = {
-    sort: "Sort",
-    "text-match": "Match collection name",
-    view: "Visibility",
-};
-
 const COLLECTIONS_LIST_GROUP_LABELS: Record<string, React.ReactNode> = {
     "last-3-days": <T>Last 3 days</T>,
     "last-7-days": <T>Last 7 days</T>,
@@ -366,6 +359,11 @@ const SORT_OPTIONS: SortingOption[] = [
 const SORT_OPTION_BY_VALUE = new Map(
     SORT_OPTIONS.map((option) => [option.value, option])
 );
+
+const TEMPLATE_COMBOBOX_ITEMS = BaseUICombobox.createItems(TEMPLATES, {
+    getLabel: (template) => template.name,
+    getValue: (template) => template.value,
+});
 
 const VIEW_OPTIONS = [
     { icon: LayoutList, label: "Show all", value: "show-all" },
@@ -460,6 +458,7 @@ interface ComboboxValue {
 interface ComboboxGroupData {
     group: "sort" | "text-match" | "view";
     items: ComboboxValue[];
+    label: string;
 }
 
 interface ReadyPreviewSlide {
@@ -1224,8 +1223,7 @@ function useCollectionHoverHotkeys({
     onSetPriorityComboboxOpen,
     onUpdatePriority,
 }: UseCollectionHoverHotkeysProps) {
-    const { favoriteCollectionIdSet, toggleFavorite } =
-        useToggleCollectionFavorite();
+    const { toggleFavorite } = useToggleCollectionFavorite();
     const { collections } = useCollectionsContext();
     const hoverHotkeySurface = useHoverHotkeySurface();
 
@@ -1266,7 +1264,7 @@ function useCollectionHoverHotkeys({
 
     const handleFavorite = useStableCallback((event: KeyboardEvent) => {
         const target = resolveHoveredCollection();
-        if (target && !favoriteCollectionIdSet.has(target.id)) {
+        if (target) {
             event.preventDefault();
             toggleFavorite(target);
         }
@@ -1463,10 +1461,8 @@ function nextPreviewSlideSrc(
     return readySlides[nextIndex]?.src ?? first.src;
 }
 
-function useFailedImageSrc(src: string | Blob | undefined) {
-    const [failedSrc, setFailedSrc] = React.useState<string | Blob | null>(
-        null
-    );
+function useFailedImageSrc(src: string | undefined) {
+    const [failedSrc, setFailedSrc] = React.useState<string | null>(null);
 
     const handleError = useStableCallback(() => {
         if (src) {
@@ -1953,11 +1949,16 @@ function getComboboxCollectionsSortingGroups(
                     sortField: option.value,
                 })
             ),
+            label: "Sort",
         });
     }
 
     if (textMatchItem) {
-        groups.push({ group: "text-match", items: [textMatchItem] });
+        groups.push({
+            group: "text-match",
+            items: [textMatchItem],
+            label: "Match collection name",
+        });
     }
 
     const matchingViewOptions = VIEW_OPTIONS.filter((option) =>
@@ -1970,6 +1971,7 @@ function getComboboxCollectionsSortingGroups(
             items: matchingViewOptions.map((option) =>
                 toComboboxValue(option, currentValue, { view: option.value })
             ),
+            label: "Visibility",
         });
     }
 
@@ -2827,7 +2829,7 @@ function CollectionsListFavoritesItemImage({
     className,
     src,
     ...props
-}: React.ComponentProps<"img">) {
+}: Omit<React.ComponentProps<"img">, "src"> & { src?: string }) {
     const { handleError, hasFailed } = useFailedImageSrc(src);
 
     if (!src || hasFailed) {
@@ -3018,6 +3020,7 @@ function CollectionsListClearButton({
 }: React.ComponentProps<typeof Button>) {
     const { onClearCollectionFilters, selectedCollectionIds } =
         useCollectionsContext();
+
     const hasAnySelected = selectedCollectionIds.length > 0;
 
     const onClick = useStableCallback(onClickProp);
@@ -3099,13 +3102,13 @@ function CollectionsListSortingCombobox({
                 } else {
                     setTextMatchQuery("");
                 }
-                setInputValue("");
             }
 
             if (nextValue.view !== view) {
                 setView(nextValue.view);
             }
 
+            setInputValue("");
             setIsSortOpen(false);
         }
     );
@@ -3177,7 +3180,7 @@ function CollectionsListSortingCombobox({
                         <React.Fragment key={group.group}>
                             <ComboboxGroup items={group.items}>
                                 <ComboboxGroupLabel>
-                                    {GROUP_LABELS[group.group]}
+                                    {group.label}
                                 </ComboboxGroupLabel>
                                 <ComboboxCollection>
                                     {(option: ComboboxValue) => (
@@ -3186,7 +3189,7 @@ function CollectionsListSortingCombobox({
                                             shouldShowIndicatorLast
                                             value={option}
                                         >
-                                            <CollectionsListSortingComboboxItem
+                                            <CollectionsComboboxOptionItem
                                                 icon={option.icon}
                                                 label={option.label}
                                             />
@@ -3203,15 +3206,15 @@ function CollectionsListSortingCombobox({
     );
 }
 
-interface CollectionsListSortingComboboxItemProps {
+interface CollectionsComboboxOptionItemProps {
     icon: React.ElementType;
     label: string;
 }
 
-function CollectionsListSortingComboboxItem({
+function CollectionsComboboxOptionItem({
     icon: Icon,
     label,
-}: CollectionsListSortingComboboxItemProps) {
+}: CollectionsComboboxOptionItemProps) {
     return (
         <span className="flex min-w-0 items-center gap-2 text-foreground text-sm">
             <Icon
@@ -3670,6 +3673,7 @@ function CollectionsListItemPreviewImage({
                     draggable={false}
                     exit={{ opacity: 0 }}
                     initial={{ opacity: 0 }}
+                    key={activeSlide.src}
                     onError={handleError}
                     src={activeSlide.src}
                     transition={{
@@ -3694,7 +3698,7 @@ function CollectionsListItemValue() {
         <div className="flex min-w-0 flex-1 items-center gap-3 leading-none">
             <span
                 className="max-w-full shrink-0 truncate font-medium text-sm tracking-tight"
-                title={collection.description ?? undefined}
+                title={collection.name}
             >
                 <TextMatch query={textMatchQuery}>{collection.name}</TextMatch>
             </span>
@@ -3790,7 +3794,7 @@ function CollectionsListItemPriorityCombobox() {
                                 shouldShowIndicatorLast
                                 value={priorityOption.value}
                             >
-                                <CollectionsListSortingComboboxItem
+                                <CollectionsComboboxOptionItem
                                     icon={priorityOption.icon}
                                     label={priorityOption.label}
                                 />
@@ -3803,10 +3807,16 @@ function CollectionsListItemPriorityCombobox() {
     );
 }
 
+interface CollectionsListItemControlsProps
+    extends React.ComponentProps<"span"> {
+    children: React.ReactNode;
+}
+
 function CollectionsListItemControls({
+    children,
     className,
     ...props
-}: React.ComponentProps<"span">) {
+}: CollectionsListItemControlsProps) {
     const { favoriteCollectionIdSet, toggleFavorite } =
         useToggleCollectionFavorite();
     const { onRename, onDelete, onDuplicate, onUpdatePriority } =
@@ -3843,7 +3853,9 @@ function CollectionsListItemControls({
                     "pointer-events-none shrink-0 text-nowrap text-(--text-muted-color) text-xs tabular-nums pointer-fine:focus-visible:opacity-0 pointer-fine:group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0",
                     className
                 )}
-            />
+            >
+                {children}
+            </span>
             <Menu>
                 <MenuTrigger
                     render={
@@ -4397,11 +4409,7 @@ function CollectionsCreateDialog() {
     });
 
     const handleCreateFromTemplate = useStableCallback(
-        (value: TemplateValue | null) => {
-            if (!value) {
-                return;
-            }
-            const template = TEMPLATE_BY_VALUE.get(value);
+        (template: CollectionTemplateOption | null) => {
             if (!template) {
                 return;
             }
@@ -4568,7 +4576,7 @@ function CollectionsCreateDialog() {
                     <DialogFooter>
                         <Combobox
                             autoHighlight
-                            items={TEMPLATES}
+                            items={TEMPLATE_COMBOBOX_ITEMS}
                             onValueChange={handleCreateFromTemplate}
                         >
                             <ComboboxTrigger
