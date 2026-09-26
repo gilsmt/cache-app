@@ -2550,10 +2550,10 @@ export function ComposerActionNew() {
     const { onCreateNote } = useComposerActionsContext();
 
     return (
-        <ComposerActionTrigger onClick={onCreateNote} title="Add new">
-            <SquarePen className="inline-block size-3.5 shrink-0" />
+        <ComposerActionButton onClick={onCreateNote} title="Add new">
+            <SquarePen className="inline-block size-3.5" />
             &nbsp;Add new
-        </ComposerActionTrigger>
+        </ComposerActionButton>
     );
 }
 
@@ -2571,7 +2571,7 @@ export function ComposerActionRemoveDuplicates() {
     }
 
     return (
-        <ComposerActionTrigger
+        <ComposerActionButton
             disabled={!canRemove}
             onClick={onRemoveDuplicates}
             title={
@@ -2580,9 +2580,9 @@ export function ComposerActionRemoveDuplicates() {
                     : "No duplicates to remove"
             }
         >
-            <CopyX className="inline-block size-3.5 shrink-0" />
+            <CopyX className="inline-block size-3.5" />
             &nbsp;Remove duplicates
-        </ComposerActionTrigger>
+        </ComposerActionButton>
     );
 }
 
@@ -2608,7 +2608,7 @@ export function ComposerSummary({
             <PopoverTrigger
                 openOnHover
                 render={
-                    <ComposerActionTrigger>
+                    <ComposerActionButton>
                         {canClear ? (
                             <Grid2x2X className="inline-block size-3.5 shrink-0" />
                         ) : (
@@ -2625,7 +2625,7 @@ export function ComposerSummary({
                                 </>
                             )}
                         </span>
-                    </ComposerActionTrigger>
+                    </ComposerActionButton>
                 }
             />
             <PopoverPopup
@@ -2714,7 +2714,7 @@ function ComposerItem({ item, isHorizontal = false }: ComposerItemProps) {
     );
 }
 
-export function ComposerActionTrigger({
+export function ComposerActionButton({
     render,
     ...props
 }: React.ComponentProps<typeof Toolbar.Button>) {

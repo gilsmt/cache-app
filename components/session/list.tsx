@@ -66,10 +66,10 @@ import {
     COMBOBOX_ESCAPE_KEY_REASON,
     COMBOBOX_ITEM_PRESS_REASON,
     Composer,
+    ComposerActionButton,
     ComposerActionNew,
     ComposerActionRemoveDuplicates,
     ComposerActionsList,
-    ComposerActionTrigger,
     type ComposerAttachment,
     ComposerInput,
     type ComposerInputActions,
@@ -321,6 +321,8 @@ const EMPTY_LIBRARY_PEEK_PLACEHOLDERS = [
     { aspect: "aspect-[4/5]", id: "library-empty-peek-9" },
 ] as const;
 
+const UNCATEGORIZED_GROUP_KEY = "__uncategorized__";
+
 const LOCKED_PEEK_ASPECT_CYCLE = [
     "aspect-[3/4]",
     "aspect-[4/5]",
@@ -380,6 +382,12 @@ interface BrowserGroup {
     title: string | null;
 }
 
+interface CreateCollectionFromResultsInput {
+    description?: string;
+    itemIds: string[];
+    name: string;
+}
+
 interface BrowserContext {
     clearLibraryPalette: () => void;
     collapsedSectionKeys: Set<string>;
@@ -388,10 +396,11 @@ interface BrowserContext {
     enableSectionCollapse: boolean;
     hoveredItemIdRef: React.RefObject<string | null>;
     hoverPinnedItemIdRef: React.RefObject<string | null>;
-    onCollapseAllSections?: () => void;
-    onCreateCollectionFromResults?: () => void;
-    onExpandAllSections?: () => void;
-    onExportSectionResults?: (
+    markVisited: (itemId: string) => void;
+    onCollapseAllSections: () => void;
+    onCreateCollectionFromResults: () => void;
+    onExpandAllSections: () => void;
+    onExportSectionResults: (
         sectionTitle: string,
         items: LibraryItemWithCollections[]
     ) => void;
@@ -419,6 +428,7 @@ interface MediaCardEnvironmentContext {
     favoriteItemIdSet: ReadonlySet<string>;
     hoveredItemIdRef: React.RefObject<string | null>;
     hoverPinnedItemIdRef: React.RefObject<string | null>;
+    markVisited: (itemId: string) => void;
     onCopyLink: (item: LibraryItemWithCollections) => void;
     onDelete: (item: LibraryItemWithCollections) => void;
     onFindSimilar: (item: LibraryItemWithCollections) => void;
@@ -1327,11 +1337,9 @@ function useCollectionMutations({
     );
 
     const handleCreateCollectionFromResults = useStableCallback(
-        async (input: {
-            description?: string;
-            itemIds: string[];
-            name: string;
-        }): Promise<CollectionCreateFromItemsResult> => {
+        async (
+            input: CreateCollectionFromResultsInput
+        ): Promise<CollectionCreateFromItemsResult> => {
             let result: CollectionCreateFromItemsResult;
             try {
                 result = await createCollectionFromItems(input);
@@ -1357,6 +1365,268 @@ function useCollectionMutations({
         handleToggleItemFavorite,
         handleUpdateItemCollections,
         handleUpdateItemsCollections,
+    };
+}
+
+function useUnreachableItemProbe({
+    isEnabled,
+    itemsRef,
+    setItems,
+}: {
+    isEnabled: boolean;
+    itemsRef: React.RefObject<LibraryItemWithCollections[]>;
+    setItems: React.Dispatch<
+        React.SetStateAction<LibraryItemWithCollections[]>
+    >;
+}) {
+    const timeout = useTimeout();
+    const [state, setState] = React.useState({
+        checked: 0,
+        isActive: false,
+        probeFailed: false,
+        total: 0,
+    });
+    const versionRef = React.useRef(0);
+
+    React.useEffect(() => {
+        if (!isEnabled) {
+            versionRef.current += 1;
+            setState({
+                checked: 0,
+                isActive: false,
+                probeFailed: false,
+                total: 0,
+            });
+            return;
+        }
+
+        const version = versionRef.current + 1;
+        versionRef.current = version;
+
+        const pendingSleepResolvers = new Set<() => void>();
+        const probedItemIds = new Set<string>();
+
+        const sleep = (ms: number) =>
+            new Promise<void>((resolve) => {
+                pendingSleepResolvers.add(resolve);
+                timeout.start(ms, () => {
+                    pendingSleepResolvers.delete(resolve);
+                    resolve();
+                });
+            });
+
+        const run = async () => {
+            let consecutiveFailures = 0;
+
+            while (versionRef.current === version) {
+                const currentItems = itemsRef.current;
+                const { batch, checked, totalProbeable } =
+                    getUnreachableProbeBatch(currentItems, probedItemIds);
+
+                if (batch.length === 0) {
+                    setState({
+                        checked: totalProbeable,
+                        isActive: false,
+                        probeFailed: false,
+                        total: totalProbeable,
+                    });
+                    // Library may still be hydrating; keep waiting while empty.
+                    if (currentItems.length === 0) {
+                        await sleep(1000);
+                        continue;
+                    }
+                    return;
+                }
+
+                setState({
+                    checked,
+                    isActive: true,
+                    probeFailed: false,
+                    total: totalProbeable,
+                });
+
+                const { result, thrownError } =
+                    await probeUnreachableBatch(batch);
+
+                if (versionRef.current !== version) {
+                    return;
+                }
+
+                if (!result || result.status !== ACTION_STATUS.SUCCESS) {
+                    if (result) {
+                        log.error("Link reachability probe failed", {
+                            message: result.message,
+                        });
+                    } else {
+                        log.error("Link reachability probe threw", thrownError);
+                    }
+                    consecutiveFailures += 1;
+                    if (consecutiveFailures > LINK_PROBE_MAX_RETRIES) {
+                        setState({
+                            checked,
+                            isActive: false,
+                            probeFailed: true,
+                            total: totalProbeable,
+                        });
+                        return;
+                    }
+                    await sleep(getProbeRetryDelayMs(consecutiveFailures));
+                    continue;
+                }
+
+                if (result.rateLimited) {
+                    setState({
+                        checked,
+                        isActive: true,
+                        probeFailed: false,
+                        total: totalProbeable,
+                    });
+                    await sleep(Math.max(1000, result.retryAfterMs));
+                    continue;
+                }
+
+                consecutiveFailures = 0;
+
+                for (const entry of result.results) {
+                    probedItemIds.add(entry.itemId);
+                }
+
+                setItems((previous) =>
+                    updateItemsWithProbeSuccess(previous, result)
+                );
+            }
+        };
+
+        run().catch((error) => {
+            log.error("Link reachability probe loop failed", error);
+        });
+
+        return () => {
+            versionRef.current += 1;
+            timeout.clear();
+            for (const resolve of pendingSleepResolvers) {
+                resolve();
+            }
+        };
+    }, [isEnabled, itemsRef, setItems, timeout]);
+
+    return state;
+}
+
+function useDuplicateRemoval({
+    mergeCollectionSummaries,
+    removableItemIds,
+    setDuplicatesFilterEnabled,
+    setItems,
+}: {
+    mergeCollectionSummaries: (summaries: LibraryCollectionSummary[]) => void;
+    removableItemIds: string[];
+    setDuplicatesFilterEnabled: (enabled: boolean) => void;
+    setItems: React.Dispatch<
+        React.SetStateAction<LibraryItemWithCollections[]>
+    >;
+}) {
+    const [isOpen, setIsOpen] = React.useState(false);
+    const [pendingItemIds, setPendingItemIds] = React.useState<string[]>([]);
+    const [isRemoving, startRemoval] = React.useTransition();
+
+    const onRequestRemoval = useStableCallback(() => {
+        if (removableItemIds.length === 0) {
+            return;
+        }
+        setPendingItemIds(removableItemIds);
+        setIsOpen(true);
+    });
+
+    const onOpenChange = useStableCallback((open: boolean) => {
+        if (open || isRemoving) {
+            return;
+        }
+        setIsOpen(false);
+        setPendingItemIds([]);
+    });
+
+    const onConfirm = useStableCallback(() => {
+        const itemIds = pendingItemIds;
+        if (itemIds.length === 0) {
+            setIsOpen(false);
+            return;
+        }
+
+        startRemoval(async () => {
+            const deletedIds: string[] = [];
+            const collectionSummariesById = new Map<
+                string,
+                LibraryCollectionSummary
+            >();
+            let failedCount = 0;
+
+            for (
+                let offset = 0;
+                offset < itemIds.length;
+                offset += BATCH_UPDATE_MAX_ITEMS
+            ) {
+                const batchIds = itemIds.slice(
+                    offset,
+                    offset + BATCH_UPDATE_MAX_ITEMS
+                );
+                let result: LibraryItemsDeleteResult;
+                try {
+                    result = await deleteLibraryItems({ itemIds: batchIds });
+                } catch (error) {
+                    log.error("Failed to remove duplicate bookmarks", error, {
+                        batchSize: batchIds.length,
+                    });
+                    result = {
+                        message:
+                            "We couldn't remove these duplicates right now.",
+                        status: ACTION_STATUS.ERROR,
+                    };
+                }
+
+                if (result.status !== ACTION_STATUS.DELETED) {
+                    failedCount += batchIds.length;
+                    continue;
+                }
+
+                deletedIds.push(...batchIds);
+                for (const summary of result.collectionSummaries) {
+                    collectionSummariesById.set(summary.id, summary);
+                }
+            }
+
+            if (deletedIds.length > 0) {
+                const deletedIdSet = new Set(deletedIds);
+                setItems((current) =>
+                    current.filter((item) => !deletedIdSet.has(item.id))
+                );
+                mergeCollectionSummaries(
+                    Array.from(collectionSummariesById.values())
+                );
+            }
+
+            setIsOpen(false);
+            setPendingItemIds([]);
+
+            if (failedCount === 0 && deletedIds.length === itemIds.length) {
+                setDuplicatesFilterEnabled(false);
+            } else if (failedCount > 0) {
+                log.error("Remove duplicates finished with failures", {
+                    deletedCount: deletedIds.length,
+                    failedCount,
+                    requestedCount: itemIds.length,
+                });
+            }
+        });
+    });
+
+    return {
+        count: pendingItemIds.length,
+        isOpen,
+        isRemoving,
+        onConfirm,
+        onOpenChange,
+        onRequestRemoval,
     };
 }
 
@@ -1619,7 +1889,7 @@ function formatGroupHeading(
     collectionNames?: Map<string, string>
 ): string {
     if (mode === "collection") {
-        if (key === "__uncategorized__") {
+        if (key === UNCATEGORIZED_GROUP_KEY) {
             return "Uncategorized";
         }
         return collectionNames?.get(key) ?? key;
@@ -1752,9 +2022,9 @@ function buildBrowserGroups(
     for (const item of sortedItems) {
         if (groupBy === "collection") {
             if (item.collections.length === 0) {
-                const bucket = buckets.get("__uncategorized__") ?? [];
+                const bucket = buckets.get(UNCATEGORIZED_GROUP_KEY) ?? [];
                 bucket.push(item);
-                buckets.set("__uncategorized__", bucket);
+                buckets.set(UNCATEGORIZED_GROUP_KEY, bucket);
             } else {
                 for (const collection of item.collections) {
                     const bucket = buckets.get(collection.id) ?? [];
@@ -1999,6 +2269,1165 @@ function getArchivedAssignedStatus(count: number): string {
     return count === 1
         ? "1 assigned collection is archived"
         : `${count} assigned collections are archived`;
+}
+
+interface BrowserContentProps extends React.PropsWithChildren {
+    connectedIntegrationCount: number;
+    lockedItemCount: number;
+    totalItemCount: number;
+}
+
+export function BrowserContent({
+    children,
+    connectedIntegrationCount,
+    lockedItemCount,
+    totalItemCount,
+}: BrowserContentProps) {
+    const { items, setItems } = useItemsStateContext();
+    const { hasAccess } = useSubscriptionAccess();
+    const isExtensionInstalled = useIsExtensionInstalled();
+    const paletteCaretTimeout = useTimeout();
+
+    const {
+        collectionSummaries: collections,
+        collections: allCollections,
+        mergeCollectionSummaries,
+        onClearCollectionFilters,
+        onSelectCollection: onRemoveCollectionFilter,
+        requestCreate,
+        selectedCollectionIds,
+        syncCollectionCreated,
+    } = useCollectionsContext();
+    const {
+        collectionPreviewThumbnailUrlsById,
+        favoriteItemIdSet,
+        favoriteItems,
+        itemsByCollectionId,
+    } = useLibraryItemIndexes(items);
+    const hoverHotkeySurface = useHoverHotkeySurface();
+
+    const {
+        handleCreateCollectionFromResults,
+        handleToggleItemFavorite,
+        handleUpdateItemCollections,
+        handleUpdateItemsCollections,
+    } = useCollectionMutations({
+        allCollections,
+        items,
+        mergeCollectionSummaries,
+        setItems,
+        syncCollectionCreated,
+    });
+
+    const [query, setQuery] = React.useState("");
+    const {
+        collectionMembershipFilter,
+        clearComposerFilters,
+        columnCountMode,
+        domainFilters,
+        duplicatesFilterEnabled,
+        groupBy,
+        lastVisitedFilterEnabled,
+        searchTerms,
+        setCollectionMembershipFilter,
+        setColumnCountMode,
+        setDomainFilters,
+        setDuplicatesFilterEnabled,
+        setGroupBy,
+        setLastVisitedFilterEnabled,
+        setSearchTerms,
+        setSortMode,
+        setSourceFilters,
+        setUnreachableFilterEnabled,
+        sortMode,
+        sourceFilters,
+        unreachableFilterEnabled,
+    } = useComposerFilters();
+    const { lastVisitedItemIds, markVisited } = useLastVisited();
+    const { clearSearchHistory, recordSearchTerm, searchHistory } =
+        useSearchHistory();
+    const itemsRef = React.useRef(items);
+    const [paletteSection, setPaletteSection] =
+        React.useState<PaletteSection>("search");
+    const [composerAttachments, setComposerAttachments] = React.useState<
+        ComposerAttachment[]
+    >([]);
+    const [askCacheResponse, setAskCacheResponse] =
+        React.useState<AskCacheResponseState | null>(null);
+
+    const [openPickerItemId, setOpenPickerItemId] = React.useState<
+        string | null
+    >(null);
+    const hoveredItemIdRef = React.useRef<string | null>(null);
+    const hoverPinnedItemIdRef = React.useRef<string | null>(null);
+
+    const [isCreateResultsDialogOpen, setIsCreateResultsDialogOpen] =
+        React.useState(false);
+
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const composerInputActionsRef = React.useRef<ComposerInputActions | null>(
+        null
+    );
+    const composerAttachmentsRef = React.useRef<ComposerAttachment[]>([]);
+    const askCacheRequestVersionRef = React.useRef(0);
+
+    const setComposerOpen = useStableCallback((value: boolean) => {
+        if (value) {
+            composerInputActionsRef.current?.open();
+            return;
+        }
+        composerInputActionsRef.current?.close();
+    });
+
+    const {
+        deleteErrorMessage,
+        handleConfirmDelete,
+        handleCopyLink,
+        handleDeleteDialogOpenChange,
+        handleOpenInNewTab,
+        handleRequestDelete,
+        pendingDeleteItem,
+    } = useLibraryItemActions({
+        onDeleteSuccess: mergeCollectionSummaries,
+        setItems,
+    });
+    const pendingDeleteItemIdRef = React.useRef<string | null>(
+        pendingDeleteItem?.id ?? null
+    );
+
+    React.useEffect(() => {
+        itemsRef.current = items;
+        composerAttachmentsRef.current = composerAttachments;
+        pendingDeleteItemIdRef.current = pendingDeleteItem?.id ?? null;
+    });
+
+    const unreachableProbe = useUnreachableItemProbe({
+        isEnabled: unreachableFilterEnabled,
+        itemsRef,
+        setItems,
+    });
+
+    const prevSearchTermsRef = React.useRef<string[]>([]);
+    React.useEffect(() => {
+        const prev = prevSearchTermsRef.current;
+        for (const term of searchTerms) {
+            const isAlreadyTracked = prev.some(
+                (prevTerm) => prevTerm.toLowerCase() === term.toLowerCase()
+            );
+            if (!isAlreadyTracked) {
+                recordSearchTerm(term);
+            }
+        }
+        prevSearchTermsRef.current = searchTerms;
+    }, [searchTerms, recordSearchTerm]);
+
+    const clearComposerAttachments = useStableCallback(() => {
+        setComposerAttachments((current) => {
+            for (const attachment of current) {
+                revokeFileAttachmentObjectUrl(attachment.url);
+            }
+            return [];
+        });
+    });
+
+    const clearLibraryPalette = useStableCallback(() => {
+        setQuery("");
+        clearComposerFilters();
+        clearComposerAttachments();
+        onClearCollectionFilters();
+        setPaletteSection("search");
+    });
+
+    const duplicateItemIds = collectDuplicateBookmarkItemIds(items);
+
+    const unreachableItemIds = (() => {
+        const ids = new Set<string>();
+        for (const item of items) {
+            if (item.linkReachability === "unreachable") {
+                ids.add(item.id);
+            }
+        }
+        return ids;
+    })();
+
+    const domainOptions = buildDomainPaletteOptions(items);
+
+    const buildAskCacheRequest = useStableCallback(
+        (prompt: string): AskCacheRequest => ({
+            composerState: {
+                collectionMembershipFilter,
+                columnCountMode,
+                domainFilters,
+                groupBy,
+                searchTerms,
+                selectedCollectionIds,
+                sortMode,
+                sourceFilters,
+            },
+            prompt,
+            runtimeContext: {
+                clientLocale: navigator.language,
+                clientTimeZone:
+                    Intl.DateTimeFormat().resolvedOptions().timeZone,
+                surface: "library_composer",
+            },
+            visibleContext: {
+                availableCollections: collections
+                    .slice(0, ASK_CACHE_CONTEXT_COLLECTION_LIMIT)
+                    .map((collection) => ({
+                        id: collection.id,
+                        itemCount: collection.itemCount,
+                        name: collection.name,
+                    })),
+                availableDomains: domainOptions
+                    .filter((option) => option.value !== ALL_DOMAIN_FILTER)
+                    .slice(0, ASK_CACHE_CONTEXT_DOMAIN_LIMIT)
+                    .map((option) => ({
+                        domain: option.value,
+                        itemCount: option.itemCount,
+                    })),
+                filteredItemCount: filterComposerItems(items, {
+                    collectionMembershipFilter,
+                    domainFilters,
+                    duplicateItemIds,
+                    duplicatesFilterEnabled,
+                    lastVisitedItemIds: lastVisitedFilterEnabled
+                        ? lastVisitedItemIds
+                        : [],
+                    searchTerms,
+                    selectedCollectionIds,
+                    sourceFilters,
+                    unreachableFilterEnabled,
+                    unreachableItemIds,
+                }).length,
+                totalItemCount,
+            },
+        })
+    );
+
+    const applyAskCachePatch = useStableCallback(
+        (patch: AskCacheComposerPatch) => {
+            if (patch.reset) {
+                clearLibraryPalette();
+            }
+
+            if (patch.searchTerms) {
+                setSearchTerms(patch.searchTerms);
+            }
+            if (patch.sourceFilters) {
+                setSourceFilters(patch.sourceFilters);
+            }
+            if (patch.domainFilters) {
+                setDomainFilters(patch.domainFilters);
+            }
+            if (patch.collectionMembershipFilter) {
+                setCollectionMembershipFilter(patch.collectionMembershipFilter);
+            }
+            if (patch.groupBy) {
+                setGroupBy(patch.groupBy);
+            }
+            if (patch.sortMode) {
+                setSortMode(patch.sortMode);
+            }
+            if (patch.columnCountMode) {
+                setColumnCountMode(patch.columnCountMode);
+            }
+            if (patch.selectedCollectionIds !== undefined) {
+                onClearCollectionFilters();
+                for (const collectionId of patch.selectedCollectionIds) {
+                    onRemoveCollectionFilter(collectionId);
+                }
+            }
+        }
+    );
+
+    const handleAskCacheResult = useStableCallback(
+        (prompt: string, result: AskCacheResult) => {
+            if (result.status !== ACTION_STATUS.SUCCESS) {
+                setAskCacheResponse({
+                    message: result.message,
+                    prompt,
+                    status: "error",
+                });
+                return;
+            }
+
+            for (const operation of result.operations) {
+                applyAskCachePatch(operation);
+            }
+            setPaletteSection("ai-response");
+            setAskCacheResponse({
+                markdown: result.markdown,
+                operationCount: result.operations.length,
+                prompt,
+                status: "success",
+            });
+        }
+    );
+
+    const handleAskCacheSubmit = useStableCallback(
+        async (rawPrompt: string) => {
+            const prompt = rawPrompt.trim();
+            if (prompt.length === 0) {
+                return;
+            }
+
+            const requestVersion = askCacheRequestVersionRef.current + 1;
+            askCacheRequestVersionRef.current = requestVersion;
+            setAskCacheResponse({ prompt, status: "loading" });
+            setPaletteSection("ai-response");
+            setQuery("");
+
+            try {
+                const result = await askCache(buildAskCacheRequest(prompt));
+                if (askCacheRequestVersionRef.current !== requestVersion) {
+                    return;
+                }
+                handleAskCacheResult(prompt, result);
+            } catch (error) {
+                if (askCacheRequestVersionRef.current !== requestVersion) {
+                    return;
+                }
+                log.error("Failed to submit Ask Cache request", error);
+                setAskCacheResponse({
+                    message: "Ask Cache is unavailable right now.",
+                    prompt,
+                    status: "error",
+                });
+                setPaletteSection("ai-response");
+            }
+        }
+    );
+
+    const returnToSearchSection = useStableCallback(() => {
+        setPaletteSection("search");
+        setQuery("");
+    });
+
+    const openPaletteSection = useStableCallback(
+        (
+            section: Exclude<PaletteSection, "search">,
+            event: BaseUIEvent<React.MouseEvent> | KeyboardEvent
+        ) => {
+            event.preventDefault();
+            setPaletteSection(section);
+            setQuery("");
+        }
+    );
+
+    const focusPaletteInput = useStableCallback((select = false) => {
+        composerInputActionsRef.current?.open();
+        queueMicrotask(() => {
+            if (select) {
+                inputRef.current?.select();
+            }
+            inputRef.current?.focus();
+        });
+    });
+
+    const placePaletteCaretAtEnd = useStableCallback((value: string) => {
+        const length = value.length;
+        const placeCaret = () => {
+            inputRef.current?.setSelectionRange(length, length);
+        };
+        queueMicrotask(placeCaret);
+        paletteCaretTimeout.start(0, placeCaret);
+    });
+
+    const paletteGroups = buildPaletteGroups({
+        askCacheResponse,
+        clearLibraryPalette,
+        collectionMembershipFilter,
+        collectionPreviewThumbnailUrlsById,
+        collections,
+        columnCountMode,
+        domainFilters,
+        domainOptions,
+        duplicateItemCount: duplicateItemIds.size,
+        duplicatesFilterEnabled,
+        groupBy,
+        lastVisitedFilterEnabled,
+        lastVisitedItemIds,
+        onAskCacheSubmit: handleAskCacheSubmit,
+        onClearCollectionFilters,
+        onClearSearchHistory: clearSearchHistory,
+        onToggleCollectionSelection: onRemoveCollectionFilter,
+        openPaletteSection,
+        paletteSection,
+        query,
+        returnToSearchSection,
+        searchHistory,
+        searchTerms,
+        selectedCollectionIds,
+        setCollectionMembershipFilter,
+        setColumnCountMode,
+        setDomainFilters,
+        setDuplicatesFilterEnabled,
+        setGroupBy,
+        setIsComposerOpen: setComposerOpen,
+        setLastVisitedFilterEnabled,
+        setQuery,
+        setSearchTerms,
+        setSortMode,
+        setSourceFilters,
+        setUnreachableFilterEnabled,
+        sortMode,
+        sourceFilters,
+        unreachableFilterEnabled,
+    });
+
+    const activeLastVisitedItemIds = lastVisitedFilterEnabled
+        ? lastVisitedItemIds
+        : [];
+
+    const paletteGroupValueSet = buildPaletteGroupValueSet(paletteGroups);
+
+    const filteredItems = filterComposerItems(items, {
+        collectionMembershipFilter,
+        domainFilters,
+        duplicateItemIds,
+        duplicatesFilterEnabled,
+        lastVisitedItemIds: activeLastVisitedItemIds,
+        searchTerms,
+        selectedCollectionIds,
+        sourceFilters,
+        unreachableFilterEnabled,
+        unreachableItemIds,
+    });
+
+    const removableDuplicateIds = buildRemovableDuplicateItemIds({
+        allItems: items,
+        duplicatesFilterEnabled,
+        filteredItems,
+    });
+    const {
+        count: pendingRemoveDuplicateCount,
+        isOpen: isRemoveDuplicatesDialogOpen,
+        isRemoving: isRemovingDuplicates,
+        onConfirm: handleConfirmRemoveDuplicates,
+        onOpenChange: handleRemoveDuplicatesDialogOpenChange,
+        onRequestRemoval: handleRequestRemoveDuplicates,
+    } = useDuplicateRemoval({
+        mergeCollectionSummaries,
+        removableItemIds: removableDuplicateIds,
+        setDuplicatesFilterEnabled,
+        setItems,
+    });
+
+    const sortedItems = sortComposerItems(filteredItems, sortMode);
+
+    const effectiveGroupBy: EffectiveGroupByMode = duplicatesFilterEnabled
+        ? "canonical-url"
+        : groupBy;
+
+    const groups = buildBrowserGroups(
+        sortedItems,
+        effectiveGroupBy,
+        sortMode,
+        collections
+    );
+
+    const hasActiveFilters = browserHasActiveFilters({
+        collectionMembershipFilter,
+        domainFilters,
+        duplicatesFilterEnabled,
+        lastVisitedItemIds: activeLastVisitedItemIds,
+        searchTerms,
+        selectedCollectionIds,
+        sourceFilters,
+        unreachableFilterEnabled,
+    });
+
+    const hasNonDefaultView =
+        groupBy !== "none" ||
+        sortMode !== DEFAULT_SORT_MODE ||
+        columnCountMode !== DEFAULT_COLUMN_COUNT_MODE ||
+        sourceFilters.length > 0;
+
+    const shouldShowEmptyLibraryPeek =
+        items.length === 0 && filteredItems.length === 0 && !hasActiveFilters;
+
+    const isUnreachableProbePending =
+        unreachableFilterEnabled && unreachableProbe.isActive;
+
+    const shouldShowNoFilteredResults =
+        filteredItems.length === 0 &&
+        !shouldShowEmptyLibraryPeek &&
+        !isUnreachableProbePending;
+
+    const {
+        collapseAllSections,
+        collapsedSectionKeys,
+        enableSectionCollapse,
+        expandAllSections,
+        toggleSection,
+    } = useSectionCollapseState({
+        groupBy: effectiveGroupBy,
+        groups,
+        hasActiveFilters,
+        shouldShowEmptyLibraryPeek,
+        shouldShowNoFilteredResults,
+    });
+
+    const resolvedColumnCount =
+        columnCountMode === "auto" ? undefined : Number(columnCountMode);
+
+    const collapsedSectionKeySet = new Set(collapsedSectionKeys);
+
+    const isPreviewOnly = !hasAccess && lockedItemCount > 0;
+
+    let resultsSummary = `${filteredItems.length} of ${totalItemCount} items`;
+    if (filteredItems.length === items.length) {
+        resultsSummary = `${totalItemCount} item${totalItemCount === 1 ? "" : "s"}`;
+    }
+    if (isPreviewOnly) {
+        resultsSummary =
+            filteredItems.length === items.length
+                ? `${items.length} item${items.length === 1 ? "" : "s"} of ${totalItemCount}`
+                : `${filteredItems.length} result${filteredItems.length === 1 ? "" : "s"} from ${items.length} visible`;
+    }
+
+    if (
+        unreachableFilterEnabled &&
+        (unreachableProbe.total > 0 || unreachableProbe.probeFailed)
+    ) {
+        const remaining = unreachableProbe.total - unreachableProbe.checked;
+        let progressLabel: string;
+        if (unreachableProbe.probeFailed) {
+            progressLabel = "Couldn't check links right now";
+        } else if (unreachableProbe.isActive) {
+            progressLabel = `Checking links ${unreachableProbe.checked}/${unreachableProbe.total}`;
+        } else {
+            progressLabel = `Checked ${unreachableProbe.checked} link${unreachableProbe.checked === 1 ? "" : "s"}`;
+        }
+        if (unreachableProbe.isActive && remaining > 0) {
+            const minutesLeft = Math.max(1, Math.ceil(remaining / 100));
+            progressLabel = `${progressLabel} · ~${minutesLeft} min left`;
+        }
+        resultsSummary = `${resultsSummary} · ${progressLabel}`;
+    }
+
+    const visibleResultItems = groups.flatMap((section) => section.items);
+
+    const shouldShowLockedPreview =
+        isPreviewOnly && !hasActiveFilters && effectiveGroupBy === "none";
+
+    const canClear =
+        (hasActiveFilters || hasNonDefaultView) && !shouldShowEmptyLibraryPeek;
+
+    const suggestions = buildComposerSuggestions({
+        clearLibraryPalette,
+        collectionMembershipFilter,
+        collections,
+        columnCountMode,
+        domainFilters,
+        duplicatesFilterEnabled,
+        groupBy,
+        isExtensionInstalled,
+        items: filteredItems,
+        lastVisitedFilterEnabled,
+        onClearCollectionFilters,
+        onCreateCollection: requestCreate,
+        onToggleCollectionSelection: onRemoveCollectionFilter,
+        searchTerms,
+        selectedCollectionIds,
+        setCollectionMembershipFilter,
+        setDomainFilters,
+        setGroupBy,
+        setIsComposerOpen: setComposerOpen,
+        setQuery,
+        setSearchTerms,
+        setSortMode,
+        setSourceFilters,
+        sortMode,
+        sourceFilters,
+        unreachableFilterEnabled,
+    });
+
+    const [isSuggestionsOpen, setIsSuggestionsOpen] = React.useState(true);
+
+    const prevSuggestionCountRef = React.useRef(0);
+    React.useEffect(() => {
+        if (prevSuggestionCountRef.current === 0 && suggestions.length > 0) {
+            setIsSuggestionsOpen(true);
+        }
+        prevSuggestionCountRef.current = suggestions.length;
+    }, [suggestions.length]);
+
+    const handleComposerOpenChange = useStableCallback(
+        (
+            nextOpen: boolean,
+            eventDetails: AutocompleteRootChangeEventDetails
+        ) => {
+            if (!nextOpen) {
+                const { reason } = eventDetails;
+
+                if (reason === COMBOBOX_ITEM_PRESS_REASON) {
+                    eventDetails.cancel();
+                    return;
+                }
+
+                if (
+                    reason === COMBOBOX_ESCAPE_KEY_REASON &&
+                    paletteSection !== "search"
+                ) {
+                    eventDetails.cancel();
+                }
+
+                if (query.trim() === "") {
+                    returnToSearchSection();
+                }
+            }
+        }
+    );
+
+    const handleGlobalWindowKeyDown = useStableCallback(
+        (event: KeyboardEvent) => {
+            const target = getTarget(event);
+            const isTextEntry = isTextEntryTarget(target);
+
+            if (isSearchHotkey(event)) {
+                event.preventDefault();
+                focusPaletteInput(true);
+                return;
+            }
+
+            if (
+                event.key === "/" &&
+                !event.metaKey &&
+                !event.ctrlKey &&
+                !event.altKey &&
+                !isTextEntry
+            ) {
+                event.preventDefault();
+                focusPaletteInput();
+                return;
+            }
+
+            if (
+                !(event.shiftKey || event.altKey) &&
+                (event.metaKey || event.ctrlKey)
+            ) {
+                const index = Number.parseInt(event.key, 10) - 1;
+                if (
+                    index >= 0 &&
+                    index <= suggestions.length &&
+                    isSuggestionsOpen
+                ) {
+                    if (index < suggestions.length) {
+                        const suggestion = suggestions[index];
+                        if (suggestion) {
+                            event.preventDefault();
+                            suggestion.onSelect();
+                            return;
+                        }
+                    }
+                    if (index === suggestions.length) {
+                        event.preventDefault();
+                        setIsSuggestionsOpen(false);
+                        return;
+                    }
+                }
+            }
+
+            if (
+                event.defaultPrevented ||
+                isTextEntry ||
+                !isPrintablePaletteKey(event)
+            ) {
+                return;
+            }
+
+            if (event.key.toLowerCase() === "s") {
+                if (hoverHotkeySurface.isClaimed()) {
+                    return;
+                }
+                const id = hoveredItemIdRef.current;
+                if (id) {
+                    event.preventDefault();
+                    setOpenPickerItemId(id);
+                }
+                return;
+            }
+
+            event.preventDefault();
+            setQuery(event.key);
+            focusPaletteInput();
+            placePaletteCaretAtEnd(event.key);
+        }
+    );
+
+    useHotkeys(
+        "*",
+        handleGlobalWindowKeyDown,
+        { description: "Open composer" },
+        [focusPaletteInput]
+    );
+
+    const handleComposerInputChange = useStableCallback(
+        (next: string, eventDetails: AutocompleteRootChangeEventDetails) => {
+            if (paletteGroupValueSet.has(next)) {
+                eventDetails.cancel();
+                return;
+            }
+            setQuery(next);
+        }
+    );
+
+    const removeComposerAttachment = useStableCallback((id: string) => {
+        setComposerAttachments((current) => {
+            const nextAttachments: ComposerAttachment[] = [];
+            for (const attachment of current) {
+                if (attachment.id === id) {
+                    revokeFileAttachmentObjectUrl(attachment.url);
+                    continue;
+                }
+                nextAttachments.push(attachment);
+            }
+            return nextAttachments;
+        });
+    });
+
+    const stackEntries = buildPaletteStackEntries({
+        collectionMembershipFilter,
+        collections,
+        columnCountMode,
+        composerAttachments,
+        domainFilters,
+        duplicatesFilterEnabled,
+        groupBy,
+        lastVisitedFilterEnabled,
+        onRemoveCollectionFilter,
+        onRemoveComposerAttachment: removeComposerAttachment,
+        searchTerms,
+        selectedCollectionIds,
+        setCollectionMembershipFilter,
+        setColumnCountMode,
+        setDomainFilters,
+        setDuplicatesFilterEnabled,
+        setGroupBy,
+        setLastVisitedFilterEnabled,
+        setSearchTerms,
+        setSortMode,
+        setSourceFilters,
+        setUnreachableFilterEnabled,
+        sortMode,
+        sourceFilters,
+        unreachableFilterEnabled,
+    });
+
+    const handlePaletteInputKeyDown = useStableCallback(
+        (event: React.KeyboardEvent<HTMLInputElement>) => {
+            if (
+                event.key === "Escape" ||
+                (event.key === "Tab" &&
+                    paletteSection === "search" &&
+                    query.trim() !== "")
+            ) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (event.key === "Escape") {
+                    if (query.trim() !== "") {
+                        setQuery("");
+                        focusPaletteInput(true);
+                        return;
+                    }
+                    if (paletteSection !== "search") {
+                        returnToSearchSection();
+                        return;
+                    }
+
+                    event.currentTarget.blur();
+                    return;
+                }
+                handleAskCacheSubmit(query).catch((error) => {
+                    log.error("Failed to handle Ask Cache shortcut", error);
+                });
+                return;
+            }
+
+            if (event.key === "Backspace" && query.trim() === "") {
+                event.preventDefault();
+                if (paletteSection !== "search") {
+                    returnToSearchSection();
+                    return;
+                }
+                removeLastPaletteStackEntry(stackEntries);
+            }
+        }
+    );
+
+    const handleCreateNote = useStableCallback(() => {
+        openSideNote(null);
+    });
+
+    const handleOpenComposerFromOnboarding = useStableCallback(() => {
+        setPaletteSection("search");
+        focusPaletteInput(true);
+    });
+
+    const handleExportSectionResults = useStableCallback(
+        async (
+            sectionTitle: string,
+            sectionItems: LibraryItemWithCollections[]
+        ) => {
+            if (sectionItems.length === 0) {
+                log.warn("Skipped empty browser section export", {
+                    sectionTitle,
+                });
+                return;
+            }
+
+            try {
+                await saveFile(
+                    new Blob(
+                        [
+                            buildItemsCsv(
+                                "Section",
+                                sectionTitle,
+                                sectionItems,
+                                "\n"
+                            ),
+                        ],
+                        { type: MIME_TYPES.csv }
+                    ),
+                    {
+                        description: "CSV file",
+                        extension: "csv",
+                        name: getBrowserSectionExportFileName(sectionTitle),
+                    }
+                );
+            } catch (error) {
+                log.error("Failed to export browser section results", error, {
+                    itemCount: sectionItems.length,
+                    sectionTitle,
+                });
+            }
+        }
+    );
+
+    const handleOpenNote = useStableCallback(
+        (item: LibraryItemWithCollections) => {
+            openSideNote(item);
+        }
+    );
+
+    const handleOpenFavoriteItem = useStableCallback(
+        (item: LibraryItemWithCollections) => {
+            if (item.kind === ITEM_KIND_NOTE) {
+                openSideNote(item);
+                return;
+            }
+            handleOpenInNewTab(item);
+        }
+    );
+
+    const handleItemFavoriteToggle = useStableCallback(
+        (item: LibraryItemWithCollections) => {
+            handleToggleItemFavorite(item).catch((error) => {
+                log.error("Failed to toggle item favorite", {
+                    error,
+                    itemId: item.id,
+                });
+            });
+        }
+    );
+
+    useCardHoverHotkeys({
+        hoveredItemIdRef,
+        hoverHotkeySurface,
+        itemsRef,
+        onDelete: handleRequestDelete,
+        onItemFavoriteToggle: handleItemFavoriteToggle,
+        pendingDeleteItemIdRef,
+    });
+
+    const handleFindSimilar = useStableCallback(
+        (item: LibraryItemWithCollections) => {
+            const similarDomain = getLibraryItemDomain(item.url);
+            const nextFilters = buildSimilarBrowserFilterState(
+                {
+                    collectionMembershipFilter,
+                    domainFilters,
+                    searchTerms,
+                    selectedCollectionIds,
+                    sourceFilters,
+                },
+                { domain: similarDomain, source: item.source }
+            );
+
+            setQuery("");
+            setPaletteSection("search");
+            setSearchTerms(nextFilters.searchTerms);
+            setSourceFilters(nextFilters.sourceFilters);
+            setDomainFilters(nextFilters.domainFilters);
+            setCollectionMembershipFilter(
+                nextFilters.collectionMembershipFilter
+            );
+            onClearCollectionFilters();
+        }
+    );
+
+    const handleSaveNote = useStableCallback(
+        async (draft: NoteDraft, noteId: string | null) => {
+            const result = await saveLibraryNoteDraft({
+                activeNoteId: noteId,
+                draft,
+            });
+
+            if (result.status !== ACTION_STATUS.SUCCESS) {
+                return null;
+            }
+
+            setItems((current) => mergeById(current, [result.item]));
+            return result.item;
+        }
+    );
+
+    const handlePasteUrlIntoLibrary = useStableCallback(async (url: string) => {
+        const result = await createLibraryBookmarkFromPastedUrl({ url });
+
+        if (result.status !== ACTION_STATUS.SUCCESS) {
+            return;
+        }
+
+        setItems((current) => mergeById(current, [result.item]));
+    });
+
+    React.useEffect(
+        () => () => {
+            for (const attachment of composerAttachmentsRef.current) {
+                revokeFileAttachmentObjectUrl(attachment.url);
+            }
+        },
+        []
+    );
+
+    const placeholder =
+        PALETTE_PLACEHOLDER_BY_SECTION[paletteSection] ?? "Ask Cache anything";
+
+    const handleOpenCreateResultsDialog = useStableCallback(() =>
+        setIsCreateResultsDialogOpen(true)
+    );
+
+    const mergeImportedLibraryItems = useStableCallback(
+        (imported: LibraryItemWithCollections[]) => {
+            setItems((current) => mergeById(current, imported));
+        }
+    );
+
+    const itemsContextValue: ItemsContext = {
+        collectionPreviewThumbnailUrlsById,
+        favoriteItemIdSet,
+        favoriteItems,
+        items,
+        itemsByCollectionId,
+        mergeImportedItems: mergeImportedLibraryItems,
+        onCopyLink: handleCopyLink,
+        onDelete: handleRequestDelete,
+        onFindSimilar: handleFindSimilar,
+        onItemFavoriteToggle: handleToggleItemFavorite,
+        onOpenFavoriteItem: handleOpenFavoriteItem,
+        onOpenInNewTab: handleOpenInNewTab,
+        onOpenNote: handleOpenNote,
+        onUpdateItemCollections: handleUpdateItemCollections,
+        pendingDeleteItemId: pendingDeleteItem?.id ?? null,
+        setItems,
+    };
+
+    const browserContextValue: BrowserContext = {
+        clearLibraryPalette,
+        collapsedSectionKeys: collapsedSectionKeySet,
+        collections,
+        columnCount: resolvedColumnCount,
+        enableSectionCollapse,
+        hoveredItemIdRef,
+        hoverPinnedItemIdRef,
+        markVisited,
+        onCollapseAllSections: collapseAllSections,
+        onCreateCollectionFromResults: handleOpenCreateResultsDialog,
+        onExpandAllSections: expandAllSections,
+        onExportSectionResults: handleExportSectionResults,
+        onToggleSection: toggleSection,
+        openPickerItemId,
+        setOpenPickerItemId,
+        shouldShowEmptyLibraryPeek,
+        shouldShowLockedPreview,
+        shouldShowNoFilteredResults,
+        shouldShowUnreachableProbePending:
+            isUnreachableProbePending && filteredItems.length === 0,
+    };
+
+    return (
+        <ItemsContext value={itemsContextValue}>
+            <SideRoot
+                onSaveNote={handleSaveNote}
+                onUrlPaste={handlePasteUrlIntoLibrary}
+            >
+                <BrowserContext value={browserContextValue}>
+                    {children}
+                    <div className="z-0 flex min-h-0 w-full min-w-0 flex-1 items-stretch">
+                        <div
+                            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-8"
+                            style={
+                                {
+                                    "--library-section-sticky-top": "108px",
+                                } as React.CSSProperties
+                            }
+                        >
+                            <Composer>
+                                <ComposerInput
+                                    actionsRef={composerInputActionsRef}
+                                    groups={paletteGroups}
+                                    onKeyDown={handlePaletteInputKeyDown}
+                                    onOpenChange={handleComposerOpenChange}
+                                    onValueChange={handleComposerInputChange}
+                                    placeholder={placeholder}
+                                    query={query}
+                                    ref={inputRef}
+                                    stackEntries={stackEntries}
+                                />
+                                <ComposerActionsList
+                                    duplicatesFilterEnabled={
+                                        duplicatesFilterEnabled
+                                    }
+                                    onCreateNote={handleCreateNote}
+                                    onRemoveDuplicates={
+                                        handleRequestRemoveDuplicates
+                                    }
+                                    removableDuplicateCount={
+                                        removableDuplicateIds.length
+                                    }
+                                >
+                                    <ComposerActionNew />
+                                    <ComposerSummary
+                                        canClear={canClear}
+                                        effectiveGroupBy={effectiveGroupBy}
+                                        metrics={buildComposerMetrics({
+                                            getSourceLabel,
+                                            items: filteredItems,
+                                        })}
+                                        onClear={clearLibraryPalette}
+                                        resultsSummary={resultsSummary}
+                                        sectionsLength={groups.length}
+                                    />
+                                    <OnboardingMenu
+                                        connectedIntegrationCount={
+                                            connectedIntegrationCount
+                                        }
+                                        onCreateCollection={requestCreate}
+                                        onCreateNote={handleCreateNote}
+                                        onOpenComposer={
+                                            handleOpenComposerFromOnboarding
+                                        }
+                                        render={
+                                            <ComposerActionButton className="rounded-full" />
+                                        }
+                                    />
+                                    <ComposerActionRemoveDuplicates />
+                                </ComposerActionsList>
+                            </Composer>
+                            <ComposerSuggestionsList
+                                isOpen={isSuggestionsOpen}
+                                onOpenChange={setIsSuggestionsOpen}
+                                suggestions={suggestions}
+                            >
+                                {(suggestion, index) => (
+                                    <Button
+                                        className="text-muted-foreground"
+                                        key={suggestion.label}
+                                        onClick={suggestion.onSelect}
+                                        size="xs"
+                                        variant="ghost"
+                                    >
+                                        {suggestion.icon}
+                                        &nbsp;
+                                        {suggestion.label}
+                                        <Kbd className="bg-transparent px-0 text-[11px] opacity-50">
+                                            <CmdKbd />
+                                            {index + 1}
+                                        </Kbd>
+                                    </Button>
+                                )}
+                            </ComposerSuggestionsList>
+                            {isPreviewOnly ? <InlinePaywallBanner /> : null}
+                            <BrowserEmpty />
+                            <BrowserEmptyWithFilters />
+                            <BrowserUnreachableProbePending />
+                            <BrowserGroupList groups={groups}>
+                                {(group) => (
+                                    <BrowserGroup>
+                                        {enableSectionCollapse ? (
+                                            <>
+                                                <BrowserGroupResults />
+                                                {group.title ? null : (
+                                                    <BrowserGroupAIOverview>
+                                                        <BrowserGroupAIOverviewContent />
+                                                    </BrowserGroupAIOverview>
+                                                )}
+                                                <BrowserGroupEmpty>
+                                                    No items were found in this
+                                                    section.
+                                                </BrowserGroupEmpty>
+                                            </>
+                                        ) : null}
+                                        <BrowserMasonry>
+                                            {(item) => (
+                                                <MasonryItem key={item.id}>
+                                                    <MediaCardDataProvider
+                                                        value={item}
+                                                    >
+                                                        <MediaCardZoomProvider>
+                                                            <MediaCardDownloadProvider>
+                                                                <MediaCardContextMenuSurface>
+                                                                    <MediaCardOpenTarget />
+                                                                    <MediaCardActions />
+                                                                </MediaCardContextMenuSurface>
+                                                            </MediaCardDownloadProvider>
+                                                        </MediaCardZoomProvider>
+                                                    </MediaCardDataProvider>
+                                                </MasonryItem>
+                                            )}
+                                        </BrowserMasonry>
+                                    </BrowserGroup>
+                                )}
+                            </BrowserGroupList>
+                            <BrowserLocked
+                                length={totalItemCount}
+                                lockedItemCount={lockedItemCount}
+                            />
+                        </div>
+                        <SideContent />
+                    </div>
+                    <DeleteItemDialog
+                        deleteErrorMessage={deleteErrorMessage}
+                        onConfirmDelete={handleConfirmDelete}
+                        onOpenChange={handleDeleteDialogOpenChange}
+                        open={pendingDeleteItem !== null}
+                        pendingDeleteItem={pendingDeleteItem}
+                    />
+                    <RemoveDuplicatesDialog
+                        count={pendingRemoveDuplicateCount}
+                        isRemoving={isRemovingDuplicates}
+                        onConfirm={handleConfirmRemoveDuplicates}
+                        onOpenChange={handleRemoveDuplicatesDialogOpenChange}
+                        open={isRemoveDuplicatesDialogOpen}
+                    />
+                    <CreateFromResultsCollectionDialog
+                        collections={collections}
+                        initialName={buildResultsCollectionName(searchTerms)}
+                        onCreateCollection={handleCreateCollectionFromResults}
+                        onOpenChange={setIsCreateResultsDialogOpen}
+                        onUpdateItemCollections={handleUpdateItemCollections}
+                        onUpdateItemsCollections={handleUpdateItemsCollections}
+                        open={isCreateResultsDialogOpen}
+                        visibleResultItems={visibleResultItems}
+                    />
+                    <SuccessfulUpgradeDialog />
+                </BrowserContext>
+            </SideRoot>
+        </ItemsContext>
+    );
 }
 
 function CollectionComboboxPicker({
@@ -2377,17 +3806,10 @@ function BrowserGroupResults() {
     } = useBrowserContext();
 
     const hasItems = group.items.length > 0;
-    const canCreateCollectionFromResults =
-        group.isMainResults && !!onCreateCollectionFromResults;
-    const canExportSectionResults = !!onExportSectionResults;
-    const shouldShowSectionMenu =
-        hasItems &&
-        (canCreateCollectionFromResults ||
-            canExportSectionResults ||
-            enableSectionCollapse);
+    const canCreateCollectionFromResults = group.isMainResults;
 
     const handleExportSectionResults = useStableCallback(() =>
-        onExportSectionResults?.(group.title, group.items)
+        onExportSectionResults(group.title, group.items)
     );
 
     return (
@@ -2431,7 +3853,7 @@ function BrowserGroupResults() {
                             {group.items.length}
                         </span>
                     </div>
-                    {shouldShowSectionMenu ? (
+                    {hasItems ? (
                         <Menu>
                             <MenuTrigger
                                 render={
@@ -2461,36 +3883,18 @@ function BrowserGroupResults() {
                                             <ChevronUp className="size-4.5 text-muted-foreground" />
                                             Collapse
                                         </MenuItem>
-                                        {onExpandAllSections ||
-                                        onCollapseAllSections ? (
-                                            <>
-                                                <MenuSeparator />
-                                                {onExpandAllSections ? (
-                                                    <MenuItem
-                                                        onClick={
-                                                            onExpandAllSections
-                                                        }
-                                                    >
-                                                        <ChevronsDown className="size-4.5 text-muted-foreground" />
-                                                        Expand all
-                                                    </MenuItem>
-                                                ) : null}
-                                                {onCollapseAllSections ? (
-                                                    <MenuItem
-                                                        onClick={
-                                                            onCollapseAllSections
-                                                        }
-                                                    >
-                                                        <ChevronsUp className="size-4.5 text-muted-foreground" />
-                                                        Collapse all
-                                                    </MenuItem>
-                                                ) : null}
-                                            </>
-                                        ) : null}
-                                        {canCreateCollectionFromResults ||
-                                        canExportSectionResults ? (
-                                            <MenuSeparator />
-                                        ) : null}
+                                        <MenuSeparator />
+                                        <MenuItem onClick={onExpandAllSections}>
+                                            <ChevronsDown className="size-4.5 text-muted-foreground" />
+                                            Expand all
+                                        </MenuItem>
+                                        <MenuItem
+                                            onClick={onCollapseAllSections}
+                                        >
+                                            <ChevronsUp className="size-4.5 text-muted-foreground" />
+                                            Collapse all
+                                        </MenuItem>
+                                        <MenuSeparator />
                                     </>
                                 ) : null}
                                 {canCreateCollectionFromResults ? (
@@ -2501,19 +3905,13 @@ function BrowserGroupResults() {
                                         New collection with these results
                                     </MenuItem>
                                 ) : null}
-                                {canCreateCollectionFromResults &&
-                                canExportSectionResults ? (
+                                {canCreateCollectionFromResults ? (
                                     <MenuSeparator />
                                 ) : null}
-                                {onExportSectionResults ? (
-                                    <MenuItem
-                                        disabled={!hasItems}
-                                        onClick={handleExportSectionResults}
-                                    >
-                                        <FileSpreadsheetIcon className="size-4.5 text-muted-foreground" />
-                                        Export to CSV
-                                    </MenuItem>
-                                ) : null}
+                                <MenuItem onClick={handleExportSectionResults}>
+                                    <FileSpreadsheetIcon className="size-4.5 text-muted-foreground" />
+                                    Export to CSV
+                                </MenuItem>
                             </MenuPopup>
                         </Menu>
                     ) : null}
@@ -2535,25 +3933,15 @@ function BrowserGroupResults() {
                         <ChevronUp className="size-4.5 text-muted-foreground" />
                         Collapse
                     </ContextMenuItem>
-                    {onExpandAllSections || onCollapseAllSections ? (
-                        <>
-                            <ContextMenuSeparator />
-                            {onExpandAllSections ? (
-                                <ContextMenuItem onClick={onExpandAllSections}>
-                                    <ChevronsDown className="size-4.5 text-muted-foreground" />
-                                    Expand all
-                                </ContextMenuItem>
-                            ) : null}
-                            {onCollapseAllSections ? (
-                                <ContextMenuItem
-                                    onClick={onCollapseAllSections}
-                                >
-                                    <ChevronsUp className="size-4.5 text-muted-foreground" />
-                                    Collapse all
-                                </ContextMenuItem>
-                            ) : null}
-                        </>
-                    ) : null}
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onClick={onExpandAllSections}>
+                        <ChevronsDown className="size-4.5 text-muted-foreground" />
+                        Expand all
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={onCollapseAllSections}>
+                        <ChevronsUp className="size-4.5 text-muted-foreground" />
+                        Collapse all
+                    </ContextMenuItem>
                 </ContextMenuPopup>
             ) : null}
         </ContextMenu>
@@ -2699,6 +4087,7 @@ function BrowserMasonry({ children }: BrowserMasonryProps) {
         columnCount,
         hoveredItemIdRef,
         hoverPinnedItemIdRef,
+        markVisited,
         openPickerItemId,
         setOpenPickerItemId,
     } = useBrowserContext();
@@ -2719,6 +4108,7 @@ function BrowserMasonry({ children }: BrowserMasonryProps) {
         favoriteItemIdSet,
         hoveredItemIdRef,
         hoverPinnedItemIdRef,
+        markVisited,
         onCopyLink,
         onDelete,
         onFindSimilar,
@@ -3158,12 +4548,12 @@ function MediaCardOpenTarget() {
     const { isNote, item } = useMediaCardDataContext();
     const {
         favoriteItemIdSet,
+        markVisited,
         onItemFavoriteToggle,
         onOpenInNewTab,
         onOpenNote,
     } = useMediaCardEnvironmentContext();
     const { isZoomed, onZoomChange } = useMediaCardZoomContext();
-    const { markVisited } = useLastVisited();
 
     const handleOpen = useStableCallback(() => {
         if (isNote) {
@@ -3612,17 +5002,11 @@ function RemoveDuplicatesDialog({
 
 interface CreateFromResultsCollectionDialogProps {
     collections: LibraryCollectionSummary[];
-    createResultsDescriptionDraft: string;
-    createResultsDescriptionId: string;
-    createResultsError: string | null;
-    createResultsNameDraft: string;
-    createResultsNameInputId: string;
-    isCreatingResultsCollection: boolean;
-    onCreateCollectionFromResultsSubmit: () => void;
+    initialName: string;
+    onCreateCollection: (
+        input: CreateCollectionFromResultsInput
+    ) => Promise<CollectionCreateFromItemsResult>;
     onOpenChange: (open: boolean) => void;
-    onUpdateCreateResultsDescriptionDraft: (description: string) => void;
-    onUpdateCreateResultsError: (error: string | null) => void;
-    onUpdateCreateResultsNameDraft: (name: string) => void;
     onUpdateItemCollections: (
         itemId: string,
         collectionIds: string[]
@@ -3633,53 +5017,103 @@ interface CreateFromResultsCollectionDialogProps {
         previousSharedCollectionIds: string[];
     }) => Promise<LibraryItemsCollectionsUpdateResult>;
     open: boolean;
-    resultItemCount: number;
     visibleResultItems: LibraryItemWithCollections[];
 }
 
 function CreateFromResultsCollectionDialog({
     collections,
-    createResultsDescriptionDraft,
-    createResultsDescriptionId,
-    createResultsError,
-    createResultsNameDraft,
-    createResultsNameInputId,
-    isCreatingResultsCollection,
-    onCreateCollectionFromResultsSubmit,
+    initialName,
+    onCreateCollection,
     onOpenChange,
-    onUpdateCreateResultsDescriptionDraft,
-    onUpdateCreateResultsError,
-    onUpdateCreateResultsNameDraft,
     onUpdateItemCollections,
     onUpdateItemsCollections,
     open,
-    resultItemCount,
     visibleResultItems,
 }: CreateFromResultsCollectionDialogProps) {
+    const [createResultsNameDraft, setCreateResultsNameDraft] =
+        React.useState(initialName);
+    const [createResultsDescriptionDraft, setCreateResultsDescriptionDraft] =
+        React.useState("");
+    const [createResultsError, setCreateResultsError] = React.useState<
+        string | null
+    >(null);
+    const [isCreatingResultsCollection, startCreateResultsCollection] =
+        React.useTransition();
+    const createResultsNameInputId = React.useId();
+    const createResultsDescriptionId = React.useId();
+    const [previousOpen, setPreviousOpen] = React.useState(open);
+
+    if (open !== previousOpen) {
+        setPreviousOpen(open);
+        if (open) {
+            setCreateResultsNameDraft(initialName);
+            setCreateResultsDescriptionDraft("");
+            setCreateResultsError(null);
+        }
+    }
+
     const handleResultsFormSubmit = useStableCallback(
-        (event: React.ChangeEvent<HTMLFormElement>) => {
+        (event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
-            onCreateCollectionFromResultsSubmit();
+            startCreateResultsCollection(async () => {
+                let result: CollectionCreateFromItemsResult;
+                try {
+                    result = await onCreateCollection({
+                        description: createResultsDescriptionDraft || undefined,
+                        itemIds: visibleResultItems.map((item) => item.id),
+                        name: createResultsNameDraft,
+                    });
+                } catch (error) {
+                    log.error(
+                        "Failed to create collection from browser results",
+                        error,
+                        { itemCount: visibleResultItems.length }
+                    );
+                    result = {
+                        message:
+                            "We couldn't create this collection right now.",
+                        status: ACTION_STATUS.ERROR,
+                    };
+                }
+
+                if (result.status !== ACTION_STATUS.CREATED) {
+                    setCreateResultsError(result.message);
+                    return;
+                }
+
+                setCreateResultsError(null);
+                onOpenChange(false);
+            });
         }
     );
 
     const handleResultsNameChange = useStableCallback(
         (event: React.ChangeEvent<HTMLInputElement>) => {
-            onUpdateCreateResultsNameDraft(event.currentTarget.value);
+            setCreateResultsNameDraft(event.currentTarget.value);
             if (createResultsError) {
-                onUpdateCreateResultsError(null);
+                setCreateResultsError(null);
             }
         }
     );
 
     const handleResultsDescriptionChange = useStableCallback(
         (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-            onUpdateCreateResultsDescriptionDraft(event.currentTarget.value);
+            setCreateResultsDescriptionDraft(event.currentTarget.value);
         }
     );
 
+    const handleOpenChange = useStableCallback((nextOpen: boolean) => {
+        if (!nextOpen && isCreatingResultsCollection) {
+            return;
+        }
+        if (!nextOpen) {
+            setCreateResultsError(null);
+        }
+        onOpenChange(nextOpen);
+    });
+
     return (
-        <Dialog onOpenChange={onOpenChange} open={open}>
+        <Dialog onOpenChange={handleOpenChange} open={open}>
             <DialogPopup>
                 <form className="contents" onSubmit={handleResultsFormSubmit}>
                     <DialogHeader>
@@ -3695,9 +5129,9 @@ function CreateFromResultsCollectionDialog({
                             </Badge>
                             <ChevronRight className="inline-block size-3.5 shrink-0" />
                             <DialogTitle className="font-medium text-sm">
-                                New collection with {resultItemCount} current
-                                result
-                                {resultItemCount === 1 ? "" : "s"}
+                                New collection with {visibleResultItems.length}{" "}
+                                current result
+                                {visibleResultItems.length === 1 ? "" : "s"}
                             </DialogTitle>
                         </div>
                     </DialogHeader>
@@ -3782,1478 +5216,5 @@ function CreateFromResultsCollectionDialog({
                 </form>
             </DialogPopup>
         </Dialog>
-    );
-}
-
-interface BrowserContentProps extends React.PropsWithChildren {
-    connectedIntegrationCount: number;
-    lockedItemCount: number;
-    totalItemCount: number;
-}
-
-export function BrowserContent({
-    children,
-    connectedIntegrationCount,
-    lockedItemCount,
-    totalItemCount,
-}: BrowserContentProps) {
-    const { items, setItems } = useItemsStateContext();
-    const { hasAccess } = useSubscriptionAccess();
-    const isExtensionInstalled = useIsExtensionInstalled();
-    const paletteCaretTimeout = useTimeout();
-    const unreachableProbeTimeout = useTimeout();
-
-    const {
-        collectionSummaries: collections,
-        collections: allCollections,
-        mergeCollectionSummaries,
-        onClearCollectionFilters,
-        onSelectCollection: onRemoveCollectionFilter,
-        requestCreate,
-        selectedCollectionIds,
-        syncCollectionCreated,
-    } = useCollectionsContext();
-    const {
-        collectionPreviewThumbnailUrlsById,
-        favoriteItemIdSet,
-        favoriteItems,
-        itemsByCollectionId,
-    } = useLibraryItemIndexes(items);
-    const hoverHotkeySurface = useHoverHotkeySurface();
-
-    const {
-        handleCreateCollectionFromResults,
-        handleToggleItemFavorite,
-        handleUpdateItemCollections,
-        handleUpdateItemsCollections,
-    } = useCollectionMutations({
-        allCollections,
-        items,
-        mergeCollectionSummaries,
-        setItems,
-        syncCollectionCreated,
-    });
-
-    const [query, setQuery] = React.useState("");
-    const {
-        collectionMembershipFilter,
-        clearComposerFilters,
-        columnCountMode,
-        domainFilters,
-        duplicatesFilterEnabled,
-        groupBy,
-        lastVisitedFilterEnabled,
-        searchTerms,
-        setCollectionMembershipFilter,
-        setColumnCountMode,
-        setDomainFilters,
-        setDuplicatesFilterEnabled,
-        setGroupBy,
-        setLastVisitedFilterEnabled,
-        setSearchTerms,
-        setSortMode,
-        setSourceFilters,
-        setUnreachableFilterEnabled,
-        sortMode,
-        sourceFilters,
-        unreachableFilterEnabled,
-    } = useComposerFilters();
-    const { lastVisitedItemIds } = useLastVisited();
-    const { clearSearchHistory, recordSearchTerm, searchHistory } =
-        useSearchHistory();
-    const [isRemoveDuplicatesDialogOpen, setIsRemoveDuplicatesDialogOpen] =
-        React.useState(false);
-    const [pendingRemoveDuplicateIds, setPendingRemoveDuplicateIds] =
-        React.useState<string[]>([]);
-    const [isRemovingDuplicates, startRemoveDuplicatesTransition] =
-        React.useTransition();
-    const [unreachableProbe, setUnreachableProbe] = React.useState({
-        checked: 0,
-        isActive: false,
-        probeFailed: false,
-        total: 0,
-    });
-    const unreachableProbeVersionRef = React.useRef(0);
-    const itemsRef = React.useRef(items);
-    const [paletteSection, setPaletteSection] =
-        React.useState<PaletteSection>("search");
-    const [composerAttachments, setComposerAttachments] = React.useState<
-        ComposerAttachment[]
-    >([]);
-    const [askCacheResponse, setAskCacheResponse] =
-        React.useState<AskCacheResponseState | null>(null);
-
-    const [openPickerItemId, setOpenPickerItemId] = React.useState<
-        string | null
-    >(null);
-    const hoveredItemIdRef = React.useRef<string | null>(null);
-    const hoverPinnedItemIdRef = React.useRef<string | null>(null);
-
-    const [isCreateResultsDialogOpen, setIsCreateResultsDialogOpen] =
-        React.useState(false);
-    const [createResultsNameDraft, setCreateResultsNameDraft] =
-        React.useState("");
-    const [createResultsDescriptionDraft, setCreateResultsDescriptionDraft] =
-        React.useState("");
-    const [createResultsError, setCreateResultsError] = React.useState<
-        string | null
-    >(null);
-
-    const inputRef = React.useRef<HTMLInputElement>(null);
-    const composerInputActionsRef = React.useRef<ComposerInputActions | null>(
-        null
-    );
-    const composerAttachmentsRef = React.useRef<ComposerAttachment[]>([]);
-    const askCacheRequestVersionRef = React.useRef(0);
-
-    const createResultsNameInputId = React.useId();
-    const createResultsDescriptionId = React.useId();
-
-    const setComposerOpen = useStableCallback((value: boolean) => {
-        if (value) {
-            composerInputActionsRef.current?.open();
-            return;
-        }
-        composerInputActionsRef.current?.close();
-    });
-
-    const {
-        deleteErrorMessage,
-        handleConfirmDelete,
-        handleCopyLink,
-        handleDeleteDialogOpenChange,
-        handleOpenInNewTab,
-        handleRequestDelete,
-        pendingDeleteItem,
-    } = useLibraryItemActions({
-        onDeleteSuccess: mergeCollectionSummaries,
-        setItems,
-    });
-    const pendingDeleteItemIdRef = React.useRef<string | null>(
-        pendingDeleteItem?.id ?? null
-    );
-
-    React.useEffect(() => {
-        itemsRef.current = items;
-        composerAttachmentsRef.current = composerAttachments;
-        pendingDeleteItemIdRef.current = pendingDeleteItem?.id ?? null;
-    });
-
-    const [
-        isCreatingResultsCollection,
-        startCreateResultsCollectionTransition,
-    ] = React.useTransition();
-
-    const prevSearchTermsRef = React.useRef<string[]>([]);
-    React.useEffect(() => {
-        const prev = prevSearchTermsRef.current;
-        for (const term of searchTerms) {
-            const isAlreadyTracked = prev.some(
-                (prevTerm) => prevTerm.toLowerCase() === term.toLowerCase()
-            );
-            if (!isAlreadyTracked) {
-                recordSearchTerm(term);
-            }
-        }
-        prevSearchTermsRef.current = searchTerms;
-    }, [searchTerms, recordSearchTerm]);
-
-    const clearComposerAttachments = useStableCallback(() => {
-        setComposerAttachments((current) => {
-            for (const attachment of current) {
-                revokeFileAttachmentObjectUrl(attachment.url);
-            }
-            return [];
-        });
-    });
-
-    const clearLibraryPalette = useStableCallback(() => {
-        setQuery("");
-        clearComposerFilters();
-        clearComposerAttachments();
-        onClearCollectionFilters();
-        setPaletteSection("search");
-    });
-
-    const duplicateItemIds = collectDuplicateBookmarkItemIds(items);
-
-    const unreachableItemIds = (() => {
-        const ids = new Set<string>();
-        for (const item of items) {
-            if (item.linkReachability === "unreachable") {
-                ids.add(item.id);
-            }
-        }
-        return ids;
-    })();
-
-    React.useEffect(() => {
-        if (!unreachableFilterEnabled) {
-            unreachableProbeVersionRef.current += 1;
-            setUnreachableProbe({
-                checked: 0,
-                isActive: false,
-                probeFailed: false,
-                total: 0,
-            });
-            return;
-        }
-
-        const version = unreachableProbeVersionRef.current + 1;
-        unreachableProbeVersionRef.current = version;
-
-        const pendingSleepResolvers = new Set<() => void>();
-        const probedItemIds = new Set<string>();
-
-        const sleep = (ms: number) =>
-            new Promise<void>((resolve) => {
-                pendingSleepResolvers.add(resolve);
-                unreachableProbeTimeout.start(ms, () => {
-                    pendingSleepResolvers.delete(resolve);
-                    resolve();
-                });
-            });
-
-        const run = async () => {
-            let consecutiveFailures = 0;
-
-            while (unreachableProbeVersionRef.current === version) {
-                const currentItems = itemsRef.current;
-                const { batch, checked, totalProbeable } =
-                    getUnreachableProbeBatch(currentItems, probedItemIds);
-
-                if (batch.length === 0) {
-                    setUnreachableProbe({
-                        checked: totalProbeable,
-                        isActive: false,
-                        probeFailed: false,
-                        total: totalProbeable,
-                    });
-                    // Library may still be hydrating; keep waiting while empty.
-                    if (currentItems.length === 0) {
-                        await sleep(1000);
-                        continue;
-                    }
-                    return;
-                }
-
-                setUnreachableProbe({
-                    checked,
-                    isActive: true,
-                    probeFailed: false,
-                    total: totalProbeable,
-                });
-
-                const { result, thrownError } =
-                    await probeUnreachableBatch(batch);
-
-                if (unreachableProbeVersionRef.current !== version) {
-                    return;
-                }
-
-                if (!result || result.status !== ACTION_STATUS.SUCCESS) {
-                    if (result) {
-                        log.error("Link reachability probe failed", {
-                            message: result.message,
-                        });
-                    } else {
-                        log.error("Link reachability probe threw", thrownError);
-                    }
-                    consecutiveFailures += 1;
-                    if (consecutiveFailures > LINK_PROBE_MAX_RETRIES) {
-                        setUnreachableProbe({
-                            checked,
-                            isActive: false,
-                            probeFailed: true,
-                            total: totalProbeable,
-                        });
-                        return;
-                    }
-                    await sleep(getProbeRetryDelayMs(consecutiveFailures));
-                    continue;
-                }
-
-                if (result.rateLimited) {
-                    setUnreachableProbe({
-                        checked,
-                        isActive: true,
-                        probeFailed: false,
-                        total: totalProbeable,
-                    });
-                    await sleep(Math.max(1000, result.retryAfterMs));
-                    continue;
-                }
-
-                consecutiveFailures = 0;
-
-                for (const entry of result.results) {
-                    probedItemIds.add(entry.itemId);
-                }
-
-                setItems((previous) =>
-                    updateItemsWithProbeSuccess(previous, result)
-                );
-            }
-        };
-
-        run().catch((error) => {
-            log.error("Link reachability probe loop failed", error);
-        });
-
-        return () => {
-            unreachableProbeVersionRef.current += 1;
-            unreachableProbeTimeout.clear();
-            for (const resolve of pendingSleepResolvers) {
-                resolve();
-            }
-        };
-    }, [setItems, unreachableFilterEnabled, unreachableProbeTimeout]);
-
-    const domainOptions = buildDomainPaletteOptions(items);
-
-    const buildAskCacheRequest = useStableCallback(
-        (prompt: string): AskCacheRequest => ({
-            composerState: {
-                collectionMembershipFilter,
-                columnCountMode,
-                domainFilters,
-                groupBy,
-                searchTerms,
-                selectedCollectionIds,
-                sortMode,
-                sourceFilters,
-            },
-            prompt,
-            runtimeContext: {
-                clientLocale: navigator.language,
-                clientTimeZone:
-                    Intl.DateTimeFormat().resolvedOptions().timeZone,
-                surface: "library_composer",
-            },
-            visibleContext: {
-                availableCollections: collections
-                    .slice(0, ASK_CACHE_CONTEXT_COLLECTION_LIMIT)
-                    .map((collection) => ({
-                        id: collection.id,
-                        itemCount: collection.itemCount,
-                        name: collection.name,
-                    })),
-                availableDomains: domainOptions
-                    .filter((option) => option.value !== ALL_DOMAIN_FILTER)
-                    .slice(0, ASK_CACHE_CONTEXT_DOMAIN_LIMIT)
-                    .map((option) => ({
-                        domain: option.value,
-                        itemCount: option.itemCount,
-                    })),
-                filteredItemCount: filterComposerItems(items, {
-                    collectionMembershipFilter,
-                    domainFilters,
-                    duplicateItemIds,
-                    duplicatesFilterEnabled,
-                    lastVisitedItemIds: lastVisitedFilterEnabled
-                        ? lastVisitedItemIds
-                        : [],
-                    searchTerms,
-                    selectedCollectionIds,
-                    sourceFilters,
-                    unreachableFilterEnabled,
-                    unreachableItemIds,
-                }).length,
-                totalItemCount,
-            },
-        })
-    );
-
-    const applyAskCachePatch = useStableCallback(
-        (patch: AskCacheComposerPatch) => {
-            if (patch.reset) {
-                clearLibraryPalette();
-            }
-
-            if (patch.searchTerms) {
-                setSearchTerms(patch.searchTerms);
-            }
-            if (patch.sourceFilters) {
-                setSourceFilters(patch.sourceFilters);
-            }
-            if (patch.domainFilters) {
-                setDomainFilters(patch.domainFilters);
-            }
-            if (patch.collectionMembershipFilter) {
-                setCollectionMembershipFilter(patch.collectionMembershipFilter);
-            }
-            if (patch.groupBy) {
-                setGroupBy(patch.groupBy);
-            }
-            if (patch.sortMode) {
-                setSortMode(patch.sortMode);
-            }
-            if (patch.columnCountMode) {
-                setColumnCountMode(patch.columnCountMode);
-            }
-            if (patch.selectedCollectionIds !== undefined) {
-                onClearCollectionFilters();
-                for (const collectionId of patch.selectedCollectionIds) {
-                    onRemoveCollectionFilter(collectionId);
-                }
-            }
-        }
-    );
-
-    const handleAskCacheResult = useStableCallback(
-        (prompt: string, result: AskCacheResult) => {
-            if (result.status !== ACTION_STATUS.SUCCESS) {
-                setAskCacheResponse({
-                    message: result.message,
-                    prompt,
-                    status: "error",
-                });
-                return;
-            }
-
-            for (const operation of result.operations) {
-                applyAskCachePatch(operation);
-            }
-            setPaletteSection("ai-response");
-            setAskCacheResponse({
-                markdown: result.markdown,
-                operationCount: result.operations.length,
-                prompt,
-                status: "success",
-            });
-        }
-    );
-
-    const handleAskCacheSubmit = useStableCallback(
-        async (rawPrompt: string) => {
-            const prompt = rawPrompt.trim();
-            if (prompt.length === 0) {
-                return;
-            }
-
-            const requestVersion = askCacheRequestVersionRef.current + 1;
-            askCacheRequestVersionRef.current = requestVersion;
-            setAskCacheResponse({ prompt, status: "loading" });
-            setPaletteSection("ai-response");
-            setQuery("");
-
-            try {
-                const result = await askCache(buildAskCacheRequest(prompt));
-                if (askCacheRequestVersionRef.current !== requestVersion) {
-                    return;
-                }
-                handleAskCacheResult(prompt, result);
-            } catch (error) {
-                if (askCacheRequestVersionRef.current !== requestVersion) {
-                    return;
-                }
-                log.error("Failed to submit Ask Cache request", error);
-                setAskCacheResponse({
-                    message: "Ask Cache is unavailable right now.",
-                    prompt,
-                    status: "error",
-                });
-                setPaletteSection("ai-response");
-            }
-        }
-    );
-
-    const returnToSearchSection = useStableCallback(() => {
-        setPaletteSection("search");
-        setQuery("");
-    });
-
-    const openPaletteSection = useStableCallback(
-        (
-            section: Exclude<PaletteSection, "search">,
-            event: BaseUIEvent<React.MouseEvent> | KeyboardEvent
-        ) => {
-            event.preventDefault();
-            setPaletteSection(section);
-            setQuery("");
-        }
-    );
-
-    const focusPaletteInput = useStableCallback((select = false) => {
-        composerInputActionsRef.current?.open();
-        queueMicrotask(() => {
-            if (select) {
-                inputRef.current?.select();
-            }
-            inputRef.current?.focus();
-        });
-    });
-
-    const placePaletteCaretAtEnd = useStableCallback((value: string) => {
-        const length = value.length;
-        const placeCaret = () => {
-            inputRef.current?.setSelectionRange(length, length);
-        };
-        queueMicrotask(placeCaret);
-        paletteCaretTimeout.start(0, placeCaret);
-    });
-
-    const paletteGroups = buildPaletteGroups({
-        askCacheResponse,
-        clearLibraryPalette,
-        collectionMembershipFilter,
-        collectionPreviewThumbnailUrlsById,
-        collections,
-        columnCountMode,
-        domainFilters,
-        domainOptions,
-        duplicateItemCount: duplicateItemIds.size,
-        duplicatesFilterEnabled,
-        groupBy,
-        lastVisitedFilterEnabled,
-        lastVisitedItemIds,
-        onAskCacheSubmit: handleAskCacheSubmit,
-        onClearCollectionFilters,
-        onClearSearchHistory: clearSearchHistory,
-        onToggleCollectionSelection: onRemoveCollectionFilter,
-        openPaletteSection,
-        paletteSection,
-        query,
-        returnToSearchSection,
-        searchHistory,
-        searchTerms,
-        selectedCollectionIds,
-        setCollectionMembershipFilter,
-        setColumnCountMode,
-        setDomainFilters,
-        setDuplicatesFilterEnabled,
-        setGroupBy,
-        setIsComposerOpen: setComposerOpen,
-        setLastVisitedFilterEnabled,
-        setQuery,
-        setSearchTerms,
-        setSortMode,
-        setSourceFilters,
-        setUnreachableFilterEnabled,
-        sortMode,
-        sourceFilters,
-        unreachableFilterEnabled,
-    });
-
-    const activeLastVisitedItemIds = lastVisitedFilterEnabled
-        ? lastVisitedItemIds
-        : [];
-
-    const paletteGroupValueSet = buildPaletteGroupValueSet(paletteGroups);
-
-    const filteredItems = filterComposerItems(items, {
-        collectionMembershipFilter,
-        domainFilters,
-        duplicateItemIds,
-        duplicatesFilterEnabled,
-        lastVisitedItemIds: activeLastVisitedItemIds,
-        searchTerms,
-        selectedCollectionIds,
-        sourceFilters,
-        unreachableFilterEnabled,
-        unreachableItemIds,
-    });
-
-    const removableDuplicateIds = buildRemovableDuplicateItemIds({
-        allItems: items,
-        duplicatesFilterEnabled,
-        filteredItems,
-    });
-
-    const handleRequestRemoveDuplicates = useStableCallback(() => {
-        if (removableDuplicateIds.length === 0) {
-            return;
-        }
-        setPendingRemoveDuplicateIds(removableDuplicateIds);
-        setIsRemoveDuplicatesDialogOpen(true);
-    });
-
-    const handleRemoveDuplicatesDialogOpenChange = useStableCallback(
-        (open: boolean) => {
-            if (!(open || isRemovingDuplicates)) {
-                setIsRemoveDuplicatesDialogOpen(false);
-                setPendingRemoveDuplicateIds([]);
-            }
-        }
-    );
-
-    const handleConfirmRemoveDuplicates = useStableCallback(() => {
-        const excessIds = pendingRemoveDuplicateIds;
-        if (excessIds.length === 0) {
-            setIsRemoveDuplicatesDialogOpen(false);
-            return;
-        }
-
-        startRemoveDuplicatesTransition(async () => {
-            const deletedIds: string[] = [];
-            const collectionSummariesById = new Map<
-                string,
-                LibraryCollectionSummary
-            >();
-            let failedCount = 0;
-
-            for (
-                let offset = 0;
-                offset < excessIds.length;
-                offset += BATCH_UPDATE_MAX_ITEMS
-            ) {
-                const batchIds = excessIds.slice(
-                    offset,
-                    offset + BATCH_UPDATE_MAX_ITEMS
-                );
-                let result: LibraryItemsDeleteResult;
-                try {
-                    result = await deleteLibraryItems({ itemIds: batchIds });
-                } catch (error) {
-                    log.error("Failed to remove duplicate bookmarks", error, {
-                        batchSize: batchIds.length,
-                    });
-                    result = {
-                        message:
-                            "We couldn't remove these duplicates right now.",
-                        status: ACTION_STATUS.ERROR,
-                    };
-                }
-
-                if (result.status !== ACTION_STATUS.DELETED) {
-                    failedCount += batchIds.length;
-                    continue;
-                }
-
-                deletedIds.push(...batchIds);
-                for (const summary of result.collectionSummaries) {
-                    collectionSummariesById.set(summary.id, summary);
-                }
-            }
-
-            if (deletedIds.length > 0) {
-                const deletedIdSet = new Set(deletedIds);
-                setItems((current) =>
-                    current.filter((item) => !deletedIdSet.has(item.id))
-                );
-                mergeCollectionSummaries(
-                    Array.from(collectionSummariesById.values())
-                );
-            }
-
-            setIsRemoveDuplicatesDialogOpen(false);
-            setPendingRemoveDuplicateIds([]);
-
-            if (failedCount === 0 && deletedIds.length === excessIds.length) {
-                setDuplicatesFilterEnabled(false);
-            } else if (failedCount > 0) {
-                log.error("Remove duplicates finished with failures", {
-                    deletedCount: deletedIds.length,
-                    failedCount,
-                    requestedCount: excessIds.length,
-                });
-            }
-        });
-    });
-
-    const sortedItems = sortComposerItems(filteredItems, sortMode);
-
-    const effectiveGroupBy: EffectiveGroupByMode = duplicatesFilterEnabled
-        ? "canonical-url"
-        : groupBy;
-
-    const groups = buildBrowserGroups(
-        sortedItems,
-        effectiveGroupBy,
-        sortMode,
-        collections
-    );
-
-    const hasActiveFilters = browserHasActiveFilters({
-        collectionMembershipFilter,
-        domainFilters,
-        duplicatesFilterEnabled,
-        lastVisitedItemIds: activeLastVisitedItemIds,
-        searchTerms,
-        selectedCollectionIds,
-        sourceFilters,
-        unreachableFilterEnabled,
-    });
-
-    const hasNonDefaultView =
-        groupBy !== "none" ||
-        sortMode !== DEFAULT_SORT_MODE ||
-        columnCountMode !== DEFAULT_COLUMN_COUNT_MODE ||
-        sourceFilters.length > 0;
-
-    const shouldShowEmptyLibraryPeek =
-        items.length === 0 && filteredItems.length === 0 && !hasActiveFilters;
-
-    const isUnreachableProbePending =
-        unreachableFilterEnabled && unreachableProbe.isActive;
-
-    const shouldShowNoFilteredResults =
-        filteredItems.length === 0 &&
-        !shouldShowEmptyLibraryPeek &&
-        !isUnreachableProbePending;
-
-    const {
-        collapseAllSections,
-        collapsedSectionKeys,
-        enableSectionCollapse,
-        expandAllSections,
-        toggleSection,
-    } = useSectionCollapseState({
-        groupBy: effectiveGroupBy,
-        groups,
-        hasActiveFilters,
-        shouldShowEmptyLibraryPeek,
-        shouldShowNoFilteredResults,
-    });
-
-    const resolvedColumnCount =
-        columnCountMode === "auto" ? undefined : Number(columnCountMode);
-
-    const collapsedSectionKeySet = new Set(collapsedSectionKeys);
-
-    const isPreviewOnly = !hasAccess && lockedItemCount > 0;
-
-    let resultsSummary = `${filteredItems.length} of ${totalItemCount} items`;
-    if (filteredItems.length === items.length) {
-        resultsSummary = `${totalItemCount} item${totalItemCount === 1 ? "" : "s"}`;
-    }
-    if (isPreviewOnly) {
-        resultsSummary =
-            filteredItems.length === items.length
-                ? `${items.length} item${items.length === 1 ? "" : "s"} of ${totalItemCount}`
-                : `${filteredItems.length} result${filteredItems.length === 1 ? "" : "s"} from ${items.length} visible`;
-    }
-
-    if (
-        unreachableFilterEnabled &&
-        (unreachableProbe.total > 0 || unreachableProbe.probeFailed)
-    ) {
-        const remaining = unreachableProbe.total - unreachableProbe.checked;
-        let progressLabel: string;
-        if (unreachableProbe.probeFailed) {
-            progressLabel = "Couldn't check links right now";
-        } else if (unreachableProbe.isActive) {
-            progressLabel = `Checking links ${unreachableProbe.checked}/${unreachableProbe.total}`;
-        } else {
-            progressLabel = `Checked ${unreachableProbe.checked} link${unreachableProbe.checked === 1 ? "" : "s"}`;
-        }
-        if (unreachableProbe.isActive && remaining > 0) {
-            const minutesLeft = Math.max(1, Math.ceil(remaining / 100));
-            progressLabel = `${progressLabel} · ~${minutesLeft} min left`;
-        }
-        resultsSummary = `${resultsSummary} · ${progressLabel}`;
-    }
-
-    const visibleResultItems = groups.flatMap((section) => section.items);
-
-    const resultCollectionItemIds = visibleResultItems.map((item) => item.id);
-
-    const shouldShowLockedPreview =
-        isPreviewOnly && !hasActiveFilters && effectiveGroupBy === "none";
-
-    const canClear =
-        (hasActiveFilters || hasNonDefaultView) && !shouldShowEmptyLibraryPeek;
-
-    const suggestions = buildComposerSuggestions({
-        clearLibraryPalette,
-        collectionMembershipFilter,
-        collections,
-        columnCountMode,
-        domainFilters,
-        duplicatesFilterEnabled,
-        groupBy,
-        isExtensionInstalled,
-        items: filteredItems,
-        lastVisitedFilterEnabled,
-        onClearCollectionFilters,
-        onCreateCollection: requestCreate,
-        onToggleCollectionSelection: onRemoveCollectionFilter,
-        searchTerms,
-        selectedCollectionIds,
-        setCollectionMembershipFilter,
-        setDomainFilters,
-        setGroupBy,
-        setIsComposerOpen: setComposerOpen,
-        setQuery,
-        setSearchTerms,
-        setSortMode,
-        setSourceFilters,
-        sortMode,
-        sourceFilters,
-        unreachableFilterEnabled,
-    });
-
-    const [isSuggestionsOpen, setIsSuggestionsOpen] = React.useState(true);
-
-    const prevSuggestionCountRef = React.useRef(0);
-    React.useEffect(() => {
-        if (prevSuggestionCountRef.current === 0 && suggestions.length > 0) {
-            setIsSuggestionsOpen(true);
-        }
-        prevSuggestionCountRef.current = suggestions.length;
-    }, [suggestions.length]);
-
-    const handleComposerOpenChange = useStableCallback(
-        (
-            nextOpen: boolean,
-            eventDetails: AutocompleteRootChangeEventDetails
-        ) => {
-            if (!nextOpen) {
-                const { reason } = eventDetails;
-
-                if (reason === COMBOBOX_ITEM_PRESS_REASON) {
-                    eventDetails.cancel();
-                    return;
-                }
-
-                if (
-                    reason === COMBOBOX_ESCAPE_KEY_REASON &&
-                    paletteSection !== "search"
-                ) {
-                    eventDetails.cancel();
-                }
-
-                if (query.trim() === "") {
-                    returnToSearchSection();
-                }
-            }
-        }
-    );
-
-    const handleGlobalWindowKeyDown = useStableCallback(
-        (event: KeyboardEvent) => {
-            const target = getTarget(event);
-            const isTextEntry = isTextEntryTarget(target);
-
-            if (isSearchHotkey(event)) {
-                event.preventDefault();
-                focusPaletteInput(true);
-                return;
-            }
-
-            if (
-                event.key === "/" &&
-                !event.metaKey &&
-                !event.ctrlKey &&
-                !event.altKey &&
-                !isTextEntry
-            ) {
-                event.preventDefault();
-                focusPaletteInput();
-                return;
-            }
-
-            if (
-                !(event.shiftKey || event.altKey) &&
-                (event.metaKey || event.ctrlKey)
-            ) {
-                const index = Number.parseInt(event.key, 10) - 1;
-                if (
-                    index >= 0 &&
-                    index <= suggestions.length &&
-                    isSuggestionsOpen
-                ) {
-                    if (index < suggestions.length) {
-                        const suggestion = suggestions[index];
-                        if (suggestion) {
-                            event.preventDefault();
-                            suggestion.onSelect();
-                            return;
-                        }
-                    }
-                    if (index === suggestions.length) {
-                        event.preventDefault();
-                        setIsSuggestionsOpen(false);
-                        return;
-                    }
-                }
-            }
-
-            if (
-                event.defaultPrevented ||
-                isTextEntry ||
-                !isPrintablePaletteKey(event)
-            ) {
-                return;
-            }
-
-            if (event.key.toLowerCase() === "s") {
-                if (hoverHotkeySurface.isClaimed()) {
-                    return;
-                }
-                const id = hoveredItemIdRef.current;
-                if (id) {
-                    event.preventDefault();
-                    setOpenPickerItemId(id);
-                }
-                return;
-            }
-
-            event.preventDefault();
-            setQuery(event.key);
-            focusPaletteInput();
-            placePaletteCaretAtEnd(event.key);
-        }
-    );
-
-    useHotkeys(
-        "*",
-        handleGlobalWindowKeyDown,
-        { description: "Open composer" },
-        [focusPaletteInput]
-    );
-
-    const handleComposerInputChange = useStableCallback(
-        (next: string, eventDetails: AutocompleteRootChangeEventDetails) => {
-            if (paletteGroupValueSet.has(next)) {
-                eventDetails.cancel();
-                return;
-            }
-            setQuery(next);
-        }
-    );
-
-    const removeComposerAttachment = useStableCallback((id: string) => {
-        setComposerAttachments((current) => {
-            const nextAttachments: ComposerAttachment[] = [];
-            for (const attachment of current) {
-                if (attachment.id === id) {
-                    revokeFileAttachmentObjectUrl(attachment.url);
-                    continue;
-                }
-                nextAttachments.push(attachment);
-            }
-            return nextAttachments;
-        });
-    });
-
-    const stackEntries = buildPaletteStackEntries({
-        collectionMembershipFilter,
-        collections,
-        columnCountMode,
-        composerAttachments,
-        domainFilters,
-        duplicatesFilterEnabled,
-        groupBy,
-        lastVisitedFilterEnabled,
-        onRemoveCollectionFilter,
-        onRemoveComposerAttachment: removeComposerAttachment,
-        searchTerms,
-        selectedCollectionIds,
-        setCollectionMembershipFilter,
-        setColumnCountMode,
-        setDomainFilters,
-        setDuplicatesFilterEnabled,
-        setGroupBy,
-        setLastVisitedFilterEnabled,
-        setSearchTerms,
-        setSortMode,
-        setSourceFilters,
-        setUnreachableFilterEnabled,
-        sortMode,
-        sourceFilters,
-        unreachableFilterEnabled,
-    });
-
-    const handlePaletteInputKeyDown = useStableCallback(
-        (event: React.KeyboardEvent<HTMLInputElement>) => {
-            if (
-                event.key === "Escape" ||
-                (event.key === "Tab" &&
-                    paletteSection === "search" &&
-                    query.trim() !== "")
-            ) {
-                event.preventDefault();
-                event.stopPropagation();
-                if (event.key === "Escape") {
-                    if (query.trim() !== "") {
-                        setQuery("");
-                        focusPaletteInput(true);
-                        return;
-                    }
-                    if (paletteSection !== "search") {
-                        returnToSearchSection();
-                        return;
-                    }
-
-                    event.currentTarget.blur();
-                    return;
-                }
-                handleAskCacheSubmit(query).catch((error) => {
-                    log.error("Failed to handle Ask Cache shortcut", error);
-                });
-                return;
-            }
-
-            if (event.key === "Backspace" && query.trim() === "") {
-                event.preventDefault();
-                if (paletteSection !== "search") {
-                    returnToSearchSection();
-                    return;
-                }
-                removeLastPaletteStackEntry(stackEntries);
-            }
-        }
-    );
-
-    const handleCreateNote = useStableCallback(() => {
-        openSideNote(null);
-    });
-
-    const handleOpenComposerFromOnboarding = useStableCallback(() => {
-        setPaletteSection("search");
-        focusPaletteInput(true);
-    });
-
-    const handleCreateResultsDialogOpenChange = useStableCallback(
-        (open: boolean) => {
-            if (open) {
-                setCreateResultsError(null);
-                setCreateResultsNameDraft(
-                    buildResultsCollectionName(searchTerms)
-                );
-                setCreateResultsDescriptionDraft("");
-                setIsCreateResultsDialogOpen(true);
-                return;
-            }
-
-            if (!isCreatingResultsCollection) {
-                setIsCreateResultsDialogOpen(false);
-                setCreateResultsError(null);
-            }
-        }
-    );
-
-    const handleCreateCollectionFromResultsSubmit = useStableCallback(() => {
-        startCreateResultsCollectionTransition(async () => {
-            let result: CollectionCreateFromItemsResult;
-
-            const description = createResultsDescriptionDraft || undefined;
-            try {
-                result = await handleCreateCollectionFromResults({
-                    description,
-                    itemIds: resultCollectionItemIds,
-                    name: createResultsNameDraft,
-                });
-            } catch {
-                result = {
-                    message: "We couldn't create this collection right now.",
-                    status: "ERROR",
-                };
-            }
-
-            if (result.status !== ACTION_STATUS.CREATED) {
-                setCreateResultsError(result.message);
-                return;
-            }
-
-            setIsCreateResultsDialogOpen(false);
-            setCreateResultsError(null);
-        });
-    });
-
-    const handleExportSectionResults = useStableCallback(
-        async (
-            sectionTitle: string,
-            sectionItems: LibraryItemWithCollections[]
-        ) => {
-            if (sectionItems.length === 0) {
-                log.warn("Skipped empty browser section export", {
-                    sectionTitle,
-                });
-                return;
-            }
-
-            try {
-                await saveFile(
-                    new Blob(
-                        [
-                            buildItemsCsv(
-                                "Section",
-                                sectionTitle,
-                                sectionItems,
-                                "\n"
-                            ),
-                        ],
-                        { type: MIME_TYPES.csv }
-                    ),
-                    {
-                        description: "CSV file",
-                        extension: "csv",
-                        name: getBrowserSectionExportFileName(sectionTitle),
-                    }
-                );
-            } catch (error) {
-                log.error("Failed to export browser section results", error, {
-                    itemCount: sectionItems.length,
-                    sectionTitle,
-                });
-            }
-        }
-    );
-
-    const handleOpenNote = useStableCallback(
-        (item: LibraryItemWithCollections) => {
-            openSideNote(item);
-        }
-    );
-
-    const handleOpenFavoriteItem = useStableCallback(
-        (item: LibraryItemWithCollections) => {
-            if (item.kind === ITEM_KIND_NOTE) {
-                openSideNote(item);
-                return;
-            }
-            handleOpenInNewTab(item);
-        }
-    );
-
-    const handleItemFavoriteToggle = useStableCallback(
-        (item: LibraryItemWithCollections) => {
-            handleToggleItemFavorite(item).catch((error) => {
-                log.error("Failed to toggle item favorite", {
-                    error,
-                    itemId: item.id,
-                });
-            });
-        }
-    );
-
-    useCardHoverHotkeys({
-        hoveredItemIdRef,
-        hoverHotkeySurface,
-        itemsRef,
-        onDelete: handleRequestDelete,
-        onItemFavoriteToggle: handleItemFavoriteToggle,
-        pendingDeleteItemIdRef,
-    });
-
-    const handleFindSimilar = useStableCallback(
-        (item: LibraryItemWithCollections) => {
-            const similarDomain = getLibraryItemDomain(item.url);
-            const nextFilters = buildSimilarBrowserFilterState(
-                {
-                    collectionMembershipFilter,
-                    domainFilters,
-                    searchTerms,
-                    selectedCollectionIds,
-                    sourceFilters,
-                },
-                { domain: similarDomain, source: item.source }
-            );
-
-            setQuery("");
-            setPaletteSection("search");
-            setSearchTerms(nextFilters.searchTerms);
-            setSourceFilters(nextFilters.sourceFilters);
-            setDomainFilters(nextFilters.domainFilters);
-            setCollectionMembershipFilter(
-                nextFilters.collectionMembershipFilter
-            );
-            onClearCollectionFilters();
-        }
-    );
-
-    const handleSaveNote = useStableCallback(
-        async (draft: NoteDraft, noteId: string | null) => {
-            const result = await saveLibraryNoteDraft({
-                activeNoteId: noteId,
-                draft,
-            });
-
-            if (result.status !== ACTION_STATUS.SUCCESS) {
-                return null;
-            }
-
-            setItems((current) => {
-                const existingIndex = current.findIndex(
-                    (item) => item.id === result.item.id
-                );
-
-                if (existingIndex === -1) {
-                    return [result.item, ...current];
-                }
-
-                return current.map((item) =>
-                    item.id === result.item.id ? result.item : item
-                );
-            });
-            return result.item;
-        }
-    );
-
-    const handlePasteUrlIntoLibrary = useStableCallback(async (url: string) => {
-        const result = await createLibraryBookmarkFromPastedUrl({ url });
-
-        if (result.status !== ACTION_STATUS.SUCCESS) {
-            return;
-        }
-
-        setItems((current) => {
-            const existingIndex = current.findIndex(
-                (item) => item.id === result.item.id
-            );
-
-            if (existingIndex === -1) {
-                return [result.item, ...current];
-            }
-
-            return current.map((item) =>
-                item.id === result.item.id ? result.item : item
-            );
-        });
-    });
-
-    React.useEffect(
-        () => () => {
-            for (const attachment of composerAttachmentsRef.current) {
-                revokeFileAttachmentObjectUrl(attachment.url);
-            }
-        },
-        []
-    );
-
-    const placeholder =
-        PALETTE_PLACEHOLDER_BY_SECTION[paletteSection] ?? "Ask Cache anything";
-
-    const handleOpenCreateResultsDialog = useStableCallback(() =>
-        handleCreateResultsDialogOpenChange(true)
-    );
-
-    const mergeImportedLibraryItems = useStableCallback(
-        (imported: LibraryItemWithCollections[]) => {
-            setItems((current) => mergeById(current, imported));
-        }
-    );
-
-    const itemsContextValue: ItemsContext = {
-        collectionPreviewThumbnailUrlsById,
-        favoriteItemIdSet,
-        favoriteItems,
-        items,
-        itemsByCollectionId,
-        mergeImportedItems: mergeImportedLibraryItems,
-        onCopyLink: handleCopyLink,
-        onDelete: handleRequestDelete,
-        onFindSimilar: handleFindSimilar,
-        onItemFavoriteToggle: handleToggleItemFavorite,
-        onOpenFavoriteItem: handleOpenFavoriteItem,
-        onOpenInNewTab: handleOpenInNewTab,
-        onOpenNote: handleOpenNote,
-        onUpdateItemCollections: handleUpdateItemCollections,
-        pendingDeleteItemId: pendingDeleteItem?.id ?? null,
-        setItems,
-    };
-
-    const browserContextValue: BrowserContext = {
-        clearLibraryPalette,
-        collapsedSectionKeys: collapsedSectionKeySet,
-        collections,
-        columnCount: resolvedColumnCount,
-        enableSectionCollapse,
-        hoveredItemIdRef,
-        hoverPinnedItemIdRef,
-        onCollapseAllSections: collapseAllSections,
-        onCreateCollectionFromResults: handleOpenCreateResultsDialog,
-        onExpandAllSections: expandAllSections,
-        onExportSectionResults: handleExportSectionResults,
-        onToggleSection: toggleSection,
-        openPickerItemId,
-        setOpenPickerItemId,
-        shouldShowEmptyLibraryPeek,
-        shouldShowLockedPreview,
-        shouldShowNoFilteredResults,
-        shouldShowUnreachableProbePending:
-            isUnreachableProbePending && filteredItems.length === 0,
-    };
-
-    return (
-        <ItemsContext value={itemsContextValue}>
-            <SideRoot
-                onSaveNote={handleSaveNote}
-                onUrlPaste={handlePasteUrlIntoLibrary}
-            >
-                <BrowserContext value={browserContextValue}>
-                    {children}
-                    <div className="z-0 flex min-h-0 w-full min-w-0 flex-1 items-stretch">
-                        <div
-                            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-8"
-                            style={
-                                {
-                                    "--library-section-sticky-top": "108px",
-                                } as React.CSSProperties
-                            }
-                        >
-                            <Composer>
-                                <ComposerInput
-                                    actionsRef={composerInputActionsRef}
-                                    groups={paletteGroups}
-                                    onKeyDown={handlePaletteInputKeyDown}
-                                    onOpenChange={handleComposerOpenChange}
-                                    onValueChange={handleComposerInputChange}
-                                    placeholder={placeholder}
-                                    query={query}
-                                    ref={inputRef}
-                                    stackEntries={stackEntries}
-                                />
-                                <ComposerActionsList
-                                    duplicatesFilterEnabled={
-                                        duplicatesFilterEnabled
-                                    }
-                                    onCreateNote={handleCreateNote}
-                                    onRemoveDuplicates={
-                                        handleRequestRemoveDuplicates
-                                    }
-                                    removableDuplicateCount={
-                                        removableDuplicateIds.length
-                                    }
-                                >
-                                    <ComposerActionNew />
-                                    <ComposerSummary
-                                        canClear={canClear}
-                                        effectiveGroupBy={effectiveGroupBy}
-                                        metrics={buildComposerMetrics({
-                                            getSourceLabel,
-                                            items: filteredItems,
-                                        })}
-                                        onClear={clearLibraryPalette}
-                                        resultsSummary={resultsSummary}
-                                        sectionsLength={groups.length}
-                                    />
-                                    <OnboardingMenu
-                                        connectedIntegrationCount={
-                                            connectedIntegrationCount
-                                        }
-                                        onCreateCollection={requestCreate}
-                                        onCreateNote={handleCreateNote}
-                                        onOpenComposer={
-                                            handleOpenComposerFromOnboarding
-                                        }
-                                        render={
-                                            <ComposerActionTrigger className="rounded-full" />
-                                        }
-                                    />
-                                    <ComposerActionRemoveDuplicates />
-                                </ComposerActionsList>
-                            </Composer>
-                            <ComposerSuggestionsList
-                                isOpen={isSuggestionsOpen}
-                                onOpenChange={setIsSuggestionsOpen}
-                                suggestions={suggestions}
-                            >
-                                {(suggestion, index) => (
-                                    <Button
-                                        className="text-muted-foreground"
-                                        key={suggestion.label}
-                                        onClick={suggestion.onSelect}
-                                        size="xs"
-                                        variant="ghost"
-                                    >
-                                        {suggestion.icon}
-                                        &nbsp;
-                                        {suggestion.label}
-                                        <Kbd className="bg-transparent px-0 text-[11px] opacity-50">
-                                            <CmdKbd />
-                                            {index + 1}
-                                        </Kbd>
-                                    </Button>
-                                )}
-                            </ComposerSuggestionsList>
-                            {isPreviewOnly ? <InlinePaywallBanner /> : null}
-                            <BrowserEmpty />
-                            <BrowserEmptyWithFilters />
-                            <BrowserUnreachableProbePending />
-                            <BrowserGroupList groups={groups}>
-                                {(group) => (
-                                    <BrowserGroup>
-                                        {enableSectionCollapse ? (
-                                            <>
-                                                <BrowserGroupResults />
-                                                {group.title ? null : (
-                                                    <BrowserGroupAIOverview>
-                                                        <BrowserGroupAIOverviewContent />
-                                                    </BrowserGroupAIOverview>
-                                                )}
-                                                <BrowserGroupEmpty>
-                                                    No items were found in this
-                                                    section.
-                                                </BrowserGroupEmpty>
-                                            </>
-                                        ) : null}
-                                        <BrowserMasonry>
-                                            {(item) => (
-                                                <MasonryItem key={item.id}>
-                                                    <MediaCardDataProvider
-                                                        value={item}
-                                                    >
-                                                        <MediaCardZoomProvider>
-                                                            <MediaCardDownloadProvider>
-                                                                <MediaCardContextMenuSurface>
-                                                                    <MediaCardOpenTarget />
-                                                                    <MediaCardActions />
-                                                                </MediaCardContextMenuSurface>
-                                                            </MediaCardDownloadProvider>
-                                                        </MediaCardZoomProvider>
-                                                    </MediaCardDataProvider>
-                                                </MasonryItem>
-                                            )}
-                                        </BrowserMasonry>
-                                    </BrowserGroup>
-                                )}
-                            </BrowserGroupList>
-                            <BrowserLocked
-                                length={totalItemCount}
-                                lockedItemCount={lockedItemCount}
-                            />
-                        </div>
-                        <SideContent />
-                    </div>
-                    <DeleteItemDialog
-                        deleteErrorMessage={deleteErrorMessage}
-                        onConfirmDelete={handleConfirmDelete}
-                        onOpenChange={handleDeleteDialogOpenChange}
-                        open={pendingDeleteItem !== null}
-                        pendingDeleteItem={pendingDeleteItem}
-                    />
-                    <RemoveDuplicatesDialog
-                        count={pendingRemoveDuplicateIds.length}
-                        isRemoving={isRemovingDuplicates}
-                        onConfirm={handleConfirmRemoveDuplicates}
-                        onOpenChange={handleRemoveDuplicatesDialogOpenChange}
-                        open={isRemoveDuplicatesDialogOpen}
-                    />
-                    <CreateFromResultsCollectionDialog
-                        collections={collections}
-                        createResultsDescriptionDraft={
-                            createResultsDescriptionDraft
-                        }
-                        createResultsDescriptionId={createResultsDescriptionId}
-                        createResultsError={createResultsError}
-                        createResultsNameDraft={createResultsNameDraft}
-                        createResultsNameInputId={createResultsNameInputId}
-                        isCreatingResultsCollection={
-                            isCreatingResultsCollection
-                        }
-                        onCreateCollectionFromResultsSubmit={
-                            handleCreateCollectionFromResultsSubmit
-                        }
-                        onOpenChange={handleCreateResultsDialogOpenChange}
-                        onUpdateCreateResultsDescriptionDraft={
-                            setCreateResultsDescriptionDraft
-                        }
-                        onUpdateCreateResultsError={setCreateResultsError}
-                        onUpdateCreateResultsNameDraft={
-                            setCreateResultsNameDraft
-                        }
-                        onUpdateItemCollections={handleUpdateItemCollections}
-                        onUpdateItemsCollections={handleUpdateItemsCollections}
-                        open={isCreateResultsDialogOpen}
-                        resultItemCount={resultCollectionItemIds.length}
-                        visibleResultItems={visibleResultItems}
-                    />
-                    <SuccessfulUpgradeDialog />
-                </BrowserContext>
-            </SideRoot>
-        </ItemsContext>
     );
 }
