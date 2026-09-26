@@ -1765,7 +1765,7 @@ function collectVisibleDuplicateExcessItemIds(
         const canonical = itemCanonicalGroupKey(item);
         const timestamp = itemTimestamp(item, "added");
         const existing = keepByCanonical.get(canonical);
-        if (!existing || timestamp > existing.timestamp) {
+        if (!existing || timestamp < existing.timestamp) {
             keepByCanonical.set(canonical, { id: item.id, timestamp });
         }
     }
