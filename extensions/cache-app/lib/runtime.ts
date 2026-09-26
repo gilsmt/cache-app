@@ -224,17 +224,12 @@ export function isCacheSiteUrl(rawUrl: string): boolean {
 }
 
 export function isUnsupportedClipUrl(rawUrl: string): boolean {
-    if (!rawUrl) {
+    try {
+        const { protocol } = new URL(rawUrl);
+        return protocol !== "http:" && protocol !== "https:";
+    } catch {
         return true;
     }
-    return (
-        rawUrl.startsWith("chrome://") ||
-        rawUrl.startsWith("chrome-extension://") ||
-        rawUrl.startsWith("edge://") ||
-        rawUrl.startsWith("about:") ||
-        rawUrl.startsWith("javascript:") ||
-        rawUrl.startsWith("data:")
-    );
 }
 
 /** Hosts where the Cache web app can bridge auth into the extension. */
