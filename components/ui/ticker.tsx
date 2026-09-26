@@ -7,7 +7,7 @@ import { useReducedMotion } from "motion/react";
 import * as React from "react";
 
 const DEFAULT_DURATION_SECONDS = 5;
-const MAX_SPEED_PX_PER_SECOND = 92;
+const MAX_SPEED_PX_PER_SECOND = 76;
 
 const DEFAULT_REPEAT_COUNT = 2;
 
