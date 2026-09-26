@@ -323,6 +323,23 @@ export class Positioner {
     getItemHeight(index: number): number | undefined {
         return this.heights[index];
     }
+    getItemTop(index: number): number | undefined {
+        if (index < 0 || index >= this.heights.length) {
+            return undefined;
+        }
+        return this.layout.tops[index];
+    }
+    findAnchor(scrollTop: number): { index: number; top: number } | null {
+        const target = Math.max(0, scrollTop);
+        const { tops } = this.layout;
+        const heights = this.heights;
+        for (let i = 0; i < heights.length; i += 1) {
+            if (tops[i] + heights[i] > target) {
+                return { index: i, top: tops[i] };
+            }
+        }
+        return null;
+    }
     range(
         lo: number,
         hi: number,
@@ -502,6 +519,80 @@ export class Positioner {
         pending.clear();
         return didChange;
     }
+}
+
+interface ScrollAnchor {
+    index: number;
+    offset: number;
+}
+
+function captureScrollAnchor(
+    positioner: Positioner,
+    scrollTop: number
+): ScrollAnchor | null {
+    const found = positioner.findAnchor(scrollTop);
+    if (!found) {
+        return null;
+    }
+    return { index: found.index, offset: scrollTop - found.top };
+}
+
+function resolveAnchoredScrollY(
+    positioner: Positioner,
+    anchor: ScrollAnchor,
+    containerOffset: number
+): number | null {
+    const newTop = positioner.getItemTop(anchor.index);
+    if (newTop === undefined) {
+        return null;
+    }
+    return containerOffset + newTop + anchor.offset;
+}
+
+function commitScrollY(
+    root: HTMLElement,
+    container: HTMLElement | null,
+    scrollY: number
+): void {
+    if (container) {
+        container.scrollTop = scrollY;
+        return;
+    }
+    ownerWindow(root).scrollTo(0, scrollY);
+}
+
+function correctScrollForAnchor(
+    root: HTMLElement,
+    container: HTMLElement | null,
+    positioner: Positioner,
+    anchor: ScrollAnchor | null,
+    shouldCorrect: boolean,
+    measured: Measurements | null,
+    previous: Measurements,
+    scrollY: number
+): { measured: Measurements | null; scrollY: number } {
+    if (anchor === null || !shouldCorrect) {
+        return { measured, scrollY };
+    }
+    const baseOffset = measured
+        ? measured.containerOffset
+        : previous.containerOffset;
+    const desiredScrollY = resolveAnchoredScrollY(
+        positioner,
+        anchor,
+        baseOffset
+    );
+    if (desiredScrollY === null) {
+        return { measured, scrollY };
+    }
+    if (Math.abs(desiredScrollY - scrollY) < OFFSET_DRIFT_THRESHOLD_PX) {
+        return { measured, scrollY };
+    }
+    commitScrollY(root, container, desiredScrollY);
+    if (measured) {
+        measured.scrollY = desiredScrollY;
+    }
+    return { measured, scrollY: desiredScrollY };
 }
 
 interface Measurements {
@@ -824,7 +915,7 @@ export function MasonryRoot<T>(
         }
 
         const previous = measurementsRef.current;
-        const scrollY = container
+        let scrollY = container
             ? container.scrollTop
             : ownerWindow(root).scrollY;
 
@@ -833,10 +924,23 @@ export function MasonryRoot<T>(
             return;
         }
 
+        let anchor: ScrollAnchor | null = null;
+        if (
+            isDirty &&
+            scrollY === previous.scrollY &&
+            previous.containerWidth > 0
+        ) {
+            anchor = captureScrollAnchor(
+                positioner,
+                Math.max(0, previous.scrollY - previous.containerOffset)
+            );
+        }
+
         let layoutDidChange = positioner.flush(pendingMap);
         isDirtyRef.current = false;
 
         let measured: Measurements | null = null;
+        let didRepack = false;
 
         if (isDirty) {
             const forceFullMeasure = forceFullMeasureRef.current;
@@ -866,8 +970,8 @@ export function MasonryRoot<T>(
             }
 
             const nextOptions = buildOptions(nextContainerWidth);
-            layoutDidChange =
-                positioner.setOptions(nextOptions) || layoutDidChange;
+            didRepack = positioner.setOptions(nextOptions);
+            layoutDidChange = didRepack || layoutDidChange;
 
             measured = {
                 containerOffset,
@@ -876,6 +980,19 @@ export function MasonryRoot<T>(
                 windowHeight: nextWindowHeight,
             };
         }
+
+        const correction = correctScrollForAnchor(
+            root,
+            container,
+            positioner,
+            anchor,
+            didRepack,
+            measured,
+            previous,
+            scrollY
+        );
+        scrollY = correction.scrollY;
+        measured = correction.measured;
 
         const next = nextMeasurements(
             positioner,
