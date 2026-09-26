@@ -48,6 +48,7 @@ const LIBRARY_ITEM_TRASH_WINDOW_MS =
     LIBRARY_ITEM_TRASH_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const RECENTLY_DELETED_LIMIT_MAX = 200;
+const EXPIRED_LIBRARY_ITEM_PURGE_BATCH_SIZE = 1000;
 
 type CollectionTransaction = Prisma.TransactionClient;
 
@@ -1068,16 +1069,16 @@ export function purgeExpiredLibraryItems({
 
     return prisma.$transaction(async (tx) => {
         const purgedIds: string[] = [];
-        const PURGE_BATCH_SIZE = 1000;
 
         // Repeat until no rows match the expired cutoff. A single batch
-        // bounded at PURGE_BATCH_SIZE would leave stale tombstones visible
-        // in listRecentlyDeletedItems, defeating the trash-window guarantee.
+        // bounded at EXPIRED_LIBRARY_ITEM_PURGE_BATCH_SIZE would leave stale
+        // tombstones visible in listRecentlyDeletedItems, defeating the
+        // trash-window guarantee.
         for (;;) {
             const candidateIds = (
                 await tx.libraryItem.findMany({
                     select: { id: true },
-                    take: PURGE_BATCH_SIZE,
+                    take: EXPIRED_LIBRARY_ITEM_PURGE_BATCH_SIZE,
                     where: {
                         deletedAt: { lt: cutoff, not: null },
                         userId,
