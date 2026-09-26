@@ -170,7 +170,6 @@ export function Sidebar({ className, side = "left", ...props }: SidebarProps) {
                 "peer group/sidebar relative inset-y-0 flex min-h-full w-full shrink-0 flex-col gap-8 overscroll-contain px-8 py-7 transition-[left,right,width,padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] data-[side=right]:right-0 data-[side=left]:left-0 motion-reduce:transition-none lg:w-[400px] lg:max-w-[400px] lg:justify-between lg:data-[state=collapsed]:w-16 lg:data-[state=collapsed]:px-3 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-[opacity,display] lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-discrete lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:duration-150 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:ease-out motion-reduce:lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-none lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:hidden lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:opacity-0 lg:[&_[data-sidebar-label]]:min-w-0 lg:[&_[data-sidebar-label]]:overflow-hidden lg:[&_[data-sidebar-label]]:text-nowrap lg:data-[state=collapsed]:[&_[data-sidebar=item]]:justify-center lg:data-[state=collapsed]:[&_[data-sidebar=item]]:px-0",
                 className
             )}
-            data-collapsible="icon"
             data-side={side}
             data-slot="sidebar"
             data-state={state}
@@ -323,12 +322,9 @@ export function SidebarRail({
         <button
             {...props}
             className={cn(
-                "absolute inset-y-0 z-20 hidden w-2 transition-all ease-linear after:absolute after:inset-s-1/2 after:inset-y-0 after:w-[2px] hover:after:bg-muted! group-data-[side=left]/sidebar:right-0 group-data-[side=right]/sidebar:left-0 lg:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
+                "absolute inset-y-0 z-20 hidden w-2 ease-linear after:absolute after:inset-s-1/2 after:inset-y-0 after:w-px after:bg-muted/50 hover:after:w-0.5 group-data-[side=left]/sidebar:right-0 group-data-[side=right]/sidebar:left-0 lg:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
                 "in-data-[side=left]:cursor-w-resize! in-data-[side=right]:cursor-e-resize!",
                 "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize! [[data-side=right][data-state=collapsed]_&]:cursor-w-resize!",
-                "group-data-[collapsible=offcanvas]/sidebar:translate-x-0 hover:group-data-[collapsible=offcanvas]/sidebar:bg-muted group-data-[collapsible=offcanvas]/sidebar:after:left-full",
-                "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
-                "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
                 className
             )}
             data-sidebar="rail"
