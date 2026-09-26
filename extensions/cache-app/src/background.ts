@@ -119,13 +119,19 @@ function formatApiError(body: any, status: any): string {
     return `Request failed (${status})`;
 }
 
+async function openCacheHomeTab(): Promise<void> {
+    try {
+        await chrome.tabs.create({ url: getConfiguredCacheAppOrigin() });
+    } catch (error) {
+        console.error("[Cache App] Cache tab creation failed:", error);
+    }
+}
+
 chrome.action.onClicked.addListener(async (tab) => {
     const tabId = tab?.id;
-    if (typeof tabId !== "number") {
-        return;
-    }
-    const url = tab.url ?? "";
-    if (isUnsupportedClipUrl(url)) {
+    const url = tab?.url ?? "";
+    if (typeof tabId !== "number" || isUnsupportedClipUrl(url)) {
+        await openCacheHomeTab();
         return;
     }
     try {
@@ -139,6 +145,7 @@ chrome.action.onClicked.addListener(async (tab) => {
         });
     } catch (error) {
         console.debug("[Cache App] SHOW_POPUP dispatch failed:", error);
+        await openCacheHomeTab();
     }
 });
 
