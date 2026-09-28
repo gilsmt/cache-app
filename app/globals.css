@@ -300,16 +300,6 @@
     }
 }
 
-@utility overflow-fade-bottom {
-    mask-image: linear-gradient(
-        to top,
-        rgba(0, 0, 0, 0) 50%,
-        rgba(0, 0, 0, 0.5) 65%,
-        #000 140%
-    );
-    @apply overflow-clip;
-}
-
 @utility texture-screen {
     &::before {
         position: absolute;

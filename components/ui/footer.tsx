@@ -108,10 +108,10 @@ export function Footer() {
                         </span>
                         <div className="relative inset-x-0 h-25 w-full overflow-clip sm:h-25 md:h-50">
                             <svg
-                                className="overflow-fade-bottom mx-auto flex h-auto w-full justify-center"
+                                aria-hidden="true"
+                                className="mask-[linear-gradient(to_top,transparent_50%,rgba(0,0,0,0.5)_65%,black_140%)] mx-auto flex h-auto w-full justify-center overflow-clip"
                                 fill="none"
                                 height="200"
-                                role="presentation"
                                 viewBox="0 0 426 200"
                                 width="426"
                             >
