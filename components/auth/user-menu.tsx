@@ -9,7 +9,6 @@ import {
     Download,
     Ellipsis,
     LoaderCircle,
-    Megaphone,
     UserRoundPlus,
 } from "lucide-react";
 import Link from "next/link";
@@ -28,7 +27,6 @@ import {
     useSubscriptionBillingPortalAction,
     useSubscriptionUpgradeAction,
 } from "@/components/billing/subscription";
-import { FeedbackPopup } from "@/components/support/feedback-popup";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ErrorMessage } from "@/components/ui/error-message";
@@ -363,15 +361,6 @@ export function UserMenuHeader() {
 export function UserMenuContent() {
     return (
         <>
-            <FeedbackPopup
-                context="user-menu"
-                nativeButton={false}
-                render={<MenuItem closeOnClick={false} />}
-            >
-                Send feedback
-                <Megaphone className="ml-auto inline-block size-4 text-muted-foreground" />
-            </FeedbackPopup>
-            <MenuSeparator />
             <MenuGroup>
                 <div className="flex items-center justify-between pr-2 pl-2.5">
                     <span className="font-normal text-foreground text-sm">

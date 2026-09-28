@@ -149,7 +149,6 @@ model User {
     chats                   Chat[]
     comments                Comment[]
 
-    feedbackEntries Feedback[]
     rssFeeds        RssFeed[]
     markdownImports MarkdownImport[]
 
@@ -482,22 +481,6 @@ model Subscription {
     @@unique([referenceId], map: "subscription_referenceId_active_idx", where: raw("status IN ('incomplete', 'trialing', 'active', 'past_due')"))
     @@index([referenceId, periodEnd])
     @@map("subscription")
-}
-
-/// Application-owned user feedback submissions. Feedback survives user deletion
-/// so product triage keeps historical context without retaining the account.
-model Feedback {
-    id        String   @id @default(cuid())
-    userId    String?
-    user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-    pagePath  String
-    context   String?
-    message   String
-    email     String?
-    createdAt DateTime @default(now())
-
-    @@index([userId])
-    @@map("feedback")
 }
 
 /// A feed the user follows. Entries from this feed are imported as
