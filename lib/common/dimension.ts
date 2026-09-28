@@ -76,6 +76,10 @@ export function createDimensionsCache(): DimensionsCache {
                     pinDefaultIfMissing(src);
                     return dimensions;
                 }
+                const existing = previewDimensionsCache.get(src);
+                if (existing !== undefined && existing !== DEFAULT_DIMENSIONS) {
+                    return existing;
+                }
                 cacheDimensions(src, dimensions);
                 return dimensions;
             },
@@ -180,21 +184,13 @@ function clampDimensions(dimensions: Dimensions): Dimensions {
         return { ...DEFAULT_DIMENSIONS };
     }
     const aspectRatio = h / w;
-    if (aspectRatio > PREVIEW_MAX_ASPECT_RATIO) {
+    const clampedRatio = Math.min(
+        Math.max(aspectRatio, PREVIEW_MIN_ASPECT_RATIO),
+        PREVIEW_MAX_ASPECT_RATIO
+    );
+    if (clampedRatio !== aspectRatio) {
         return {
-            h: Math.max(
-                PREVIEW_MIN_HEIGHT,
-                Math.round(w * PREVIEW_MAX_ASPECT_RATIO)
-            ),
-            w,
-        };
-    }
-    if (aspectRatio < PREVIEW_MIN_ASPECT_RATIO) {
-        return {
-            h: Math.max(
-                PREVIEW_MIN_HEIGHT,
-                Math.round(w * PREVIEW_MIN_ASPECT_RATIO)
-            ),
+            h: Math.max(PREVIEW_MIN_HEIGHT, Math.round(w * clampedRatio)),
             w,
         };
     }

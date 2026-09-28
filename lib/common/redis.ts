@@ -1,6 +1,7 @@
 import type { RedisClientType } from "redis";
 import { createClient } from "redis";
 import * as z from "zod";
+import { hasWindow } from "@/lib/common/environment";
 import { NamedError } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
@@ -29,7 +30,7 @@ let globalRedisClient: RedisClientType | null = null;
  * instance is lost or re-created.
  */
 export function getRedisClient(): RedisClientType | null {
-    if (typeof window !== "undefined") {
+    if (hasWindow) {
         return null;
     }
 

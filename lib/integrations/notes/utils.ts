@@ -1,4 +1,5 @@
 import type { SerializedHeadingNode } from "@lexical/rich-text";
+import { decodeHTML } from "entities";
 import {
     IS_BOLD,
     IS_HIGHLIGHT,
@@ -11,7 +12,6 @@ import {
     type SerializedTextNode,
 } from "lexical";
 import { isRecord } from "@/lib/common/object";
-import { decodeHtmlEntities } from "@/lib/common/string";
 
 export const NOTE_EMPTY_HTML = "<p></p>";
 
@@ -279,7 +279,7 @@ export function sanitizeNoteHtml(input: string): string {
 export function extractNoteText(input: string): string {
     const sanitizedHtml = sanitizeNoteHtml(input);
 
-    return decodeHtmlEntities(
+    return decodeHTML(
         sanitizedHtml
             .replaceAll(NOTE_BREAK_TAGS, "\n")
             .replaceAll(NOTE_BLOCK_END_TAGS, "\n")

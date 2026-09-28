@@ -1345,10 +1345,12 @@ export async function toggleLibraryItemFavorite({
 export function updateLibraryItemCollections({
     collectionIds,
     itemId,
+    mode = "replace",
     userId,
 }: {
     collectionIds: string[];
     itemId: string;
+    mode?: "add" | "replace";
     userId: string;
 }): Promise<{
     collectionSummaries: LibraryCollectionSummary[];
@@ -1375,13 +1377,15 @@ export function updateLibraryItemCollections({
             );
         }
 
+        const connections = toIdConnections(
+            ownedCollections.map((collection) => collection.id)
+        );
         const updatedItem = await tx.libraryItem.update({
             data: {
-                collections: {
-                    set: toIdConnections(
-                        ownedCollections.map((collection) => collection.id)
-                    ),
-                },
+                collections:
+                    mode === "add"
+                        ? { connect: connections }
+                        : { set: connections },
             },
             select: LIBRARY_ITEM_COLLECTIONS_SELECT,
             where: { id: item.id },

@@ -194,6 +194,7 @@ export async function clipPageFromExtension(args: {
         const membership = await updateLibraryItemCollections({
             collectionIds,
             itemId: item.id,
+            mode: "add",
             userId: args.userId,
         });
 

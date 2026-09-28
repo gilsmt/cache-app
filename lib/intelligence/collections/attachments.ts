@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { basename, extname, join } from "node:path";
 import { FileState, GoogleGenAI } from "@google/genai";
 import type { FilePart, TextPart } from "ai";
+import { decodeHTML } from "entities";
 import mime from "mime-types";
 import { serverEnv } from "@/env/server";
 import { abortAfter } from "@/lib/common/abort";
@@ -13,7 +14,7 @@ import { unique } from "@/lib/common/array";
 import { MIME_TYPES } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { fetchPublicRedirect } from "@/lib/common/security/fetch";
-import { decodeHtmlEntities, normalizeWhitespace } from "@/lib/common/string";
+import { normalizeWhitespace } from "@/lib/common/string";
 import { isHttpUrl } from "@/lib/common/url";
 import { resolveCobaltDownloadUrl } from "@/lib/integrations/cobalt/service";
 import type { GenerationContent } from "@/lib/intelligence/generation";
@@ -133,7 +134,7 @@ function extractHtmlContent(input: string): string {
         .replace(/<[^>]+>/g, " ");
 
     return normalizeWhitespace(
-        decodeHtmlEntities(
+        decodeHTML(
             [
                 title && `Title: ${title}`,
                 description && `Description: ${description}`,

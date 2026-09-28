@@ -1,7 +1,6 @@
 import * as z from "zod";
 
-const TRAILING_NUMBER_PATTERN = /^.*(\d+)$/;
-const TRAILING_NUMBER_REPLACE_PATTERN = /(\d+)$/;
+const TRAILING_NUMBER_RE = /(\d+)$/;
 
 /**
  * Get an incremented name (e.g. "New page 1", "New page 2") from a base name
@@ -16,8 +15,8 @@ export function getIncrementedName(baseName: string, others: string[]) {
     const set = new Set(others);
 
     while (set.has(result)) {
-        result = TRAILING_NUMBER_PATTERN.exec(result)?.[1]
-            ? result.replace(TRAILING_NUMBER_REPLACE_PATTERN, (m) =>
+        result = TRAILING_NUMBER_RE.exec(result)
+            ? result.replace(TRAILING_NUMBER_RE, (m) =>
                   (Number(m) + 1).toString()
               )
             : `${result} 1`;
@@ -26,8 +25,10 @@ export function getIncrementedName(baseName: string, others: string[]) {
     return result;
 }
 
+const WHITESPACE_PATTERN = /\s+/g;
+
 export function normalizeWhitespace(input: string): string {
-    return input.replace(/\s+/g, " ").trim();
+    return input.replace(WHITESPACE_PATTERN, " ").trim();
 }
 
 export function slugify(input: string): string {
@@ -36,16 +37,6 @@ export function slugify(input: string): string {
         .toLowerCase()
         .replaceAll(/[^a-z0-9]+/g, "-")
         .replaceAll(/^-+|-+$/g, "");
-}
-
-export function decodeHtmlEntities(input: string): string {
-    return input
-        .replaceAll("&nbsp;", " ")
-        .replaceAll("&amp;", "&")
-        .replaceAll("&lt;", "<")
-        .replaceAll("&gt;", ">")
-        .replaceAll("&quot;", '"')
-        .replaceAll("&#39;", "'");
 }
 
 export function normalizeCollectionName(baseName: string): {
@@ -58,8 +49,6 @@ export function normalizeCollectionName(baseName: string): {
         nameKey: normalizedName.toLowerCase(),
     };
 }
-
-const WHITESPACE_PATTERN = /\s+/;
 
 export function getInitials(baseName: string | null, email: string): string {
     const source = baseName?.trim() || email.trim();
@@ -132,15 +121,4 @@ export function truncateText(value: string, maxLength: number): string {
     }
 
     return `${value.slice(0, maxLength - 1).trimEnd()}…`;
-}
-
-export function truncateLabel(label: string, max = 22): string {
-    return truncateText(label, max);
-}
-
-export function getNoteExcerpt(
-    text: string | null | undefined,
-    maxLength = 180
-): string {
-    return truncateText((text ?? "").trim().replaceAll(/\s+/g, " "), maxLength);
 }

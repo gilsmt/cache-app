@@ -12,12 +12,18 @@ export function getOwnerWindow(
     if (!canUseDOM) {
         throw new Error("Cannot access window outside of the DOM");
     }
+    if (node && "nodeType" in node && node.nodeType === Node.DOCUMENT_NODE) {
+        return (node as Document).defaultView ?? globalThis.window;
+    }
     return node?.ownerDocument?.defaultView ?? globalThis.window;
 }
 
 export function getOwnerDocument(node?: Node | Document | null | undefined) {
     if (!canUseDOM) {
         throw new Error("Cannot access document outside of the DOM");
+    }
+    if (node?.nodeType === Node.DOCUMENT_NODE) {
+        return node as Document;
     }
     return node?.ownerDocument ?? globalThis.document;
 }
@@ -46,13 +52,7 @@ export function isTextEntryTarget(target: EventTarget | null): boolean {
  * character.
  */
 export function stopPropagationForPrintableKeys(event: React.KeyboardEvent) {
-    if (
-        event.key.length === 1 &&
-        event.key !== " " &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey
-    ) {
+    if (isPrintableKey(event)) {
         event.stopPropagation();
     }
 }
@@ -68,15 +68,27 @@ export function stopPropagationForPrintableKeys(event: React.KeyboardEvent) {
 export function stopPropagationForMenuTextInputKeys(
     event: React.KeyboardEvent
 ) {
-    if (event.ctrlKey || event.metaKey || event.altKey) {
-        return;
+    if (isMenuTextInputKey(event)) {
+        event.stopPropagation();
     }
-    const isMenuHandledKey =
+}
+
+function hasModifier(event: React.KeyboardEvent): boolean {
+    return event.ctrlKey || event.metaKey || event.altKey;
+}
+
+function isPrintableKey(event: React.KeyboardEvent): boolean {
+    return event.key.length === 1 && event.key !== " " && !hasModifier(event);
+}
+
+function isMenuTextInputKey(event: React.KeyboardEvent): boolean {
+    if (hasModifier(event)) {
+        return false;
+    }
+    return (
         event.key.length === 1 ||
         event.key.startsWith("Arrow") ||
         event.key === "Home" ||
-        event.key === "End";
-    if (isMenuHandledKey) {
-        event.stopPropagation();
-    }
+        event.key === "End"
+    );
 }

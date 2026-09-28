@@ -54,20 +54,9 @@ function formatValueForLog(
     return value;
 }
 
-function readPropertyValueForLog(target: object, key: string): unknown {
+function readFieldForLog(target: object, key: string): unknown {
     try {
         return (target as Record<string, unknown>)[key];
-    } catch {
-        return UNREADABLE_PROPERTY_LOG_VALUE;
-    }
-}
-
-function readErrorField(
-    error: Error,
-    field: "message" | "name" | "stack"
-): unknown {
-    try {
-        return error[field];
     } catch {
         return UNREADABLE_PROPERTY_LOG_VALUE;
     }
@@ -98,15 +87,20 @@ function formatObjectForLog(
 
     const keys = Object.keys(value);
     const record: Record<string, unknown> = {};
-    for (const key of keys.slice(0, LOG_OBJECT_KEYS_LIMIT)) {
+    let keptKeys = 0;
+    for (const key of keys) {
+        if (keptKeys >= LOG_OBJECT_KEYS_LIMIT) {
+            break;
+        }
         record[key] = formatValueForLog(
             key,
-            readPropertyValueForLog(value, key),
+            readFieldForLog(value, key),
             context
         );
+        keptKeys += 1;
     }
 
-    const remainingKeys = keys.length - LOG_OBJECT_KEYS_LIMIT;
+    const remainingKeys = keys.length - keptKeys;
     if (remainingKeys > 0) {
         record.__truncated__ = `${remainingKeys} more keys`;
     }
@@ -121,16 +115,20 @@ function formatErrorForLog(
     const record: Record<string, unknown> = {
         message: formatValueForLog(
             "message",
-            readErrorField(error, "message"),
+            readFieldForLog(error, "message"),
             context
         ),
-        name: formatValueForLog("name", readErrorField(error, "name"), context),
+        name: formatValueForLog(
+            "name",
+            readFieldForLog(error, "name"),
+            context
+        ),
     };
 
     if (context.options.includeErrorStack) {
         record.stack = formatValueForLog(
             "stack",
-            readErrorField(error, "stack"),
+            readFieldForLog(error, "stack"),
             context
         );
     }
@@ -141,7 +139,7 @@ function formatErrorForLog(
         }
         record[key] = formatValueForLog(
             key,
-            readPropertyValueForLog(error, key),
+            readFieldForLog(error, key),
             context
         );
     }

@@ -1,5 +1,6 @@
 import { sanitizeUrl } from "@braintree/sanitize-url";
 import { FALLBACK_URL } from "@/lib/common/constants";
+import { hasWindow } from "@/lib/common/environment";
 
 const URL_WHITESPACE_RE = /\s/;
 const URL_ONLY_PROTOCOLS = new Set(["http:", "https:"]);
@@ -33,7 +34,7 @@ export const normalizeURL = (link: string | null | undefined) => {
 };
 
 export function getSafeOrigin() {
-    if (typeof window === "undefined") {
+    if (!hasWindow) {
         return null;
     }
     const origin = window.location.origin;
@@ -51,19 +52,19 @@ const toUrl = (link: string): URL | null => {
         if (typeof origin !== "string") {
             return null;
         }
-        return parseValidUrl(`${origin}${trimmed}`);
+        return tryParseUrl(`${origin}${trimmed}`);
     }
 
     if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-        return parseValidUrl(normalizeURL(trimmed));
+        return tryParseUrl(normalizeURL(trimmed));
     }
 
     if (trimmed.includes("://")) {
         const replaced = trimmed.replace(PROTOCOL_PREFIX_RE, "");
-        return parseValidUrl(normalizeURL(replaced));
+        return tryParseUrl(normalizeURL(replaced));
     }
 
-    return parseValidUrl(normalizeURL(`https://${trimmed}`));
+    return tryParseUrl(normalizeURL(`https://${trimmed}`));
 };
 
 export const toValidUrl = (link: string): string =>
@@ -86,12 +87,16 @@ export const parseStandaloneUrl = (input: string): URL | null => {
 
 const WWW_REG = /^www\./i;
 
+function stripWwwPrefix(host: string): string {
+    return host.replace(WWW_REG, "");
+}
+
 export const parseDisplayUrl = (url: string): string => {
     const parsed = tryParseUrl(url);
     if (!parsed) {
         return url;
     }
-    return parsed.hostname.replace(WWW_REG, "") || parsed.hostname;
+    return stripWwwPrefix(parsed.hostname) || parsed.hostname;
 };
 
 export function isHttpUrl(value: string | null | undefined): value is string {
@@ -171,10 +176,7 @@ export function canonicalBookmarkUrl(
         return null;
     }
 
-    let host = parsed.hostname.toLowerCase();
-    if (host.startsWith("www.")) {
-        host = host.slice(4);
-    }
+    let host = stripWwwPrefix(parsed.hostname.toLowerCase());
     if (!host) {
         return null;
     }
@@ -215,7 +217,7 @@ export function canonicalBookmarkUrl(
 }
 
 export function openExternalUrl(url: string) {
-    if (typeof window === "undefined") {
+    if (!hasWindow) {
         return;
     }
     window.open(url, "_blank", "noopener,noreferrer");

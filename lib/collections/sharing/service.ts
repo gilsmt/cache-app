@@ -266,6 +266,9 @@ export async function enablePublicCollectionShare(input: {
             }
         );
     } catch (error) {
+        if (CollectionShareError.isInstance(error)) {
+            throw error;
+        }
         throw new CollectionShareError(
             {
                 code: "share_generation_failed",

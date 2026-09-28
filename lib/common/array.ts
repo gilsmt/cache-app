@@ -68,7 +68,7 @@ export function mergeById<T extends { id: string }>(
     const incomingById = keyBy(incoming, (item) => item.id);
     const currentIdSet = new Set(current.map((item) => item.id));
     return [
-        ...Array.from(incoming.values()).filter(
+        ...Array.from(incomingById.values()).filter(
             (item) => !currentIdSet.has(item.id)
         ),
         ...current.map((item) => incomingById.get(item.id) ?? item),

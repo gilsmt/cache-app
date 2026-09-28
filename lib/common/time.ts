@@ -97,8 +97,10 @@ export function getTimeOfDayOption(
     timeValue: string
 ): TimeOfDayOption {
     return (
-        options.find((option) => option.value === timeValue) ??
-        getFallbackTimeOfDayOption(timeValue)
+        options.find((option) => option.value === timeValue) ?? {
+            label: timeValue,
+            value: timeValue,
+        }
     );
 }
 
@@ -118,17 +120,6 @@ export function getTimeOfDayOptionByLabel(
             option.label.toLowerCase() === normalizedLabel ||
             option.value === normalizedLabel
     );
-}
-
-/**
- * Create a synthetic option for a value that does not match any
- * pre-defined interval, so the Combobox can still display it.
- */
-function getFallbackTimeOfDayOption(timeValue: string): TimeOfDayOption {
-    return {
-        label: timeValue,
-        value: timeValue,
-    };
 }
 
 /**

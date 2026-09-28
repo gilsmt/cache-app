@@ -1,5 +1,7 @@
 import { MIME_TYPES } from "@/lib/common/constants";
 
+const FILE_EXTENSION_RE = /^(.+)\.[^./\\]*$/;
+
 export const blobToFile = (
     blob: Blob,
     mimeType: string,
@@ -28,13 +30,26 @@ export const normalizeFile = async (file_: File) => {
         return file;
     }
 
-    if (!file.type || file.type?.startsWith("image/")) {
+    if (!file.type || file.type.startsWith("image/")) {
         // when the file is an image, make sure the extension corresponds to the
         // actual mimeType (this is an edge case, but happens - especially
         // with AI generated images)
         const mimeType = await getActualMimeTypeFromImage(file);
-        if (mimeType && mimeType !== file.type) {
-            file = blobToFile(file, mimeType, file.name) as NormalizedFile;
+        if (mimeType) {
+            const currentExtension = file.name.split(".").at(-1)?.toLowerCase();
+            const shouldRename =
+                currentExtension !== mimeType.extension &&
+                !(mimeType.extension === "jpg" && currentExtension === "jpeg");
+            if (shouldRename || mimeType.mimeType !== file.type) {
+                const name = shouldRename
+                    ? `${file.name.replace(FILE_EXTENSION_RE, "$1")}.${mimeType.extension}`
+                    : file.name;
+                file = blobToFile(
+                    file,
+                    mimeType.mimeType,
+                    name
+                ) as NormalizedFile;
+            }
         }
     }
 
@@ -42,8 +57,6 @@ export const normalizeFile = async (file_: File) => {
 
     return file as File;
 };
-
-type ValueOf<T> = T[keyof T];
 
 // uint8 leading bytes
 const BYTES = {
@@ -63,22 +76,20 @@ const BYTES = {
  * Attempts to detect if a buffer is a valid image by checking its leading bytes
  */
 const getActualMimeTypeFromImage = async (file: Blob | File) => {
-    let mimeType: ValueOf<
-        Pick<typeof MIME_TYPES, "png" | "jpg" | "gif" | "webp">
-    > | null = null;
-
     const leadingBytes = [
         ...new Uint8Array(await blobToArrayBuffer(file.slice(0, 15))),
     ].join(" ");
 
-    for (const type of Object.keys(BYTES) as (keyof typeof BYTES)[]) {
-        if (leadingBytes.match(BYTES[type])) {
-            mimeType = MIME_TYPES[type];
-            break;
+    for (const [type, pattern] of Object.entries(BYTES)) {
+        if (leadingBytes.match(pattern)) {
+            return {
+                extension: type,
+                mimeType: MIME_TYPES[type as keyof typeof BYTES],
+            };
         }
     }
 
-    return mimeType || file.type || null;
+    return null;
 };
 
 export const blobToArrayBuffer = (blob: Blob): Promise<ArrayBuffer> => {
@@ -86,62 +97,53 @@ export const blobToArrayBuffer = (blob: Blob): Promise<ArrayBuffer> => {
         return blob.arrayBuffer();
     }
     // Safari
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const result = event.target?.result;
-            if (!(result instanceof ArrayBuffer)) {
-                reject(new Error("Couldn't convert blob to ArrayBuffer"));
-                return;
-            }
-            resolve(result);
-        };
-        reader.onerror = () => {
-            reject(reader.error ?? new Error("FileReader error"));
-        };
-        reader.onabort = () => {
-            reject(reader.error ?? new Error("FileReader error"));
-        };
-        reader.readAsArrayBuffer(blob);
+    return readBlobWithReader(blob, "arrayBuffer", (result) => {
+        if (!(result instanceof ArrayBuffer)) {
+            throw new Error("Couldn't convert blob to ArrayBuffer");
+        }
+        return result;
     });
 };
 
-export const blobToDataURL = async (blob: Blob): Promise<string> =>
-    await new Promise((resolve, reject) => {
-        if (!blob) {
-            reject(new Error("No blob provided"));
-            return;
+export const blobToDataURL = async (blob: Blob): Promise<string> => {
+    if (!blob) {
+        throw new Error("No blob provided");
+    }
+    return await readBlobWithReader(blob, "dataURL", (result) => {
+        if (typeof result !== "string") {
+            throw new Error("Failed to convert blob to data URL");
         }
-        const reader = new FileReader();
-        reader.onload = () => {
-            if (typeof reader.result !== "string") {
-                reject(new Error("Failed to convert blob to data URL"));
-                return;
-            }
-            resolve(reader.result);
-        };
-        reader.onerror = () => {
-            reject(reader.error ?? new Error("FileReader error"));
-        };
-        reader.onabort = () => {
-            reject(reader.error ?? new Error("FileReader error"));
-        };
-        reader.readAsDataURL(blob);
+        return result;
     });
+};
 
-export const blobToText = async (blob: Blob): Promise<string> =>
-    await new Promise((resolve, reject) => {
-        if (!blob) {
-            reject(new Error("No blob provided"));
-            return;
+export const blobToText = async (blob: Blob): Promise<string> => {
+    if (!blob) {
+        throw new Error("No blob provided");
+    }
+    return await readBlobWithReader(blob, "text", (result) => {
+        if (typeof result !== "string") {
+            throw new Error("Failed to convert blob to text");
         }
+        return result;
+    });
+};
+
+type BlobReadMethod = "arrayBuffer" | "dataURL" | "text";
+
+function readBlobWithReader<T>(
+    blob: Blob,
+    method: BlobReadMethod,
+    selectResult: (result: string | ArrayBuffer | null) => T
+): Promise<T> {
+    return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-            if (typeof reader.result !== "string") {
-                reject(new Error("Failed to convert blob to text"));
-                return;
+            try {
+                resolve(selectResult(reader.result));
+            } catch (error) {
+                reject(error);
             }
-            resolve(reader.result);
         };
         reader.onerror = () => {
             reject(reader.error ?? new Error("FileReader error"));
@@ -149,5 +151,12 @@ export const blobToText = async (blob: Blob): Promise<string> =>
         reader.onabort = () => {
             reject(reader.error ?? new Error("FileReader error"));
         };
-        reader.readAsText(blob);
+        if (method === "arrayBuffer") {
+            reader.readAsArrayBuffer(blob);
+        } else if (method === "dataURL") {
+            reader.readAsDataURL(blob);
+        } else {
+            reader.readAsText(blob);
+        }
     });
+}

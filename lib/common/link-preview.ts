@@ -29,21 +29,21 @@ export async function fetchLinkPreview(
     url: string,
     options: { timeoutMs: number }
 ): Promise<LinkPreviewResult | null> {
-    const result = await fetchPublicRedirect(url, {
-        headers: {
-            Accept: LINK_PREVIEW_ACCEPT_HEADER,
-            "User-Agent": USER_AGENT,
-        },
-        maxRedirects: MAX_REDIRECTS,
-        method: "GET",
-        timeoutMs: options.timeoutMs,
-    });
-    if (result.status !== "response") {
-        return null;
-    }
-    const { response } = result;
-
     try {
+        const result = await fetchPublicRedirect(url, {
+            headers: {
+                Accept: LINK_PREVIEW_ACCEPT_HEADER,
+                "User-Agent": USER_AGENT,
+            },
+            maxRedirects: MAX_REDIRECTS,
+            method: "GET",
+            timeoutMs: options.timeoutMs,
+        });
+        if (result.status !== "response") {
+            return null;
+        }
+        const { response } = result;
+
         if (response.status < 200 || response.status >= 300) {
             log.debug("Rejected link preview status", {
                 status: response.status,
@@ -74,7 +74,9 @@ export async function fetchLinkPreview(
         const headMetadata = extractPreviewMetadata(head.text, baseUrl);
         if (headMetadata.images.length > 0) {
             // The head already decided the preview image; stop downloading.
-            await discardPreviewBody(head);
+            if (head.reader !== null) {
+                await discardReader(head.reader);
+            }
             return { url: baseUrl, ...headMetadata };
         }
 
@@ -221,14 +223,6 @@ async function readRemainingBody(
         reader: null,
         text,
     };
-}
-
-async function discardPreviewBody(read: PreviewBodyRead): Promise<void> {
-    const reader = read.reader;
-    if (reader === null) {
-        return;
-    }
-    await discardReader(reader);
 }
 
 async function discardReader(

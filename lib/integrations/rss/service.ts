@@ -1,13 +1,16 @@
 import "server-only";
 
 import { mapConcurrent } from "@/lib/common/array";
-import { ITEM_KIND_BOOKMARK } from "@/lib/common/constants";
+import {
+    ITEM_KIND_BOOKMARK,
+    PRISMA_UNIQUE_CONSTRAINT_ERROR,
+} from "@/lib/common/constants";
 import { getErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { tryParseUrl } from "@/lib/common/url";
 import { upsertLibraryItemImports } from "@/lib/integrations/import";
 import { prisma } from "@/prisma";
-import type { Prisma } from "@/prisma/client/client";
+import { Prisma } from "@/prisma/client/client";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import { RssFeedError } from "./errors";
 import type { ParsedFeed } from "./parser";
@@ -26,6 +29,7 @@ function normalizeFeedUrl(url: string): string {
     }
     parsed.protocol = parsed.protocol.toLowerCase();
     parsed.hostname = parsed.hostname.toLowerCase();
+    parsed.hash = "";
     return parsed.href.replace(TRAILING_SLASH_RE, "");
 }
 
@@ -36,25 +40,26 @@ export async function addRssFeed(args: {
     const feedUrl = args.feedUrl.trim();
     const urlKey = normalizeFeedUrl(feedUrl);
 
-    const existing = await prisma.rssFeed.findUnique({
-        select: { id: true },
-        where: { userId_urlKey: { urlKey, userId: args.userId } },
-    });
-
-    if (existing) {
-        throw new RssFeedError({
-            kind: "already_exists",
-            message: "You've already added this feed.",
+    const feed = await prisma.rssFeed
+        .create({
+            data: {
+                feedUrl,
+                urlKey,
+                userId: args.userId,
+            },
+        })
+        .catch((error: unknown) => {
+            if (
+                error instanceof Prisma.PrismaClientKnownRequestError &&
+                error.code === PRISMA_UNIQUE_CONSTRAINT_ERROR
+            ) {
+                throw new RssFeedError({
+                    kind: "already_exists",
+                    message: "You've already added this feed.",
+                });
+            }
+            throw error;
         });
-    }
-
-    const feed = await prisma.rssFeed.create({
-        data: {
-            feedUrl,
-            urlKey,
-            userId: args.userId,
-        },
-    });
 
     log.info("Feed added", { feedId: feed.id, url: feedUrl });
 

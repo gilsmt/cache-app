@@ -67,12 +67,12 @@ const LOG_CONFIG = {
 
 type LogConfig = (typeof LOG_CONFIG)[keyof typeof LOG_CONFIG];
 
-const LOG_LEVEL_ORDER = [
-    LOG_LEVEL.DEBUG,
-    LOG_LEVEL.INFO,
-    LOG_LEVEL.WARN,
-    LOG_LEVEL.ERROR,
-];
+const LOG_LEVEL_INDEX: Record<LogLevel, number> = {
+    [LOG_LEVEL.DEBUG]: 0,
+    [LOG_LEVEL.ERROR]: 3,
+    [LOG_LEVEL.INFO]: 1,
+    [LOG_LEVEL.WARN]: 2,
+};
 
 const ANSI_RESET = "\u001b[0m";
 const ANSI_COLOR_BY_LEVEL: Record<LogLevel, string> = {
@@ -94,8 +94,8 @@ const getNodeEnvironment = (): NodeEnvironment => {
     if (isDevelopment) {
         return "development";
     }
-    // An unrecognized NODE_ENV falls back to production, so a deployed process
-    // never logs below ERROR or attaches error stacks.
+    // An unrecognized NODE_ENV uses production logging: warnings and errors,
+    // without development-only error stacks.
     return "production";
 };
 
@@ -126,11 +126,8 @@ function colorizeLogPart(value: string, color: string) {
     return `${color}${value}${ANSI_RESET}`;
 }
 
-function stringifyLogValue(value: unknown) {
+function stringifyLogValue(value: unknown, isDev: boolean) {
     try {
-        const env = getNodeEnvironment();
-        const isDev = env === "development";
-
         return JSON.stringify(
             formatLogValue(value, { includeErrorStack: isDev }),
             null,
@@ -163,22 +160,19 @@ export class Logger {
             return false;
         }
 
-        const minLevelIndex = LOG_LEVEL_ORDER.indexOf(config.minLevel);
-        const currentLevelIndex = LOG_LEVEL_ORDER.indexOf(level);
-
-        return currentLevelIndex >= minLevelIndex;
+        return LOG_LEVEL_INDEX[level] >= LOG_LEVEL_INDEX[config.minLevel];
     }
 
     /**
      * Format arguments for logging, converting objects to JSON strings
      */
-    #formatArgs(args: unknown[]): unknown[] {
+    #formatArgs(args: unknown[], isDev: boolean): unknown[] {
         return args.map((arg) => {
             if (arg === null || arg === undefined) {
                 return arg;
             }
             if (typeof arg === "object") {
-                return stringifyLogValue(arg);
+                return stringifyLogValue(arg, isDev);
             }
             return arg;
         });
@@ -194,11 +188,12 @@ export class Logger {
             return;
         }
 
+        const isDev = getNodeEnvironment() === "development";
         const timestamp = new Date().toISOString();
         const prefix = config.colorize
             ? `${colorizeLogPart(`[${timestamp}]`, ANSI_GRAY)} ${colorizeLogPart(`[${level}]`, ANSI_COLOR_BY_LEVEL[level])} ${colorizeLogPart(`[${this.#module}]`, ANSI_CYAN)}`
             : `[${timestamp}] [${level}] [${this.#module}]`;
-        const formattedArgs = this.#formatArgs(args);
+        const formattedArgs = this.#formatArgs(args, isDev);
 
         switch (level) {
             case LOG_LEVEL.DEBUG:
@@ -267,6 +262,10 @@ export class Logger {
      * using _ = logger.time("sync invoices", { tenantId })
      */
     time(message: string, meta: Record<string, unknown> = {}): LogSpan {
+        if (!this.#shouldLog(LOG_LEVEL.INFO, getLogConfigForEnvironment())) {
+            const noop = () => undefined;
+            return { stop: noop, [Symbol.dispose]: noop };
+        }
         const start = Date.now();
         this.info(message, { status: "started", ...meta });
         const stop = () => {

@@ -14,7 +14,7 @@ export function detectDesktopPlatform(
     userAgent?: string | null
 ): DesktopPlatform | null {
     let resolvedUserAgent: string | null;
-    if (typeof userAgent === "string") {
+    if (userAgent !== undefined) {
         resolvedUserAgent = userAgent;
     } else if (typeof navigator === "undefined") {
         resolvedUserAgent = null;

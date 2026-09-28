@@ -306,6 +306,16 @@ export async function resumeAutomation(args: {
             operation: "resumeAutomation",
             userId: args.userId,
         });
+        if (
+            current.payloadScope === AutomationPayloadScope.collection &&
+            current.collectionId === null
+        ) {
+            throw createAutomationError({
+                code: "missing_collection",
+                message: "Choose a valid collection for this automation.",
+                operation: "resumeAutomation",
+            });
+        }
         const now = new Date();
         const nextRunAtUtc = computeNextRunAtUtc({
             afterUtc: now,

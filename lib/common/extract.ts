@@ -1,9 +1,9 @@
 import { decodeHTML, decodeHTMLAttribute } from "entities";
 import { Parser } from "htmlparser2";
+import { normalizeWhitespace } from "@/lib/common/string";
 import { tryParseUrl } from "@/lib/common/url";
 
 const HEAD_END_RE = /<\/head\s*>/i;
-const WHITESPACE_RE = /\s+/g;
 
 export interface PreviewVideoMeta {
     height: string | undefined;
@@ -80,13 +80,16 @@ export function extractPreviewMetadata(
     return extractPreviewMetadataWithParser(html, base);
 }
 
-function resolveImageUrl(value: string, base: URL): string | null {
-    const decoded = value.includes("&") ? decodeHTMLAttribute(value) : value;
+function resolveUrl(
+    value: string,
+    base: URL,
+    options: { decodeEntities: boolean }
+): string | null {
+    const decoded =
+        options.decodeEntities && value.includes("&")
+            ? decodeHTMLAttribute(value)
+            : value;
     return tryParseUrl(decoded, base)?.href ?? null;
-}
-
-function tryResolveUrl(value: string, base: URL): string | null {
-    return tryParseUrl(value, base)?.href ?? null;
 }
 
 function decodeMetadataValue(value: string | undefined): string | undefined {
@@ -123,7 +126,7 @@ function accumulateImageDimensions(
 }
 
 function normalizeMetadataText(value: string | undefined): string {
-    return value ? value.replace(WHITESPACE_RE, " ").trim() : "";
+    return value ? normalizeWhitespace(value) : "";
 }
 
 function extractPreviewMetadataWithParser(
@@ -180,13 +183,17 @@ function extractPreviewMetadataWithParser(
         if (property === "og:image") {
             hasPropertyOgImageTag = true;
             if (content) {
-                const resolved = tryResolveUrl(content, base);
+                const resolved = resolveUrl(content, base, {
+                    decodeEntities: false,
+                });
                 if (resolved) {
                     propertyOgImages.push(resolved);
                 }
             }
         } else if (name === "og:image" && content) {
-            const resolved = tryResolveUrl(content, base);
+            const resolved = resolveUrl(content, base, {
+                decodeEntities: false,
+            });
             if (resolved) {
                 nameOgImages.push(resolved);
             }
@@ -226,10 +233,12 @@ function extractPreviewMetadataWithParser(
     const handleLinkTag = (attrs: Record<string, string>) => {
         if (attrs.rel === "image_src" && imageSrcLinkHref === null) {
             imageSrcLinkHref = attrs.href
-                ? (resolveImageUrl(attrs.href, base) ?? "")
+                ? (resolveUrl(attrs.href, base, { decodeEntities: true }) ?? "")
                 : "";
         }
-        const href = attrs.href ? resolveImageUrl(attrs.href, base) : null;
+        const href = attrs.href
+            ? resolveUrl(attrs.href, base, { decodeEntities: true })
+            : null;
         if (href !== null) {
             if (attrs.rel === "icon") {
                 faviconIconHrefs.push(href);
@@ -247,7 +256,7 @@ function extractPreviewMetadataWithParser(
             return;
         }
         seenImgSrc.add(src);
-        const resolved = resolveImageUrl(src, base);
+        const resolved = resolveUrl(src, base, { decodeEntities: true });
         if (resolved) {
             imgUrls.push(resolved);
         }
@@ -370,7 +379,9 @@ function extractPreviewMetadataWithParser(
         ...faviconAppleTouchIconHrefs,
     ];
     if (faviconHrefs.length === 0) {
-        const fallback = tryResolveUrl("/favicon.ico", base);
+        const fallback = resolveUrl("/favicon.ico", base, {
+            decodeEntities: false,
+        });
         if (fallback) {
             faviconHrefs.push(fallback);
         }

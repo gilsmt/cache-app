@@ -8,11 +8,17 @@ const DEFAULT_MIN_TIMEOUT_MS = 500;
 const DEFAULT_FACTOR = 2;
 const DEFAULT_MAX_TIMEOUT_MS = 10_000;
 
-const DEFAULT_SHOULD_RETRY: NonNullable<Options["shouldRetry"]> = ({ error }) =>
-    !isAbortError(error) &&
-    (!HttpError.isInstance(error) ||
-        error.isRetryable() ||
-        isNetworkError(error));
+const DEFAULT_SHOULD_RETRY: NonNullable<Options["shouldRetry"]> = ({
+    error,
+}) => {
+    if (isAbortError(error)) {
+        return false;
+    }
+    if (!HttpError.isInstance(error)) {
+        return true;
+    }
+    return error.isRetryable() || isNetworkError(error);
+};
 
 export function withRetry<T>(
     input: (attemptNumber: number) => PromiseLike<T> | T,

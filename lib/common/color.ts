@@ -1,5 +1,6 @@
 import { converter, formatHex, parse } from "culori";
 import * as z from "zod";
+import { unique } from "@/lib/common/array";
 import { djb2Hash, fnv1aHash } from "@/lib/common/hash";
 import { clamp } from "@/lib/common/number";
 
@@ -79,7 +80,7 @@ const COLORS: readonly string[] = [
 
 export function isValidColor(color: string): boolean {
     try {
-        return parse(color) !== null;
+        return parse(color) !== undefined;
     } catch {
         return false;
     }
@@ -253,7 +254,7 @@ export function getColorGradientFromName(name: string): string {
 export function getChartColorsFromKeys(
     keys: readonly string[]
 ): Map<string, string> {
-    const uniqueKeys = Array.from(new Set(keys)).sort((first, second) =>
+    const uniqueKeys = unique(keys).sort((first, second) =>
         first.localeCompare(second)
     );
     const count = uniqueKeys.length;
@@ -284,8 +285,10 @@ export function getChartColorsFromKeys(
 }
 
 /** @internal */
+const TO_LCH = converter("lch");
+
 function buildChartColor(hex: string): string {
-    const { c, h, l } = converter("lch")(parseToValidColor(hex));
+    const { c, h, l } = TO_LCH(parseToValidColor(hex));
     const lightnessDark = Math.min(
         l + CHART_DARK_LIGHTNESS_LIFT,
         CHART_DARK_LIGHTNESS_MAX
@@ -299,9 +302,7 @@ function buildChartColor(hex: string): string {
 }
 
 export function getContrastColor(hexColor: string) {
-    const r = Number.parseInt(hexColor.slice(1, 3), 16) / RGB_MAX;
-    const g = Number.parseInt(hexColor.slice(3, 5), 16) / RGB_MAX;
-    const b = Number.parseInt(hexColor.slice(5, 7), 16) / RGB_MAX;
+    const { r, g, b } = parseToRgb(hexColor);
     return (Math.min(r, g, b) + Math.max(r, g, b)) / 2 < LUMINANCE_THRESHOLD
         ? "#FFFFFF"
         : "#000000";
