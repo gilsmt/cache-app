@@ -92,6 +92,9 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import useSWR from "swr";
+import { type SaveStatus, useAutosave } from "@/components/hooks/use-autosave";
+import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
+import { useLastVisited } from "@/components/hooks/use-last-visited";
 import { useItemsContext } from "@/components/session/items";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,10 +117,10 @@ import {
 import { Placeholder } from "@/components/ui/placeholder";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
-import { type SaveStatus, useAutosave } from "@/hooks/use-autosave";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { useLastVisited } from "@/hooks/use-last-visited";
-import type { LibraryItemWithCollections } from "@/lib/collections/utils";
+import {
+    type LibraryItemWithCollections,
+    truncateLabel,
+} from "@/lib/collections/utils";
 import { ITEM_KIND_BOOKMARK } from "@/lib/common/constants";
 import { getOwnerDocument, isTextEntryTarget } from "@/lib/common/dom";
 import { saveFile } from "@/lib/common/file";
@@ -130,7 +133,7 @@ import {
     type Oembed,
     OembedSchema,
 } from "@/lib/common/oembed";
-import { slugify, truncateLabel } from "@/lib/common/string";
+import { slugify } from "@/lib/common/string";
 import {
     openExternalUrl,
     parseDisplayUrl,

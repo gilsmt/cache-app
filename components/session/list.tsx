@@ -48,6 +48,11 @@ import {
 import { useSubscriptionAccess } from "@/components/billing/subscription";
 import { SuccessfulUpgradeDialog } from "@/components/billing/success";
 import { CommentComposer } from "@/components/comments/composer";
+import { useComposerFilters } from "@/components/hooks/use-composer-filters";
+import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
+import { useIsExtensionInstalled } from "@/components/hooks/use-extension-installed";
+import { useLastVisited } from "@/components/hooks/use-last-visited";
+import { useSearchHistory } from "@/components/hooks/use-search-history";
 import {
     reconcileCollectionTags,
     replaceMultipleItemCollections,
@@ -65,6 +70,7 @@ import {
     COLLECTION_NAME_MAX_LENGTH,
     COMBOBOX_ESCAPE_KEY_REASON,
     COMBOBOX_ITEM_PRESS_REASON,
+    type CollectionMembershipFilter,
     Composer,
     ComposerActionButton,
     ComposerActionNew,
@@ -72,17 +78,20 @@ import {
     ComposerActionsList,
     type ComposerAttachment,
     ComposerInput,
-    type ComposerInputActions,
     type ComposerSortMode,
     ComposerSuggestionsList,
+    ComposerSuggestionsListButton,
     ComposerSummary,
     CopyResponseButton,
+    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
     DEFAULT_COLUMN_COUNT_MODE,
     DEFAULT_SORT_MODE,
     type DecoratedComposerItem,
     type EffectiveGroupByMode,
     getItemGroupKey,
+    getLibraryItemDomain,
     getSourceLabel,
+    hasActiveComposerFilters,
     isPrintablePaletteKey,
     isSearchHotkey,
     itemTimestamp,
@@ -93,15 +102,8 @@ import {
     SOURCE_LABEL_BY_VALUE,
     type SortMode,
     SpeakResponseButton,
-} from "@/components/session/composer";
-import {
-    browserHasActiveFilters,
-    type CollectionMembershipFilter,
-    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
-    filterComposerItems,
-    getLibraryItemDomain,
     UNSPECIFIC_LIBRARY_DOMAIN,
-} from "@/components/session/filters";
+} from "@/components/session/composer";
 import { MediaCardPreview } from "@/components/session/item";
 import {
     ItemsContext,
@@ -184,11 +186,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Ticker } from "@/components/ui/ticker";
-import { useComposerFilters } from "@/hooks/use-composer-filters";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { useIsExtensionInstalled } from "@/hooks/use-extension-installed";
-import { useLastVisited } from "@/hooks/use-last-visited";
-import { useSearchHistory } from "@/hooks/use-search-history";
 import {
     type CollectionCreateFromItemsResult,
     createCollectionFromItems,
@@ -226,11 +223,14 @@ import {
     buildItemsCsv,
     getLibraryItemPrimaryText,
     getLibraryItemTitle,
+    getNoteExcerpt,
     isRecentlySmartCollected,
+    itemPreviewImageProxyUrl,
     itemPreviewImageUrl,
     type LibraryCollectionSummary,
     type LibraryCollectionTag,
     type LibraryItemWithCollections,
+    truncateLabel,
 } from "@/lib/collections/utils";
 import { mergeById, updateById } from "@/lib/common/array";
 import { getColorGradientFromName } from "@/lib/common/color";
@@ -247,12 +247,7 @@ import { isTextEntryTarget } from "@/lib/common/dom";
 import { revokeFileAttachmentObjectUrl, saveFile } from "@/lib/common/file";
 import { getImageColors } from "@/lib/common/image-color";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import {
-    getNoteExcerpt,
-    normalizeWhitespace,
-    slugify,
-    truncateLabel,
-} from "@/lib/common/string";
+import { normalizeWhitespace, slugify } from "@/lib/common/string";
 import { fetchWithTimeout } from "@/lib/common/timeout";
 import {
     normalizeURL,
@@ -593,6 +588,19 @@ interface BrowserSimilarFilterState {
     searchTerms: string[];
     selectedCollectionIds: string[];
     sourceFilters: LibraryItemSource[];
+}
+
+interface FilterBrowserItemsInput {
+    collectionMembershipFilter: CollectionMembershipFilter;
+    domainFilters: string[];
+    duplicateItemIds: ReadonlySet<string>;
+    duplicatesFilterEnabled: boolean;
+    lastVisitedItemIds: string[];
+    searchTerms: string[];
+    selectedCollectionIds: string[];
+    sourceFilters: LibraryItemSource[];
+    unreachableFilterEnabled: boolean;
+    unreachableItemIds: ReadonlySet<string>;
 }
 
 interface BrowserSimilarFilterOptions {
@@ -1883,6 +1891,106 @@ function buildResultsCollectionName(searchTerms: string[]): string {
     return normalizedTerms.join(" + ").slice(0, COLLECTION_NAME_MAX_LENGTH);
 }
 
+function filterBrowserItems(
+    items: LibraryItemWithCollections[],
+    input: FilterBrowserItemsInput
+): LibraryItemWithCollections[] {
+    if (
+        !hasActiveComposerFilters({
+            collectionMembershipFilter: input.collectionMembershipFilter,
+            domainFilters: input.domainFilters,
+            duplicatesFilterEnabled: input.duplicatesFilterEnabled,
+            lastVisitedFilterEnabled: input.lastVisitedItemIds.length > 0,
+            searchTerms: input.searchTerms,
+            selectedCollectionIds: input.selectedCollectionIds,
+            sourceFilters: input.sourceFilters,
+            unreachableFilterEnabled: input.unreachableFilterEnabled,
+        })
+    ) {
+        return items;
+    }
+
+    let filteredItems = items;
+    const normalizedSearchTerms = input.searchTerms.map((term) =>
+        term.trim().toLowerCase()
+    );
+
+    if (input.lastVisitedItemIds.length > 0) {
+        const lastVisitedItemIdSet = new Set(input.lastVisitedItemIds);
+        filteredItems = filteredItems.filter((item) =>
+            lastVisitedItemIdSet.has(item.id)
+        );
+    }
+
+    if (input.duplicatesFilterEnabled) {
+        filteredItems = filteredItems.filter((item) =>
+            input.duplicateItemIds.has(item.id)
+        );
+    }
+
+    if (input.unreachableFilterEnabled) {
+        filteredItems = filteredItems.filter((item) =>
+            input.unreachableItemIds.has(item.id)
+        );
+    }
+
+    // Selections suspend while "not in collections" is active: the two
+    // filters are mutually exclusive
+    if (
+        input.selectedCollectionIds.length > 0 &&
+        input.collectionMembershipFilter !== "not-in-collections"
+    ) {
+        const selectedCollectionIdSet = new Set(input.selectedCollectionIds);
+        filteredItems = filteredItems.filter((item) =>
+            item.collections.some((collection) =>
+                selectedCollectionIdSet.has(collection.id)
+            )
+        );
+    }
+
+    if (input.collectionMembershipFilter === "in-collections") {
+        filteredItems = filteredItems.filter(
+            (item) => item.collections.length > 0
+        );
+    }
+
+    if (input.collectionMembershipFilter === "not-in-collections") {
+        filteredItems = filteredItems.filter(
+            (item) => item.collections.length === 0
+        );
+    }
+
+    if (normalizedSearchTerms.length > 0) {
+        filteredItems = filteredItems.filter((item) => {
+            const caption = item.caption?.toLowerCase() ?? "";
+            const noteText = item.noteContentText?.toLowerCase() ?? "";
+            const url = item.url.toLowerCase();
+            return normalizedSearchTerms.some(
+                (term) =>
+                    caption.includes(term) ||
+                    noteText.includes(term) ||
+                    url.includes(term)
+            );
+        });
+    }
+
+    if (input.sourceFilters.length > 0) {
+        const sourceFilterSet = new Set(input.sourceFilters);
+        filteredItems = filteredItems.filter((item) =>
+            sourceFilterSet.has(item.source)
+        );
+    }
+
+    if (input.domainFilters.length > 0) {
+        const domainFilterSet = new Set(input.domainFilters);
+        filteredItems = filteredItems.filter((item) =>
+            domainFilterSet.has(getLibraryItemDomain(item.url))
+        );
+    }
+
+    return filteredItems;
+}
+
 function formatGroupHeading(
     mode: EffectiveGroupByMode,
     key: string,
@@ -2239,12 +2347,12 @@ function defaultCollectionTriggerIcon(
     shouldShowSmartCollectionsIndicator: boolean
 ) {
     if (selectedCount === 0) {
-        return <SquircleDashed aria-hidden className="size-4.5" />;
+        return <SquircleDashed aria-hidden className="size-4" />;
     }
     if (shouldShowSmartCollectionsIndicator) {
         return <MediaCardSmartCollectionsIndicator />;
     }
-    return <Squircle aria-hidden className="size-4.5" />;
+    return <Squircle aria-hidden className="size-4" />;
 }
 
 interface CollectionComboboxPickerProps
@@ -2365,19 +2473,9 @@ export function BrowserContent({
         React.useState(false);
 
     const inputRef = React.useRef<HTMLInputElement>(null);
-    const composerInputActionsRef = React.useRef<ComposerInputActions | null>(
-        null
-    );
+    const [isComposerOpen, setIsComposerOpen] = React.useState(false);
     const composerAttachmentsRef = React.useRef<ComposerAttachment[]>([]);
     const askCacheRequestVersionRef = React.useRef(0);
-
-    const setComposerOpen = useStableCallback((value: boolean) => {
-        if (value) {
-            composerInputActionsRef.current?.open();
-            return;
-        }
-        composerInputActionsRef.current?.close();
-    });
 
     const {
         deleteErrorMessage,
@@ -2486,7 +2584,7 @@ export function BrowserContent({
                         domain: option.value,
                         itemCount: option.itemCount,
                     })),
-                filteredItemCount: filterComposerItems(items, {
+                filteredItemCount: filterBrowserItems(items, {
                     collectionMembershipFilter,
                     domainFilters,
                     duplicateItemIds,
@@ -2616,7 +2714,7 @@ export function BrowserContent({
     );
 
     const focusPaletteInput = useStableCallback((select = false) => {
-        composerInputActionsRef.current?.open();
+        setIsComposerOpen(true);
         queueMicrotask(() => {
             if (select) {
                 inputRef.current?.select();
@@ -2664,7 +2762,7 @@ export function BrowserContent({
         setDomainFilters,
         setDuplicatesFilterEnabled,
         setGroupBy,
-        setIsComposerOpen: setComposerOpen,
+        setIsComposerOpen,
         setLastVisitedFilterEnabled,
         setQuery,
         setSearchTerms,
@@ -2682,7 +2780,7 @@ export function BrowserContent({
 
     const paletteGroupValueSet = buildPaletteGroupValueSet(paletteGroups);
 
-    const filteredItems = filterComposerItems(items, {
+    const filteredItems = filterBrowserItems(items, {
         collectionMembershipFilter,
         domainFilters,
         duplicateItemIds,
@@ -2727,11 +2825,11 @@ export function BrowserContent({
         collections
     );
 
-    const hasActiveFilters = browserHasActiveFilters({
+    const hasActiveFilters = hasActiveComposerFilters({
         collectionMembershipFilter,
         domainFilters,
         duplicatesFilterEnabled,
-        lastVisitedItemIds: activeLastVisitedItemIds,
+        lastVisitedFilterEnabled: activeLastVisitedItemIds.length > 0,
         searchTerms,
         selectedCollectionIds,
         sourceFilters,
@@ -2834,7 +2932,7 @@ export function BrowserContent({
         setCollectionMembershipFilter,
         setDomainFilters,
         setGroupBy,
-        setIsComposerOpen: setComposerOpen,
+        setIsComposerOpen,
         setQuery,
         setSearchTerms,
         setSortMode,
@@ -2877,7 +2975,11 @@ export function BrowserContent({
                 if (query.trim() === "") {
                     returnToSearchSection();
                 }
+                if (eventDetails.isCanceled) {
+                    return;
+                }
             }
+            setIsComposerOpen(nextOpen);
         }
     );
 
@@ -3204,7 +3306,7 @@ export function BrowserContent({
     );
 
     const placeholder =
-        PALETTE_PLACEHOLDER_BY_SECTION[paletteSection] ?? "Ask Cache anything";
+        PALETTE_PLACEHOLDER_BY_SECTION[paletteSection] ?? "Ask anything";
 
     const handleOpenCreateResultsDialog = useStableCallback(() =>
         setIsCreateResultsDialogOpen(true)
@@ -3277,11 +3379,11 @@ export function BrowserContent({
                         >
                             <Composer>
                                 <ComposerInput
-                                    actionsRef={composerInputActionsRef}
                                     groups={paletteGroups}
                                     onKeyDown={handlePaletteInputKeyDown}
                                     onOpenChange={handleComposerOpenChange}
                                     onValueChange={handleComposerInputChange}
+                                    open={isComposerOpen}
                                     placeholder={placeholder}
                                     query={query}
                                     ref={inputRef}
@@ -3333,21 +3435,10 @@ export function BrowserContent({
                                 suggestions={suggestions}
                             >
                                 {(suggestion, index) => (
-                                    <Button
-                                        className="text-muted-foreground"
-                                        key={suggestion.label}
-                                        onClick={suggestion.onSelect}
-                                        size="xs"
-                                        variant="ghost"
-                                    >
-                                        {suggestion.icon}
-                                        &nbsp;
-                                        {suggestion.label}
-                                        <Kbd className="bg-transparent px-0 text-[11px] opacity-50">
-                                            <CmdKbd />
-                                            {index + 1}
-                                        </Kbd>
-                                    </Button>
+                                    <ComposerSuggestionsListButton
+                                        index={index}
+                                        suggestion={suggestion}
+                                    />
                                 )}
                             </ComposerSuggestionsList>
                             {isPreviewOnly ? <InlinePaywallBanner /> : null}
@@ -4163,7 +4254,7 @@ function MediaCardSmartCollectionsIndicator() {
     return (
         <svg
             aria-hidden="true"
-            className="size-4.5"
+            className="size-4"
             fill="none"
             focusable="false"
             role="img"
@@ -4177,9 +4268,13 @@ function MediaCardSmartCollectionsIndicator() {
                 strokeWidth={2}
             />
             <path
-                className="motion-safe:animate-smart-collections-indicator"
+                className="animate-smart-collections-indicator"
                 d="M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9-9-1.8-9-9 1.8-9 9-9"
+                fill="none"
                 pathLength={1}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.25}
             />
         </svg>
     );
@@ -4301,6 +4396,8 @@ function MediaCardColorsBadge({ value }: { value: string }) {
 }
 
 function MediaCardColorsPalette({ src }: { src: string }) {
+    // src must serve same-origin image bytes (proxy delivery): a redirect
+    // URL taints the canvas on cross-origin upstreams and yields no colors.
     const { data } = useSWR(src, getImageColors, {
         keepPreviousData: true,
     });
@@ -4319,10 +4416,12 @@ function MediaCardColorsPalette({ src }: { src: string }) {
 }
 
 function MediaCardMenuDetails() {
-    const { isNote, item, previewImageUrl } = useMediaCardDataContext();
+    const { displayTitle, isNote, item } = useMediaCardDataContext();
 
     const addedLabel = itemDateLabel(item.scrapedAt ?? item.createdAt);
     const createdLabel = itemDateLabel(item.createdAt);
+    const shouldShowFullTitle = !isNote && displayTitle !== item.url;
+    const paletteSrc = itemPreviewImageProxyUrl(item);
 
     return (
         <Collapsible className="group/collapsible">
@@ -4335,11 +4434,16 @@ function MediaCardMenuDetails() {
                 }
             >
                 <span className="block min-w-0 truncate text-xs">
-                    {getLibraryItemPrimaryText(item)}
+                    {displayTitle}
                 </span>
                 <ChevronDown className="ml-auto inline-block size-4 -rotate-90 transition-transform group-data-open/collapsible:rotate-0" />
             </CollapsibleTrigger>
             <CollapsiblePanel className="px-2.5 text-[11px] text-muted-foreground">
+                {shouldShowFullTitle ? (
+                    <p className="wrap-break-words max-w-52 whitespace-normal py-0.5 text-foreground">
+                        {displayTitle}
+                    </p>
+                ) : null}
                 {isNote ? null : (
                     <span className="inline-block min-w-0 max-w-52 truncate py-0.5 text-muted-foreground underline">
                         {item.url}
@@ -4357,10 +4461,10 @@ function MediaCardMenuDetails() {
                         {addedLabel}
                     </span>
                 </div>
-                {previewImageUrl ? (
+                {paletteSrc ? (
                     <div className="flex items-center justify-between gap-3 py-0.5 pb-3">
                         <span>Palette</span>
-                        <MediaCardColorsPalette src={previewImageUrl} />
+                        <MediaCardColorsPalette src={paletteSrc} />
                     </div>
                 ) : null}
             </CollapsiblePanel>

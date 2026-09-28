@@ -8,7 +8,12 @@ import {
     SORT_ASC,
 } from "@/lib/common/constants";
 import { parseDate } from "@/lib/common/date";
-import { escapeCsv, neutralizeCsvFormula } from "@/lib/common/string";
+import {
+    escapeCsv,
+    neutralizeCsvFormula,
+    normalizeWhitespace,
+    truncateText,
+} from "@/lib/common/string";
 import { normalizeURL, toValidUrl } from "@/lib/common/url";
 import { isCobaltHost } from "@/lib/integrations/cobalt/utils";
 import type { LibraryItem, Prisma } from "@/prisma/client/client";
@@ -224,6 +229,17 @@ export function uniqueLibraryItemSources(
     return unique(items.map((item) => item.source));
 }
 
+export function truncateLabel(label: string, max = 22): string {
+    return truncateText(label, max);
+}
+
+export function getNoteExcerpt(
+    text: string | null | undefined,
+    maxLength = 180
+): string {
+    return truncateText(normalizeWhitespace(text ?? ""), maxLength);
+}
+
 // ---------------------------------------------------------------------------
 // Mappers
 // ---------------------------------------------------------------------------
@@ -363,13 +379,38 @@ export function deduplicateLibraryItems(
 }
 
 /**
- * Returns the API proxy URL for a bookmark's preview image.
+ * Returns the redirect URL for a bookmark's preview image.
+ * The redirect points at the upstream image; use for <img> display.
  * Notes and invalid URLs return null.
  */
 export function itemPreviewImageUrl(item: {
     kind: string;
     url: string;
 }): string | null {
+    return itemPreviewImageDeliveryUrl(item, "redirect");
+}
+
+/**
+ * Returns the proxied URL for a bookmark's preview image.
+ * Same-origin bytes; use for canvas pixel reads (palette extraction).
+ * A redirect URL taints the canvas when the upstream host is
+ * cross-origin, so Vibrant cannot read it. Notes and invalid URLs
+ * return null.
+ */
+export function itemPreviewImageProxyUrl(item: {
+    kind: string;
+    url: string;
+}): string | null {
+    return itemPreviewImageDeliveryUrl(item, "proxy");
+}
+
+function itemPreviewImageDeliveryUrl(
+    item: {
+        kind: string;
+        url: string;
+    },
+    delivery: "proxy" | "redirect"
+): string | null {
     if (item.kind !== ITEM_KIND_BOOKMARK) {
         return null;
     }
@@ -379,7 +420,7 @@ export function itemPreviewImageUrl(item: {
         return null;
     }
 
-    return `/api/preview?url=${encodeURIComponent(href)}&delivery=redirect`;
+    return `/api/preview?url=${encodeURIComponent(href)}&delivery=${delivery}`;
 }
 
 /**

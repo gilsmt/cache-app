@@ -5,7 +5,6 @@ import type {
     BaseUIEvent,
 } from "@base-ui/react";
 import { Toolbar } from "@base-ui/react/toolbar";
-import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { Calligraph } from "calligraph";
 import { cn } from "cn";
@@ -37,11 +36,8 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Streamdown } from "streamdown";
 import { ThinkingOrb } from "thinking-orbs";
-import {
-    type CollectionMembershipFilter,
-    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
-    getLibraryItemDomain,
-} from "@/components/session/filters";
+import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
+import { useSpeechSynthesis } from "@/components/hooks/use-speech-synthesis";
 import { SummaryDataList } from "@/components/session/summary";
 import {
     Attachment,
@@ -82,14 +78,13 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis";
 import { createChatFromAskCache } from "@/lib/chats/actions";
 import { itemCanonicalGroupKey } from "@/lib/collections/library-quality";
 import type { LibraryMetricsSnapshot } from "@/lib/collections/metrics";
-import type {
-    LibraryCollectionSummary,
-    LibraryItemWithCollections,
+import {
+    type LibraryCollectionSummary,
+    type LibraryItemWithCollections,
+    truncateLabel,
 } from "@/lib/collections/utils";
 import { removeValue, toggleValue } from "@/lib/common/array";
 import {
@@ -99,8 +94,7 @@ import {
 import type { createFileAttachment } from "@/lib/common/file";
 import { filterValidImageUrls } from "@/lib/common/image";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { truncateLabel } from "@/lib/common/string";
-import { openExternalUrl } from "@/lib/common/url";
+import { openExternalUrl, parseDisplayUrl } from "@/lib/common/url";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
 const MATCH_WORD_SEPARATOR_PATTERN = /[\s:./_-]+/;
@@ -126,6 +120,11 @@ export const MULTI_WORD_QUERY_PATTERN = /\S+\s+\S+/;
 export const COMBOBOX_ITEM_PRESS_REASON = "item-press";
 export const COMBOBOX_ESCAPE_KEY_REASON = "escape-key";
 export const ALL_DOMAIN_FILTER = "__all_domains__";
+export const UNSPECIFIC_LIBRARY_DOMAIN = "Other";
+export const COLLECTION_MEMBERSHIP_FILTER_VALUES: CollectionMembershipFilter[] =
+    ["all", "in-collections", "not-in-collections"];
+export const DEFAULT_COLLECTION_MEMBERSHIP_FILTER: CollectionMembershipFilter =
+    "all";
 export const COMPOSER_OPEN_HOTKEYS = [
     "ctrl+g",
     "ctrl+k",
@@ -240,13 +239,23 @@ export interface ComposerAttachment
     id: string;
 }
 
-export interface ComposerPaletteStackEntry {
-    chip: React.ReactNode;
+export type ComposerPaletteStackEntry = {
     key: string;
     onRemove: () => void;
-}
+} & (
+    | {
+          kind: "chip";
+          label: string;
+      }
+    | {
+          attachment: ComposerAttachment;
+          kind: "attachment";
+          onRemoveAttachment: (id: string) => void;
+      }
+);
 
 export interface ComposerPaletteItem {
+    children?: React.ReactNode;
     description?: string;
     disabled?: boolean;
     isActive?: boolean;
@@ -254,7 +263,6 @@ export interface ComposerPaletteItem {
     onSelect: (
         event: BaseUIEvent<React.MouseEvent> | KeyboardEvent
     ) => void | Promise<void>;
-    render?: (item: ComposerPaletteItem) => React.ReactNode;
     shortcut?: string;
     value: string;
 }
@@ -294,6 +302,11 @@ export type SortMode =
     | "title";
 
 export type ColumnCountMode = "auto" | "2" | "3" | "4" | "5" | "6";
+
+export type CollectionMembershipFilter =
+    | "all"
+    | "in-collections"
+    | "not-in-collections";
 
 export const GROUP_BY_MODE_VALUES = [
     "none",
@@ -667,6 +680,37 @@ export function collectionMembershipFilterLabel(
     return "All items";
 }
 
+export function hasActiveComposerFilters({
+    collectionMembershipFilter,
+    domainFilters,
+    duplicatesFilterEnabled,
+    lastVisitedFilterEnabled,
+    searchTerms,
+    selectedCollectionIds,
+    sourceFilters,
+    unreachableFilterEnabled,
+}: {
+    collectionMembershipFilter: CollectionMembershipFilter;
+    domainFilters: string[];
+    duplicatesFilterEnabled: boolean;
+    lastVisitedFilterEnabled: boolean;
+    searchTerms: string[];
+    selectedCollectionIds: string[];
+    sourceFilters: LibraryItemSource[];
+    unreachableFilterEnabled: boolean;
+}): boolean {
+    return (
+        searchTerms.length > 0 ||
+        selectedCollectionIds.length > 0 ||
+        sourceFilters.length > 0 ||
+        domainFilters.length > 0 ||
+        collectionMembershipFilter !== DEFAULT_COLLECTION_MEMBERSHIP_FILTER ||
+        lastVisitedFilterEnabled ||
+        duplicatesFilterEnabled ||
+        unreachableFilterEnabled
+    );
+}
+
 export function collectionItemCountLabel(count: number): string {
     return `${count} item${count === 1 ? "" : "s"}`;
 }
@@ -724,6 +768,10 @@ export function buildCollectionPaletteItems({
             } satisfies ComposerPaletteItem;
         }),
     ];
+}
+
+export function getLibraryItemDomain(url: string): string {
+    return parseDisplayUrl(url) || UNSPECIFIC_LIBRARY_DOMAIN;
 }
 
 export function buildDomainPaletteOptions(
@@ -1002,17 +1050,19 @@ export function buildComposerSuggestions({
     }
 
     const hasAnyRefinements =
-        searchTerms.length > 0 ||
-        selectedCollectionIds.length > 0 ||
-        sourceFilters.length > 0 ||
-        domainFilters.length > 0 ||
-        collectionMembershipFilter !== DEFAULT_COLLECTION_MEMBERSHIP_FILTER ||
+        hasActiveComposerFilters({
+            collectionMembershipFilter,
+            domainFilters,
+            duplicatesFilterEnabled,
+            lastVisitedFilterEnabled,
+            searchTerms,
+            selectedCollectionIds,
+            sourceFilters,
+            unreachableFilterEnabled,
+        }) ||
         groupBy !== "none" ||
         sortMode !== DEFAULT_SORT_MODE ||
-        columnCountMode !== DEFAULT_COLUMN_COUNT_MODE ||
-        lastVisitedFilterEnabled ||
-        duplicatesFilterEnabled ||
-        unreachableFilterEnabled;
+        columnCountMode !== DEFAULT_COLUMN_COUNT_MODE;
 
     const commitSelection = (fn: () => void) => () => {
         fn();
@@ -1426,17 +1476,19 @@ export function buildPaletteGroups({
     };
 
     const hasAnyRefinements =
-        searchTerms.length > 0 ||
-        selectedCollectionIds.length > 0 ||
-        sourceFilters.length > 0 ||
-        domainFilters.length > 0 ||
-        collectionMembershipFilter !== DEFAULT_COLLECTION_MEMBERSHIP_FILTER ||
+        hasActiveComposerFilters({
+            collectionMembershipFilter,
+            domainFilters,
+            duplicatesFilterEnabled,
+            lastVisitedFilterEnabled,
+            searchTerms,
+            selectedCollectionIds,
+            sourceFilters,
+            unreachableFilterEnabled,
+        }) ||
         groupBy !== "none" ||
         sortMode !== DEFAULT_SORT_MODE ||
-        columnCountMode !== DEFAULT_COLUMN_COUNT_MODE ||
-        duplicatesFilterEnabled ||
-        unreachableFilterEnabled ||
-        lastVisitedFilterEnabled;
+        columnCountMode !== DEFAULT_COLUMN_COUNT_MODE;
 
     if (paletteSection === "search") {
         return buildSearchPaletteGroups({
@@ -1788,12 +1840,7 @@ export function buildSearchPaletteGroups({
                     continue;
                 }
                 collectionItems.push({
-                    isActive: selectedCollectionIds.includes(collection.id),
-                    label: collection.name,
-                    onSelect: applyCollectionFilter(() =>
-                        onToggleCollectionSelection(collection.id)
-                    ),
-                    render: () => (
+                    children: (
                         <div className="flex aspect-4/3 size-full flex-1 flex-col">
                             {thumbnails.length > 0 && (
                                 <ComposerCategoryThumbnail urls={thumbnails} />
@@ -1802,6 +1849,11 @@ export function buildSearchPaletteGroups({
                                 {collection.name}
                             </span>
                         </div>
+                    ),
+                    isActive: selectedCollectionIds.includes(collection.id),
+                    label: collection.name,
+                    onSelect: applyCollectionFilter(() =>
+                        onToggleCollectionSelection(collection.id)
                     ),
                     value: `filter collection ${collection.id}`,
                 });
@@ -1846,11 +1898,7 @@ export function buildSearchPaletteGroups({
                 ...(shouldShowLastVisited
                     ? [
                           {
-                              label: "Pick up where you left off",
-                              onSelect: applyCollectionFilter(() =>
-                                  setLastVisitedFilterEnabled(true)
-                              ),
-                              render: () => (
+                              children: (
                                   <div className="flex items-center gap-2.5">
                                       <History className="size-4 shrink-0 text-muted-foreground" />
                                       <span className="truncate">
@@ -1858,11 +1906,21 @@ export function buildSearchPaletteGroups({
                                       </span>
                                   </div>
                               ),
+                              label: "Pick up where you left off",
+                              onSelect: applyCollectionFilter(() =>
+                                  setLastVisitedFilterEnabled(true)
+                              ),
                               value: "filter last visited",
                           },
                       ]
                     : []),
                 ...availableHistory.slice(0, 5).map((term) => ({
+                    children: (
+                        <div className="flex items-center gap-2.5">
+                            <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+                            <span className="truncate">{term}</span>
+                        </div>
+                    ),
                     label: term,
                     onSelect: () => {
                         setSearchTerms((current) =>
@@ -1871,12 +1929,6 @@ export function buildSearchPaletteGroups({
                         setQuery("");
                         setIsComposerOpen(true);
                     },
-                    render: () => (
-                        <div className="flex items-center gap-2.5">
-                            <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
-                            <span className="truncate">{term}</span>
-                        </div>
-                    ),
                     value: `search history ${term}`,
                 })),
                 ...(availableHistory.length > 0
@@ -1929,9 +1981,9 @@ export function buildAskCachePaletteGroups({
 }): ComposerPaletteGroup[] {
     const items: ComposerPaletteItem[] = [
         {
+            children: <AskCacheResponsePanel response={askCacheResponse} />,
             label: "Ask Cache response",
             onSelect: () => undefined,
-            render: () => <AskCacheResponsePanel response={askCacheResponse} />,
             value: "ask cache response",
         },
     ];
@@ -1986,202 +2038,101 @@ export function buildPaletteStackEntries({
     const entries: ComposerPaletteStackEntry[] = [];
     const collectionById = new Map(collections.map((c) => [c.id, c]));
 
+    const pushChip = (key: string, label: string, onRemove: () => void) => {
+        entries.push({ key, kind: "chip", label, onRemove });
+    };
+
     for (const collectionId of selectedCollectionIds) {
         const collection = collectionById.get(collectionId);
         if (collection) {
-            const onRemove = () => onRemoveCollectionFilter(collectionId);
-            entries.push({
-                chip: (
-                    <ComposerChip
-                        key={`collection-${collectionId}`}
-                        label={`Collection: ${truncateLabel(collection.name)}`}
-                        // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                        onRemove={onRemove}
-                    />
-                ),
-                key: `collection-${collectionId}`,
-                onRemove,
-            });
+            pushChip(
+                `collection-${collectionId}`,
+                `Collection: ${truncateLabel(collection.name)}`,
+                () => onRemoveCollectionFilter(collectionId)
+            );
         }
     }
 
     for (const attachment of composerAttachments) {
-        const onRemove = () => onRemoveComposerAttachment(attachment.id);
         entries.push({
-            chip: (
-                <ComposerAttachmentChip
-                    attachment={attachment}
-                    key={`attachment-${attachment.id}`}
-                    onRemove={onRemoveComposerAttachment}
-                />
-            ),
+            attachment,
             key: `attachment-${attachment.id}`,
-            onRemove,
+            kind: "attachment",
+            onRemove: () => onRemoveComposerAttachment(attachment.id),
+            onRemoveAttachment: onRemoveComposerAttachment,
         });
     }
 
     for (const term of searchTerms) {
-        const onRemove = () =>
-            setSearchTerms((current) => removeValue(current, term));
-        entries.push({
-            chip: (
-                <ComposerChip
-                    key={`search-${term}`}
-                    label={`Search: ${truncateLabel(term)}`}
-                    // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                    onRemove={onRemove}
-                />
-            ),
-            key: `search-${term}`,
-            onRemove,
-        });
+        pushChip(`search-${term}`, `Search: ${truncateLabel(term)}`, () =>
+            setSearchTerms((current) => removeValue(current, term))
+        );
     }
 
     for (const source of sourceFilters) {
-        const onRemove = () =>
-            setSourceFilters((current) => removeValue(current, source));
-        entries.push({
-            chip: (
-                <ComposerChip
-                    key={`source-${source}`}
-                    label={`Source: ${getSourceLabel(source)}`}
-                    // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                    onRemove={onRemove}
-                />
-            ),
-            key: `source-${source}`,
-            onRemove,
-        });
+        pushChip(`source-${source}`, `Source: ${getSourceLabel(source)}`, () =>
+            setSourceFilters((current) => removeValue(current, source))
+        );
     }
 
     for (const domainFilter of domainFilters) {
-        const onRemove = () =>
-            setDomainFilters((current) => removeValue(current, domainFilter));
-        entries.push({
-            chip: (
-                <ComposerChip
-                    key={`domain-${domainFilter}`}
-                    label={`Domain: ${truncateLabel(domainFilter)}`}
-                    // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                    onRemove={onRemove}
-                />
-            ),
-            key: `domain-${domainFilter}`,
-            onRemove,
-        });
+        pushChip(
+            `domain-${domainFilter}`,
+            `Domain: ${truncateLabel(domainFilter)}`,
+            () =>
+                setDomainFilters((current) =>
+                    removeValue(current, domainFilter)
+                )
+        );
     }
 
     if (collectionMembershipFilter !== DEFAULT_COLLECTION_MEMBERSHIP_FILTER) {
-        const onRemove = () =>
-            setCollectionMembershipFilter(DEFAULT_COLLECTION_MEMBERSHIP_FILTER);
-        entries.push({
-            chip: (
-                <ComposerChip
-                    key="collection-membership"
-                    label={`Collections: ${collectionMembershipFilterLabel(collectionMembershipFilter)}`}
-                    // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                    onRemove={onRemove}
-                />
-            ),
-            key: "collection-membership",
-            onRemove,
-        });
+        pushChip(
+            "collection-membership",
+            `Collections: ${collectionMembershipFilterLabel(collectionMembershipFilter)}`,
+            () =>
+                setCollectionMembershipFilter(
+                    DEFAULT_COLLECTION_MEMBERSHIP_FILTER
+                )
+        );
     }
 
     if (groupBy !== "none") {
-        const onRemove = () => setGroupBy("none");
-        entries.push({
-            chip: (
-                <ComposerChip
-                    key="group"
-                    label={`Group: ${groupByLabel(groupBy)}`}
-                    // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                    onRemove={onRemove}
-                />
-            ),
-            key: "group",
-            onRemove,
-        });
+        pushChip("group", `Group: ${groupByLabel(groupBy)}`, () =>
+            setGroupBy("none")
+        );
     }
 
     if (lastVisitedFilterEnabled) {
-        const onRemove = () => setLastVisitedFilterEnabled(false);
-        entries.push({
-            chip: (
-                <ComposerChip
-                    key="last-visited"
-                    label="Last visited"
-                    // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                    onRemove={onRemove}
-                />
-            ),
-            key: "last-visited",
-            onRemove,
-        });
+        pushChip("last-visited", "Last visited", () =>
+            setLastVisitedFilterEnabled(false)
+        );
     }
 
     if (duplicatesFilterEnabled) {
-        const onRemove = () => setDuplicatesFilterEnabled(false);
-        entries.push({
-            chip: (
-                <ComposerChip
-                    key="duplicates"
-                    label="Duplicates"
-                    // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                    onRemove={onRemove}
-                />
-            ),
-            key: "duplicates",
-            onRemove,
-        });
+        pushChip("duplicates", "Duplicates", () =>
+            setDuplicatesFilterEnabled(false)
+        );
     }
 
     if (unreachableFilterEnabled) {
-        const onRemove = () => setUnreachableFilterEnabled(false);
-        entries.push({
-            chip: (
-                <ComposerChip
-                    key="unreachable"
-                    label="Unreachable"
-                    // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                    onRemove={onRemove}
-                />
-            ),
-            key: "unreachable",
-            onRemove,
-        });
+        pushChip("unreachable", "Unreachable", () =>
+            setUnreachableFilterEnabled(false)
+        );
     }
 
     if (sortMode !== DEFAULT_SORT_MODE) {
-        const onRemove = () => setSortMode(DEFAULT_SORT_MODE);
-        entries.push({
-            chip: (
-                <ComposerChip
-                    key="sort"
-                    label={`Sort: ${sortModeLabel(sortMode)}`}
-                    // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                    onRemove={onRemove}
-                />
-            ),
-            key: "sort",
-            onRemove,
-        });
+        pushChip("sort", `Sort: ${sortModeLabel(sortMode)}`, () =>
+            setSortMode(DEFAULT_SORT_MODE)
+        );
     }
 
     if (columnCountMode !== DEFAULT_COLUMN_COUNT_MODE) {
-        const onRemove = () => setColumnCountMode(DEFAULT_COLUMN_COUNT_MODE);
-        entries.push({
-            chip: (
-                <ComposerChip
-                    key="columns"
-                    label={`Columns: ${columnCountLabel(columnCountMode)}`}
-                    // biome-ignore lint/performance/noJsxPropsBind: stabilized internally by ComposerChip
-                    onRemove={onRemove}
-                />
-            ),
-            key: "columns",
-            onRemove,
-        });
+        pushChip(
+            "columns",
+            `Columns: ${columnCountLabel(columnCountMode)}`,
+            () => setColumnCountMode(DEFAULT_COLUMN_COUNT_MODE)
+        );
     }
 
     return entries;
@@ -2275,61 +2226,112 @@ export function SpeakResponseButton({ value }: { value: string }) {
     );
 }
 
+function AskCacheResponseShell({
+    children,
+    prompt,
+}: {
+    children: React.ReactNode;
+    prompt?: string;
+}) {
+    return (
+        <BubbleGroup className="w-full min-w-0 flex-1 py-1 pr-2">
+            {prompt ? (
+                <Bubble align="end" variant="muted">
+                    <BubbleContent>{prompt}</BubbleContent>
+                </Bubble>
+            ) : null}
+            {children}
+        </BubbleGroup>
+    );
+}
+
+function AskCacheLoadingPanel({ prompt }: { prompt?: string }) {
+    return (
+        <AskCacheResponseShell prompt={prompt}>
+            <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
+                <ThinkingOrb size={20} state="shaping" />
+                <span className="text-muted-foreground text-xs">
+                    <T>Thinking…</T>
+                </span>
+            </div>
+        </AskCacheResponseShell>
+    );
+}
+
+function AskCacheErrorPanel({
+    message,
+    prompt,
+}: {
+    message: string;
+    prompt: string;
+}) {
+    return (
+        <AskCacheResponseShell prompt={prompt}>
+            <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
+                <p className="text-sm">{message}</p>
+            </div>
+        </AskCacheResponseShell>
+    );
+}
+
+function AskCacheResponseActions({
+    markdown,
+    prompt,
+}: {
+    markdown: string;
+    prompt: string;
+}) {
+    return (
+        <div className="flex flex-wrap items-center gap-1">
+            <CopyResponseButton value={markdown} />
+            <SpeakResponseButton value={markdown} />
+            <ContinueInChatButton markdown={markdown} prompt={prompt} />
+        </div>
+    );
+}
+
+function AskCacheSuccessPanel({
+    markdown,
+    prompt,
+}: {
+    markdown: string;
+    prompt: string;
+}) {
+    return (
+        <AskCacheResponseShell prompt={prompt}>
+            <div className="flex min-w-0 flex-1 flex-col gap-2 py-1">
+                <Streamdown className="whitespace-pre-line text-sm leading-relaxed">
+                    {markdown}
+                </Streamdown>
+                <AskCacheResponseActions markdown={markdown} prompt={prompt} />
+            </div>
+        </AskCacheResponseShell>
+    );
+}
+
 export function AskCacheResponsePanel({
     response,
 }: {
     response: AskCacheResponseState | null;
 }) {
     if (!response || response.status === "loading") {
-        return (
-            <BubbleGroup className="w-full min-w-0 flex-1 py-1 pr-2">
-                {response?.prompt ? (
-                    <Bubble align="end" variant="muted">
-                        <BubbleContent>{response.prompt}</BubbleContent>
-                    </Bubble>
-                ) : null}
-                <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
-                    <ThinkingOrb size={20} state="shaping" />
-                    <span className="text-muted-foreground text-xs">
-                        <T>Thinking…</T>
-                    </span>
-                </div>
-            </BubbleGroup>
-        );
+        return <AskCacheLoadingPanel prompt={response?.prompt} />;
     }
 
     if (response.status === "error") {
         return (
-            <BubbleGroup className="w-full min-w-0 flex-1 py-1 pr-2">
-                <Bubble align="end" variant="muted">
-                    <BubbleContent>{response.prompt}</BubbleContent>
-                </Bubble>
-                <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
-                    <p className="text-sm">{response.message}</p>
-                </div>
-            </BubbleGroup>
+            <AskCacheErrorPanel
+                message={response.message}
+                prompt={response.prompt}
+            />
         );
     }
 
     return (
-        <BubbleGroup className="w-full min-w-0 flex-1 py-1 pr-2">
-            <Bubble align="end" variant="muted">
-                <BubbleContent>{response.prompt}</BubbleContent>
-            </Bubble>
-            <div className="flex min-w-0 flex-1 flex-col gap-2 py-1">
-                <Streamdown className="whitespace-pre-line text-sm leading-relaxed">
-                    {response.markdown}
-                </Streamdown>
-                <div className="flex flex-wrap items-center gap-1">
-                    <CopyResponseButton value={response.markdown} />
-                    <SpeakResponseButton value={response.markdown} />
-                    <ContinueInChatButton
-                        markdown={response.markdown}
-                        prompt={response.prompt}
-                    />
-                </div>
-            </div>
-        </BubbleGroup>
+        <AskCacheSuccessPanel
+            markdown={response.markdown}
+            prompt={response.prompt}
+        />
     );
 }
 
@@ -2348,13 +2350,7 @@ export function Composer({
     );
 }
 
-export interface ComposerInputActions {
-    close: () => void;
-    open: () => void;
-}
-
 interface ComposerInputProps extends React.ComponentProps<typeof CommandInput> {
-    actionsRef?: React.RefObject<ComposerInputActions | null>;
     groups: ComposerPaletteGroup[];
     onOpenChange: (
         nextOpen: boolean,
@@ -2364,6 +2360,7 @@ interface ComposerInputProps extends React.ComponentProps<typeof CommandInput> {
         next: string,
         eventDetails: AutocompleteRootChangeEventDetails
     ) => void;
+    open: boolean;
     query: string;
     stackEntries: ComposerPaletteStackEntry[];
 }
@@ -2372,44 +2369,20 @@ export function ComposerInput({
     query,
     onValueChange,
     onOpenChange,
-    actionsRef,
+    open,
     groups,
     stackEntries,
     ...props
 }: ComposerInputProps) {
     const filteredItemGroups = useVisibleItemGroups({ groups, query });
 
-    const [isPopupOpen, setIsPopupOpen] = React.useState(false);
-
-    const handleOpenChange = useStableCallback(
-        (
-            nextOpen: boolean,
-            eventDetails: AutocompleteRootChangeEventDetails
-        ) => {
-            onOpenChange(nextOpen, eventDetails);
-            if (!eventDetails.isCanceled) {
-                setIsPopupOpen(nextOpen);
-            }
-        }
-    );
-
-    const openPopup = useStableCallback(() => setIsPopupOpen(true));
-    const closePopup = useStableCallback(() => setIsPopupOpen(false));
-
-    useIsoLayoutEffect(() => {
-        if (!actionsRef) {
-            return;
-        }
-        actionsRef.current = { close: closePopup, open: openPopup };
-    }, [actionsRef, closePopup, openPopup]);
-
     return (
         <Command
             filteredItems={filteredItemGroups}
             items={groups}
-            onOpenChange={handleOpenChange}
+            onOpenChange={onOpenChange}
             onValueChange={onValueChange}
-            open={isPopupOpen}
+            open={open}
             value={query}
         >
             <Toolbar.Input
@@ -2437,8 +2410,7 @@ export function ComposerInput({
                                 <CommandRow className="grid grid-cols-2 gap-2 pt-1 pr-2 pb-4 md:grid-cols-3 lg:grid-cols-4">
                                     <CommandCollection>
                                         {(item: ComposerPaletteItem) => (
-                                            <ComposerItem
-                                                isHorizontal
+                                            <ComposerCollectionCard
                                                 item={item}
                                                 key={item.value}
                                             />
@@ -2467,6 +2439,23 @@ interface ComposerInputEndAddonProps {
     stackEntries: ComposerPaletteStackEntry[];
 }
 
+function ComposerStackEntryChip({
+    entry,
+}: {
+    entry: ComposerPaletteStackEntry;
+}) {
+    if (entry.kind === "attachment") {
+        return (
+            <ComposerAttachmentChip
+                attachment={entry.attachment}
+                onRemove={entry.onRemoveAttachment}
+            />
+        );
+    }
+
+    return <ComposerChip label={entry.label} onRemove={entry.onRemove} />;
+}
+
 function ComposerInputEndAddon({ stackEntries }: ComposerInputEndAddonProps) {
     return (
         <>
@@ -2485,9 +2474,7 @@ function ComposerInputEndAddon({ stackEntries }: ComposerInputEndAddonProps) {
                 maxVisible={1}
             >
                 {stackEntries.map((entry) => (
-                    <React.Fragment key={entry.key}>
-                        {entry.chip}
-                    </React.Fragment>
+                    <ComposerStackEntryChip entry={entry} key={entry.key} />
                 ))}
             </CollapsibleListHorizontal>
         </>
@@ -2656,60 +2643,76 @@ export function ComposerSummary({
 }
 
 interface ComposerItemProps {
-    isHorizontal?: boolean;
     item: ComposerPaletteItem;
 }
 
-function ComposerItem({ item, isHorizontal = false }: ComposerItemProps) {
+function useComposerItemSelect(item: ComposerPaletteItem) {
     const onSelect = item.onSelect;
 
-    const handleSelect = useStableCallback(
-        (event: BaseUIEvent<React.MouseEvent>) => {
-            try {
-                const result = onSelect(event);
-                if (result) {
-                    result.catch((error: unknown) => {
-                        log.error("ComposerItem selection failed", error, {
-                            value: item.value,
-                        });
+    return useStableCallback((event: BaseUIEvent<React.MouseEvent>) => {
+        try {
+            const result = onSelect(event);
+            if (result) {
+                result.catch((error: unknown) => {
+                    log.error("ComposerItem selection failed", error, {
+                        value: item.value,
                     });
-                }
-            } catch (error) {
-                log.error("ComposerItem selection failed", error, {
-                    value: item.value,
                 });
             }
+        } catch (error) {
+            log.error("ComposerItem selection failed", error, {
+                value: item.value,
+            });
         }
+    });
+}
+
+function ComposerItemContent({ item }: { item: ComposerPaletteItem }) {
+    if (item.children) {
+        return item.children;
+    }
+
+    return (
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="truncate">{item.label}</div>
+            {item.description ? (
+                <span className="max-w-xs truncate text-muted-foreground/80 text-xs">
+                    {item.description}
+                </span>
+            ) : null}
+            {item.isActive ? <Badge variant="secondary">Active</Badge> : null}
+            {item.shortcut ? (
+                <CommandShortcut>{item.shortcut}</CommandShortcut>
+            ) : null}
+        </div>
     );
+}
+
+function ComposerItem({ item }: ComposerItemProps) {
+    const handleSelect = useComposerItemSelect(item);
 
     return (
         <CommandItem
-            className={cn(
-                isHorizontal &&
-                    "group squircle relative flex-1 overflow-hidden rounded-xl bg-accent text-accent-foreground shadow-xs"
-            )}
             disabled={item.disabled}
             onClick={handleSelect}
             value={item.value}
         >
-            {item.render ? (
-                item.render(item)
-            ) : (
-                <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                    <div className="truncate">{item.label}</div>
-                    {item.description ? (
-                        <span className="max-w-xs truncate text-muted-foreground/80 text-xs">
-                            {item.description}
-                        </span>
-                    ) : null}
-                    {item.isActive ? (
-                        <Badge variant="secondary">Active</Badge>
-                    ) : null}
-                    {item.shortcut ? (
-                        <CommandShortcut>{item.shortcut}</CommandShortcut>
-                    ) : null}
-                </div>
-            )}
+            <ComposerItemContent item={item} />
+        </CommandItem>
+    );
+}
+
+function ComposerCollectionCard({ item }: ComposerItemProps) {
+    const handleSelect = useComposerItemSelect(item);
+
+    return (
+        <CommandItem
+            className="group squircle relative flex-1 overflow-hidden rounded-xl bg-accent text-accent-foreground shadow-xs"
+            disabled={item.disabled}
+            onClick={handleSelect}
+            value={item.value}
+        >
+            <ComposerItemContent item={item} />
         </CommandItem>
     );
 }
@@ -2735,6 +2738,31 @@ interface ComposerSuggestionsListProps
     isOpen?: boolean;
     onOpenChange?: (open: boolean) => void;
     suggestions: ComposerSuggestion[];
+}
+
+export function ComposerSuggestionsListButton({
+    index,
+    suggestion,
+}: {
+    index: number;
+    suggestion: ComposerSuggestion;
+}) {
+    return (
+        <Button
+            className="text-muted-foreground"
+            onClick={suggestion.onSelect}
+            size="xs"
+            variant="ghost"
+        >
+            {suggestion.icon}
+            &nbsp;
+            {suggestion.label}
+            <Kbd className="bg-transparent px-0 text-[11px] opacity-50">
+                <CmdKbd />
+                {index + 1}
+            </Kbd>
+        </Button>
+    );
 }
 
 export function ComposerSuggestionsList({
@@ -2775,9 +2803,9 @@ export function ComposerSuggestionsList({
                 render={<ScrollArea shouldScrollFade />}
             >
                 <div className="flex w-max select-none flex-nowrap items-center gap-1.5 text-nowrap">
-                    {suggestions.map((suggestion, i) => (
+                    {suggestions.map((suggestion, index) => (
                         <React.Fragment key={suggestion.label}>
-                            {children(suggestion, i)}
+                            {children(suggestion, index)}
                             <span className="mr-0.5 -ml-0.5 font-medium text-muted-foreground text-xs">
                                 ·
                             </span>

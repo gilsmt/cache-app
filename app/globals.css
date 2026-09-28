@@ -121,7 +121,6 @@
 /* ── Base styles ── */
 @layer base {
     * {
-        touch-action: pan-x pan-y;
         @apply border-border outline-ring/50;
     }
 
@@ -129,11 +128,11 @@
         font-synthesis: none;
         word-break: break-word;
         text-rendering: optimizeLegibility;
-        @apply scroll-smooth;
     }
 
     html,
     body {
+        touch-action: manipulation;
         scrollbar-width: thin;
         scrollbar-color: color-mix(in oklab, var(--foreground) 20%, transparent)
             transparent;
@@ -146,7 +145,7 @@
         -webkit-text-decoration-skip-ink: auto;
         text-decoration-skip-ink: auto;
         font-synthesis-weight: none;
-        overscroll-behavior: contain;
+        overscroll-behavior-y: none;
     }
 
     html {
@@ -157,6 +156,7 @@
         -moz-osx-font-smoothing: grayscale;
         -webkit-tap-highlight-color: transparent;
         -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
         scrollbar-gutter: stable;
     }
 
@@ -214,8 +214,7 @@
     [type="radio"],
     [type="range"],
     [draggable] {
-        @apply indent-0 align-middle select-none;
-        -webkit-user-drag: none;
+        @apply select-none drag-none;
     }
 
     img,
@@ -299,14 +298,6 @@
     .animate-marquee {
         animation: none !important;
     }
-}
-
-@utility animate-smart-collections-indicator {
-    fill: none;
-    stroke-width: 2.25;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    animation: var(--animate-smart-collections-indicator);
 }
 
 @utility overflow-fade-bottom {

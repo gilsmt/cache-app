@@ -9,10 +9,10 @@ import { ArrowUpRight, Star, Volume2Icon, VolumeXIcon } from "lucide-react";
 import * as React from "react";
 import { Controlled as ControlledZoom } from "react-medium-image-zoom";
 import { Streamdown } from "streamdown";
+import { useLastVisited } from "@/components/hooks/use-last-visited";
 import { Button } from "@/components/ui/button";
 import { Placeholder } from "@/components/ui/placeholder";
 import { Spinner } from "@/components/ui/spinner";
-import { useLastVisited } from "@/hooks/use-last-visited";
 import {
     getLibraryItemTitle,
     itemPreviewImageUrl,
@@ -123,15 +123,13 @@ export function PreviewImage({
 
     const canRenderImage = !!src && !hasFailed;
     const displayDimensions = resolveDisplayDimensions(dimensions);
+    const aspectRatio = `${displayDimensions.w} / ${displayDimensions.h}`;
 
     return (
         <div
             {...rest}
             className={cn("relative w-full break-inside-avoid", className)}
-            style={{
-                ...style,
-                aspectRatio: `${displayDimensions.w} / ${displayDimensions.h}`,
-            }}
+            style={{ ...style, aspectRatio }}
         >
             {canRenderImage ? (
                 // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts img onError/onLoad

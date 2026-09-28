@@ -53,6 +53,9 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import { useSubscriptionAccess } from "@/components/billing/subscription";
+import { useCollectionsSuggestions } from "@/components/hooks/queries/use-collections-suggestions";
+import { useSmartCollectionsPreference } from "@/components/hooks/queries/use-smart-collections-preference";
+import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import {
     useItemsContext,
     useItemsStateContext,
@@ -140,9 +143,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TextMatch } from "@/components/ui/text-match";
 import { Textarea } from "@/components/ui/textarea";
-import { useCollectionsSuggestions } from "@/hooks/queries/use-collections-suggestions";
-import { useSmartCollectionsPreference } from "@/hooks/queries/use-smart-collections-preference";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import {
     type CollectionCreateResult,
     createCollection,
@@ -168,6 +168,7 @@ import {
 import {
     buildItemsCsv,
     type CollectionSortField,
+    getNoteExcerpt,
     itemPreviewImageUrl,
     type LibraryCollectionSummary,
     type LibraryCollectionTag,
@@ -200,11 +201,7 @@ import { getOwnerDocument, getOwnerWindow } from "@/lib/common/dom";
 import { saveFile } from "@/lib/common/file";
 import { getSystemControlKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import {
-    getNoteExcerpt,
-    normalizeWhitespace,
-    slugify,
-} from "@/lib/common/string";
+import { normalizeWhitespace, slugify } from "@/lib/common/string";
 import {
     isHttpUrl,
     normalizeURL,
@@ -2505,7 +2502,7 @@ function CollectionsListGroup({
 }: CollectionsListGroupProps) {
     return (
         <div className="flex flex-col">
-            <div className="sticky -top-9 flex items-center justify-between bg-white p-2.5">
+            <div className="sticky -top-9 flex items-center justify-between bg-background p-2.5">
                 <span className="min-w-0 truncate text-[11px] text-muted-foreground">
                     {label}
                 </span>

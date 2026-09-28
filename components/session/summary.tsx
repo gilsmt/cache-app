@@ -1,6 +1,6 @@
 "use client";
 
-import { Files, Folders, GlobeX, Inbox, NotebookPen, Star } from "lucide-react";
+import { Clock, Files, GlobeX, NotebookPen, Star } from "lucide-react";
 import type * as React from "react";
 import {
     DataList,
@@ -12,7 +12,10 @@ import {
     DataListSectionTrigger,
     DataListSeparator,
 } from "@/components/ui/data-list";
-import type { LibraryMetricsSnapshot } from "@/lib/collections/metrics";
+import type {
+    LibraryMetricsSegment,
+    LibraryMetricsSnapshot,
+} from "@/lib/collections/metrics";
 import { formatSharePercent } from "@/lib/common/number";
 
 function formatShareValue(value: number, total: number): React.ReactNode {
@@ -43,29 +46,16 @@ export function SummaryDataList({
     ...props
 }: SummaryDataListProps) {
     const {
+        addedInLast30DaysCount,
         duplicateCount,
         favoriteCount,
-        inCollectionCount,
         itemCount,
         noteCount,
         sourceSegments,
-        uncollectedCount,
         unreachableCount,
     } = metrics;
 
     const additionalRows = [
-        {
-            icon: (
-                <Inbox
-                    aria-hidden
-                    className="size-4 sm:size-3.5"
-                    focusable="false"
-                />
-            ),
-            key: "uncollected",
-            label: "Not in Collections",
-            value: uncollectedCount,
-        },
         {
             icon: (
                 <Files
@@ -95,34 +85,12 @@ export function SummaryDataList({
     return (
         <DataList {...props}>
             {children}
-            <DataListSection defaultOpen>
-                <DataListSectionTrigger
-                    endAddon={
-                        <DataListChart
-                            className="ml-auto max-w-1/3 group-data-open/collapsible:hidden"
-                            segments={sourceSegments}
-                        />
-                    }
-                >
-                    Summary
-                </DataListSectionTrigger>
-                <DataListSectionContent>
-                    <DataListChart segments={sourceSegments} />
-                    <DataListGroup>
-                        {sourceSegments.map((segment) => (
-                            <DataListItem
-                                color={segment.color}
-                                key={segment.key}
-                                label={segment.label}
-                                value={formatShareValue(
-                                    segment.value,
-                                    itemCount
-                                )}
-                            />
-                        ))}
-                    </DataListGroup>
-                </DataListSectionContent>
-            </DataListSection>
+            <SummaryBreakdownSection
+                isDefaultOpen
+                label="Summary"
+                segments={sourceSegments}
+                total={itemCount}
+            />
             <DataListSeparator />
             <DataListSection>
                 <DataListSectionTrigger>Library</DataListSectionTrigger>
@@ -152,15 +120,15 @@ export function SummaryDataList({
                         />
                         <DataListItem
                             icon={
-                                <Folders
+                                <Clock
                                     aria-hidden
                                     className="size-4 sm:size-3.5"
                                     focusable="false"
                                 />
                             }
-                            label="In Collections"
+                            label="Added in last 30 days"
                             value={formatShareValue(
-                                inCollectionCount,
+                                addedInLast30DaysCount,
                                 itemCount
                             )}
                         />
@@ -176,5 +144,47 @@ export function SummaryDataList({
                 </DataListSectionContent>
             </DataListSection>
         </DataList>
+    );
+}
+
+interface SummaryBreakdownSectionProps {
+    isDefaultOpen?: boolean;
+    label: string;
+    segments: readonly LibraryMetricsSegment[];
+    total: number;
+}
+
+function SummaryBreakdownSection({
+    isDefaultOpen,
+    label,
+    segments,
+    total,
+}: SummaryBreakdownSectionProps) {
+    return (
+        <DataListSection defaultOpen={isDefaultOpen}>
+            <DataListSectionTrigger
+                endAddon={
+                    <DataListChart
+                        className="ml-auto max-w-1/3 group-data-open/collapsible:hidden"
+                        segments={segments}
+                    />
+                }
+            >
+                {label}
+            </DataListSectionTrigger>
+            <DataListSectionContent>
+                <DataListChart segments={segments} />
+                <DataListGroup>
+                    {segments.map((segment) => (
+                        <DataListItem
+                            color={segment.color}
+                            key={segment.key}
+                            label={segment.label}
+                            value={formatShareValue(segment.value, total)}
+                        />
+                    ))}
+                </DataListGroup>
+            </DataListSectionContent>
+        </DataListSection>
     );
 }

@@ -1,32 +1,35 @@
 import { collectDuplicateBookmarkItemIds } from "@/lib/collections/library-quality";
 import { getChartColorsFromKeys } from "@/lib/common/color";
 import { ITEM_KIND_NOTE } from "@/lib/common/constants";
+import { parseDate } from "@/lib/common/date";
 import {
     LibraryItemLinkReachability,
     type LibraryItemSource,
 } from "@/prisma/client/enums";
 
-export interface LibraryMetricsSegment {
+const RECENT_ITEM_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+export interface LibraryMetricsSegment<TKey extends string = string> {
     color: string;
-    key: LibraryItemSource;
+    key: TKey;
     label: string;
     value: number;
 }
 
 export interface LibraryMetricsSnapshot {
+    addedInLast30DaysCount: number;
     duplicateCount: number;
     favoriteCount: number;
-    inCollectionCount: number;
     itemCount: number;
     noteCount: number;
-    sourceSegments: readonly LibraryMetricsSegment[];
-    uncollectedCount: number;
+    sourceSegments: readonly LibraryMetricsSegment<LibraryItemSource>[];
     unreachableCount: number;
 }
 
-export interface LibraryMetricsItem {
+interface LibraryMetricsItem {
     collections: readonly { id: string }[];
-    favoritedAt: Date | null;
+    createdAt: Date | string;
+    favoritedAt: Date | string | null;
     id: string;
     kind: string;
     linkReachability?: LibraryItemLinkReachability | null;
@@ -42,22 +45,27 @@ export function buildComposerMetrics({
     items: readonly LibraryMetricsItem[];
 }): LibraryMetricsSnapshot {
     const sourceCounts = new Map<LibraryItemSource, number>();
+    const nowMs = Date.now();
+    let addedInLast30DaysCount = 0;
     let favoriteCount = 0;
     let noteCount = 0;
-    let uncollectedCount = 0;
     let unreachableCount = 0;
 
     for (const item of items) {
         sourceCounts.set(item.source, (sourceCounts.get(item.source) ?? 0) + 1);
 
+        const addedAt = parseDate(item.createdAt);
+        if (addedAt) {
+            const ageMs = nowMs - addedAt.getTime();
+            if (ageMs >= 0 && ageMs < RECENT_ITEM_WINDOW_MS) {
+                addedInLast30DaysCount += 1;
+            }
+        }
         if (item.favoritedAt !== null) {
             favoriteCount += 1;
         }
         if (item.kind === ITEM_KIND_NOTE) {
             noteCount += 1;
-        }
-        if (item.collections.length === 0) {
-            uncollectedCount += 1;
         }
         if (item.linkReachability === LibraryItemLinkReachability.unreachable) {
             unreachableCount += 1;
@@ -83,7 +91,7 @@ export function buildComposerMetrics({
                 key: source,
                 label,
                 value,
-            } satisfies LibraryMetricsSegment;
+            } satisfies LibraryMetricsSegment<LibraryItemSource>;
         })
         .sort(
             (first, second) =>
@@ -91,16 +99,13 @@ export function buildComposerMetrics({
                 first.label.localeCompare(second.label)
         );
 
-    const itemCount = items.length;
-
     return {
+        addedInLast30DaysCount,
         duplicateCount: collectDuplicateBookmarkItemIds(items).size,
         favoriteCount,
-        inCollectionCount: itemCount - uncollectedCount,
-        itemCount,
+        itemCount: items.length,
         noteCount,
         sourceSegments,
-        uncollectedCount,
         unreachableCount,
     };
 }

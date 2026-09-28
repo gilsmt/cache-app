@@ -1,10 +1,9 @@
-import type { LibraryItemWithCollections } from "@/lib/collections/utils";
-import { FALLBACK_URL, ITEM_KIND_NOTE } from "@/lib/common/constants";
 import {
     getNoteExcerpt,
-    normalizeWhitespace,
-    truncateText,
-} from "@/lib/common/string";
+    type LibraryItemWithCollections,
+} from "@/lib/collections/utils";
+import { FALLBACK_URL, ITEM_KIND_NOTE } from "@/lib/common/constants";
+import { normalizeWhitespace, truncateText } from "@/lib/common/string";
 import { normalizeURL } from "@/lib/common/url";
 
 export const NOTION_COLLECTION_ITEM_LIMIT = 100;
@@ -67,8 +66,8 @@ export function buildNotionCollectionMarkdown(
 
 function formatCollectionItem(item: LibraryItemWithCollections): string[] {
     if (item.kind === ITEM_KIND_NOTE) {
-        const excerpt = truncateText(
-            normalizeWhitespace(getNoteExcerpt(item.noteContentText)),
+        const excerpt = getNoteExcerpt(
+            item.noteContentText,
             NOTION_NOTE_EXCERPT_MAX_LENGTH
         );
         return excerpt ? [`- ${escapeMarkdownText(excerpt)}`] : [];

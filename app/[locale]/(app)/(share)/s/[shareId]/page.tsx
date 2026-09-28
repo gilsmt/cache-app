@@ -14,8 +14,8 @@ import { BrandLogo } from "@/components/ui/brand-logo";
 import { FadeIn } from "@/components/ui/fade-in";
 import { publicCollectionShareMetadataTag } from "@/lib/collections/sharing/cache";
 import { getPublicCollectionShareById } from "@/lib/collections/sharing/service";
+import { getNoteExcerpt } from "@/lib/collections/utils";
 import { FALLBACK_URL, ITEM_KIND_NOTE } from "@/lib/common/constants";
-import { getNoteExcerpt } from "@/lib/common/string";
 import { normalizeURL } from "@/lib/common/url";
 import LogoIconImage from "@/public/cache-app-icon.png";
 
