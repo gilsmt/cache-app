@@ -12,7 +12,6 @@ const DISALLOWED_PATHS = [
     "/signin",
     "/logout",
     "/c/",
-    "/s/",
 ];
 
 export default function robots(): MetadataRoute.Robots {

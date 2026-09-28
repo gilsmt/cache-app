@@ -322,7 +322,7 @@ export function SidebarRail({
         <button
             {...props}
             className={cn(
-                "absolute inset-y-0 z-20 hidden w-2 ease-linear after:absolute after:inset-s-1/2 after:inset-y-0 after:w-px after:bg-muted/50 hover:after:w-0.5 group-data-[side=left]/sidebar:right-0 group-data-[side=right]/sidebar:left-0 lg:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
+                "absolute inset-y-0 z-20 hidden w-2 ease-linear after:absolute after:inset-s-1/2 after:inset-y-0 after:w-px after:bg-muted/60 hover:after:w-0.5 group-data-[side=left]/sidebar:right-0 group-data-[side=right]/sidebar:left-0 lg:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
                 "in-data-[side=left]:cursor-w-resize! in-data-[side=right]:cursor-e-resize!",
                 "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize! [[data-side=right][data-state=collapsed]_&]:cursor-w-resize!",
                 className

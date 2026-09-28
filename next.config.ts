@@ -200,6 +200,10 @@ const nextConfig: NextConfig = {
     async rewrites() {
         return [
             {
+                destination: "/.well-known/security.txt",
+                source: "/security.txt",
+            },
+            {
                 destination: "/llms.txt",
                 source: "/llms-full.txt",
             },

@@ -18,16 +18,16 @@ Cache exists because that signal is too valuable to waste. It treats the act of 
 
 ## What Cache does for you
 
-- **Unify your bookmarks** — Integrate Cache into your day-to-day with first-class support for bookmarks from Browser bookmarks, Instagram Saved, TikTok Favorites, YouTube Watch Later, X/Twitter bookmarks, GitHub Stars, Pinterest, Google Photos, MCP, and more, all in one place. Unlike other tools that cap saves, Cache has no limits.
-- **Smart collections** — Automatically organizes entries into your collections with AI-assisted relevance ranking. Cache even learns your preferences over time.
-- **Overviews** — See a 1-line summary above every collection. As new entries are added, it updates instantly. And if you want to see more detail, just hit expand.
-- **AI-assisted search** — Ask the Cache AI agent and search across all your saved content.
-- **Automations** — Create custom agents to do anything. Generate daily digests, summaries, weekly reminders, and much more.
-- **Note-taking** — First-party note-taking support alongside bookmarks.
-- **Collaboration** — Share a live view of any collection with anyone, even if they don't use Cache.
-- **Browser extension** — Capture and sync saved content from anywhere on the web.
-- **Export & integrate** — Pipe results into other tools you already use.
-- **Minimal** — Cache is designed to be simple, low-maintenance, and highly portable.
+- Integrate Cache into your day-to-day by bringing bookmarks from browsers, Instagram, TikTok, YouTube, X, GitHub, Pinterest, Google Photos, MCP, and more into one place. Unlike other tools that cap saves, Cache has no limit.
+- Smart collections use AI to rank saved items by relevance and adapt to your preferences over time.
+- See a 1-line summary for each collection that updates as you add items, then expand it for more detail.
+- Just ask the Cache AI agent and search across all your saved content.
+- Create custom agents for daily digests, summaries, weekly reminders, and more.
+- Write notes alongside your bookmarks.
+- Share a live view of any collection with anyone, even if they do not use Cache.
+- Capture and sync saved content from anywhere on the web with the browser extension.
+- Send your saved content to other tools you already use.
+- Cache is designed to be simple, low maintenance, and portable.
 
 The Cache App is still evolving, and its features and workflows will continue to change.
 

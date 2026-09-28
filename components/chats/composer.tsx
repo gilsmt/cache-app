@@ -68,7 +68,6 @@ export function ChatComposer({ isBusy, onStop, onSubmit }: ChatComposerProps) {
                             onClick={onStop}
                             size="icon"
                             type="button"
-                            variant="outline"
                         >
                             <Square
                                 aria-hidden
