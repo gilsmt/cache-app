@@ -5,10 +5,11 @@ import { ToggleGroup } from "@base-ui/react/toggle-group";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useGT } from "gt-next";
 import { Monitor, Moon, Sun } from "lucide-react";
+import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { applyTheme, type Theme, useTheme } from "@/components/hooks/use-theme";
 import { Button } from "@/components/ui/button";
 import { Group } from "@/components/ui/group";
-import { type Theme, useTheme } from "@/hooks/use-theme";
 
 const THEME_OPTIONS = [
     { icon: Sun, value: "light" },
@@ -87,6 +88,21 @@ export function ThemeHotkey() {
         enableOnFormTags: false,
         preventDefault: true,
     });
+
+    return null;
+}
+
+/**
+ * Root-layout anchor for the theme store. Its subscription keeps external sync
+ * alive app-wide, and its post-mount effect is the canonical application pass
+ * that runs once stylesheets and layout surfaces have settled.
+ */
+export function ThemeSync() {
+    const { theme } = useTheme();
+
+    React.useEffect(() => {
+        applyTheme(theme);
+    }, [theme]);
 
     return null;
 }

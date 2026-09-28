@@ -1,7 +1,7 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
-import { useEffect, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { getOwnerDocument, getOwnerWindow } from "@/lib/common/dom";
 import type { Theme } from "@/lib/common/theme";
 import {
@@ -140,7 +140,7 @@ function resolveIsDark(theme: Theme, systemDark: boolean) {
     return theme === "dark" || (theme === "system" && systemDark);
 }
 
-function applyTheme(theme: Theme, suppressTransitions = false) {
+export function applyTheme(theme: Theme, suppressTransitions = false) {
     const ownerDocument = getOwnerDocument();
     const ownerWindow = getOwnerWindow();
     const { documentElement } = ownerDocument;
@@ -250,19 +250,4 @@ export function useTheme() {
     });
 
     return { resolvedTheme, setTheme, theme: snapshot.theme } as const;
-}
-
-/**
- * Root-layout anchor for the theme store. Its subscription keeps external sync
- * alive app-wide, and its post-mount effect is the canonical application pass
- * that runs once stylesheets and layout surfaces have settled.
- */
-export function ThemeSync() {
-    const { theme } = useTheme();
-
-    useEffect(() => {
-        applyTheme(theme);
-    }, [theme]);
-
-    return null;
 }

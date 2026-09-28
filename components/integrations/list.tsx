@@ -13,6 +13,7 @@ import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
+import { useIsExtensionInstalled } from "@/components/hooks/use-extension-installed";
 import {
     MarkdownImportDialog,
     openMarkdownImportDialog,
@@ -38,7 +39,6 @@ import {
     PreviewCardTrigger,
 } from "@/components/ui/preview-card";
 import { SidebarItem } from "@/components/ui/sidebar";
-import { useIsExtensionInstalled } from "@/hooks/use-extension-installed";
 import { getErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {

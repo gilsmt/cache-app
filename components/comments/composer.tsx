@@ -4,8 +4,8 @@ import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T, useGT } from "gt-next";
 import * as React from "react";
 import useSWR from "swr";
+import { useAutosave } from "@/components/hooks/use-autosave";
 import { Textarea } from "@/components/ui/textarea";
-import { useAutosave } from "@/hooks/use-autosave";
 import {
     getLibraryItemComment,
     updateLibraryItemComment,

@@ -3,7 +3,7 @@ import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
 import { useValueAsRef } from "@base-ui/utils/useValueAsRef";
 import { useEffect, useRef, useState } from "react";
-import { usePreventWindowUnload } from "@/hooks/use-prevent-unload";
+import { usePreventWindowUnload } from "@/components/hooks/use-prevent-unload";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
 const log = createLogger("use-autosave");

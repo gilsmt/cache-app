@@ -8,6 +8,7 @@ import { Check, ChevronRight, Component, LibraryBig } from "lucide-react";
 import * as React from "react";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
+import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { openIntegrationsList } from "@/components/integrations/list";
 import {
     shareCollectionPubliclySafely,
@@ -39,7 +40,6 @@ import {
 } from "@/components/ui/menu";
 import { RadialIcon } from "@/components/ui/radial-icon";
 import { useSidebarContext } from "@/components/ui/sidebar";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { buildPublicCollectionShareUrl } from "@/lib/collections/sharing/url";
 import type {
     LibraryCollectionSummary,

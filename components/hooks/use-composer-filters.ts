@@ -9,8 +9,11 @@ import {
     useQueryStates,
 } from "nuqs";
 import {
+    COLLECTION_MEMBERSHIP_FILTER_VALUES,
     COLUMN_COUNT_MODE_VALUES,
+    type CollectionMembershipFilter,
     type ColumnCountMode,
+    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
     DEFAULT_COLUMN_COUNT_MODE,
     DEFAULT_SORT_MODE,
     GROUP_BY_MODE_VALUES,
@@ -18,11 +21,6 @@ import {
     SORT_MODE_VALUES,
     type SortMode,
 } from "@/components/session/composer";
-import {
-    COLLECTION_MEMBERSHIP_FILTER_VALUES,
-    type CollectionMembershipFilter,
-    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
-} from "@/components/session/filters";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
 const COMPOSER_FILTER_PARSERS = {
