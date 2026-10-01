@@ -349,6 +349,12 @@
 
 @utility draggable-ui {
     -webkit-app-region: drag;
+    app-region: drag;
+}
+
+@utility draggable-none {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
 }
 
 /* Suppress transitions during theme flips (applied by hooks/use-theme.ts). */

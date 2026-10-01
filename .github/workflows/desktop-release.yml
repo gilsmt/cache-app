@@ -3,7 +3,7 @@
 #
 # Triggers:
 #   - workflow_dispatch (manual rebuild)
-#   - push of version tags: v* (e.g. v0.13.0)
+#   - push of version tags: v* (e.g. v0.1.0)
 #
 # Published asset names (stable; used by lib/desktop):
 #   - Cache.dmg
@@ -21,246 +21,246 @@
 name: Desktop App Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      app_version:
-        description: "App version (defaults to package.json / tag)"
-        required: false
-        type: string
-  push:
-    tags:
-      - "v*"
+    workflow_dispatch:
+        inputs:
+            app_version:
+                description: "App version (defaults to package.json / tag)"
+                required: false
+                type: string
+    push:
+        tags:
+            - "v*"
 
 permissions:
-  contents: write
+    contents: write
 
 env:
-  APP_NAME: Cache
-  APP_URL: https://www.cachd.app
-  APP_ICON: https://www.cachd.app/web-app-manifest-512x512.png
-  APP_WIDTH: "1280"
-  APP_HEIGHT: "860"
-  NODE_VERSION: "22"
+    APP_NAME: Cache
+    APP_URL: https://www.cachd.app
+    APP_ICON: https://www.cachd.app/web-app-manifest-512x512.png
+    APP_WIDTH: "1280"
+    APP_HEIGHT: "860"
+    NODE_VERSION: "22"
 
 jobs:
-  create-release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.tag.outputs.value }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+    create-release:
+        name: Create GitHub Release
+        runs-on: ubuntu-latest
+        outputs:
+            tag: ${{ steps.tag.outputs.value }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - name: Resolve release tag
-        id: tag
-        shell: bash
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF_NAME}"
-          elif [ -n "${{ inputs.app_version }}" ]; then
-            TAG="v${{ inputs.app_version }}"
-          else
-            VERSION="$(node -p "require('./package.json').version")"
-            TAG="v${VERSION}"
-          fi
-          echo "value=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Release tag: ${TAG}"
+            - name: Resolve release tag
+              id: tag
+              shell: bash
+              run: |
+                  if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+                    TAG="${GITHUB_REF_NAME}"
+                  elif [ -n "${{ inputs.app_version }}" ]; then
+                    TAG="v${{ inputs.app_version }}"
+                  else
+                    VERSION="$(node -p "require('./package.json').version")"
+                    TAG="v${VERSION}"
+                  fi
+                  echo "value=${TAG}" >> "$GITHUB_OUTPUT"
+                  echo "Release tag: ${TAG}"
 
-      - name: Create release (skips if it already exists)
-        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
-        with:
-          tag: ${{ steps.tag.outputs.value }}
-          name: Cache Desktop ${{ steps.tag.outputs.value }}
-          body: |
-            Desktop installers for Cache, packaged with [Pake](https://github.com/tw93/Pake).
+            - name: Create release (skips if it already exists)
+              uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
+              with:
+                  tag: ${{ steps.tag.outputs.value }}
+                  name: Cache Desktop ${{ steps.tag.outputs.value }}
+                  body: |
+                      Desktop installers for Cache, packaged with [Pake](https://github.com/tw93/Pake).
 
-            | Platform | Installer |
-            | -------- | --------- |
-            | macOS (Universal) | `Cache.dmg` |
-            | Windows (x64) | `Cache_x64.msi` |
-            | Linux | `Cache_x86_64.AppImage` / `Cache_x86_64.deb` |
+                      | Platform | Installer |
+                      | -------- | --------- |
+                      | macOS (Universal) | `Cache.dmg` |
+                      | Windows (x64) | `Cache_x64.msi` |
+                      | Linux | `Cache_x86_64.AppImage` / `Cache_x86_64.deb` |
 
-            Download from the user menu in the app, or use the assets below.
-          skipIfReleaseExists: true
-          makeLatest: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+                      Download from the user menu in the app, or use the assets below.
+                  skipIfReleaseExists: true
+                  makeLatest: true
+                  token: ${{ secrets.GITHUB_TOKEN }}
 
-  build:
-    name: Build (${{ matrix.platform }})
-    needs: create-release
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: macos
-            os: macos-latest
-          - platform: windows
-            os: windows-latest
-          - platform: linux
-            os: ubuntu-24.04
+    build:
+        name: Build (${{ matrix.platform }})
+        needs: create-release
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - platform: macos
+                      os: macos-latest
+                    - platform: windows
+                      os: windows-latest
+                    - platform: linux
+                      os: ubuntu-24.04
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        steps:
+            - name: Checkout
+              uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-        with:
-          toolchain: stable
-          targets: ${{ matrix.platform == 'macos' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+            - name: Install Rust
+              uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+              with:
+                  toolchain: stable
+                  targets: ${{ matrix.platform == 'macos' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+            - name: Setup Node.js
+              uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
 
-      - name: Resolve app version
-        id: version
-        shell: bash
-        run: |
-          if [ -n "${{ inputs.app_version }}" ]; then
-            VERSION="${{ inputs.app_version }}"
-          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          else
-            VERSION="$(node -p "require('./package.json').version")"
-          fi
-          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Resolved app version: ${VERSION}"
+            - name: Resolve app version
+              id: version
+              shell: bash
+              run: |
+                  if [ -n "${{ inputs.app_version }}" ]; then
+                    VERSION="${{ inputs.app_version }}"
+                  elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+                    VERSION="${GITHUB_REF_NAME#v}"
+                  else
+                    VERSION="$(node -p "require('./package.json').version")"
+                  fi
+                  echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+                  echo "Resolved app version: ${VERSION}"
 
-      - name: Install Linux system dependencies
-        if: matrix.platform == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libfuse2
+            - name: Install Linux system dependencies
+              if: matrix.platform == 'linux'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    libwebkit2gtk-4.1-dev \
+                    libappindicator3-dev \
+                    librsvg2-dev \
+                    patchelf \
+                    libfuse2
 
-      - name: Setup mold linker
-        if: matrix.platform == 'linux'
-        uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
+            - name: Setup mold linker
+              if: matrix.platform == 'linux'
+              uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
 
-      - name: Install pake-cli
-        run: npm install -g pake-cli
+            - name: Install pake-cli
+              run: npm install -g pake-cli
 
-      - name: Build macOS (universal DMG)
-        if: matrix.platform == 'macos'
-        timeout-minutes: 35
-        env:
-          TAURI_BUNDLER_DMG_IGNORE_CI: "true"
-        run: |
-          set -euo pipefail
-          pake "${{ env.APP_URL }}" \
-            --name "${{ env.APP_NAME }}" \
-            --icon "${{ env.APP_ICON }}" \
-            --width "${{ env.APP_WIDTH }}" \
-            --height "${{ env.APP_HEIGHT }}" \
-            --app-version "${{ steps.version.outputs.value }}" \
-            --hide-title-bar \
-            --multi-arch \
-            --targets universal \
-            --safe-domain cachd.app \
-            --new-window \
-            --enable-drag-drop
+            - name: Build macOS (universal DMG)
+              if: matrix.platform == 'macos'
+              timeout-minutes: 35
+              env:
+                  TAURI_BUNDLER_DMG_IGNORE_CI: "true"
+              run: |
+                  set -euo pipefail
+                  pake "${{ env.APP_URL }}" \
+                    --name "${{ env.APP_NAME }}" \
+                    --icon "${{ env.APP_ICON }}" \
+                    --width "${{ env.APP_WIDTH }}" \
+                    --height "${{ env.APP_HEIGHT }}" \
+                    --app-version "${{ steps.version.outputs.value }}" \
+                    --hide-title-bar \
+                    --multi-arch \
+                    --targets universal \
+                    --safe-domain cachd.app \
+                    --new-window \
+                    --enable-drag-drop
 
-          mkdir -p output
+                  mkdir -p output
 
-          # Pake preserves case on macOS (Cache.dmg), but use a glob
-          # fallback to handle any filename Pake produces.
-          DMG_FILE=$(find . -maxdepth 1 -iname "*.dmg" -type f | head -1)
-          if [ -n "$DMG_FILE" ]; then
-            mv "$DMG_FILE" output/Cache.dmg
-          else
-            echo "No DMG found"
-            exit 1
-          fi
-          ls -lh output/
+                  # Pake preserves case on macOS (Cache.dmg), but use a glob
+                  # fallback to handle any filename Pake produces.
+                  DMG_FILE=$(find . -maxdepth 1 -iname "*.dmg" -type f | head -1)
+                  if [ -n "$DMG_FILE" ]; then
+                    mv "$DMG_FILE" output/Cache.dmg
+                  else
+                    echo "No DMG found"
+                    exit 1
+                  fi
+                  ls -lh output/
 
-      - name: Build Windows (x64 MSI)
-        if: matrix.platform == 'windows'
-        timeout-minutes: 30
-        shell: pwsh
-        run: |
-          pake "${{ env.APP_URL }}" `
-            --name "${{ env.APP_NAME }}" `
-            --icon "${{ env.APP_ICON }}" `
-            --width "${{ env.APP_WIDTH }}" `
-            --height "${{ env.APP_HEIGHT }}" `
-            --app-version "${{ steps.version.outputs.value }}" `
-            --targets x64 `
-            --safe-domain cachd.app `
-            --new-window `
-            --enable-drag-drop
+            - name: Build Windows (x64 MSI)
+              if: matrix.platform == 'windows'
+              timeout-minutes: 30
+              shell: pwsh
+              run: |
+                  pake "${{ env.APP_URL }}" `
+                    --name "${{ env.APP_NAME }}" `
+                    --icon "${{ env.APP_ICON }}" `
+                    --width "${{ env.APP_WIDTH }}" `
+                    --height "${{ env.APP_HEIGHT }}" `
+                    --app-version "${{ steps.version.outputs.value }}" `
+                    --targets x64 `
+                    --safe-domain cachd.app `
+                    --new-window `
+                    --enable-drag-drop
 
-          New-Item -Path output -ItemType Directory -Force | Out-Null
-          $msi = Get-ChildItem -Path "." -Filter "*.msi" -File -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $msi) {
-            $msi = Get-ChildItem -Path "src-tauri\target" -Recurse -Filter "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
-          }
-          if ($msi) {
-            Move-Item $msi.FullName "output/Cache_x64.msi"
-            Get-ChildItem output
-          } else {
-            Write-Error "No MSI found"
-            exit 1
-          }
+                  New-Item -Path output -ItemType Directory -Force | Out-Null
+                  $msi = Get-ChildItem -Path "." -Filter "*.msi" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                  if (-not $msi) {
+                    $msi = Get-ChildItem -Path "src-tauri\target" -Recurse -Filter "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
+                  }
+                  if ($msi) {
+                    Move-Item $msi.FullName "output/Cache_x64.msi"
+                    Get-ChildItem output
+                  } else {
+                    Write-Error "No MSI found"
+                    exit 1
+                  }
 
-      - name: Build Linux (AppImage + deb)
-        if: matrix.platform == 'linux'
-        timeout-minutes: 30
-        run: |
-          set -euo pipefail
-          pake "${{ env.APP_URL }}" \
-            --name "${{ env.APP_NAME }}" \
-            --icon "${{ env.APP_ICON }}" \
-            --width "${{ env.APP_WIDTH }}" \
-            --height "${{ env.APP_HEIGHT }}" \
-            --app-version "${{ steps.version.outputs.value }}" \
-            --targets deb,appimage \
-            --safe-domain cachd.app \
-            --new-window \
-            --enable-drag-drop
+            - name: Build Linux (AppImage + deb)
+              if: matrix.platform == 'linux'
+              timeout-minutes: 30
+              run: |
+                  set -euo pipefail
+                  pake "${{ env.APP_URL }}" \
+                    --name "${{ env.APP_NAME }}" \
+                    --icon "${{ env.APP_ICON }}" \
+                    --width "${{ env.APP_WIDTH }}" \
+                    --height "${{ env.APP_HEIGHT }}" \
+                    --app-version "${{ steps.version.outputs.value }}" \
+                    --targets deb,appimage \
+                    --safe-domain cachd.app \
+                    --new-window \
+                    --enable-drag-drop
 
-          mkdir -p output
+                  mkdir -p output
 
-          # Pake lowercases the app name on Linux (cache.AppImage, not
-          # Cache.AppImage).  Use a case-insensitive glob to catch either.
-          APPIMAGE_FILE=$(find . -maxdepth 1 -iname "*.AppImage" -type f | head -1)
-          if [ -n "$APPIMAGE_FILE" ]; then
-            mv "$APPIMAGE_FILE" output/Cache_x86_64.AppImage
-          else
-            echo "No AppImage found"
-            exit 1
-          fi
+                  # Pake lowercases the app name on Linux (cache.AppImage, not
+                  # Cache.AppImage).  Use a case-insensitive glob to catch either.
+                  APPIMAGE_FILE=$(find . -maxdepth 1 -iname "*.AppImage" -type f | head -1)
+                  if [ -n "$APPIMAGE_FILE" ]; then
+                    mv "$APPIMAGE_FILE" output/Cache_x86_64.AppImage
+                  else
+                    echo "No AppImage found"
+                    exit 1
+                  fi
 
-          DEB_FILE=$(find . -maxdepth 1 -iname "*.deb" -type f | head -1)
-          if [ -n "$DEB_FILE" ]; then
-            mv "$DEB_FILE" output/Cache_x86_64.deb
-          else
-            echo "Warning: No DEB found (AppImage is primary)"
-          fi
+                  DEB_FILE=$(find . -maxdepth 1 -iname "*.deb" -type f | head -1)
+                  if [ -n "$DEB_FILE" ]; then
+                    mv "$DEB_FILE" output/Cache_x86_64.deb
+                  else
+                    echo "Warning: No DEB found (AppImage is primary)"
+                  fi
 
-          ls -lh output/
+                  ls -lh output/
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: desktop-${{ matrix.platform }}
-          path: output/*
-          if-no-files-found: error
-          retention-days: 14
+            - name: Upload build artifacts
+              uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+              with:
+                  name: desktop-${{ matrix.platform }}
+                  path: output/*
+                  if-no-files-found: error
+                  retention-days: 14
 
-      - name: Attach to GitHub Release
-        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
-        with:
-          tag: ${{ needs.create-release.outputs.tag }}
-          allowUpdates: true
-          omitBody: true
-          omitName: true
-          artifacts: "output/*"
-          token: ${{ secrets.GITHUB_TOKEN }}
+            - name: Attach to GitHub Release
+              uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
+              with:
+                  tag: ${{ needs.create-release.outputs.tag }}
+                  allowUpdates: true
+                  omitBody: true
+                  omitName: true
+                  artifacts: "output/*"
+                  token: ${{ secrets.GITHUB_TOKEN }}
