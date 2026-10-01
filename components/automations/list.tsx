@@ -348,7 +348,6 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
     >(null);
 
     const isActive = automation.status === "active";
-    const canDelete = !isActive;
     const canResume = !isActive && isCompleteSchedule(automation);
     const Icon = getAutomationTemplateIcon(automation.templateKey);
     const scheduleLabel = formatSchedule(automation);
@@ -409,9 +408,6 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
     });
 
     const handleDelete = useStableCallback(() => {
-        if (!canDelete) {
-            return;
-        }
         handleAction(() => deleteAutomation({ automationId: automation.id }));
     });
 
@@ -422,7 +418,6 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
                     <Icon aria-hidden className="size-4" focusable="false" />
                 </span>
                 <AutomationsListItemMenu
-                    canDelete={canDelete}
                     canResume={canResume}
                     isActive={isActive}
                     isPending={isPending}
@@ -475,7 +470,6 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
 }
 
 interface AutomationsListItemMenuProps {
-    canDelete: boolean;
     canResume: boolean;
     isActive: boolean;
     isPending: boolean;
@@ -487,7 +481,6 @@ interface AutomationsListItemMenuProps {
 }
 
 function AutomationsListItemMenu({
-    canDelete,
     canResume,
     isActive,
     isPending,
@@ -542,7 +535,7 @@ function AutomationsListItemMenu({
                 )}
                 <MenuSeparator />
                 <MenuItem
-                    disabled={isPending || !canDelete}
+                    disabled={isPending}
                     onClick={onDelete}
                     variant="destructive"
                 >

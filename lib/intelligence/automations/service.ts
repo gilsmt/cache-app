@@ -454,42 +454,45 @@ export async function deleteAutomation(args: {
     automationId: string;
     userId: string;
 }): Promise<{ id: string }> {
-    // Atomic status gate: only a paused row owned by this user can be deleted.
-    const deleted = await prisma.automation.deleteMany({
-        where: {
-            id: args.automationId,
-            status: AutomationStatus.paused,
-            userId: args.userId,
-        },
-    });
-
-    if (deleted.count === 1) {
-        return { id: args.automationId };
-    }
-
-    const existing = await prisma.automation.findFirst({
-        select: {
-            status: true,
-        },
-        where: {
-            id: args.automationId,
-            userId: args.userId,
-        },
-    });
-
-    if (!existing) {
-        throw createAutomationError({
-            code: "not_found",
-            message: "That automation is no longer available.",
+    const { workflowRunIds } = await prisma.$transaction(async (tx) => {
+        await requireAutomationOwned(tx, {
+            automationId: args.automationId,
             operation: "deleteAutomation",
+            userId: args.userId,
         });
-    }
 
-    throw createAutomationError({
-        code: "must_be_paused",
-        message: "Pause this automation before deleting it.",
-        operation: "deleteAutomation",
+        const inFlightRuns = await tx.automationRun.findMany({
+            select: {
+                workflowRunId: true,
+            },
+            where: {
+                automationId: args.automationId,
+                status: {
+                    in: [
+                        AutomationRunStatus.starting,
+                        AutomationRunStatus.running,
+                    ],
+                },
+            },
+        });
+
+        await tx.automation.delete({
+            where: {
+                id: args.automationId,
+            },
+        });
+
+        return {
+            workflowRunIds: inFlightRuns
+                .map((run) => run.workflowRunId)
+                .filter(
+                    (workflowRunId): workflowRunId is string => !!workflowRunId
+                ),
+        };
     });
+
+    await cancelWorkflowRuns(workflowRunIds);
+    return { id: args.automationId };
 }
 
 export async function recoverStaleAutomationRuns(now = new Date()) {

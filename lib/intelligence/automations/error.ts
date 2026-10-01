@@ -5,7 +5,6 @@ type AutomationErrorCode =
     | "forbidden"
     | "invalid_schedule"
     | "missing_collection"
-    | "must_be_paused"
     | "not_found"
     | "quota_unavailable"
     | "start_failed"
@@ -18,7 +17,6 @@ export const AutomationError = NamedError.create(
             "forbidden",
             "invalid_schedule",
             "missing_collection",
-            "must_be_paused",
             "not_found",
             "quota_unavailable",
             "start_failed",
