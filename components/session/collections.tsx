@@ -4405,7 +4405,13 @@ function CollectionsCreateDialog() {
     });
 
     const handleCreateFromTemplate = useStableCallback(
-        (template: CollectionTemplateOption | null) => {
+        (value: string | null) => {
+            if (!value) {
+                return;
+            }
+            const template = TEMPLATES.find(
+                (candidate) => candidate.value === value
+            );
             if (!template) {
                 return;
             }

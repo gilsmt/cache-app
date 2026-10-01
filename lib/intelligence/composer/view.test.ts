@@ -40,8 +40,28 @@ describe("normalizeAgentViewQueryForContext", () => {
             },
             CONTEXT
         );
-        expect(normalized.collectionIds).toEqual([]);
+        expect(normalized.collectionIds).toBeUndefined();
         expect(normalized.membership).toBe("not-in-collections");
+    });
+
+    test("drops filters when every value falls outside the visible context", () => {
+        const normalized = normalizeAgentViewQueryForContext(
+            {
+                collectionIds: ["col-99"],
+                domainFilters: ["unknown.example"],
+            },
+            CONTEXT
+        );
+        expect(normalized.collectionIds).toEqual([]);
+        expect(normalized.domainFilters).toEqual([]);
+    });
+
+    test("treats explicit empty collection filter as no filter", () => {
+        const normalized = normalizeAgentViewQueryForContext(
+            { collectionIds: [] },
+            CONTEXT
+        );
+        expect(normalized.collectionIds).toBeUndefined();
     });
 });
 
@@ -72,6 +92,20 @@ describe("compileAgentViewQueryToWhere", () => {
             membership: "not-in-collections",
         });
         expect(JSON.stringify(notInCollections)).toContain("none");
+    });
+
+    test("compiles unmatched collection filter to match-nothing", () => {
+        const normalized = normalizeAgentViewQueryForContext(
+            { collectionIds: ["col-99"] },
+            CONTEXT
+        );
+        expect(normalized.collectionIds).toEqual([]);
+
+        const unmatched = compileAgentViewQueryToWhere("user-1", normalized);
+        expect(JSON.stringify(unmatched)).toContain('"in":[]');
+
+        const unfiltered = compileAgentViewQueryToWhere("user-1", {});
+        expect(JSON.stringify(unfiltered)).not.toContain("collections");
     });
 });
 

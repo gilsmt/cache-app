@@ -19,10 +19,13 @@ const ComboboxContext: React.Context<ComboboxContext> =
         multiple: false,
     });
 
-export function Combobox<Value, Multiple extends boolean | undefined = false>(
-    props: ComboboxPrimitive.Root.Props<Value, Multiple>
-) {
+export function Combobox<
+    Value,
+    Multiple extends boolean | undefined = false,
+    Item = Value,
+>(props: ComboboxPrimitive.Root.Props<Value, Multiple, Item>) {
     const chipsRef = React.useRef<HTMLDivElement | null>(null);
+
     const contextValue = { chipsRef, multiple: !!props.multiple };
 
     return (

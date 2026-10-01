@@ -111,36 +111,40 @@ export function normalizeAgentViewQueryForContext(
         ])
     );
 
-    const normalizedCollectionIds =
-        query.collectionIds === undefined
-            ? undefined
-            : query.collectionIds.filter((id) => collectionIds.has(id));
+    const normalizedCollectionIds = normalizeCollectionIdsForContext(
+        query.collectionIds,
+        collectionIds
+    );
     const normalizedDomainFilters =
         query.domainFilters === undefined
             ? undefined
             : query.domainFilters
                   .map((domain) => domainsByLowerCase.get(domain.toLowerCase()))
                   .filter((domain): domain is string => domain !== undefined);
-    const safeCollectionIds =
-        query.collectionIds && normalizedCollectionIds?.length === 0
-            ? query.collectionIds
-            : normalizedCollectionIds;
-    const safeDomainFilters =
-        query.domainFilters && normalizedDomainFilters?.length === 0
-            ? query.domainFilters
-            : normalizedDomainFilters;
-
     const normalized: AgentViewQuery = {
         ...query,
-        ...(query.collectionIds === undefined
-            ? {}
-            : { collectionIds: safeCollectionIds ?? [] }),
         ...(query.domainFilters === undefined
             ? {}
-            : { domainFilters: safeDomainFilters ?? [] }),
+            : { domainFilters: normalizedDomainFilters ?? [] }),
     };
+    if (query.collectionIds !== undefined) {
+        normalized.collectionIds = normalizedCollectionIds;
+    }
 
     return resolveAgentViewContradictions(normalized);
+}
+
+function normalizeCollectionIdsForContext(
+    collectionIds: string[] | undefined,
+    allowedIds: Set<string>
+): string[] | undefined {
+    if (collectionIds === undefined) {
+        return undefined;
+    }
+    if (collectionIds.length === 0) {
+        return undefined;
+    }
+    return collectionIds.filter((id) => allowedIds.has(id));
 }
 
 function resolveAgentViewContradictions(query: AgentViewQuery): AgentViewQuery {
@@ -150,7 +154,7 @@ function resolveAgentViewContradictions(query: AgentViewQuery): AgentViewQuery {
     ) {
         return query;
     }
-    return { ...query, collectionIds: [] };
+    return { ...query, collectionIds: undefined };
 }
 
 export function compileAgentViewQueryToWhere(
@@ -172,7 +176,7 @@ export function compileAgentViewQueryToWhere(
         conditions.push({ favoritedAt: { not: null } });
     }
 
-    if ((query.collectionIds ?? []).length > 0) {
+    if (query.collectionIds !== undefined) {
         conditions.push({
             collections: { some: { id: { in: query.collectionIds } } },
         });
