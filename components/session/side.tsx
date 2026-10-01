@@ -2660,39 +2660,47 @@ function FormattingToolbarControls() {
         );
     });
 
-    const updateToolbarState = useStableCallback(() => {
-        editor.getEditorState().read(() => {
-            const selection = $getSelection();
-            if (!$isRangeSelection(selection)) {
-                commitFormats(INITIAL_FORMAT_STATE);
-                return;
-            }
+    const syncToolbarSelection = useStableCallback(() => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) {
+            commitFormats(INITIAL_FORMAT_STATE);
+            return;
+        }
 
-            commitFormats({
-                blockType: getSelectionBlockType(selection),
-                bold: selection.hasFormat("bold"),
-                italic: selection.hasFormat("italic"),
-                strikeThrough: selection.hasFormat("strikethrough"),
-                underline: selection.hasFormat("underline"),
-            });
+        commitFormats({
+            blockType: getSelectionBlockType(selection),
+            bold: selection.hasFormat("bold"),
+            italic: selection.hasFormat("italic"),
+            strikeThrough: selection.hasFormat("strikethrough"),
+            underline: selection.hasFormat("underline"),
         });
+    });
+
+    const updateToolbarState = useStableCallback(() => {
+        editor.getEditorState().read(syncToolbarSelection);
     });
 
     useEffect(() => {
         updateToolbarState();
 
         return mergeRegister(
-            editor.registerUpdateListener(updateToolbarState),
+            editor.registerUpdateListener(({ editorState }) => {
+                editorState.read(syncToolbarSelection);
+            }),
+            // SELECTION_CHANGE_COMMAND runs before reconciliation in the
+            // pending update, so read the pending selection directly.
+            // Reading through getEditorState() here would return the last
+            // committed selection instead.
             editor.registerCommand(
                 SELECTION_CHANGE_COMMAND,
                 () => {
-                    updateToolbarState();
+                    syncToolbarSelection();
                     return false;
                 },
                 COMMAND_PRIORITY_LOW
             )
         );
-    }, [editor, updateToolbarState]);
+    }, [editor, syncToolbarSelection, updateToolbarState]);
 
     const setBlockType = useStableCallback((blockType: NoteBlockType) => {
         editor.update(() => {
