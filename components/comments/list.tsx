@@ -102,7 +102,7 @@ function CommentsListItem({ comment }: CommentsListItemProps) {
     return (
         <li className="list-none rounded-2xl bg-muted/60">
             <a
-                className="flex items-start gap-4 rounded-2xl p-4 transition-colors hover:bg-muted"
+                className="flex items-start gap-4 rounded-2xl p-4 hover:bg-muted"
                 href={href}
                 rel="noopener noreferrer"
                 target="_blank"

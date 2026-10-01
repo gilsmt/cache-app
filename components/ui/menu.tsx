@@ -128,7 +128,7 @@ export function MenuItem({
         <MenuPrimitive.Item
             {...props}
             className={cn(
-                "flex cursor-default select-none items-center gap-2 rounded-xl px-2.5 py-2 text-sm outline-none transition-colors hover:transition-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
+                "flex cursor-default select-none items-center gap-2 rounded-xl px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
                 variant === "default" &&
                     "data-highlighted:text-accent-foreground",
                 variant === "destructive" &&
@@ -163,7 +163,7 @@ export function MenuRadioItem({
         <MenuPrimitive.RadioItem
             {...props}
             className={cn(
-                "grid min-h-8 cursor-default select-none grid-cols-[1fr_1rem] items-center gap-5 rounded-xl px-2.5 py-1.5 text-sm outline-none transition-colors hover:transition-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
+                "grid min-h-8 cursor-default select-none grid-cols-[1fr_1rem] items-center gap-5 rounded-xl px-2.5 py-1.5 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
                 className
             )}
             data-slot="menu-radio-item"
@@ -202,7 +202,7 @@ export function MenuSubTrigger({
         <MenuPrimitive.SubmenuTrigger
             {...props}
             className={cn(
-                "group/trigger flex min-h-8 cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors hover:transition-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
+                "group/trigger flex min-h-8 cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
                 className
             )}
             data-slot="menu-sub-trigger"

@@ -307,7 +307,7 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                         }
                     </HeatGraph.MonthLabels>
                 </div>
-                <HeatGraph.Grid className="gap-[1.5px]">
+                <HeatGraph.Grid className="gap-0.5">
                     {({ cell }) => {
                         const isActiveDay = cell.count > 0;
                         const label = isActiveDay

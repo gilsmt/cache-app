@@ -684,7 +684,7 @@ function PainPointOption({
 
     return (
         <label
-            className="flex cursor-pointer items-start gap-3 rounded-md border border-transparent p-2 outline-none transition-colors hover:border-border has-focus-visible:border-ring data-checked:border-border"
+            className="flex cursor-pointer items-start gap-3 rounded-md border border-transparent p-2 outline-none transition-colors hover:border-border hover:transition-none has-focus-visible:border-ring data-checked:border-border"
             data-checked={isChecked || undefined}
             htmlFor={`pain-point-${id}`}
         >

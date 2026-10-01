@@ -75,7 +75,7 @@ export function DataListSection({
         <Collapsible
             {...props}
             className={cn(
-                "group/collapsible col-span-2 grid min-w-0 grid-cols-subgrid gap-3",
+                "group/collapsible col-span-2 grid min-w-0 grid-cols-subgrid gap-2",
                 className
             )}
         />
