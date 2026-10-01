@@ -11,6 +11,11 @@ import {
     type AskCacheResult,
 } from "./composer/ask-cache";
 import { runAskCacheAgent } from "./composer/service";
+import {
+    type AgentViewPageRequest,
+    AgentViewPageRequestSchema,
+} from "./composer/view";
+import { resolveAgentViewPage } from "./composer/view-service";
 import { GenAiGenerationError, GenAiProtectionError } from "./error";
 import {
     type CollectionDescriptionRequest,
@@ -181,6 +186,7 @@ export async function askCache(
             markdown: result.markdown,
             operations: result.operations,
             status: "SUCCESS",
+            view: result.view ?? null,
         };
     } catch (error) {
         const failure = mapGenerationFailure(error, {
@@ -207,6 +213,59 @@ export type CollectionSuggestionsResult =
           message: string;
           status: "ERROR" | "INVALID" | "UNAUTHORIZED";
       };
+
+export type AgentViewPageActionResult =
+    | {
+          itemIds: string[];
+          nextOffset: number | null;
+          status: "SUCCESS";
+          truncated: boolean;
+      }
+    | {
+          message: string;
+          status: "ERROR" | "INVALID" | "UNAUTHORIZED";
+      };
+
+export async function getAgentViewPage(
+    input: AgentViewPageRequest
+): Promise<AgentViewPageActionResult> {
+    const parsed = AgentViewPageRequestSchema.safeParse(input);
+    if (!parsed.success) {
+        return {
+            message: getValidationErrorMessage(
+                parsed,
+                "Enter a valid view page request."
+            ),
+            status: "INVALID",
+        };
+    }
+
+    const auth = await requireActionUserId("Sign in again to ask Cache.");
+    if (isUnauthenticated(auth)) {
+        return auth;
+    }
+
+    try {
+        const page = await resolveAgentViewPage({
+            offset: parsed.data.offset,
+            query: parsed.data.query,
+            userId: auth.userId,
+        });
+
+        return {
+            itemIds: page.itemIds,
+            nextOffset: page.nextOffset,
+            status: "SUCCESS",
+            truncated: page.truncated,
+        };
+    } catch (error) {
+        log.error("Failed to resolve agent view page", error);
+        return {
+            message: "We couldn't load more results right now.",
+            status: "ERROR",
+        };
+    }
+}
 
 const SUGGESTIONS_ERROR_MESSAGE =
     "We couldn't load collection suggestions right now.";

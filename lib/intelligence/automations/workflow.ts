@@ -3,10 +3,6 @@ import { isStepCount } from "ai";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { summarizeStepUsage } from "@/lib/intelligence/classify";
 import type { GenerationUsage } from "@/lib/intelligence/generation";
-import {
-    DEFAULT_REGISTERED_MODEL,
-    type RegisteredModel,
-} from "@/lib/intelligence/providers/model-registry";
 import { resolveRegisteredModel } from "@/lib/intelligence/providers/model-resolver";
 import {
     type AutomationAgentSource,
@@ -19,7 +15,6 @@ const AUTOMATION_OUTPUT_TOKEN_LIMIT = 8192;
 const log = createLogger("automations:workflow");
 
 interface ReadyAutomationRun {
-    modelId: RegisteredModel | null;
     payloadScope: string;
     prompt: string;
     runId: string;
@@ -68,7 +63,6 @@ export async function executeReadOnlyAutomationRun(ready: ReadyAutomationRun) {
 
         const result = await runAutomationAgentForWorkflow({
             instructions,
-            modelId: ready.modelId,
             runId: ready.runId,
             userMessage,
         });
@@ -130,7 +124,6 @@ async function protectAutomationAgentRun(args: {
 
 async function runAutomationAgentForWorkflow(args: {
     instructions: string;
-    modelId: RegisteredModel | null;
     runId: string;
     userMessage: string;
 }): Promise<AutomationAgentRunResult> {
@@ -143,10 +136,7 @@ async function runAutomationAgentForWorkflow(args: {
     const agent = new WorkflowAgent({
         instructions: args.instructions,
         maxOutputTokens: AUTOMATION_OUTPUT_TOKEN_LIMIT,
-        model: resolveRegisteredModel(
-            args.modelId ?? DEFAULT_REGISTERED_MODEL,
-            "executeReadOnlyAutomationRun"
-        ),
+        model: resolveRegisteredModel("executeReadOnlyAutomationRun"),
         temperature: 0.3,
         tools,
     });

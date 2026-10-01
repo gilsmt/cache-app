@@ -7,17 +7,12 @@ import {
 import { isRecord } from "@/lib/common/object";
 import { GenAiConfigurationError } from "./error";
 
-export interface ErrorClassification {
-    /** When false, the fallback chain stops and the error surfaces immediately. */
-    canFallback: boolean;
+export interface GenerationErrorClassification {
     message: string;
     status: number;
 }
 
-/**
- * Thrown when a text generation returns a response without content. Drives
- * the fallback chain to the next model.
- */
+/** Thrown when a text generation returns a response without content. */
 export class EmptyGenerationOutputError extends Error {
     constructor() {
         super("Model returned no output.");
@@ -26,16 +21,15 @@ export class EmptyGenerationOutputError extends Error {
 }
 
 /**
- * Classifies AI SDK provider errors for the model fallback chain.
- * Configuration and quota failures cannot improve by switching models;
- * everything else can.
+ * Classifies AI SDK provider errors for generation responses.
  */
-export function classifyGenerationError(error: unknown): ErrorClassification {
+export function classifyGenerationError(
+    error: unknown
+): GenerationErrorClassification {
     const providerError = unwrapProviderError(error);
 
     if (GenAiConfigurationError.isInstance(providerError)) {
         return {
-            canFallback: false,
             message: providerError.data.message,
             status: 500,
         };
@@ -43,7 +37,6 @@ export function classifyGenerationError(error: unknown): ErrorClassification {
 
     if (LoadAPIKeyError.isInstance(providerError)) {
         return {
-            canFallback: false,
             message: "Cache AI provider credentials are missing or invalid.",
             status: 500,
         };
@@ -55,7 +48,6 @@ export function classifyGenerationError(error: unknown): ErrorClassification {
 
     if (error instanceof EmptyGenerationOutputError) {
         return {
-            canFallback: true,
             message: error.message,
             status: 502,
         };
@@ -65,7 +57,6 @@ export function classifyGenerationError(error: unknown): ErrorClassification {
         const message = error.message.toLowerCase();
         if (message.includes("timeout") || message.includes("abort")) {
             return {
-                canFallback: true,
                 message: "Request timed out. Please try again.",
                 status: 408,
             };
@@ -73,7 +64,6 @@ export function classifyGenerationError(error: unknown): ErrorClassification {
     }
 
     return {
-        canFallback: true,
         message: "Unknown error",
         status: 500,
     };
@@ -133,20 +123,20 @@ function unwrapProviderError(
     return unwrapProviderError(error.cause, seen);
 }
 
-function classifyProviderError(error: APICallError): ErrorClassification {
+function classifyProviderError(
+    error: APICallError
+): GenerationErrorClassification {
     const statusCode = error.statusCode;
     const message = error.message.toLowerCase();
 
     if (isCredentialStatusCode(statusCode, message)) {
         return {
-            canFallback: false,
             message: "Cache AI provider credentials are missing or invalid.",
             status: 500,
         };
     }
     if (statusCode === 429 || message.includes("quota")) {
         return {
-            canFallback: false,
             message: "AI service quota exceeded. Please try again later.",
             status: 429,
         };
@@ -157,7 +147,6 @@ function classifyProviderError(error: APICallError): ErrorClassification {
         message.includes("deadline")
     ) {
         return {
-            canFallback: true,
             message: "Request timed out. Please try again.",
             status: 408,
         };
@@ -167,28 +156,24 @@ function classifyProviderError(error: APICallError): ErrorClassification {
         (message.includes("safety") || message.includes("content"))
     ) {
         return {
-            canFallback: true,
             message: "Content could not be processed due to safety settings.",
             status: 400,
         };
     }
     if (statusCode !== undefined && statusCode >= 500) {
         return {
-            canFallback: true,
             message: "AI service temporarily unavailable.",
             status: 502,
         };
     }
     if (statusCode === 404) {
         return {
-            canFallback: true,
             message: error.message,
             status: 404,
         };
     }
 
     return {
-        canFallback: statusCode === undefined,
         message: error.message,
         status: statusCode ?? 500,
     };

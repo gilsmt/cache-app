@@ -1,16 +1,7 @@
 export type RegisteredModel = `${string}/${string}`;
 
 export const DEFAULT_REGISTERED_MODEL: RegisteredModel =
-    "google/gemini-3.5-flash-lite";
-
-export const FALLBACK_REGISTERED_MODELS = [
-    "google/gemini-3.1-flash-lite",
-] as const satisfies readonly RegisteredModel[];
-
-export const MODEL_REGISTRY = [
-    DEFAULT_REGISTERED_MODEL,
-    ...FALLBACK_REGISTERED_MODELS,
-] as const satisfies readonly RegisteredModel[];
+    "google/gemini-3.7-flash";
 
 export interface ParsedRegisteredModel {
     modelId: string;

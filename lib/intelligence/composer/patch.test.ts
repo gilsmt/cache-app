@@ -30,6 +30,7 @@ function request(overrides: Partial<AskCacheRequest> = {}): AskCacheRequest {
             ],
             filteredItemCount: 3,
             totalItemCount: 3,
+            visibleItems: [],
         },
         ...overrides,
     };

@@ -1,8 +1,11 @@
 import * as z from "zod";
 import { LibraryItemSource } from "@/prisma/client/enums";
+import type { AgentViewPage } from "./view";
 
 export const ASK_CACHE_PROMPT_MAX_LENGTH = 500;
 export const ASK_CACHE_SEARCH_TERM_MAX_LENGTH = 200;
+export const ASK_CACHE_VISIBLE_ITEM_LIMIT = 50;
+export const ASK_CACHE_VISIBLE_ITEM_LABEL_MAX_LENGTH = 120;
 export const ASK_CACHE_DOMAIN_FILTER_MAX_LENGTH = 120;
 export const ASK_CACHE_COLLECTION_NAME_MAX_LENGTH = 120;
 export const ASK_CACHE_CONTEXT_COLLECTION_LIMIT = 200;
@@ -141,6 +144,16 @@ export const AskCacheAvailableDomainSchema = z.strictObject({
     itemCount: z.int().min(1).max(100_000),
 });
 
+export const AskCacheVisibleItemSchema = z.strictObject({
+    domain: z.string().trim().min(1).max(ASK_CACHE_DOMAIN_FILTER_MAX_LENGTH),
+    id: AskCacheCollectionIdSchema,
+    label: z
+        .string()
+        .trim()
+        .min(1)
+        .max(ASK_CACHE_VISIBLE_ITEM_LABEL_MAX_LENGTH),
+});
+
 export const AskCacheVisibleContextSchema = z.strictObject({
     availableCollections: z
         .array(AskCacheAvailableCollectionSchema)
@@ -150,6 +163,9 @@ export const AskCacheVisibleContextSchema = z.strictObject({
         .max(ASK_CACHE_CONTEXT_DOMAIN_LIMIT),
     filteredItemCount: z.int().min(0).max(1_000_000),
     totalItemCount: z.int().min(0).max(1_000_000),
+    visibleItems: z
+        .array(AskCacheVisibleItemSchema)
+        .max(ASK_CACHE_VISIBLE_ITEM_LIMIT),
 });
 
 export const AskCacheRuntimeContextSchema = z.strictObject({
@@ -183,6 +199,7 @@ export const AskCacheToolUpdateInputSchema = z.strictObject({
 export type AskCacheComposerPatch = z.infer<typeof AskCacheComposerPatchSchema>;
 export type AskCacheComposerState = z.infer<typeof AskCacheComposerStateSchema>;
 export type AskCacheRequest = z.infer<typeof AskCacheRequestSchema>;
+export type AskCacheVisibleItem = z.infer<typeof AskCacheVisibleItemSchema>;
 export type AskCacheRuntimeContext = z.infer<
     typeof AskCacheRuntimeContextSchema
 >;
@@ -192,6 +209,7 @@ export type AskCacheResult =
           markdown: string;
           operations: AskCacheComposerPatch[];
           status: "SUCCESS";
+          view?: AgentViewPage | null;
       }
     | {
           markdown?: string;

@@ -4,18 +4,18 @@ import type { ArcjetNextRequest } from "@arcjet/next";
 import { isStepCount, ToolLoopAgent } from "ai";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { EmptyGenerationOutputError, summarizeStepUsage } from "../classify";
-import { type GenerationUsage, runModelChain } from "../generation";
+import { type GenerationUsage, runGeneration } from "../generation";
 import { normalizeGeneratedMarkdown } from "../markdown";
 import { protectGenAiRequest } from "../protection";
 import type { resolveRegisteredModel } from "../providers/model-resolver";
 import { createAskCacheAgentTools } from "../tools/agent-tools";
 import { estimateTokens } from "../usage";
 import {
-    ASK_CACHE_DOMAIN_FILTER_COUNT_MAX,
-    ASK_CACHE_SEARCH_TERM_COUNT_MAX,
+    ASK_CACHE_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX,
     type AskCacheComposerPatch,
     type AskCacheRequest,
 } from "./ask-cache";
+import { AGENT_VIEW_TEXT_MAX_LENGTH, type AgentViewPage } from "./view";
 
 const ASK_CACHE_OUTPUT_TOKEN_LIMIT = 8192;
 const ASK_CACHE_MAX_STEPS = 12;
@@ -37,6 +37,7 @@ interface RunAskCacheAgentResult {
     markdown: string;
     operations: AskCacheComposerPatch[];
     usage?: GenerationUsage;
+    view?: AgentViewPage | null;
 }
 
 export async function runAskCacheAgent({
@@ -58,7 +59,7 @@ export async function runAskCacheAgent({
     });
 
     try {
-        const result = await runModelChain(
+        const result = await runGeneration(
             {
                 defaultErrorMessage: "We couldn't ask Cache right now.",
                 feature: "ask-cache-agent",
@@ -78,6 +79,7 @@ export async function runAskCacheAgent({
             markdown: result.output.markdown,
             operations: result.output.operations,
             usage: result.usage,
+            view: result.output.view,
         };
     } catch (error) {
         log.error("Ask Cache agent run failed", {
@@ -97,10 +99,14 @@ async function runAskCacheAgentModel(args: {
     userMessage: string;
     userId: string;
 }): Promise<{
-    output: { markdown: string; operations: AskCacheComposerPatch[] };
+    output: {
+        markdown: string;
+        operations: AskCacheComposerPatch[];
+        view?: AgentViewPage | null;
+    };
     usage?: GenerationUsage;
 }> {
-    const { getOperations, getOperationSummaries, tools } =
+    const { getOperations, getOperationSummaries, getView, tools } =
         createAskCacheAgentTools({
             input: args.input,
             userId: args.userId,
@@ -125,7 +131,7 @@ async function runAskCacheAgentModel(args: {
     }
 
     return {
-        output: { markdown, operations: getOperations() },
+        output: { markdown, operations: getOperations(), view: getView() },
         usage: summarizeStepUsage(result.steps),
     };
 }
@@ -142,29 +148,34 @@ function buildAskCacheInstructions(input: AskCacheRequest): string {
 
     return [
         "You are Ask Cache, an assistant embedded in Cache's library composer.",
-        "You can answer conversationally and can update the composer by calling update_composer.",
+        "You can answer conversationally and can define an ephemeral view by calling define_view.",
         "This is a one-shot interaction, not a chat thread. Do not ask the user follow-up questions or end with offers to continue.",
         "When the request is ambiguous, make the best reasonable assumption from the current composer state and visible context, state that assumption briefly, then act.",
-        "Never claim to inspect library items unless you called search_library.",
-        "Use update_composer for requests that ask to show, find, filter, sort, group, or reset.",
-        "Prefer update_composer over setting searchTerms alone when concrete filters (collections, domains, sources) are available.",
-        "Use exact collection ids from the collection catalog when selecting collection filters.",
-        "selectedCollectionIds and collectionMembershipFilter: 'not-in-collections' are mutually exclusive — an item in a selected collection is by definition in a collection, so combining them always yields zero results. For 'things about X not in the X collection' requests, use collectionMembershipFilter: 'not-in-collections' with searchTerms about X, and set selectedCollectionIds: [] (omit only when none are already selected).",
+        "Never claim to inspect library items unless you called search_library or define_view.",
+        "Use define_view for requests that ask to show, find, or filter. It returns server-resolved item ids in recency order, capped at 100 with a truncated flag. The view applies to the main list behind an Agent chip the user can dismiss.",
+        "The request includes the items currently in view (up to 50 with ids, labels, and domains, in display order). Use them to resolve follow-up references such as 'these', 'the X ones', or 'remove ...' without re-asking.",
+        "Use exact ids from visible items or tool results when scoping a follow-up. Never invent ids.",
+        "Use update_composer only for reset requests or explicit sort, group, and column changes the user asks for by name.",
+        "One view per run; the last define_view call wins. Mention the view title and whether results are partial in one short sentence.",
+        "Prefer define_view over update_composer when concrete filters (collections, domains, sources) are available.",
+        "Use exact collection ids from the collection catalog when selecting collectionIds.",
+        "collectionIds and membership: 'not-in-collections' are mutually exclusive — an item in a selected collection is by definition in a collection, so combining them yields no results. For 'things about X not in the X collection' requests, use membership: 'not-in-collections' with text about X and set collectionIds: [].",
         "Use exact domains from availableDomains when applying domainFilters.",
-        "Composer filters are exact-match tools, not a semantic category classifier.",
+        "Agent view filters are exact-match tools, not a semantic category classifier.",
         "Library entries usually do not contain category labels like software product, recipe, tutorial, or inspiration in caption, note text, URL, or metadata.",
-        "Do not set searchTerms to broad category words such as software, product, tool, recipe, tutorial, article, inspiration, or design unless the user explicitly asks for those literal words.",
-        "For conceptual requests: (1) prefer an exact matching collection if one exists; (2) inspect with search_library using concrete product, brand, domain, source, or URL signals; (3) apply high-confidence concrete filters.",
+        "Do not set text to broad category words such as software, product, tool, recipe, tutorial, article, inspiration, or design unless the user explicitly asks for those literal words.",
+        "For conceptual requests: (1) prefer an exact matching collection if one exists; (2) inspect with search_library using concrete product, brand, domain, source, or URL signals; (3) apply high-confidence concrete filters with define_view.",
         "When domainFilters express a conceptual match, include every high-confidence matching domain from availableDomains — do not sample a short representative list when more matching domains are available.",
-        `domainFilters accept up to ${ASK_CACHE_DOMAIN_FILTER_COUNT_MAX} domains; searchTerms accept up to ${ASK_CACHE_SEARCH_TERM_COUNT_MAX} terms. Use the full budget when the user wants a complete set.`,
+        `domainFilters accept up to ${ASK_CACHE_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX} domains; view text accepts up to ${AGENT_VIEW_TEXT_MAX_LENGTH} characters. Use the full budget when the user wants a complete set.`,
         "Relevant sourceFilters can help (for example github_starred_repositories for developer tools) and may be combined with domainFilters.",
-        "For 'show me all …' inventory requests, call search_library first (page with offset while truncated is true when needed), then update_composer when a useful filter exists.",
-        "Example: for 'show me all software products I saved', do not set searchTerms to ['software']. Prefer a matching collection if present; otherwise select all high-confidence product/app/SaaS/tool domains from availableDomains, include relevant sources, apply them together, and note any mixed-content domains you intentionally left out.",
-        "If the concept cannot be expressed completely with composer filters, say so plainly, apply only high-confidence filters, and answer with what search_library found. Never invent vague 'system constraints'; if a hard limit was hit, name the actual limit and that the result is partial.",
+        "For 'show me all …' inventory requests, call define_view once with the bounded query. Use search_library to inspect saved items or find concrete signals. When truncated is true, report a partial result.",
+        "Example: for 'show me all software products I saved', do not set text to ['software']. Prefer a matching collection if present; otherwise select all high-confidence product/app/SaaS/tool domains from availableDomains, include relevant sources, apply them together with define_view, and note any mixed-content domains you intentionally left out.",
+        "If the concept cannot be expressed completely with agent view filters, say so plainly, apply only high-confidence filters, and answer with what search_library found. Never invent vague 'system constraints'; if a hard limit was hit, name the actual limit and that the result is partial.",
         "Use web_search only when public, current information would materially improve the answer beyond what is in the user's library. Use github_repo for stats on a specific public GitHub repository.",
-        "Prefer concise markdown. Mention applied composer changes in one short sentence when you call update_composer.",
-        "Batch multiple composer changes into one update_composer call. The patch accepts searchTerms, sourceFilters, domainFilters, selectedCollectionIds, collectionMembershipFilter, groupBy, sortMode, columnCountMode, and reset all at once.",
+        "Prefer concise markdown. Mention applied composer changes or the defined view in one short sentence when you call a tool.",
+        "Batch reset, groupBy, sortMode, and columnCountMode changes into one update_composer call.",
         "Call update_composer at most 8 times. After reaching the limit, stop and explain what was applied.",
+        "The view query accepts text, collectionIds, domainFilters, sourceFilters, membership, favoritedOnly, and kind. Never invent a Prisma where object; use only these fields.",
         "Do not mutate saved items, collections, notes, or external services.",
         "",
         "Runtime context:",
@@ -178,6 +189,7 @@ function buildAskCacheInstructions(input: AskCacheRequest): string {
             availableDomains: input.visibleContext.availableDomains,
             filteredItemCount: input.visibleContext.filteredItemCount,
             totalItemCount: input.visibleContext.totalItemCount,
+            visibleItems: input.visibleContext.visibleItems,
         }),
         "",
         "Collection catalog:",
@@ -244,7 +256,8 @@ function buildAskCacheUserMessage(input: AskCacheRequest): string {
         "User request:",
         input.prompt,
         "",
-        "If this is a library navigation command, call update_composer once with all state changes batched together, then briefly explain what changed.",
+        "If this is a library navigation command, call define_view once with the bounded query, then briefly explain the view title and whether results are partial.",
+        "If this is a reset request, call update_composer with reset.",
         "If this is a normal question, answer directly and call tools only when they are useful.",
         "Do not ask follow-up questions. If details are missing, proceed with a reasonable assumption or explain the limitation as a final answer.",
     ].join("\n");

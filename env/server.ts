@@ -1,6 +1,7 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { vercel } from "@t3-oss/env-nextjs/presets-zod";
 import * as z from "zod";
+import { REGISTERED_MODEL_PATTERN } from "@/lib/intelligence/providers/model-registry";
 
 export const serverEnv = createEnv({
     emptyStringAsUndefined: true,
@@ -11,13 +12,8 @@ export const serverEnv = createEnv({
         ARCJET_KEY: z.string().startsWith("ajkey_").optional(),
         BETTER_AUTH_SECRET: z.string().optional(),
         BETTER_AUTH_URL: z.url().optional(),
-        /** Comma-separated vendor-qualified fallback models used after CACHE_AI_MODEL fails. */
-        CACHE_AI_FALLBACK_MODELS: z.string().optional(),
-        /** Self-host AI model override. Vendor-qualified, e.g. google/gemini-3.5-flash-lite. */
-        CACHE_AI_MODEL: z
-            .string()
-            .regex(/^[a-z0-9][a-z0-9-]*\/[a-z0-9._/-]+$/i)
-            .optional(),
+        /** Optional vendor-qualified model used by every AI feature. */
+        CACHE_AI_MODEL: z.string().regex(REGISTERED_MODEL_PATTERN).optional(),
         /** Optional override for local/unpacked Chrome extension origin trust. */
         CACHE_EXTENSION_ID: z
             .string()

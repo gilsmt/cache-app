@@ -2,8 +2,7 @@ import { tool } from "ai";
 import * as z from "zod";
 import { LIBRARY_ITEM_COLLECTIONS_INCLUDE } from "@/lib/collections/utils";
 import { ITEM_KIND_FOLDER, SORT_DESC } from "@/lib/common/constants";
-import { escapeLikePattern } from "@/lib/common/string";
-import { parseDisplayUrl, tryParseUrl } from "@/lib/common/url";
+import { parseDisplayUrl } from "@/lib/common/url";
 import type { Prisma } from "@/prisma/client/client";
 import {
     AutomationPayloadItemsInputSchema,
@@ -24,6 +23,15 @@ import {
     normalizeComposerPatchForContext,
     resolveComposerPatchContradictions,
 } from "../composer/patch";
+import {
+    type AgentViewPage,
+    DefineAgentViewToolInputSchema,
+    normalizeAgentViewQueryForContext,
+} from "../composer/view";
+import {
+    buildLibraryDomainCondition,
+    buildLibraryTextSearchConditions,
+} from "../search";
 import { truncateChars } from "../truncate";
 import { GitHubRepoInputSchema, WebSearchInputSchema } from "./tool-inputs";
 
@@ -32,9 +40,6 @@ const AUTOMATION_AGENT_SOURCE_LIMIT = 100;
 const ASK_CACHE_LIBRARY_SEARCH_LIMIT_MAX = 50;
 const ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX = 10_000;
 const ASK_CACHE_LIBRARY_TEXT_PREVIEW_LENGTH_MAX = 1000;
-
-const WHITESPACE_SPLIT_PATTERN = /\s+/;
-const WWW_DOMAIN_PREFIX_PATTERN = /^www\./;
 
 export type AutomationAgentSource =
     | { id: string; title: string; type: "library_item"; url: string }
@@ -58,7 +63,7 @@ export const AskCacheLibrarySearchInputSchema = z.strictObject({
         .min(0)
         .max(ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX)
         .describe(
-            "Skip this many matches before returning results. Use with limit when a previous search_library call returned truncated: true."
+            `Skip this many matches before returning results. Continue with the previous result's nextOffset when it is not null. If truncated is true and nextOffset is null, the ${ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX} offset limit prevents another page.`
         )
         .optional(),
     query: z
@@ -188,8 +193,50 @@ export function createAskCacheAgentTools(args: {
 }) {
     const operations: AskCacheComposerPatch[] = [];
     const operationSummaries: string[] = [];
+    let view: AgentViewPage | null = null;
 
     const tools = {
+        define_view: tool({
+            description:
+                "Define the ephemeral library view for show, find, or filter requests. Prefer this over update_composer for navigation. Returns server-resolved item ids in recency order with a truncated flag. One view per run; the last call wins.",
+            execute: async (toolInput) => {
+                const query = normalizeAgentViewQueryForContext(
+                    toolInput.query,
+                    {
+                        availableCollections:
+                            args.input.visibleContext.availableCollections,
+                        availableDomains:
+                            args.input.visibleContext.availableDomains,
+                    }
+                );
+
+                const { resolveAgentViewPage } = await import(
+                    "../composer/view-service"
+                );
+                const page = await resolveAgentViewPage({
+                    query,
+                    userId: args.userId,
+                });
+
+                view = {
+                    explanation: toolInput.explanation,
+                    itemIds: page.itemIds,
+                    nextOffset: page.nextOffset,
+                    query,
+                    title: toolInput.title,
+                    truncated: page.truncated,
+                };
+
+                return {
+                    itemCount: view.itemIds.length,
+                    ok: true,
+                    previewLimited: page.previewLimited,
+                    title: view.title,
+                    truncated: view.truncated,
+                };
+            },
+            inputSchema: DefineAgentViewToolInputSchema,
+        }),
         github_repo: tool({
             description:
                 "Get public stats for a GitHub repository: stars, forks, open issues, language, and description. Use this for questions about a specific repository.",
@@ -201,7 +248,7 @@ export function createAskCacheAgentTools(args: {
         }),
         search_library: tool({
             description:
-                "Search the user's saved Cache library. Query words are AND-matched across caption, note text, and URL within each item. Prefer concrete names, brands, domains, domainFilters, sourceFilters, or collectionIds over broad category labels. When truncated is true, page with offset to continue the inventory.",
+                "Search the user's saved Cache library. Query words are AND-matched across caption, note text, and URL within each item. Prefer concrete names, brands, domains, domainFilters, sourceFilters, or collectionIds over broad category labels. When truncated is true, continue with nextOffset while it is not null; if it is null, explain that the offset limit was reached and the result is partial.",
             execute: (toolInput) =>
                 searchAskCacheLibrary({
                     input: toolInput,
@@ -262,6 +309,7 @@ export function createAskCacheAgentTools(args: {
     return {
         getOperationSummaries: (): string[] => [...operationSummaries],
         getOperations: (): AskCacheComposerPatch[] => [...operations],
+        getView: (): AgentViewPage | null => view,
         tools,
     };
 }
@@ -301,29 +349,9 @@ async function searchAskCacheLibrary(args: {
     const sourceFilters = args.input.sourceFilters ?? [];
     const searchConditions: Prisma.LibraryItemWhereInput[] = [];
     if (search) {
-        const terms = search
-            .split(WHITESPACE_SPLIT_PATTERN)
-            .filter((term) => term.length > 0);
-        const termGroups: Prisma.LibraryItemWhereInput[] = terms.map((term) => {
-            const literal = escapeLikePattern(term);
-            return {
-                OR: [
-                    {
-                        caption: { contains: literal, mode: "insensitive" },
-                    },
-                    {
-                        noteContentText: {
-                            contains: literal,
-                            mode: "insensitive",
-                        },
-                    },
-                    { url: { contains: literal, mode: "insensitive" } },
-                ],
-            };
-        });
-        searchConditions.push(...termGroups);
+        searchConditions.push(...buildLibraryTextSearchConditions(search));
     }
-    const domainCondition = buildAskCacheDomainCondition(
+    const domainCondition = buildLibraryDomainCondition(
         args.input.domainFilters ?? []
     );
     if (domainCondition) {
@@ -347,11 +375,18 @@ async function searchAskCacheLibrary(args: {
 
     const items = await prisma.libraryItem.findMany({
         include: LIBRARY_ITEM_COLLECTIONS_INCLUDE,
-        orderBy: [{ scrapedAt: SORT_DESC }, { updatedAt: SORT_DESC }],
+        orderBy: [
+            { scrapedAt: SORT_DESC },
+            { updatedAt: SORT_DESC },
+            { id: SORT_DESC },
+        ],
         skip: offset,
         take: limit + 1,
         where,
     });
+
+    const truncated = items.length > limit;
+    const nextOffset = offset + limit;
 
     return {
         items: items.slice(0, limit).map((item) => ({
@@ -375,92 +410,11 @@ async function searchAskCacheLibrary(args: {
             url: item.url,
         })),
         limit,
+        nextOffset:
+            truncated && nextOffset <= ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX
+                ? nextOffset
+                : null,
         offset,
-        truncated: items.length > limit,
+        truncated,
     };
-}
-
-/**
- * Builds URL match predicates from loose domain filter strings. Model output
- * may carry a scheme, path, or `www.` prefix, so each value is reduced to its
- * bare host before the match variants are expanded. Values with no usable
- * host are ignored.
- */
-export function buildAskCacheDomainCondition(
-    domainFilters: string[]
-): Prisma.LibraryItemWhereInput | null {
-    const uniqueDomains = [
-        ...new Set(
-            domainFilters
-                .map(normalizeDomainFilter)
-                .filter((domain) => domain.length > 0)
-        ),
-    ];
-
-    if (uniqueDomains.length === 0) {
-        return null;
-    }
-
-    const orConditions: Prisma.LibraryItemWhereInput[] = [];
-    for (const domain of uniqueDomains) {
-        orConditions.push(...buildDomainMatchPredicates(domain));
-    }
-
-    return { OR: orConditions };
-}
-
-/**
- * Reduces a filter value to its bare host in lowercase, matching the
- * `parseDisplayUrl` format used across the app. Returns "" when the value
- * carries no usable host.
- */
-function normalizeDomainFilter(rawDomain: string): string {
-    const trimmed = rawDomain.trim().toLowerCase();
-    if (trimmed.length === 0) {
-        return "";
-    }
-
-    const parsed = tryParseUrl(trimmed);
-    if (parsed && parsed.hostname.length > 0) {
-        return parsed.hostname.replace(WWW_DOMAIN_PREFIX_PATTERN, "");
-    }
-
-    // Scheme-less values such as "example.com/blog" or "example.com:8443"
-    // parse as URLs with an empty hostname; retry with a scheme prepended.
-    const withScheme = tryParseUrl(`https://${trimmed}`);
-    if (withScheme && withScheme.hostname.length > 0) {
-        return withScheme.hostname.replace(WWW_DOMAIN_PREFIX_PATTERN, "");
-    }
-
-    return "";
-}
-
-function buildDomainMatchPredicates(
-    host: string
-): Prisma.LibraryItemWhereInput[] {
-    const predicates: Prisma.LibraryItemWhereInput[] = [];
-    for (const candidate of [host, `www.${host}`]) {
-        predicates.push({ url: { equals: candidate, mode: "insensitive" } });
-        predicates.push({
-            url: { equals: `http://${candidate}`, mode: "insensitive" },
-        });
-        predicates.push({
-            url: { equals: `https://${candidate}`, mode: "insensitive" },
-        });
-        for (const prefix of [
-            `http://${candidate}/`,
-            `http://${candidate}?`,
-            `http://${candidate}#`,
-            `http://${candidate}:`,
-            `https://${candidate}/`,
-            `https://${candidate}?`,
-            `https://${candidate}#`,
-            `https://${candidate}:`,
-        ]) {
-            predicates.push({
-                url: { mode: "insensitive", startsWith: prefix },
-            });
-        }
-    }
-    return predicates;
 }

@@ -31,7 +31,6 @@ import {
 } from "@/lib/chats/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { GenAiProtectionError } from "@/lib/intelligence/error";
-import { DEFAULT_REGISTERED_MODEL } from "@/lib/intelligence/providers/model-registry";
 import { resolveRegisteredModel } from "@/lib/intelligence/providers/model-resolver";
 import { createAutomationAgentTools } from "@/lib/intelligence/tools/agent-tools";
 import { estimateTokens } from "@/lib/intelligence/usage";
@@ -210,10 +209,7 @@ export async function POST(request: Request, { params }: ChatRouteParams) {
             abortSignal: request.signal,
             maxOutputTokens: CHAT_FOLLOWUP_OUTPUT_TOKEN_LIMIT,
             messages: modelMessages,
-            model: resolveRegisteredModel(
-                DEFAULT_REGISTERED_MODEL,
-                "chat_followup"
-            ),
+            model: resolveRegisteredModel("chat_followup"),
             onError: ({ error }) => {
                 log.error("Chat follow-up generation failed", {
                     chatId,

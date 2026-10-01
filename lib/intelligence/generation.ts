@@ -11,17 +11,12 @@ import type * as z from "zod";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { classifyGenerationError } from "./classify";
 import { GenAiGenerationError } from "./error";
-import type { RegisteredModel } from "./providers/model-registry";
-import {
-    resolveRegisteredModel,
-    resolveRegisteredModelChain,
-} from "./providers/model-resolver";
+import { resolveRegisteredModel } from "./providers/model-resolver";
 
 const log = createLogger("intelligence:generation");
 
 /**
- * Retries per model attempt. The AI SDK retries transient provider failures
- * with exponential backoff before the error reaches the fallback chain.
+ * The AI SDK retries transient provider failures with exponential backoff.
  */
 const GENERATION_MAX_RETRIES = 2;
 
@@ -38,8 +33,8 @@ export interface GenerationResult<T> {
     usage: GenerationUsage | undefined;
 }
 
-interface ModelChainInput {
-    /** Message reported when every model in the chain fails without a classification. */
+interface GenerationInput {
+    /** Message reported when generation fails. */
     defaultErrorMessage?: string;
     /** Feature label used for logging, spans, and error context. */
     feature: string;
@@ -47,7 +42,7 @@ interface ModelChainInput {
     operation: string;
 }
 
-export interface StructuredGenerationInput<T> extends ModelChainInput {
+export interface StructuredGenerationInput<T> extends GenerationInput {
     maxOutputTokens: number;
     parts?: GenerationContent;
     prompt: string;
@@ -58,17 +53,14 @@ export interface StructuredGenerationInput<T> extends ModelChainInput {
 }
 
 /**
- * Runs a structured generation against the model fallback chain.
+ * Runs a structured generation against the configured model.
  *
- * Resolves each vendor-qualified model reference, retries transient provider
- * failures, and validates output against the schema. Falls through to the
- * next model on empty or invalid output and on server-side failures, and
- * stops immediately on quota and configuration errors.
+ * Retries transient provider failures and validates output against the schema.
  */
 export function generateStructured<T>(
     input: StructuredGenerationInput<T>
 ): Promise<GenerationResult<T>> {
-    return runModelChain(input, async (model) => {
+    return runGeneration(input, async (model) => {
         const result = await generateText({
             maxOutputTokens: input.maxOutputTokens,
             maxRetries: GENERATION_MAX_RETRIES,
@@ -100,11 +92,10 @@ export function generateStructured<T>(
     });
 }
 
-export async function runModelChain<T>(
-    input: ModelChainInput,
+export async function runGeneration<T>(
+    input: GenerationInput,
     call: (
-        model: Awaited<ReturnType<typeof resolveRegisteredModel>>,
-        registeredModel: RegisteredModel
+        model: Awaited<ReturnType<typeof resolveRegisteredModel>>
     ) => Promise<{
         output: T;
         usage?: Pick<
@@ -118,49 +109,31 @@ export async function runModelChain<T>(
         operation: input.operation,
     });
 
-    let lastError: unknown;
     try {
-        for (const registeredModel of resolveRegisteredModelChain()) {
-            try {
-                const model = resolveRegisteredModel(
-                    registeredModel,
-                    input.operation
-                );
-                const result = await call(model, registeredModel);
-                return {
-                    output: result.output,
-                    usage: normalizeUsage(result.usage),
-                };
-            } catch (error) {
-                lastError = error;
-                const classification = classifyGenerationError(error);
-                log.warn("Generation attempt failed", {
-                    ...input.logContext,
-                    canFallback: classification.canFallback,
-                    error:
-                        error instanceof Error ? error.message : String(error),
-                    errorClassification: classification.message,
-                    feature: input.feature,
-                    registeredModel,
-                });
-                if (!classification.canFallback) {
-                    break;
-                }
-            }
-        }
+        const result = await call(resolveRegisteredModel(input.operation));
+        return {
+            output: result.output,
+            usage: normalizeUsage(result.usage),
+        };
+    } catch (error) {
+        const classification = classifyGenerationError(error);
+        log.warn("Generation failed", {
+            ...input.logContext,
+            error: error instanceof Error ? error.message : String(error),
+            errorClassification: classification.message,
+            feature: input.feature,
+        });
+        throw new GenAiGenerationError(
+            {
+                message: input.defaultErrorMessage ?? classification.message,
+                operation: input.operation,
+                status: classification.status,
+            },
+            { cause: error }
+        );
     } finally {
         span.stop();
     }
-
-    const classification = classifyGenerationError(lastError);
-    throw new GenAiGenerationError(
-        {
-            message: input.defaultErrorMessage ?? classification.message,
-            operation: input.operation,
-            status: classification.status,
-        },
-        { cause: lastError instanceof Error ? lastError : undefined }
-    );
 }
 
 function normalizeUsage(
