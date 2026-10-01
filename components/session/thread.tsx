@@ -1,16 +1,22 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import { useAnimationFrame } from "@base-ui/utils/useAnimationFrame";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useGT } from "gt-next";
 import { ArrowDown } from "lucide-react";
 import * as React from "react";
 import { ThinkingOrb } from "thinking-orbs";
-import { ChatComposer } from "@/components/chats/composer";
-import { ChatMessage } from "@/components/chats/message";
+import {
+    Composer,
+    ComposerInput,
+    ComposerSubmitButton,
+} from "@/components/session/composer";
+import { ChatMessage } from "@/components/session/message";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import type { ChatSource } from "@/lib/chats/sources";
 
 const CHAT_SCROLL_STICK_DISTANCE_PX = 80;
@@ -36,11 +42,11 @@ export function ChatThread({
     sources,
 }: ChatThreadProps) {
     const gt = useGT();
-    const transport = createChatTransport(chatId);
+    const animationFrame = useAnimationFrame();
     const { error, messages, sendMessage, status, stop } = useChat({
         id: chatId,
         messages: initialMessages,
-        transport,
+        transport: createChatTransport(chatId),
     });
     const scrollViewportRef = React.useRef<HTMLDivElement | null>(null);
     const shouldStickRef = React.useRef(true);
@@ -59,15 +65,15 @@ export function ChatThread({
             return;
         }
 
-        const animationFrameId = requestAnimationFrame(() => {
+        animationFrame.request(() => {
             const viewport = scrollViewportRef.current;
             if (viewport && shouldStickRef.current) {
                 viewport.scrollTop = viewport.scrollHeight;
             }
         });
 
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [lastMessageId, lastMessageText, status]);
+        return animationFrame.cancel;
+    }, [animationFrame, lastMessageId, lastMessageText, status]);
 
     const handleViewportScroll = useStableCallback(
         (event: React.UIEvent<HTMLDivElement>) => {
@@ -93,10 +99,6 @@ export function ChatThread({
             metadata: { createdAt: new Date().toISOString() },
             text,
         });
-    });
-
-    const handleStop = useStableCallback(() => {
-        stop();
     });
 
     return (
@@ -146,11 +148,24 @@ export function ChatThread({
                         </AlertDescription>
                     </Alert>
                 ) : null}
-                <ChatComposer
-                    isBusy={isBusy}
-                    onStop={handleStop}
-                    onSubmit={handleSubmit}
-                />
+                <Composer isBusy={isBusy} onStop={stop} onSubmit={handleSubmit}>
+                    <ComposerInput
+                        openOnInputClick={false}
+                        render={
+                            <Textarea
+                                aria-label={gt("Chat message")}
+                                className="block w-full text-base sm:text-sm"
+                                isUnstyled
+                                placeholder={gt("Ask a follow-up")}
+                                size="sm"
+                                style={{ minHeight: "2.5rem" }}
+                            />
+                        }
+                        submitOnEnter
+                    >
+                        <ComposerSubmitButton />
+                    </ComposerInput>
+                </Composer>
             </div>
         </div>
     );

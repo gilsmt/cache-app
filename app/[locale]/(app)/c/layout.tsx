@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import * as React from "react";
-import { ChatsList } from "@/components/chats/list";
+import { ChatsList } from "@/components/session/chats";
 import { SidebarPanel } from "@/components/session/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";
@@ -28,11 +28,10 @@ async function ChatsSidebar() {
     }
 
     const chats = await listChats({ userId });
-    const nowMs = Date.now();
 
     return (
         <SidebarPanel>
-            <ChatsList chats={chats} nowMs={nowMs} />
+            <ChatsList chats={chats} />
         </SidebarPanel>
     );
 }

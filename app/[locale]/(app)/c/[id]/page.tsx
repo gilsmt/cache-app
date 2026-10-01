@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
-import { ChatThread } from "@/components/chats/thread";
+import { ChatThread } from "@/components/session/thread";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";

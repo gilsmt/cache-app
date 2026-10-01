@@ -4,6 +4,10 @@ import { sanitizeUrl } from "@braintree/sanitize-url";
 import type { UIMessage } from "ai";
 import * as React from "react";
 import { Streamdown } from "streamdown";
+import {
+    CopyResponseButton,
+    SpeakResponseButton,
+} from "@/components/session/composer";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { CollapsibleListHorizontal } from "@/components/ui/collapsible-list";
@@ -19,13 +23,15 @@ interface ChatMessageProps {
 
 export function ChatMessage({ message, sources }: ChatMessageProps) {
     const [renderedAt] = React.useState(() => new Date());
+
     const createdAt = getMessageCreatedAt(message) ?? renderedAt;
+    const text = getMessageText(message);
 
     if (message.role === "user") {
         return (
             <div className="group flex flex-col items-end gap-2">
                 <Bubble align="end" variant="muted">
-                    <BubbleContent>{getMessageText(message)}</BubbleContent>
+                    <BubbleContent>{text}</BubbleContent>
                 </Bubble>
                 <ChatMessageTimestamp createdAt={createdAt} />
             </div>
@@ -34,13 +40,13 @@ export function ChatMessage({ message, sources }: ChatMessageProps) {
 
     return (
         <div className="group flex min-w-0 flex-col gap-2">
-            <Streamdown className="text-sm leading-6">
-                {getMessageText(message)}
-            </Streamdown>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Streamdown className="text-sm leading-6">{text}</Streamdown>
+            <div className="flex flex-wrap items-center gap-1">
                 {sources && sources.length > 0 ? (
                     <ChatMessageSources sources={sources} />
                 ) : null}
+                <CopyResponseButton value={text} />
+                <SpeakResponseButton value={text} />
                 <ChatMessageTimestamp createdAt={createdAt} />
             </div>
         </div>
@@ -54,7 +60,7 @@ interface ChatMessageTimestampProps {
 function ChatMessageTimestamp({ createdAt }: ChatMessageTimestampProps) {
     return (
         <time
-            className="text-muted-foreground/50 text-xs opacity-0 group-hover:opacity-100"
+            className="text-muted-foreground/50 text-xs opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
             dateTime={createdAt.toISOString()}
             title={dayjs(createdAt).format("MMM DD, YYYY, h:mm A")}
         >

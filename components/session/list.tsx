@@ -4,6 +4,7 @@ import type {
     AutocompleteRootChangeEventDetails,
     BaseUIEvent,
 } from "@base-ui/react";
+import { Toolbar } from "@base-ui/react/toolbar";
 import { getTarget } from "@base-ui/utils/shadowDom";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
@@ -21,26 +22,32 @@ import {
     ChevronUp,
     CircleFadingPlus,
     Component,
+    CopyX,
     DownloadIcon,
     Ellipsis,
     ExternalLinkIcon,
     EyeIcon,
     FilePenLineIcon,
     FileSpreadsheetIcon,
+    FolderOpen,
     History,
     LinkIcon,
     ListChevronsUpDown,
+    RotateCcw,
     SearchIcon,
+    SquarePen,
     Squircle,
     SquircleDashed,
     Star,
     ZoomIn,
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Streamdown } from "streamdown";
 import useSWR from "swr";
+import { ThinkingOrb } from "thinking-orbs";
 import {
     BlockPaywallBanner,
     InlinePaywallBanner,
@@ -48,7 +55,17 @@ import {
 import { useSubscriptionAccess } from "@/components/billing/subscription";
 import { SuccessfulUpgradeDialog } from "@/components/billing/success";
 import { CommentComposer } from "@/components/comments/composer";
-import { useComposerFilters } from "@/components/hooks/use-composer-filters";
+import { useSectionDescription } from "@/components/hooks/queries/use-section-description";
+import {
+    type CollectionMembershipFilter,
+    type ColumnCountMode,
+    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
+    DEFAULT_COLUMN_COUNT_MODE,
+    DEFAULT_SORT_MODE,
+    type GroupByMode,
+    type SortMode,
+    useComposerFilters,
+} from "@/components/hooks/use-composer-filters";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useIsExtensionInstalled } from "@/components/hooks/use-extension-installed";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
@@ -60,49 +77,14 @@ import {
     useCollectionsContext,
 } from "@/components/session/collections";
 import {
-    ALL_DOMAIN_FILTER,
-    type AskCacheResponseState,
-    buildComposerSuggestions,
-    buildDomainPaletteOptions,
-    buildPaletteGroups,
-    buildPaletteGroupValueSet,
-    buildPaletteStackEntries,
-    COLLECTION_NAME_MAX_LENGTH,
-    COMBOBOX_ESCAPE_KEY_REASON,
-    COMBOBOX_ITEM_PRESS_REASON,
-    type CollectionMembershipFilter,
     Composer,
-    ComposerActionButton,
-    ComposerActionNew,
-    ComposerActionRemoveDuplicates,
-    ComposerActionsList,
     type ComposerAttachment,
+    ComposerAttachmentChip,
+    ComposerChip,
     ComposerInput,
-    type ComposerSortMode,
-    ComposerSuggestionsList,
-    ComposerSuggestionsListButton,
-    ComposerSummary,
     CopyResponseButton,
-    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
-    DEFAULT_COLUMN_COUNT_MODE,
-    DEFAULT_SORT_MODE,
-    type DecoratedComposerItem,
-    type EffectiveGroupByMode,
-    getItemGroupKey,
-    getLibraryItemDomain,
-    getSourceLabel,
-    hasActiveComposerFilters,
-    isPrintablePaletteKey,
-    isSearchHotkey,
-    itemTimestamp,
-    NAME_COLLATOR,
-    PALETTE_PLACEHOLDER_BY_SECTION,
-    type PaletteSection,
-    removeLastPaletteStackEntry,
-    SOURCE_LABEL_BY_VALUE,
-    type SortMode,
+    isSubmitKey,
     SpeakResponseButton,
-    UNSPECIFIC_LIBRARY_DOMAIN,
 } from "@/components/session/composer";
 import { MediaCardPreview } from "@/components/session/item";
 import {
@@ -111,6 +93,7 @@ import {
     useItemsStateContext,
 } from "@/components/session/items";
 import { OnboardingMenu } from "@/components/session/onboarding";
+
 import {
     type NoteDraft,
     openSide,
@@ -118,8 +101,14 @@ import {
     SideContent,
     SideRoot,
 } from "@/components/session/side";
+import {
+    Summary,
+    SummaryPopup,
+    SummaryTrigger,
+} from "@/components/session/summary";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Bubble, BubbleContent, BubbleGroup } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import {
     Collapsible,
@@ -138,6 +127,18 @@ import {
     ComboboxStatus,
     ComboboxTrigger,
 } from "@/components/ui/combobox";
+import {
+    CommandCollection,
+    CommandEmpty,
+    CommandGroup,
+    CommandGroupLabel,
+    CommandItem,
+    CommandList,
+    CommandPopup,
+    CommandRow,
+    CommandShortcut,
+    useCommandFilter,
+} from "@/components/ui/command";
 import {
     ContextMenu,
     ContextMenuGroup,
@@ -182,10 +183,12 @@ import {
     MenuSubTrigger,
     MenuTrigger,
 } from "@/components/ui/menu";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Ticker } from "@/components/ui/ticker";
+import { createChatFromAskCache } from "@/lib/chats/actions";
 import {
     type CollectionCreateFromItemsResult,
     createCollectionFromItems,
@@ -219,6 +222,7 @@ import {
     needsLinkReachabilityProbe,
 } from "@/lib/collections/library-quality";
 import { buildComposerMetrics } from "@/lib/collections/metrics";
+
 import {
     buildItemsCsv,
     getLibraryItemPrimaryText,
@@ -232,11 +236,17 @@ import {
     type LibraryItemWithCollections,
     truncateLabel,
 } from "@/lib/collections/utils";
-import { mergeById, updateById } from "@/lib/common/array";
+import {
+    mergeById,
+    removeValue,
+    toggleValue,
+    updateById,
+} from "@/lib/common/array";
 import { getColorGradientFromName } from "@/lib/common/color";
 import {
     ACTION_STATUS,
     BATCH_UPDATE_MAX_ITEMS,
+    CACHE_EXTENSION_DOWNLOAD_URL,
     FALLBACK_URL,
     ITEM_KIND_BOOKMARK,
     ITEM_KIND_NOTE,
@@ -245,6 +255,7 @@ import {
 import { parseDate } from "@/lib/common/date";
 import { isTextEntryTarget } from "@/lib/common/dom";
 import { revokeFileAttachmentObjectUrl, saveFile } from "@/lib/common/file";
+import { filterValidImageUrls } from "@/lib/common/image";
 import { getImageColors } from "@/lib/common/image-color";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { normalizeWhitespace, slugify } from "@/lib/common/string";
@@ -252,6 +263,7 @@ import { fetchWithTimeout } from "@/lib/common/timeout";
 import {
     normalizeURL,
     openExternalUrl,
+    parseDisplayUrl,
     toValidUrl,
     tryParseUrl,
 } from "@/lib/common/url";
@@ -265,16 +277,28 @@ import {
     updateNote,
 } from "@/lib/integrations/notes/actions";
 import { getSourceIcon } from "@/lib/integrations/support";
-import { askCache, getSectionDescription } from "@/lib/intelligence/actions";
+import { askCache, getAgentViewPage } from "@/lib/intelligence/actions";
 import type {
     AskCacheComposerPatch,
     AskCacheRequest,
     AskCacheResult,
+    AskCacheVisibleItem,
 } from "@/lib/intelligence/composer/ask-cache";
 import {
     ASK_CACHE_CONTEXT_COLLECTION_LIMIT,
     ASK_CACHE_CONTEXT_DOMAIN_LIMIT,
+    ASK_CACHE_VISIBLE_ITEM_LABEL_MAX_LENGTH,
+    ASK_CACHE_VISIBLE_ITEM_LIMIT,
 } from "@/lib/intelligence/composer/ask-cache";
+import type {
+    AgentViewPage,
+    AgentViewQuery,
+} from "@/lib/intelligence/composer/view";
+import {
+    appendAgentViewPageIds,
+    filterItemsToAgentView,
+    resolveAgentViewItems,
+} from "@/lib/intelligence/composer/view";
 import {
     SECTION_DESCRIPTION_CONTEXT_ITEMS_LIMIT,
     SECTION_DESCRIPTION_DOMAIN_MAX_LENGTH,
@@ -282,7 +306,6 @@ import {
     SECTION_DESCRIPTION_TITLE_MAX_LENGTH,
     SECTION_DESCRIPTION_URL_MAX_LENGTH,
     type SectionDescriptionContextItem,
-    SectionDescriptionRequestSchema,
 } from "@/lib/intelligence/overview";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
@@ -364,12 +387,6 @@ const MEDIA_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE: Record<
     [MIME_TYPES.webp]: "webp",
     [MIME_TYPES.webm]: "webm",
 } as const;
-
-interface SectionDescriptionResponse {
-    summary: string;
-}
-
-type SectionDescriptionSWRKey = readonly [requestBody: string];
 
 interface BrowserGroup {
     items: LibraryItemWithCollections[];
@@ -1495,8 +1512,8 @@ function useUnreachableItemProbe({
 
                 consecutiveFailures = 0;
 
-                for (const entry of result.results) {
-                    probedItemIds.add(entry.itemId);
+                for (const item of batch) {
+                    probedItemIds.add(item.id);
                 }
 
                 setItems((previous) =>
@@ -1638,45 +1655,102 @@ function useDuplicateRemoval({
     };
 }
 
-async function fetchSectionDescription([
-    payload,
-]: SectionDescriptionSWRKey): Promise<SectionDescriptionResponse> {
-    let rawInput: unknown;
-    try {
-        rawInput = JSON.parse(payload);
-    } catch (error) {
-        throw new Error(
-            "Failed to parse section description request payload.",
-            { cause: error }
-        );
+function resolveAgentViewDisplayItems(
+    items: LibraryItemWithCollections[],
+    agentView: AgentViewPage | null
+): LibraryItemWithCollections[] {
+    if (!agentView) {
+        return [];
     }
-
-    const parsed = SectionDescriptionRequestSchema.safeParse(rawInput);
-    if (!parsed.success) {
-        throw new Error(
-            "Section description request failed schema validation."
-        );
-    }
-
-    const result = await getSectionDescription(parsed.data);
-
-    if (result.status !== ACTION_STATUS.SUCCESS) {
-        throw new Error(result.message);
-    }
-
-    const summary = result.summary.trim();
-    if (summary.length === 0) {
-        throw new Error("Section description response was empty.");
-    }
-
-    return { summary };
+    return resolveAgentViewItems(items, agentView.itemIds);
 }
 
-function getSectionDescriptionSWRKey(
-    payload: string,
-    itemCount: number
-): SectionDescriptionSWRKey | null {
-    return itemCount > 0 ? [payload] : null;
+function countAgentViewMissingIds(
+    agentView: AgentViewPage | null,
+    resolvedItems: LibraryItemWithCollections[]
+): number {
+    return (agentView?.itemIds.length ?? 0) - resolvedItems.length;
+}
+
+function getAgentViewCollectionDialogName(
+    agentView: AgentViewPage | null,
+    searchTerms: string[]
+): string {
+    if (agentView && searchTerms.length === 0) {
+        return agentView.title.slice(0, COLLECTION_NAME_MAX_LENGTH);
+    }
+    return buildResultsCollectionName(searchTerms);
+}
+
+function buildAskCacheVisibleItems(
+    items: LibraryItemWithCollections[]
+): AskCacheVisibleItem[] {
+    return items.slice(0, ASK_CACHE_VISIBLE_ITEM_LIMIT).map((item) => ({
+        domain: getLibraryItemDomain(item.url),
+        id: item.id,
+        label: truncateLabel(
+            getLibraryItemPrimaryText(item),
+            ASK_CACHE_VISIBLE_ITEM_LABEL_MAX_LENGTH
+        ),
+    }));
+}
+
+function isEqualStringArray(
+    left: readonly string[] | undefined,
+    right: readonly string[] | undefined
+): boolean {
+    const leftValues = left ?? [];
+    const rightValues = right ?? [];
+    if (leftValues.length !== rightValues.length) {
+        return false;
+    }
+    for (let index = 0; index < leftValues.length; index += 1) {
+        if (leftValues[index] !== rightValues[index]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function isEqualAgentViewQuery(
+    left: AgentViewQuery,
+    right: AgentViewQuery
+): boolean {
+    return (
+        isEqualStringArray(left.collectionIds, right.collectionIds) &&
+        isEqualStringArray(left.domainFilters, right.domainFilters) &&
+        left.favoritedOnly === right.favoritedOnly &&
+        left.kind === right.kind &&
+        left.membership === right.membership &&
+        isEqualStringArray(left.sourceFilters, right.sourceFilters) &&
+        left.text === right.text
+    );
+}
+
+function getAgentViewKey(view: AgentViewPage): string {
+    return JSON.stringify({
+        explanation: view.explanation,
+        query: view.query,
+        title: view.title,
+    });
+}
+
+function appendAgentViewPage(
+    current: AgentViewPage | null,
+    page: Pick<AgentViewPage, "itemIds" | "nextOffset" | "query" | "truncated">
+): AgentViewPage | null {
+    if (!current) {
+        return current;
+    }
+    if (!isEqualAgentViewQuery(current.query, page.query)) {
+        return current;
+    }
+    return {
+        ...current,
+        itemIds: appendAgentViewPageIds(current.itemIds, page.itemIds),
+        nextOffset: page.nextOffset,
+        truncated: page.truncated,
+    };
 }
 
 function normalizeSectionDescriptionText(
@@ -2355,28 +2429,1505 @@ function defaultCollectionTriggerIcon(
     return <Squircle aria-hidden className="size-4" />;
 }
 
-interface CollectionComboboxPickerProps
-    extends React.ComponentProps<typeof ComboboxTrigger> {
-    collections: LibraryCollectionSummary[];
-    items: LibraryItemWithCollections[];
-    onOpenChange?: (open: boolean) => void;
-    onUpdateItemCollections: (
-        itemId: string,
-        collectionIds: string[]
-    ) => Promise<LibraryItemCollectionsUpdateResult>;
-    onUpdateItemsCollections?: (input: {
-        itemIds: string[];
-        nextSharedCollectionIds: string[];
-        previousSharedCollectionIds: string[];
-    }) => Promise<LibraryItemsCollectionsUpdateResult>;
-    open?: boolean;
-    showSmartCollectionsIndicator?: boolean;
-}
-
 function getArchivedAssignedStatus(count: number): string {
     return count === 1
         ? "1 assigned collection is archived"
         : `${count} assigned collections are archived`;
+}
+
+const ALL_DOMAIN_FILTER = "__all_domains__";
+const UNSPECIFIC_LIBRARY_DOMAIN = "Other";
+const COLLECTION_NAME_MAX_LENGTH = 64;
+
+type PaletteSection = "search" | "advanced" | "ai-response";
+
+type EffectiveGroupByMode = GroupByMode | "canonical-url";
+
+type ComposerSortMode = Exclude<SortMode, "count-desc">;
+
+interface DecoratedComposerItem {
+    domain: string;
+    item: LibraryItemWithCollections;
+    primaryText: string;
+    sourceLabel: string;
+    timestamp: number;
+}
+
+const FILTERABLE_LIBRARY_SOURCES = [
+    LibraryItemSource.cache_note,
+    LibraryItemSource.chrome_bookmarks,
+    LibraryItemSource.extension_clip,
+    LibraryItemSource.github_starred_repositories,
+    LibraryItemSource.google_photos,
+    LibraryItemSource.instagram,
+    LibraryItemSource.markdown_import,
+    LibraryItemSource.pinterest,
+    LibraryItemSource.rss_feed,
+    LibraryItemSource.tiktok,
+    LibraryItemSource.x_bookmarks,
+    LibraryItemSource.youtube_watch_later,
+] as const satisfies LibraryItemSource[];
+
+const SOURCE_LABEL_BY_VALUE: Partial<Record<string, string>> = {
+    [LibraryItemSource.cache_note]: "Notes",
+    [LibraryItemSource.chrome_bookmarks]: "Chrome",
+    [LibraryItemSource.extension_clip]: "Web",
+    [LibraryItemSource.markdown_import]: "Markdown",
+    [LibraryItemSource.github_starred_repositories]: "GitHub",
+    [LibraryItemSource.google_photos]: "Google Photos",
+    [LibraryItemSource.instagram]: "Instagram",
+    [LibraryItemSource.pinterest]: "Pinterest",
+    [LibraryItemSource.rss_feed]: "RSS",
+    [LibraryItemSource.tiktok]: "TikTok",
+    [LibraryItemSource.x_bookmarks]: "X",
+    [LibraryItemSource.youtube_watch_later]: "YouTube",
+};
+
+const NAME_COLLATOR = new Intl.Collator(undefined, {
+    numeric: true,
+    sensitivity: "base",
+});
+
+function getSourceLabel(source: LibraryItemSource): string {
+    return SOURCE_LABEL_BY_VALUE[source] ?? "Other";
+}
+
+function getLibraryItemDomain(url: string): string {
+    return parseDisplayUrl(url) || UNSPECIFIC_LIBRARY_DOMAIN;
+}
+
+function buildDomainPaletteOptions(
+    items: { url: string }[]
+): { itemCount: number; label: string; value: string }[] {
+    const counts = new Map<string, number>();
+    for (const item of items) {
+        const domain = getLibraryItemDomain(item.url);
+        counts.set(domain, (counts.get(domain) ?? 0) + 1);
+    }
+    const dynamicDomains = Array.from(counts.entries())
+        .sort(
+            ([aDomain, aCount], [bDomain, bCount]) =>
+                bCount - aCount || NAME_COLLATOR.compare(aDomain, bDomain)
+        )
+        .map(([domain, count]) => ({
+            itemCount: count,
+            label: `${domain} (${count})`,
+            value: domain,
+        }));
+    return [
+        {
+            itemCount: items.length,
+            label: "All domains",
+            value: ALL_DOMAIN_FILTER,
+        },
+        ...dynamicDomains,
+    ];
+}
+
+function hasActiveComposerFilters({
+    collectionMembershipFilter,
+    domainFilters,
+    duplicatesFilterEnabled,
+    lastVisitedFilterEnabled,
+    searchTerms,
+    selectedCollectionIds,
+    sourceFilters,
+    unreachableFilterEnabled,
+}: {
+    collectionMembershipFilter: CollectionMembershipFilter;
+    domainFilters: string[];
+    duplicatesFilterEnabled: boolean;
+    lastVisitedFilterEnabled: boolean;
+    searchTerms: string[];
+    selectedCollectionIds: string[];
+    sourceFilters: LibraryItemSource[];
+    unreachableFilterEnabled: boolean;
+}): boolean {
+    return (
+        searchTerms.length > 0 ||
+        selectedCollectionIds.length > 0 ||
+        sourceFilters.length > 0 ||
+        domainFilters.length > 0 ||
+        collectionMembershipFilter !== DEFAULT_COLLECTION_MEMBERSHIP_FILTER ||
+        lastVisitedFilterEnabled ||
+        duplicatesFilterEnabled ||
+        unreachableFilterEnabled
+    );
+}
+
+function itemDate(
+    item: LibraryItemWithCollections,
+    mode: "added" | "created" = "added"
+): Date {
+    const candidates =
+        mode === "created"
+            ? [item.postedAt, item.scrapedAt, item.createdAt]
+            : [item.scrapedAt, item.createdAt];
+    for (const candidate of candidates) {
+        if (candidate === null || candidate === undefined) {
+            continue;
+        }
+        const date =
+            candidate instanceof Date ? candidate : new Date(candidate);
+        if (Number.isFinite(date.getTime())) {
+            return date;
+        }
+    }
+    return new Date(0);
+}
+
+function itemTimestamp(
+    item: LibraryItemWithCollections,
+    mode: "added" | "created" = "added"
+): number {
+    return itemDate(item, mode).getTime();
+}
+
+function itemMonthKey(
+    item: LibraryItemWithCollections,
+    mode: "added" | "created" = "added"
+): string {
+    const date = itemDate(item, mode);
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
+}
+
+function itemYearKey(
+    item: LibraryItemWithCollections,
+    mode: "added" | "created" = "added"
+): string {
+    const date = itemDate(item, mode);
+    return date.getFullYear().toString();
+}
+
+function getItemGroupKey(
+    item: LibraryItemWithCollections,
+    groupBy: Exclude<EffectiveGroupByMode, "none" | "collection">
+): string {
+    if (groupBy === "source") {
+        return item.source;
+    }
+    if (groupBy === "domain") {
+        return getLibraryItemDomain(item.url);
+    }
+    if (groupBy === "canonical-url") {
+        return itemCanonicalGroupKey(item);
+    }
+    if (groupBy === "month-added") {
+        return itemMonthKey(item, "added");
+    }
+    if (groupBy === "month-created") {
+        return itemMonthKey(item, "created");
+    }
+    if (groupBy === "year-added") {
+        return itemYearKey(item, "added");
+    }
+    if (groupBy === "year-created") {
+        return itemYearKey(item, "created");
+    }
+    const _exhaustive: never = groupBy;
+    return _exhaustive;
+}
+
+const MATCH_WORD_SEPARATOR_PATTERN = /[\s:./_-]+/;
+
+const SUGGESTION_ICON_CLASS = "size-3.5 shrink-0";
+const MULTI_WORD_QUERY_PATTERN = /\S+\s+\S+/;
+const COMBOBOX_ITEM_PRESS_REASON = "item-press";
+const COMBOBOX_ESCAPE_KEY_REASON = "escape-key";
+const COMPOSER_OPEN_HOTKEYS = [
+    "ctrl+g",
+    "ctrl+k",
+    "ctrl+p",
+    "cmd+g",
+    "cmd+k",
+    "cmd+p",
+    "Meta+g",
+    "Meta+k",
+    "Meta+p",
+] as const;
+
+const PALETTE_PLACEHOLDER_BY_SECTION: Partial<Record<PaletteSection, string>> =
+    {
+        advanced: "Refine with exact filters",
+    };
+
+const PALETTE_SORT_OPTIONS = [
+    { label: "Added: Newest first", value: "added-newest" },
+    { label: "Added: Oldest first", value: "added-oldest" },
+    { label: "Created: Newest first", value: "created-newest" },
+    { label: "Created: Oldest first", value: "created-oldest" },
+    { label: "Count: Most items first", value: "count-desc" },
+    { label: "Source", value: "source" },
+    { label: "Domain", value: "domain" },
+    { label: "Title", value: "title" },
+] satisfies readonly { label: string; value: SortMode }[];
+
+const PALETTE_GROUP_OPTIONS = [
+    { label: "No grouping", value: "none" },
+    { label: "Source", value: "source" },
+    { label: "Domain", value: "domain" },
+    { label: "Collection", value: "collection" },
+    { label: "Year Added", value: "year-added" },
+    { label: "Year Created", value: "year-created" },
+    { label: "Month Added", value: "month-added" },
+    { label: "Month Created", value: "month-created" },
+] satisfies readonly { label: string; value: GroupByMode }[];
+
+const PALETTE_COLUMN_OPTIONS = [
+    { label: "Adjust automatically", value: "auto" },
+    { label: "2 columns", value: "2" },
+    { label: "3 columns", value: "3" },
+    { label: "4 columns", value: "4" },
+    { label: "5 columns", value: "5" },
+    { label: "6 columns", value: "6" },
+] satisfies readonly { label: string; value: ColumnCountMode }[];
+
+const PALETTE_SOURCE_OPTIONS = [
+    { label: "All sources", value: "all" },
+    ...FILTERABLE_LIBRARY_SOURCES.map((source) => ({
+        label: SOURCE_LABEL_BY_VALUE[source] ?? "Other",
+        value: source,
+    })),
+    {
+        label: SOURCE_LABEL_BY_VALUE[LibraryItemSource.other] ?? "Other",
+        value: LibraryItemSource.other,
+    },
+] satisfies readonly { label: string; value: LibraryItemSource | "all" }[];
+
+const PALETTE_SOURCE_FILTER_OPTIONS = PALETTE_SOURCE_OPTIONS.filter(
+    (
+        option
+    ): option is {
+        label: string;
+        value: Exclude<(typeof PALETTE_SOURCE_OPTIONS)[number]["value"], "all">;
+    } => option.value !== "all"
+);
+
+type ComposerPaletteStackEntry = {
+    key: string;
+    onRemove: () => void;
+} & (
+    | {
+          kind: "chip";
+          label: string;
+      }
+    | {
+          attachment: ComposerAttachment;
+          kind: "attachment";
+          onRemoveAttachment: (id: string) => void;
+      }
+);
+
+interface ComposerPaletteItem {
+    children?: React.ReactNode;
+    description?: string;
+    disabled?: boolean;
+    isActive?: boolean;
+    label: string;
+    onSelect: (
+        event: BaseUIEvent<React.MouseEvent> | KeyboardEvent
+    ) => void | Promise<void>;
+    shortcut?: string;
+    value: string;
+}
+
+interface ComposerPaletteGroup {
+    items: ComposerPaletteItem[];
+    label: string;
+    layout?: "horizontal" | "vertical";
+}
+
+interface ComposerSuggestion {
+    icon?: React.ReactNode;
+    label: string;
+    onSelect: () => void;
+}
+
+type AskCacheResponseState =
+    | { prompt: string; status: "loading" }
+    | {
+          markdown: string;
+          operationCount: number;
+          prompt: string;
+          status: "success";
+      }
+    | { message: string; prompt: string; status: "error" };
+
+interface BuildComposerSuggestionsInput {
+    clearLibraryPalette: () => void;
+    hasAnyRefinements: boolean;
+    isEmpty: boolean;
+    isExtensionInstalled: boolean;
+    onCreateCollection: () => void;
+    setIsComposerOpen: (value: boolean) => void;
+    setQuery: (value: string) => void;
+}
+
+interface BuildPaletteStackEntriesInput {
+    agentViewTitle: string | null;
+    collectionMembershipFilter: CollectionMembershipFilter;
+    collections: LibraryCollectionSummary[];
+    columnCountMode: ColumnCountMode;
+    composerAttachments: ComposerAttachment[];
+    domainFilters: string[];
+    duplicatesFilterEnabled: boolean;
+    groupBy: GroupByMode;
+    lastVisitedFilterEnabled: boolean;
+    onDismissAgentView: () => void;
+    onRemoveCollectionFilter: (id: string) => void;
+    onRemoveComposerAttachment: (id: string) => void;
+    searchTerms: string[];
+    selectedCollectionIds: string[];
+    setCollectionMembershipFilter: (value: CollectionMembershipFilter) => void;
+    setColumnCountMode: (value: ColumnCountMode) => void;
+    setDomainFilters: (
+        value: string[] | ((value: string[]) => string[])
+    ) => void;
+    setDuplicatesFilterEnabled: (value: boolean) => void;
+    setGroupBy: (value: GroupByMode) => void;
+    setLastVisitedFilterEnabled: (value: boolean) => void;
+    setSearchTerms: (value: string[] | ((value: string[]) => string[])) => void;
+    setSortMode: (value: SortMode) => void;
+    setSourceFilters: (
+        value:
+            | LibraryItemSource[]
+            | ((value: LibraryItemSource[]) => LibraryItemSource[])
+    ) => void;
+    setUnreachableFilterEnabled: (value: boolean) => void;
+    sortMode: SortMode;
+    sourceFilters: LibraryItemSource[];
+    unreachableFilterEnabled: boolean;
+}
+
+interface BuildPaletteGroupsInput {
+    askCacheResponse: AskCacheResponseState | null;
+    clearLibraryPalette: () => void;
+    collectionMembershipFilter: CollectionMembershipFilter;
+    collectionPreviewThumbnailUrlsById: Map<string, string[]>;
+    collections: LibraryCollectionSummary[];
+    columnCountMode: ColumnCountMode;
+    domainFilters: string[];
+    domainOptions: {
+        itemCount: number;
+        label: string;
+        value: string;
+    }[];
+    duplicateItemCount: number;
+    duplicatesFilterEnabled: boolean;
+    groupBy: GroupByMode;
+    lastVisitedFilterEnabled: boolean;
+    lastVisitedItemIds: string[];
+    onAskCacheSubmit: (prompt: string) => void | Promise<void>;
+    onClearCollectionFilters: () => void;
+    onClearSearchHistory: () => void;
+    onToggleCollectionSelection: (id: string) => void;
+    openPaletteSection: (
+        section: Exclude<PaletteSection, "search">,
+        event: BaseUIEvent<React.MouseEvent> | KeyboardEvent
+    ) => void;
+    paletteSection: PaletteSection;
+    query: string;
+    returnToSearchSection: () => void;
+    searchHistory: string[];
+    searchTerms: string[];
+    selectedCollectionIds: string[];
+    setCollectionMembershipFilter: (value: CollectionMembershipFilter) => void;
+    setColumnCountMode: (value: ColumnCountMode) => void;
+    setDomainFilters: (
+        value: string[] | ((value: string[]) => string[])
+    ) => void;
+    setDuplicatesFilterEnabled: (value: boolean) => void;
+    setGroupBy: (value: GroupByMode) => void;
+    setIsComposerOpen: (value: boolean) => void;
+    setLastVisitedFilterEnabled: (value: boolean) => void;
+    setQuery: (value: string) => void;
+    setSearchTerms: (value: string[] | ((value: string[]) => string[])) => void;
+    setSortMode: (value: SortMode) => void;
+    setSourceFilters: (
+        value:
+            | LibraryItemSource[]
+            | ((value: LibraryItemSource[]) => LibraryItemSource[])
+    ) => void;
+    setUnreachableFilterEnabled: (value: boolean) => void;
+    sortMode: SortMode;
+    sourceFilters: LibraryItemSource[];
+    unreachableFilterEnabled: boolean;
+}
+
+interface ComposerItemRank {
+    index: number;
+    score: number;
+}
+
+interface ComposerItemSearchFields {
+    lowerDescription: string;
+    lowerLabel: string;
+    lowerValue: string;
+    words: string[];
+}
+
+interface RankedComposerItem {
+    item: ComposerPaletteItem;
+    rank: ComposerItemRank;
+}
+
+interface PaletteActionsContext {
+    duplicatesFilterEnabled: boolean;
+    onCreateNote: () => void;
+    onRemoveDuplicates: () => void;
+    removableDuplicateCount: number;
+}
+
+const PaletteActionsContext = React.createContext<PaletteActionsContext | null>(
+    null
+);
+
+function usePaletteActionsContext(): PaletteActionsContext {
+    const context = React.use(PaletteActionsContext);
+    if (!context) {
+        throw new Error(
+            "Palette action components must be used inside <PaletteActionsList>."
+        );
+    }
+    return context;
+}
+
+interface UseVisibleItemGroupsProps {
+    groups: ComposerPaletteGroup[];
+    query: string;
+}
+
+function useVisibleItemGroups({
+    groups,
+    query,
+}: UseVisibleItemGroupsProps): ComposerPaletteGroup[] {
+    const filter = useCommandFilter();
+    const normalizedQuery = query.trim();
+
+    if (normalizedQuery.length === 0) {
+        return groups;
+    }
+
+    const lowerQuery = normalizedQuery.toLowerCase();
+    const visibleGroups: ComposerPaletteGroup[] = [];
+
+    for (const group of groups) {
+        const rankedItems: RankedComposerItem[] = [];
+
+        for (const [index, item] of group.items.entries()) {
+            const score = getComposerItemScore(filter, item, lowerQuery);
+            if (score !== null) {
+                rankedItems.push({
+                    item,
+                    rank: { index, score },
+                });
+            }
+        }
+
+        if (rankedItems.length === 0) {
+            continue;
+        }
+
+        rankedItems.sort(
+            (first, second) =>
+                first.rank.score - second.rank.score ||
+                first.rank.index - second.rank.index
+        );
+
+        visibleGroups.push({
+            ...group,
+            items: rankedItems.map(({ item }) => item),
+        });
+    }
+
+    return visibleGroups;
+}
+
+function getComposerItemSearchFields(
+    item: ComposerPaletteItem
+): ComposerItemSearchFields {
+    const lowerLabel = item.label.trim().toLowerCase();
+    return {
+        lowerDescription: (item.description ?? "").toLowerCase(),
+        lowerLabel,
+        lowerValue: item.value.toLowerCase(),
+        words: lowerLabel.split(MATCH_WORD_SEPARATOR_PATTERN),
+    };
+}
+
+function getComposerItemScore(
+    filter: ReturnType<typeof useCommandFilter>,
+    item: ComposerPaletteItem,
+    lowerQuery: string
+): number | null {
+    const { lowerDescription, lowerLabel, lowerValue, words } =
+        getComposerItemSearchFields(item);
+
+    if (lowerLabel === lowerQuery) {
+        return 0;
+    }
+    if (filter.startsWith(lowerLabel, lowerQuery)) {
+        return 1;
+    }
+    if (filter.contains(lowerLabel, lowerQuery)) {
+        for (const word of words) {
+            if (filter.startsWith(word, lowerQuery)) {
+                return 2;
+            }
+        }
+        return 3;
+    }
+    if (filter.startsWith(lowerValue, lowerQuery)) {
+        return 4;
+    }
+    if (filter.contains(lowerValue, lowerQuery)) {
+        return 5;
+    }
+    if (
+        lowerDescription !== "" &&
+        filter.contains(lowerDescription, lowerQuery)
+    ) {
+        return 6;
+    }
+
+    return null;
+}
+
+function groupByLabel(mode: GroupByMode): string {
+    return (
+        PALETTE_GROUP_OPTIONS.find((opt) => opt.value === mode)?.label ?? "None"
+    );
+}
+
+function sortModeLabel(mode: SortMode): string {
+    return (
+        PALETTE_SORT_OPTIONS.find((opt) => opt.value === mode)?.label ??
+        "Added: Newest first"
+    );
+}
+
+function columnCountLabel(mode: ColumnCountMode): string {
+    return (
+        PALETTE_COLUMN_OPTIONS.find((opt) => opt.value === mode)?.label ??
+        "Adjust automatically"
+    );
+}
+
+function collectionMembershipFilterLabel(
+    filter: CollectionMembershipFilter
+): string {
+    if (filter === "in-collections") {
+        return "In collections";
+    }
+    if (filter === "not-in-collections") {
+        return "Not in collections";
+    }
+    return "All items";
+}
+
+function collectionItemCountLabel(count: number): string {
+    return `${count} item${count === 1 ? "" : "s"}`;
+}
+
+function buildCollectionPaletteDescription(
+    collection: LibraryCollectionSummary,
+    isActive: boolean
+): string {
+    const details = [collectionItemCountLabel(collection.itemCount)];
+    if (collection.sources.length > 0) {
+        details.push(collection.sources.map(getSourceLabel).join(", "));
+    }
+    return isActive
+        ? `Active collection filter. ${details.join(". ")}`
+        : details.join(". ");
+}
+
+function buildCollectionPaletteItems({
+    collections,
+    onClearCollectionFilters,
+    onToggleCollectionSelection,
+    selectedCollectionIds,
+    wrapOnSelect,
+}: {
+    collections: LibraryCollectionSummary[];
+    onClearCollectionFilters: () => void;
+    onToggleCollectionSelection: (id: string) => void;
+    selectedCollectionIds: string[];
+    wrapOnSelect: (fn: () => void) => () => void;
+}): ComposerPaletteItem[] {
+    return [
+        {
+            description:
+                selectedCollectionIds.length === 0
+                    ? "Show items from every collection"
+                    : "Clear the selected collection filters",
+            isActive: selectedCollectionIds.length === 0,
+            label: "Collections: All collections",
+            onSelect: wrapOnSelect(onClearCollectionFilters),
+            value: "filter collection all",
+        },
+        ...collections.map((collection) => {
+            const isActive = selectedCollectionIds.includes(collection.id);
+            return {
+                description: buildCollectionPaletteDescription(
+                    collection,
+                    isActive
+                ),
+                isActive,
+                label: `Collection: ${collection.name}`,
+                onSelect: wrapOnSelect(() =>
+                    onToggleCollectionSelection(collection.id)
+                ),
+                value: `filter collection ${collection.id}`,
+            } satisfies ComposerPaletteItem;
+        }),
+    ];
+}
+
+function buildPaletteGroupValueSet(
+    groups: ComposerPaletteGroup[]
+): Set<string> {
+    const valueSet = new Set<string>();
+    for (const group of groups) {
+        for (const item of group.items) {
+            valueSet.add(item.value);
+        }
+    }
+    return valueSet;
+}
+
+function appendUniqueSearchTerm(values: string[], next: string): string[] {
+    const normalized = next.trim();
+    if (!normalized) {
+        return [...values];
+    }
+    return values.some(
+        (value) => value.toLowerCase() === normalized.toLowerCase()
+    )
+        ? [...values]
+        : [...values, normalized];
+}
+
+function isMultiWordQuery(query: string): boolean {
+    return MULTI_WORD_QUERY_PATTERN.test(query.trim());
+}
+
+function removeLastPaletteStackEntry(
+    entries: ComposerPaletteStackEntry[]
+): boolean {
+    const lastEntry = entries.at(-1);
+    if (!lastEntry) {
+        return false;
+    }
+    lastEntry.onRemove();
+    return true;
+}
+
+function isSearchHotkey(event: KeyboardEvent): boolean {
+    const key = event.key.toLowerCase();
+    const hasMeta = event.metaKey;
+    const hasCtrl = event.ctrlKey;
+    const hasAlt = event.altKey;
+    const eventHotkeys = new Set<string>();
+    if (!(hasAlt || hasMeta || hasCtrl)) {
+        eventHotkeys.add(key);
+    }
+    if (!hasAlt && hasMeta) {
+        eventHotkeys.add(`cmd+${key}`);
+        eventHotkeys.add(`Meta+${key}`);
+    }
+    if (!hasAlt && hasCtrl) {
+        eventHotkeys.add(`ctrl+${key}`);
+    }
+    return COMPOSER_OPEN_HOTKEYS.some((hotkey) => eventHotkeys.has(hotkey));
+}
+
+function isPrintablePaletteKey(event: KeyboardEvent): boolean {
+    return (
+        event.key.length === 1 &&
+        event.key.trim() !== "" &&
+        !event.isComposing &&
+        event.key !== "Dead" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+    );
+}
+
+function buildComposerSuggestions({
+    clearLibraryPalette,
+    hasAnyRefinements,
+    isEmpty,
+    isExtensionInstalled,
+    onCreateCollection,
+    setIsComposerOpen,
+    setQuery,
+}: BuildComposerSuggestionsInput): ComposerSuggestion[] {
+    const commitSelection = (fn: () => void) => () => {
+        fn();
+        setQuery("");
+        setIsComposerOpen(false);
+    };
+
+    // Refinement shortcuts (filter by source, group by domain, clear one
+    // facet) are the agent's job now; Advanced keeps the exact controls.
+    if (hasAnyRefinements) {
+        return [
+            {
+                icon: <RotateCcw className={SUGGESTION_ICON_CLASS} />,
+                label: "Reset filters",
+                onSelect: commitSelection(clearLibraryPalette),
+            },
+        ];
+    }
+
+    const suggestions: ComposerSuggestion[] = [];
+    if (!isExtensionInstalled) {
+        suggestions.push({
+            icon: <DownloadIcon className={SUGGESTION_ICON_CLASS} />,
+            label: "Get extension",
+            onSelect: commitSelection(() =>
+                openExternalUrl(CACHE_EXTENSION_DOWNLOAD_URL)
+            ),
+        });
+    }
+    if (isEmpty) {
+        suggestions.push({
+            icon: <FolderOpen className={SUGGESTION_ICON_CLASS} />,
+            label: "Create a new collection",
+            onSelect: commitSelection(() => onCreateCollection()),
+        });
+    }
+    return suggestions;
+}
+
+function buildPaletteGroups({
+    askCacheResponse,
+    clearLibraryPalette,
+    columnCountMode,
+    collectionMembershipFilter,
+    collectionPreviewThumbnailUrlsById,
+    collections,
+    domainFilters,
+    domainOptions,
+    duplicateItemCount,
+    duplicatesFilterEnabled,
+    groupBy,
+    lastVisitedFilterEnabled,
+    lastVisitedItemIds,
+    onClearCollectionFilters,
+    onClearSearchHistory,
+    onAskCacheSubmit,
+    onToggleCollectionSelection,
+    openPaletteSection,
+    query,
+    paletteSection,
+    returnToSearchSection,
+    searchHistory,
+    searchTerms,
+    selectedCollectionIds,
+    setCollectionMembershipFilter,
+    setColumnCountMode,
+    setIsComposerOpen,
+    setDomainFilters,
+    setDuplicatesFilterEnabled,
+    setGroupBy,
+    setLastVisitedFilterEnabled,
+    setQuery,
+    setSearchTerms,
+    setSortMode,
+    setSourceFilters,
+    setUnreachableFilterEnabled,
+    sortMode,
+    sourceFilters,
+    unreachableFilterEnabled,
+}: BuildPaletteGroupsInput): ComposerPaletteGroup[] {
+    const draft = query.trim();
+    const groups: ComposerPaletteGroup[] = [];
+
+    const applyAndReturn = (fn: () => void | Promise<void>) => async () => {
+        await fn();
+        returnToSearchSection();
+    };
+
+    const applyAndStay = (fn: () => void) => () => {
+        fn();
+        setQuery("");
+        setIsComposerOpen(true);
+    };
+
+    const navigationItems: ComposerPaletteItem[] = [
+        {
+            description: "Exact filters, grouping, sort, and columns",
+            label: "Advanced…",
+            onSelect: (event) => openPaletteSection("advanced", event),
+            value: "navigate advanced",
+        },
+    ];
+
+    const backItem: ComposerPaletteItem = {
+        description: "Return to search and quick actions",
+        label: "Back",
+        onSelect: returnToSearchSection,
+        shortcut: "Esc",
+        value: "navigate back",
+    };
+
+    const hasAnyRefinements =
+        hasActiveComposerFilters({
+            collectionMembershipFilter,
+            domainFilters,
+            duplicatesFilterEnabled,
+            lastVisitedFilterEnabled,
+            searchTerms,
+            selectedCollectionIds,
+            sourceFilters,
+            unreachableFilterEnabled,
+        }) ||
+        groupBy !== "none" ||
+        sortMode !== DEFAULT_SORT_MODE ||
+        columnCountMode !== DEFAULT_COLUMN_COUNT_MODE;
+
+    if (paletteSection === "search") {
+        return buildSearchPaletteGroups({
+            clearLibraryPalette,
+            collectionPreviewThumbnailUrlsById,
+            collections,
+            draft,
+            hasAnyRefinements,
+            lastVisitedFilterEnabled,
+            lastVisitedItemIds,
+            navigationItems,
+            onAskCacheSubmit,
+            onClearCollectionFilters,
+            onClearSearchHistory,
+            onToggleCollectionSelection,
+            searchHistory,
+            searchTerms,
+            selectedCollectionIds,
+            setIsComposerOpen,
+            setLastVisitedFilterEnabled,
+            setQuery,
+            setSearchTerms,
+        });
+    }
+
+    if (paletteSection === "ai-response") {
+        return buildAskCachePaletteGroups({
+            askCacheResponse,
+            backItem,
+            draft,
+            onAskCacheSubmit,
+        });
+    }
+
+    if (paletteSection === "advanced") {
+        groups.push({
+            items: [backItem],
+            label: "Navigation",
+        });
+        groups.push({
+            items: [
+                {
+                    description:
+                        duplicateItemCount > 0
+                            ? `Show ${duplicateItemCount} bookmark${duplicateItemCount === 1 ? "" : "s"} that share a URL`
+                            : "No duplicate bookmarks found right now",
+                    isActive: duplicatesFilterEnabled,
+                    label: "Duplicates",
+                    onSelect: applyAndStay(() =>
+                        setDuplicatesFilterEnabled(!duplicatesFilterEnabled)
+                    ),
+                    value: "filter duplicates",
+                },
+                {
+                    description:
+                        "Check which bookmark links fail to load or time out",
+                    isActive: unreachableFilterEnabled,
+                    label: "Unreachable links",
+                    onSelect: applyAndStay(() =>
+                        setUnreachableFilterEnabled(!unreachableFilterEnabled)
+                    ),
+                    value: "filter unreachable",
+                },
+            ],
+            label: "Library quality",
+        });
+        groups.push({
+            items: [
+                {
+                    description: "Show every source",
+                    isActive: sourceFilters.length === 0,
+                    label: "Source: All sources",
+                    onSelect: applyAndStay(() => setSourceFilters([])),
+                    value: "filter source all",
+                },
+                ...PALETTE_SOURCE_FILTER_OPTIONS.map((option) => ({
+                    description: "Toggle this source in the filter stack",
+                    isActive: sourceFilters.includes(option.value),
+                    label: `Source: ${option.label}`,
+                    onSelect: applyAndStay(() =>
+                        setSourceFilters((current) =>
+                            toggleValue(current, option.value)
+                        )
+                    ),
+                    value: `filter source ${option.value}`,
+                })),
+            ],
+            label: "Conditions",
+        });
+        groups.push({
+            items: [
+                {
+                    description:
+                        "Show items whether or not they are in collections",
+                    isActive:
+                        collectionMembershipFilter ===
+                        DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
+                    label: "Collections: All items",
+                    onSelect: applyAndStay(() =>
+                        setCollectionMembershipFilter(
+                            DEFAULT_COLLECTION_MEMBERSHIP_FILTER
+                        )
+                    ),
+                    value: "filter collections all",
+                },
+                {
+                    description:
+                        "Show only items that belong to at least one collection",
+                    isActive: collectionMembershipFilter === "in-collections",
+                    label: "Collections: In collections",
+                    onSelect: applyAndStay(() =>
+                        setCollectionMembershipFilter("in-collections")
+                    ),
+                    value: "filter collections in",
+                },
+                {
+                    description:
+                        "Show only items that do not belong to any collection",
+                    isActive:
+                        collectionMembershipFilter === "not-in-collections",
+                    label: "Collections: Not in collections",
+                    onSelect: applyAndStay(() =>
+                        setCollectionMembershipFilter("not-in-collections")
+                    ),
+                    value: "filter collections not-in",
+                },
+            ],
+            label: "Collection state",
+        });
+        groups.push({
+            items: buildCollectionPaletteItems({
+                collections,
+                onClearCollectionFilters,
+                onToggleCollectionSelection,
+                selectedCollectionIds,
+                wrapOnSelect: applyAndStay,
+            }),
+            label: "Collections",
+        });
+        groups.push({
+            items: domainOptions.map((option) => ({
+                description:
+                    option.value === ALL_DOMAIN_FILTER
+                        ? "Show items from every domain"
+                        : "Toggle this domain in the filter stack",
+                isActive:
+                    option.value === ALL_DOMAIN_FILTER
+                        ? domainFilters.length === 0
+                        : domainFilters.includes(option.value),
+                label: `Domain: ${option.label}`,
+                onSelect: applyAndStay(() =>
+                    option.value === ALL_DOMAIN_FILTER
+                        ? setDomainFilters([])
+                        : setDomainFilters((current) =>
+                              toggleValue(current, option.value)
+                          )
+                ),
+                value: `filter domain ${option.value}`,
+            })),
+            label: "Domain",
+        });
+        groups.push({
+            items: PALETTE_GROUP_OPTIONS.map((option) => ({
+                description: "Organize the grid into sections",
+                isActive: groupBy === option.value,
+                label: option.label,
+                onSelect: applyAndReturn(() => setGroupBy(option.value)),
+                value: `group ${option.value}`,
+            })),
+            label: "Grouping",
+        });
+        groups.push({
+            items: PALETTE_SORT_OPTIONS.map((option) => ({
+                description: "Change the ordering within the current view",
+                isActive: sortMode === option.value,
+                label: option.label,
+                onSelect: applyAndReturn(() => setSortMode(option.value)),
+                value: `sort ${option.value}`,
+            })),
+            label: "Sorting",
+        });
+        groups.push({
+            items: PALETTE_COLUMN_OPTIONS.map((option) => ({
+                description:
+                    option.value === "auto"
+                        ? "Choose the best column count for the available width"
+                        : "Force a specific number of columns",
+                isActive: columnCountMode === option.value,
+                label: option.label,
+                onSelect: applyAndReturn(() =>
+                    setColumnCountMode(option.value)
+                ),
+                value: `columns ${option.value}`,
+            })),
+            label: "Columns",
+        });
+        return groups;
+    }
+
+    return [{ items: [backItem], label: "Navigation" }];
+}
+
+function buildSearchPaletteGroups({
+    collections,
+    collectionPreviewThumbnailUrlsById,
+    clearLibraryPalette,
+    draft,
+    hasAnyRefinements,
+    lastVisitedFilterEnabled,
+    lastVisitedItemIds,
+    navigationItems,
+    onAskCacheSubmit,
+    onClearCollectionFilters,
+    onClearSearchHistory,
+    onToggleCollectionSelection,
+    searchHistory,
+    selectedCollectionIds,
+    searchTerms,
+    setIsComposerOpen,
+    setLastVisitedFilterEnabled,
+    setQuery,
+    setSearchTerms,
+}: {
+    collections: LibraryCollectionSummary[];
+    collectionPreviewThumbnailUrlsById: Map<string, string[]>;
+    clearLibraryPalette: () => void;
+    draft: string;
+    hasAnyRefinements: boolean;
+    lastVisitedFilterEnabled: boolean;
+    lastVisitedItemIds: string[];
+    navigationItems: ComposerPaletteItem[];
+    onAskCacheSubmit: (prompt: string) => void | Promise<void>;
+    onClearCollectionFilters: () => void;
+    onClearSearchHistory: () => void;
+    onToggleCollectionSelection: (id: string) => void;
+    searchHistory: string[];
+    searchTerms: string[];
+    selectedCollectionIds: string[];
+    setIsComposerOpen: (value: boolean) => void;
+    setLastVisitedFilterEnabled: (value: boolean) => void;
+    setQuery: (value: string) => void;
+    setSearchTerms: (value: string[] | ((value: string[]) => string[])) => void;
+}): ComposerPaletteGroup[] {
+    const groups: ComposerPaletteGroup[] = [];
+    const draftAlreadyIncluded = searchTerms.some(
+        (term) => term.toLowerCase() === draft.toLowerCase()
+    );
+    const isDefaultState = draft.length === 0 && !hasAnyRefinements;
+    const showCollectionsGroup =
+        collections.length > 0 &&
+        (draft.length > 0 ||
+            selectedCollectionIds.length > 0 ||
+            isDefaultState);
+
+    const applyCollectionFilter = (fn: () => void) => () => {
+        fn();
+        setQuery("");
+        setIsComposerOpen(true);
+    };
+
+    if (draft) {
+        const shouldDefaultToAskCache = isMultiWordQuery(draft);
+        const addSearchItem: ComposerPaletteItem = {
+            description: draftAlreadyIncluded
+                ? "Already included in the search"
+                : "Add this search term",
+            disabled: draftAlreadyIncluded,
+            isActive: draftAlreadyIncluded,
+            label: `Search "${draft}"`,
+            onSelect: () => {
+                setSearchTerms((current) =>
+                    appendUniqueSearchTerm(current, draft)
+                );
+                setQuery("");
+                setIsComposerOpen(true);
+            },
+            shortcut: shouldDefaultToAskCache ? undefined : "Enter",
+            value: `search ${draft}`,
+        };
+        const askCacheItem: ComposerPaletteItem = {
+            description: "AI Search",
+            label: `Ask Cache "${draft}"`,
+            onSelect: () => onAskCacheSubmit(draft),
+            shortcut: shouldDefaultToAskCache ? "Enter" : "Tab",
+            value: `ask cache ${draft}`,
+        };
+
+        groups.push({
+            items: shouldDefaultToAskCache
+                ? [askCacheItem, addSearchItem]
+                : [addSearchItem, askCacheItem],
+            label: "Search",
+        });
+    }
+
+    if (searchTerms.length > 0) {
+        groups.push({
+            items: [
+                ...searchTerms.map((term) => ({
+                    description: "Active stacked search term",
+                    isActive: true,
+                    label: `Search: ${truncateLabel(term, 28)}`,
+                    onSelect: () =>
+                        setSearchTerms((current) => removeValue(current, term)),
+                    value: `remove search ${term}`,
+                })),
+                {
+                    description: "Remove every search term",
+                    label: "Clear all searches",
+                    onSelect: () => {
+                        setSearchTerms([]);
+                        setIsComposerOpen(true);
+                    },
+                    value: "clear all searches",
+                },
+            ],
+            label: "Current search",
+        });
+    }
+
+    if (showCollectionsGroup) {
+        if (isDefaultState) {
+            const collectionItems: ComposerPaletteItem[] = [];
+            for (const collection of collections) {
+                if (collectionItems.length >= 4) {
+                    break;
+                }
+                const thumbnails =
+                    collectionPreviewThumbnailUrlsById.get(collection.id) ?? [];
+                if (thumbnails.length === 0) {
+                    continue;
+                }
+                collectionItems.push({
+                    children: (
+                        <div className="flex aspect-4/3 size-full flex-1 flex-col">
+                            {thumbnails.length > 0 && (
+                                <PaletteCategoryThumbnail urls={thumbnails} />
+                            )}
+                            <span className="truncate p-1 font-medium">
+                                {collection.name}
+                            </span>
+                        </div>
+                    ),
+                    isActive: selectedCollectionIds.includes(collection.id),
+                    label: collection.name,
+                    onSelect: applyCollectionFilter(() =>
+                        onToggleCollectionSelection(collection.id)
+                    ),
+                    value: `filter collection ${collection.id}`,
+                });
+            }
+
+            if (collectionItems.length > 0) {
+                groups.push({
+                    items: collectionItems,
+                    label: "Collections",
+                    layout: "horizontal",
+                });
+            }
+        } else {
+            groups.push({
+                items: buildCollectionPaletteItems({
+                    collections,
+                    onClearCollectionFilters,
+                    onToggleCollectionSelection,
+                    selectedCollectionIds,
+                    wrapOnSelect: applyCollectionFilter,
+                }),
+                label: "Collections",
+            });
+        }
+    }
+
+    const shouldShowLastVisited =
+        lastVisitedItemIds.length > 0 && !lastVisitedFilterEnabled;
+    const shouldShowSearchHistory = !draft && searchHistory.length > 0;
+    const availableHistory = shouldShowSearchHistory
+        ? searchHistory.filter(
+              (term) =>
+                  !searchTerms.some(
+                      (st) => st.toLowerCase() === term.toLowerCase()
+                  )
+          )
+        : [];
+
+    if (shouldShowLastVisited || availableHistory.length > 0) {
+        groups.push({
+            items: [
+                ...(shouldShowLastVisited
+                    ? [
+                          {
+                              children: (
+                                  <div className="flex items-center gap-2.5">
+                                      <History className="size-4 shrink-0 text-muted-foreground" />
+                                      <span className="truncate">
+                                          Pick up where you left off
+                                      </span>
+                                  </div>
+                              ),
+                              label: "Pick up where you left off",
+                              onSelect: applyCollectionFilter(() =>
+                                  setLastVisitedFilterEnabled(true)
+                              ),
+                              value: "filter last visited",
+                          },
+                      ]
+                    : []),
+                ...availableHistory.slice(0, 5).map((term) => ({
+                    children: (
+                        <div className="flex items-center gap-2.5">
+                            <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+                            <span className="truncate">{term}</span>
+                        </div>
+                    ),
+                    label: term,
+                    onSelect: () => {
+                        setSearchTerms((current) =>
+                            appendUniqueSearchTerm(current, term)
+                        );
+                        setQuery("");
+                        setIsComposerOpen(true);
+                    },
+                    value: `search history ${term}`,
+                })),
+                ...(availableHistory.length > 0
+                    ? [
+                          {
+                              label: "Clear history",
+                              onSelect: onClearSearchHistory,
+                              value: "clear search history",
+                          },
+                      ]
+                    : []),
+            ],
+            label: "Recent",
+        });
+    }
+
+    groups.push({
+        items: navigationItems,
+        label: "Customize display",
+    });
+
+    if (hasAnyRefinements) {
+        groups.push({
+            items: [
+                {
+                    description:
+                        "Reset search, filters, grouping, sort, and layout",
+                    label: "Reset filters",
+                    onSelect: clearLibraryPalette,
+                    value: "reset filters",
+                },
+            ],
+            label: "Quick actions",
+        });
+    }
+
+    return groups;
+}
+
+function buildAskCachePaletteGroups({
+    askCacheResponse,
+    backItem,
+    draft,
+    onAskCacheSubmit,
+}: {
+    askCacheResponse: AskCacheResponseState | null;
+    backItem: ComposerPaletteItem;
+    draft: string;
+    onAskCacheSubmit: (prompt: string) => void | Promise<void>;
+}): ComposerPaletteGroup[] {
+    const items: ComposerPaletteItem[] = [
+        {
+            children: <AskCacheResponsePanel response={askCacheResponse} />,
+            label: "Ask Cache response",
+            onSelect: () => undefined,
+            value: "ask cache response",
+        },
+    ];
+
+    if (draft) {
+        items.unshift({
+            label: `Ask Cache "${draft}"`,
+            onSelect: () => onAskCacheSubmit(draft),
+            value: `ask cache ${draft}`,
+        });
+    }
+
+    return [
+        {
+            items: [backItem],
+            label: "Navigation",
+        },
+        {
+            items,
+            label: "Ask Cache",
+        },
+    ];
+}
+
+function buildPaletteStackEntries({
+    agentViewTitle,
+    collectionMembershipFilter,
+    collections,
+    columnCountMode,
+    composerAttachments,
+    domainFilters,
+    duplicatesFilterEnabled,
+    groupBy,
+    lastVisitedFilterEnabled,
+    onDismissAgentView,
+    onRemoveCollectionFilter,
+    onRemoveComposerAttachment,
+    searchTerms,
+    selectedCollectionIds,
+    setCollectionMembershipFilter,
+    setColumnCountMode,
+    setDomainFilters,
+    setDuplicatesFilterEnabled,
+    setGroupBy,
+    setLastVisitedFilterEnabled,
+    setSearchTerms,
+    setSortMode,
+    setSourceFilters,
+    setUnreachableFilterEnabled,
+    sortMode,
+    sourceFilters,
+    unreachableFilterEnabled,
+}: BuildPaletteStackEntriesInput): ComposerPaletteStackEntry[] {
+    const entries: ComposerPaletteStackEntry[] = [];
+    const collectionById = new Map(collections.map((c) => [c.id, c]));
+
+    const pushChip = (key: string, label: string, onRemove: () => void) => {
+        entries.push({ key, kind: "chip", label, onRemove });
+    };
+
+    if (agentViewTitle) {
+        pushChip(
+            "agent-view",
+            `Agent: ${truncateLabel(agentViewTitle)}`,
+            onDismissAgentView
+        );
+    }
+
+    for (const collectionId of selectedCollectionIds) {
+        const collection = collectionById.get(collectionId);
+        if (collection) {
+            pushChip(
+                `collection-${collectionId}`,
+                `Collection: ${truncateLabel(collection.name)}`,
+                () => onRemoveCollectionFilter(collectionId)
+            );
+        }
+    }
+
+    for (const attachment of composerAttachments) {
+        entries.push({
+            attachment,
+            key: `attachment-${attachment.id}`,
+            kind: "attachment",
+            onRemove: () => onRemoveComposerAttachment(attachment.id),
+            onRemoveAttachment: onRemoveComposerAttachment,
+        });
+    }
+
+    for (const term of searchTerms) {
+        pushChip(`search-${term}`, `Search: ${truncateLabel(term)}`, () =>
+            setSearchTerms((current) => removeValue(current, term))
+        );
+    }
+
+    for (const source of sourceFilters) {
+        pushChip(`source-${source}`, `Source: ${getSourceLabel(source)}`, () =>
+            setSourceFilters((current) => removeValue(current, source))
+        );
+    }
+
+    for (const domainFilter of domainFilters) {
+        pushChip(
+            `domain-${domainFilter}`,
+            `Domain: ${truncateLabel(domainFilter)}`,
+            () =>
+                setDomainFilters((current) =>
+                    removeValue(current, domainFilter)
+                )
+        );
+    }
+
+    if (collectionMembershipFilter !== DEFAULT_COLLECTION_MEMBERSHIP_FILTER) {
+        pushChip(
+            "collection-membership",
+            `Collections: ${collectionMembershipFilterLabel(collectionMembershipFilter)}`,
+            () =>
+                setCollectionMembershipFilter(
+                    DEFAULT_COLLECTION_MEMBERSHIP_FILTER
+                )
+        );
+    }
+
+    if (groupBy !== "none") {
+        pushChip("group", `Group: ${groupByLabel(groupBy)}`, () =>
+            setGroupBy("none")
+        );
+    }
+
+    if (lastVisitedFilterEnabled) {
+        pushChip("last-visited", "Last visited", () =>
+            setLastVisitedFilterEnabled(false)
+        );
+    }
+
+    if (duplicatesFilterEnabled) {
+        pushChip("duplicates", "Duplicates", () =>
+            setDuplicatesFilterEnabled(false)
+        );
+    }
+
+    if (unreachableFilterEnabled) {
+        pushChip("unreachable", "Unreachable", () =>
+            setUnreachableFilterEnabled(false)
+        );
+    }
+
+    if (sortMode !== DEFAULT_SORT_MODE) {
+        pushChip("sort", `Sort: ${sortModeLabel(sortMode)}`, () =>
+            setSortMode(DEFAULT_SORT_MODE)
+        );
+    }
+
+    if (columnCountMode !== DEFAULT_COLUMN_COUNT_MODE) {
+        pushChip(
+            "columns",
+            `Columns: ${columnCountLabel(columnCountMode)}`,
+            () => setColumnCountMode(DEFAULT_COLUMN_COUNT_MODE)
+        );
+    }
+
+    return entries;
 }
 
 interface BrowserContentProps extends React.PropsWithChildren {
@@ -2462,6 +4013,9 @@ export function BrowserContent({
     >([]);
     const [askCacheResponse, setAskCacheResponse] =
         React.useState<AskCacheResponseState | null>(null);
+    const [agentView, setAgentView] = React.useState<AgentViewPage | null>(
+        null
+    );
 
     const [openPickerItemId, setOpenPickerItemId] = React.useState<
         string | null
@@ -2472,7 +4026,7 @@ export function BrowserContent({
     const [isCreateResultsDialogOpen, setIsCreateResultsDialogOpen] =
         React.useState(false);
 
-    const inputRef = React.useRef<HTMLInputElement>(null);
+    const inputRef = React.useRef<HTMLTextAreaElement>(null);
     const [isComposerOpen, setIsComposerOpen] = React.useState(false);
     const composerAttachmentsRef = React.useRef<ComposerAttachment[]>([]);
     const askCacheRequestVersionRef = React.useRef(0);
@@ -2498,6 +4052,10 @@ export function BrowserContent({
         composerAttachmentsRef.current = composerAttachments;
         pendingDeleteItemIdRef.current = pendingDeleteItem?.id ?? null;
     });
+
+    const visibleResultItemsRef = React.useRef<LibraryItemWithCollections[]>(
+        []
+    );
 
     const unreachableProbe = useUnreachableItemProbe({
         isEnabled: unreachableFilterEnabled,
@@ -2534,6 +4092,7 @@ export function BrowserContent({
         clearComposerAttachments();
         onClearCollectionFilters();
         setPaletteSection("search");
+        setAgentView(null);
     });
 
     const duplicateItemIds = collectDuplicateBookmarkItemIds(items);
@@ -2599,6 +4158,9 @@ export function BrowserContent({
                     unreachableItemIds,
                 }).length,
                 totalItemCount,
+                visibleItems: buildAskCacheVisibleItems(
+                    visibleResultItemsRef.current
+                ),
             },
         })
     );
@@ -2653,6 +4215,12 @@ export function BrowserContent({
             for (const operation of result.operations) {
                 applyAskCachePatch(operation);
             }
+            if (result.operations.some((operation) => operation.reset)) {
+                setAgentView(null);
+            }
+            if (result.view) {
+                setAgentView(result.view);
+            }
             setPaletteSection("ai-response");
             setAskCacheResponse({
                 markdown: result.markdown,
@@ -2696,6 +4264,14 @@ export function BrowserContent({
             }
         }
     );
+
+    const isAskLoading = askCacheResponse?.status === "loading";
+
+    const handleCancelAskCache = useStableCallback(() => {
+        askCacheRequestVersionRef.current += 1;
+        setAskCacheResponse(null);
+        setPaletteSection("search");
+    });
 
     const returnToSearchSection = useStableCallback(() => {
         setPaletteSection("search");
@@ -2778,20 +4354,28 @@ export function BrowserContent({
         ? lastVisitedItemIds
         : [];
 
+    const visibleGroups = useVisibleItemGroups({
+        groups: paletteGroups,
+        query,
+    });
+
     const paletteGroupValueSet = buildPaletteGroupValueSet(paletteGroups);
 
-    const filteredItems = filterBrowserItems(items, {
-        collectionMembershipFilter,
-        domainFilters,
-        duplicateItemIds,
-        duplicatesFilterEnabled,
-        lastVisitedItemIds: activeLastVisitedItemIds,
-        searchTerms,
-        selectedCollectionIds,
-        sourceFilters,
-        unreachableFilterEnabled,
-        unreachableItemIds,
-    });
+    const filteredItems = filterItemsToAgentView(
+        filterBrowserItems(items, {
+            collectionMembershipFilter,
+            domainFilters,
+            duplicateItemIds,
+            duplicatesFilterEnabled,
+            lastVisitedItemIds: activeLastVisitedItemIds,
+            searchTerms,
+            selectedCollectionIds,
+            sourceFilters,
+            unreachableFilterEnabled,
+            unreachableItemIds,
+        }),
+        agentView
+    );
 
     const removableDuplicateIds = buildRemovableDuplicateItemIds({
         allItems: items,
@@ -2907,6 +4491,30 @@ export function BrowserContent({
 
     const visibleResultItems = groups.flatMap((section) => section.items);
 
+    React.useEffect(() => {
+        visibleResultItemsRef.current = visibleResultItems;
+    });
+
+    const resolvedAgentViewItems = resolveAgentViewDisplayItems(
+        items,
+        agentView
+    );
+    const agentViewMissingCount = countAgentViewMissingIds(
+        agentView,
+        resolvedAgentViewItems
+    );
+
+    const handleAppendAgentViewPage = useStableCallback(
+        (
+            page: Pick<
+                AgentViewPage,
+                "itemIds" | "nextOffset" | "query" | "truncated"
+            >
+        ) => {
+            setAgentView((current) => appendAgentViewPage(current, page));
+        }
+    );
+
     const shouldShowLockedPreview =
         isPreviewOnly && !hasActiveFilters && effectiveGroupBy === "none";
 
@@ -2915,31 +4523,12 @@ export function BrowserContent({
 
     const suggestions = buildComposerSuggestions({
         clearLibraryPalette,
-        collectionMembershipFilter,
-        collections,
-        columnCountMode,
-        domainFilters,
-        duplicatesFilterEnabled,
-        groupBy,
+        hasAnyRefinements: hasActiveFilters || hasNonDefaultView,
+        isEmpty: filteredItems.length === 0,
         isExtensionInstalled,
-        items: filteredItems,
-        lastVisitedFilterEnabled,
-        onClearCollectionFilters,
         onCreateCollection: requestCreate,
-        onToggleCollectionSelection: onRemoveCollectionFilter,
-        searchTerms,
-        selectedCollectionIds,
-        setCollectionMembershipFilter,
-        setDomainFilters,
-        setGroupBy,
         setIsComposerOpen,
         setQuery,
-        setSearchTerms,
-        setSortMode,
-        setSourceFilters,
-        sortMode,
-        sourceFilters,
-        unreachableFilterEnabled,
     });
 
     const [isSuggestionsOpen, setIsSuggestionsOpen] = React.useState(true);
@@ -3090,7 +4679,12 @@ export function BrowserContent({
         });
     });
 
+    const handleDismissAgentView = useStableCallback(() => {
+        setAgentView(null);
+    });
+
     const stackEntries = buildPaletteStackEntries({
+        agentViewTitle: agentView?.title ?? null,
         collectionMembershipFilter,
         collections,
         columnCountMode,
@@ -3099,6 +4693,7 @@ export function BrowserContent({
         duplicatesFilterEnabled,
         groupBy,
         lastVisitedFilterEnabled,
+        onDismissAgentView: handleDismissAgentView,
         onRemoveCollectionFilter,
         onRemoveComposerAttachment: removeComposerAttachment,
         searchTerms,
@@ -3119,7 +4714,7 @@ export function BrowserContent({
     });
 
     const handlePaletteInputKeyDown = useStableCallback(
-        (event: React.KeyboardEvent<HTMLInputElement>) => {
+        (event: BaseUIEvent<React.KeyboardEvent<HTMLInputElement>>) => {
             if (
                 event.key === "Escape" ||
                 (event.key === "Tab" &&
@@ -3155,6 +4750,20 @@ export function BrowserContent({
                     return;
                 }
                 removeLastPaletteStackEntry(stackEntries);
+            }
+
+            // The multiline input never submits the form on its own. With the
+            // popup closed no item can be highlighted, so Enter submits the
+            // draft; while open, Base UI owns Enter for item selection.
+            if (!isComposerOpen && isSubmitKey(event)) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (isAskLoading) {
+                    return;
+                }
+                handleAskCacheSubmit(query).catch((error) => {
+                    log.error("Failed to submit palette query", error);
+                });
             }
         }
     );
@@ -3377,71 +4986,209 @@ export function BrowserContent({
                                 } as React.CSSProperties
                             }
                         >
-                            <Composer>
-                                <ComposerInput
-                                    groups={paletteGroups}
-                                    onKeyDown={handlePaletteInputKeyDown}
-                                    onOpenChange={handleComposerOpenChange}
-                                    onValueChange={handleComposerInputChange}
-                                    open={isComposerOpen}
-                                    placeholder={placeholder}
-                                    query={query}
-                                    ref={inputRef}
-                                    stackEntries={stackEntries}
-                                />
-                                <ComposerActionsList
-                                    duplicatesFilterEnabled={
-                                        duplicatesFilterEnabled
-                                    }
-                                    onCreateNote={handleCreateNote}
-                                    onRemoveDuplicates={
-                                        handleRequestRemoveDuplicates
-                                    }
-                                    removableDuplicateCount={
-                                        removableDuplicateIds.length
-                                    }
-                                >
-                                    <ComposerActionNew />
-                                    <ComposerSummary
-                                        canClear={canClear}
-                                        effectiveGroupBy={effectiveGroupBy}
-                                        metrics={buildComposerMetrics({
-                                            getSourceLabel,
-                                            items: filteredItems,
-                                        })}
-                                        onClear={clearLibraryPalette}
-                                        resultsSummary={resultsSummary}
-                                        sectionsLength={groups.length}
-                                    />
-                                    <OnboardingMenu
-                                        connectedIntegrationCount={
-                                            connectedIntegrationCount
-                                        }
-                                        onCreateCollection={requestCreate}
-                                        onCreateNote={handleCreateNote}
-                                        onOpenComposer={
-                                            handleOpenComposerFromOnboarding
-                                        }
+                            <Composer
+                                isBusy={isAskLoading}
+                                onStop={handleCancelAskCache}
+                                onSubmit={handleAskCacheSubmit}
+                                onValueChange={setQuery}
+                                value={query}
+                            >
+                                <Palette>
+                                    <Toolbar.Input
                                         render={
-                                            <ComposerActionButton className="rounded-full" />
+                                            <ComposerInput
+                                                endAddon={
+                                                    <PaletteInputEndAddon
+                                                        stackEntries={
+                                                            stackEntries
+                                                        }
+                                                    />
+                                                }
+                                                filteredItems={visibleGroups}
+                                                items={paletteGroups}
+                                                onKeyDown={
+                                                    handlePaletteInputKeyDown
+                                                }
+                                                onOpenChange={
+                                                    handleComposerOpenChange
+                                                }
+                                                onValueChange={
+                                                    handleComposerInputChange
+                                                }
+                                                open={isComposerOpen}
+                                                render={
+                                                    <Textarea
+                                                        aria-label={placeholder}
+                                                        className="block w-full pe-8 text-base sm:text-sm"
+                                                        isUnstyled
+                                                        placeholder={
+                                                            placeholder
+                                                        }
+                                                        ref={inputRef}
+                                                        style={{
+                                                            minHeight: "2.5rem",
+                                                        }}
+                                                    />
+                                                }
+                                                submitOnEnter={false}
+                                            >
+                                                <CommandPopup sideOffset={40}>
+                                                    <CommandEmpty>
+                                                        <T>
+                                                            No matching commands
+                                                        </T>
+                                                    </CommandEmpty>
+                                                    <CommandList className="max-w-2xl">
+                                                        {(
+                                                            group: ComposerPaletteGroup
+                                                        ) => (
+                                                            <CommandGroup
+                                                                items={
+                                                                    group.items
+                                                                }
+                                                                key={
+                                                                    group.label
+                                                                }
+                                                            >
+                                                                <CommandGroupLabel>
+                                                                    {
+                                                                        group.label
+                                                                    }
+                                                                </CommandGroupLabel>
+                                                                {group.layout ===
+                                                                "horizontal" ? (
+                                                                    <CommandRow className="grid grid-cols-2 gap-2 pt-1 pr-2 pb-4 md:grid-cols-3 lg:grid-cols-4">
+                                                                        <CommandCollection>
+                                                                            {(
+                                                                                item: ComposerPaletteItem
+                                                                            ) => (
+                                                                                <PaletteCollectionCard
+                                                                                    item={
+                                                                                        item
+                                                                                    }
+                                                                                    key={
+                                                                                        item.value
+                                                                                    }
+                                                                                />
+                                                                            )}
+                                                                        </CommandCollection>
+                                                                    </CommandRow>
+                                                                ) : (
+                                                                    <CommandCollection>
+                                                                        {(
+                                                                            item: ComposerPaletteItem
+                                                                        ) => (
+                                                                            <PaletteItem
+                                                                                item={
+                                                                                    item
+                                                                                }
+                                                                                key={
+                                                                                    item.value
+                                                                                }
+                                                                            />
+                                                                        )}
+                                                                    </CommandCollection>
+                                                                )}
+                                                            </CommandGroup>
+                                                        )}
+                                                    </CommandList>
+                                                </CommandPopup>
+                                                <PaletteActionsList
+                                                    duplicatesFilterEnabled={
+                                                        duplicatesFilterEnabled
+                                                    }
+                                                    onCreateNote={
+                                                        handleCreateNote
+                                                    }
+                                                    onRemoveDuplicates={
+                                                        handleRequestRemoveDuplicates
+                                                    }
+                                                    removableDuplicateCount={
+                                                        removableDuplicateIds.length
+                                                    }
+                                                >
+                                                    <PaletteActionNew />
+                                                    <Summary>
+                                                        <SummaryTrigger
+                                                            hasActiveFilters={
+                                                                canClear
+                                                            }
+                                                            render={
+                                                                <PaletteActionButton />
+                                                            }
+                                                            resultsSummary={
+                                                                resultsSummary
+                                                            }
+                                                            sectionCount={
+                                                                groups.length
+                                                            }
+                                                            showSectionCount={
+                                                                effectiveGroupBy !==
+                                                                "none"
+                                                            }
+                                                        />
+                                                        <SummaryPopup
+                                                            metrics={buildComposerMetrics(
+                                                                {
+                                                                    getSourceLabel,
+                                                                    items: filteredItems,
+                                                                }
+                                                            )}
+                                                            onClearFilters={
+                                                                canClear
+                                                                    ? clearLibraryPalette
+                                                                    : undefined
+                                                            }
+                                                        />
+                                                    </Summary>
+                                                    <OnboardingMenu
+                                                        connectedIntegrationCount={
+                                                            connectedIntegrationCount
+                                                        }
+                                                        onCreateCollection={
+                                                            requestCreate
+                                                        }
+                                                        onCreateNote={
+                                                            handleCreateNote
+                                                        }
+                                                        onOpenComposer={
+                                                            handleOpenComposerFromOnboarding
+                                                        }
+                                                        render={
+                                                            <PaletteActionButton />
+                                                        }
+                                                    />
+                                                    <PaletteActionRemoveDuplicates />
+                                                </PaletteActionsList>
+                                            </ComposerInput>
                                         }
                                     />
-                                    <ComposerActionRemoveDuplicates />
-                                </ComposerActionsList>
+                                </Palette>
                             </Composer>
-                            <ComposerSuggestionsList
+                            <PaletteSuggestionsList
                                 isOpen={isSuggestionsOpen}
                                 onOpenChange={setIsSuggestionsOpen}
                                 suggestions={suggestions}
                             >
                                 {(suggestion, index) => (
-                                    <ComposerSuggestionsListButton
+                                    <PaletteSuggestionsListButton
                                         index={index}
                                         suggestion={suggestion}
                                     />
                                 )}
-                            </ComposerSuggestionsList>
+                            </PaletteSuggestionsList>
                             {isPreviewOnly ? <InlinePaywallBanner /> : null}
+                            <AgentViewBar
+                                key={
+                                    agentView
+                                        ? getAgentViewKey(agentView)
+                                        : "no-view"
+                                }
+                                missingCount={agentViewMissingCount}
+                                onAppendPage={handleAppendAgentViewPage}
+                                resolvedCount={resolvedAgentViewItems.length}
+                                view={agentView}
+                            />
                             <BrowserEmpty />
                             <BrowserEmptyWithFilters />
                             <BrowserUnreachableProbePending />
@@ -3506,7 +5253,10 @@ export function BrowserContent({
                     />
                     <CreateFromResultsCollectionDialog
                         collections={collections}
-                        initialName={buildResultsCollectionName(searchTerms)}
+                        initialName={getAgentViewCollectionDialogName(
+                            agentView,
+                            searchTerms
+                        )}
                         onCreateCollection={handleCreateCollectionFromResults}
                         onOpenChange={setIsCreateResultsDialogOpen}
                         onUpdateItemCollections={handleUpdateItemCollections}
@@ -3519,6 +5269,24 @@ export function BrowserContent({
             </SideRoot>
         </ItemsContext>
     );
+}
+
+interface CollectionComboboxPickerProps
+    extends React.ComponentProps<typeof ComboboxTrigger> {
+    collections: LibraryCollectionSummary[];
+    items: LibraryItemWithCollections[];
+    onOpenChange?: (open: boolean) => void;
+    onUpdateItemCollections: (
+        itemId: string,
+        collectionIds: string[]
+    ) => Promise<LibraryItemCollectionsUpdateResult>;
+    onUpdateItemsCollections?: (input: {
+        itemIds: string[];
+        nextSharedCollectionIds: string[];
+        previousSharedCollectionIds: string[];
+    }) => Promise<LibraryItemsCollectionsUpdateResult>;
+    open?: boolean;
+    showSmartCollectionsIndicator?: boolean;
 }
 
 function CollectionComboboxPicker({
@@ -3772,6 +5540,103 @@ function BrowserUnreachableProbePending() {
             <p className="max-w-md text-balance text-muted-foreground text-sm leading-snug">
                 Checking which links fail to load…
             </p>
+        </div>
+    );
+}
+
+interface AgentViewBarProps {
+    missingCount: number;
+    onAppendPage: (
+        page: Pick<
+            AgentViewPage,
+            "itemIds" | "nextOffset" | "query" | "truncated"
+        >
+    ) => void;
+    resolvedCount: number;
+    view: AgentViewPage | null;
+}
+
+function AgentViewBar({
+    missingCount,
+    onAppendPage,
+    resolvedCount,
+    view,
+}: AgentViewBarProps) {
+    const [loadMoreError, setLoadMoreError] = React.useState<string | null>(
+        null
+    );
+    const [isLoadingMore, startLoadingMore] = React.useTransition();
+
+    const handleLoadMore = useStableCallback(() => {
+        if (!view || view.nextOffset === null || isLoadingMore) {
+            return;
+        }
+        const query = view.query;
+        const offset = view.nextOffset;
+        setLoadMoreError(null);
+        startLoadingMore(async () => {
+            const result = await getAgentViewPage({ offset, query });
+            if (result.status !== "SUCCESS") {
+                setLoadMoreError(result.message);
+                return;
+            }
+            onAppendPage({
+                itemIds: result.itemIds,
+                nextOffset: result.nextOffset,
+                query,
+                truncated: result.truncated,
+            });
+        });
+    });
+
+    if (!view) {
+        return null;
+    }
+
+    const canLoadMore = view.nextOffset !== null;
+
+    const partialNotes: string[] = [];
+    if (view.truncated) {
+        partialNotes.push("partial results");
+    }
+    if (missingCount > 0) {
+        partialNotes.push(
+            `${missingCount} match${missingCount === 1 ? "" : "es"} outside the loaded preview`
+        );
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-primary/25 bg-primary/3 px-3 py-2">
+            <p className="min-w-0 flex-1 truncate text-xs">
+                <span className="font-medium text-foreground">
+                    {view.title}
+                </span>
+                <span className="text-muted-foreground">
+                    {" — "}
+                    {view.explanation}
+                </span>
+            </p>
+            <p className="shrink-0 text-muted-foreground text-xs tabular-nums">
+                {resolvedCount} match{resolvedCount === 1 ? "" : "es"}
+                {partialNotes.length > 0
+                    ? ` · ${partialNotes.join(" · ")}`
+                    : ""}
+            </p>
+            {canLoadMore ? (
+                <Button
+                    isLoading={isLoadingMore}
+                    onClick={handleLoadMore}
+                    size="xs"
+                    variant="outline"
+                >
+                    Load more
+                </Button>
+            ) : null}
+            {loadMoreError ? (
+                <p className="w-full text-destructive text-xs">
+                    {loadMoreError}
+                </p>
+            ) : null}
         </div>
     );
 }
@@ -4101,23 +5966,16 @@ function BrowserGroupAIOverviewContent() {
         })
     );
 
-    const { data, isLoading, isValidating } =
-        useSWR<SectionDescriptionResponse>(
-            getSectionDescriptionSWRKey(payload, items.length),
-            fetchSectionDescription,
-            {
-                dedupingInterval: 60_000,
-                keepPreviousData: true,
-                revalidateOnFocus: false,
-                shouldRetryOnError: false,
-            }
-        );
+    const { data, error, isLoading, isValidating } = useSectionDescription(
+        payload,
+        items.length
+    );
 
     const handleToggleExpanded = useStableCallback(() => {
         setIsExpanded((prev) => !prev);
     });
 
-    const summary = data?.summary.trim();
+    const summary = error ? undefined : data?.summary.trim();
     const isPending = isLoading || isValidating;
 
     if (collapsed) {
@@ -5157,7 +7015,7 @@ function CreateFromResultsCollectionDialog({
     }
 
     const handleResultsFormSubmit = useStableCallback(
-        (event: React.FormEvent<HTMLFormElement>) => {
+        (event: React.SubmitEvent<HTMLFormElement>) => {
             event.preventDefault();
             startCreateResultsCollection(async () => {
                 let result: CollectionCreateFromItemsResult;
@@ -5320,5 +7178,530 @@ function CreateFromResultsCollectionDialog({
                 </form>
             </DialogPopup>
         </Dialog>
+    );
+}
+
+function AskCacheResponseShell({
+    children,
+    prompt,
+}: {
+    children: React.ReactNode;
+    prompt?: string;
+}) {
+    return (
+        <BubbleGroup className="w-full min-w-0 flex-1 py-1 pr-2">
+            {prompt ? (
+                <Bubble align="end" variant="muted">
+                    <BubbleContent>{prompt}</BubbleContent>
+                </Bubble>
+            ) : null}
+            {children}
+        </BubbleGroup>
+    );
+}
+
+function AskCacheLoadingPanel({ prompt }: { prompt?: string }) {
+    return (
+        <AskCacheResponseShell prompt={prompt}>
+            <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
+                <ThinkingOrb size={20} state="shaping" />
+                <span className="text-muted-foreground text-xs">
+                    <T>Thinking…</T>
+                </span>
+            </div>
+        </AskCacheResponseShell>
+    );
+}
+
+function AskCacheErrorPanel({
+    message,
+    prompt,
+}: {
+    message: string;
+    prompt: string;
+}) {
+    return (
+        <AskCacheResponseShell prompt={prompt}>
+            <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
+                <p className="text-sm">{message}</p>
+            </div>
+        </AskCacheResponseShell>
+    );
+}
+
+function AskCacheResponseActions({
+    markdown,
+    prompt,
+}: {
+    markdown: string;
+    prompt: string;
+}) {
+    return (
+        <div className="flex flex-wrap items-center gap-1">
+            <CopyResponseButton value={markdown} />
+            <SpeakResponseButton value={markdown} />
+            <ContinueInChatButton markdown={markdown} prompt={prompt} />
+        </div>
+    );
+}
+
+function AskCacheSuccessPanel({
+    markdown,
+    prompt,
+}: {
+    markdown: string;
+    prompt: string;
+}) {
+    return (
+        <AskCacheResponseShell prompt={prompt}>
+            <div className="flex min-w-0 flex-1 flex-col gap-2 py-1">
+                <Streamdown className="whitespace-pre-line text-sm leading-relaxed">
+                    {markdown}
+                </Streamdown>
+                <AskCacheResponseActions markdown={markdown} prompt={prompt} />
+            </div>
+        </AskCacheResponseShell>
+    );
+}
+
+function AskCacheResponsePanel({
+    response,
+}: {
+    response: AskCacheResponseState | null;
+}) {
+    if (!response || response.status === "loading") {
+        return <AskCacheLoadingPanel prompt={response?.prompt} />;
+    }
+
+    if (response.status === "error") {
+        return (
+            <AskCacheErrorPanel
+                message={response.message}
+                prompt={response.prompt}
+            />
+        );
+    }
+
+    return (
+        <AskCacheSuccessPanel
+            markdown={response.markdown}
+            prompt={response.prompt}
+        />
+    );
+}
+
+function Palette({
+    className,
+    ...props
+}: React.ComponentProps<typeof Toolbar.Root>) {
+    return (
+        <Toolbar.Root
+            {...props}
+            className={cn("sticky top-1 z-50 w-full max-w-2xl", className)}
+        />
+    );
+}
+
+interface PaletteInputEndAddonProps {
+    stackEntries: ComposerPaletteStackEntry[];
+}
+
+function PaletteStackEntryChip({
+    entry,
+}: {
+    entry: ComposerPaletteStackEntry;
+}) {
+    if (entry.kind === "attachment") {
+        return (
+            <ComposerAttachmentChip
+                attachment={entry.attachment}
+                onRemove={entry.onRemoveAttachment}
+            />
+        );
+    }
+
+    return <ComposerChip label={entry.label} onRemove={entry.onRemove} />;
+}
+
+function PaletteInputEndAddon({ stackEntries }: PaletteInputEndAddonProps) {
+    return (
+        <>
+            {stackEntries.length === 0 ? (
+                <PaletteInputEndAddonShortcut />
+            ) : null}
+            <CollapsibleListHorizontal
+                badgeRender={
+                    <Badge
+                        className="inline-flex h-7! cursor-pointer rounded-xl text-xs tabular-nums"
+                        render={<button type="button" />}
+                        variant="secondary"
+                    />
+                }
+                className="justify-end"
+                maxVisible={1}
+            >
+                {stackEntries.map((entry) => (
+                    <PaletteStackEntryChip entry={entry} key={entry.key} />
+                ))}
+            </CollapsibleListHorizontal>
+        </>
+    );
+}
+
+function PaletteInputEndAddonShortcut() {
+    return (
+        <>
+            <Kbd className="border-none text-muted-foreground opacity-50 group-data-popup-open/input:opacity-0">
+                <CmdKbd />G
+            </Kbd>
+            <span className="absolute right-3.5 flex items-center gap-0.5 text-nowrap opacity-0 group-data-popup-open/input:opacity-100 dark:gap-1">
+                <Kbd className="border-none text-muted-foreground opacity-50">
+                    Tab
+                </Kbd>
+                <span className="text-muted-foreground text-xs opacity-50">
+                    Ask AI
+                </span>
+            </span>
+        </>
+    );
+}
+
+interface PaletteActionsListProps
+    extends React.ComponentProps<typeof Toolbar.Group>,
+        PaletteActionsContext {}
+
+function PaletteActionsList({
+    className,
+    duplicatesFilterEnabled,
+    onCreateNote,
+    onRemoveDuplicates,
+    removableDuplicateCount,
+    ...props
+}: PaletteActionsListProps) {
+    const contextValue: PaletteActionsContext = {
+        duplicatesFilterEnabled,
+        onCreateNote,
+        onRemoveDuplicates,
+        removableDuplicateCount,
+    };
+
+    return (
+        <PaletteActionsContext value={contextValue}>
+            <ScrollArea className="h-fit" shouldScrollFade>
+                <Toolbar.Group
+                    {...props}
+                    className={cn(
+                        "flex items-center gap-2 text-nowrap px-3",
+                        className
+                    )}
+                />
+            </ScrollArea>
+        </PaletteActionsContext>
+    );
+}
+
+function PaletteActionNew() {
+    const { onCreateNote } = usePaletteActionsContext();
+
+    return (
+        <PaletteActionButton onClick={onCreateNote} title="Add new">
+            <SquarePen className="inline-block size-3.5" />
+            &nbsp;Add new
+        </PaletteActionButton>
+    );
+}
+
+function PaletteActionRemoveDuplicates() {
+    const {
+        duplicatesFilterEnabled,
+        onRemoveDuplicates,
+        removableDuplicateCount,
+    } = usePaletteActionsContext();
+
+    const canRemove = removableDuplicateCount > 0;
+
+    if (!duplicatesFilterEnabled) {
+        return null;
+    }
+
+    return (
+        <PaletteActionButton
+            disabled={!canRemove}
+            onClick={onRemoveDuplicates}
+            title={
+                canRemove
+                    ? "Remove duplicate bookmarks"
+                    : "No duplicates to remove"
+            }
+        >
+            <CopyX className="inline-block size-3.5" />
+            &nbsp;Remove duplicates
+        </PaletteActionButton>
+    );
+}
+
+interface PaletteItemProps {
+    item: ComposerPaletteItem;
+}
+
+function usePaletteItemSelect(item: ComposerPaletteItem) {
+    return useStableCallback((event: BaseUIEvent<React.MouseEvent>) => {
+        try {
+            const result = item.onSelect(event);
+            if (result) {
+                result.catch((error: unknown) => {
+                    log.error("PaletteItem selection failed", error, {
+                        value: item.value,
+                    });
+                });
+            }
+        } catch (error) {
+            log.error("PaletteItem selection failed", error, {
+                value: item.value,
+            });
+        }
+    });
+}
+
+function PaletteItemContent({ item }: { item: ComposerPaletteItem }) {
+    if (item.children) {
+        return item.children;
+    }
+
+    return (
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="truncate">{item.label}</div>
+            {item.description ? (
+                <span className="max-w-xs truncate text-muted-foreground/80 text-xs">
+                    {item.description}
+                </span>
+            ) : null}
+            {item.isActive ? <Badge variant="secondary">Active</Badge> : null}
+            {item.shortcut ? (
+                <CommandShortcut>{item.shortcut}</CommandShortcut>
+            ) : null}
+        </div>
+    );
+}
+
+function PaletteItem({ item }: PaletteItemProps) {
+    const handleSelect = usePaletteItemSelect(item);
+
+    return (
+        <CommandItem
+            disabled={item.disabled}
+            onClick={handleSelect}
+            value={item.value}
+        >
+            <PaletteItemContent item={item} />
+        </CommandItem>
+    );
+}
+
+function PaletteCollectionCard({ item }: PaletteItemProps) {
+    const handleSelect = usePaletteItemSelect(item);
+
+    return (
+        <CommandItem
+            className="group squircle relative flex-1 overflow-hidden rounded-xl bg-accent text-accent-foreground shadow-xs"
+            disabled={item.disabled}
+            onClick={handleSelect}
+            value={item.value}
+        >
+            <PaletteItemContent item={item} />
+        </CommandItem>
+    );
+}
+
+function PaletteActionButton({
+    render,
+    ...props
+}: React.ComponentProps<typeof Toolbar.Button>) {
+    return (
+        <Toolbar.Button
+            {...props}
+            render={render ?? <Button size="xs" variant="ghost" />}
+        />
+    );
+}
+
+interface PaletteSuggestionsListProps
+    extends Omit<React.ComponentProps<typeof CollapsiblePanel>, "children"> {
+    children: (
+        suggestion: ComposerSuggestion,
+        index: number
+    ) => React.ReactNode;
+    isOpen?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    suggestions: ComposerSuggestion[];
+}
+
+function PaletteSuggestionsListButton({
+    index,
+    suggestion,
+}: {
+    index: number;
+    suggestion: ComposerSuggestion;
+}) {
+    return (
+        <Button
+            className="text-muted-foreground"
+            onClick={suggestion.onSelect}
+            size="xs"
+            variant="ghost"
+        >
+            {suggestion.icon}
+            &nbsp;
+            {suggestion.label}
+            <Kbd className="bg-transparent px-0 text-[11px] opacity-50">
+                <CmdKbd />
+                {index + 1}
+            </Kbd>
+        </Button>
+    );
+}
+
+function PaletteSuggestionsList({
+    children,
+    suggestions,
+    className,
+    isOpen: isOpenProp,
+    onOpenChange: onOpenChangeProp,
+    ...props
+}: PaletteSuggestionsListProps) {
+    const [internalOpen, setInternalOpen] = React.useState(true);
+
+    const isOpen = isOpenProp ?? internalOpen;
+
+    const setIsOpen = useStableCallback((open: boolean) => {
+        onOpenChangeProp?.(open);
+        if (isOpenProp === undefined) {
+            setInternalOpen(open);
+        }
+    });
+
+    const handleDismiss = useStableCallback(() => setIsOpen(false));
+
+    const dismissSuggestion: ComposerSuggestion = {
+        label: "Dismiss",
+        onSelect: handleDismiss,
+    };
+
+    if (!suggestions.length) {
+        return null;
+    }
+
+    return (
+        <Collapsible onOpenChange={setIsOpen} open={isOpen}>
+            <CollapsiblePanel
+                {...props}
+                className={cn("px-3", className)}
+                render={<ScrollArea shouldScrollFade />}
+            >
+                <div className="flex w-max select-none flex-nowrap items-center gap-1.5 text-nowrap">
+                    {suggestions.map((suggestion, index) => (
+                        <React.Fragment key={suggestion.label}>
+                            {children(suggestion, index)}
+                            <span className="mr-0.5 -ml-0.5 font-medium text-muted-foreground text-xs">
+                                ·
+                            </span>
+                        </React.Fragment>
+                    ))}
+                    {children(dismissSuggestion, suggestions.length)}
+                </div>
+            </CollapsiblePanel>
+        </Collapsible>
+    );
+}
+
+function PaletteCategoryThumbnail({ urls }: { urls: string[] }) {
+    const validUrls = filterValidImageUrls(urls);
+    const urlsKey = validUrls.join("\0");
+    const [errorCount, setErrorCount] = React.useState(0);
+    const [prevUrlsKey, setPrevUrlsKey] = React.useState(urlsKey);
+
+    // Reset the error cursor when the candidate list changes so a prior
+    // load failure does not permanently hide a newly valid thumbnail.
+    if (!Object.is(urlsKey, prevUrlsKey)) {
+        setPrevUrlsKey(urlsKey);
+        setErrorCount(0);
+    }
+
+    const src = validUrls[errorCount];
+
+    const handleImageError = useStableCallback(() => {
+        setErrorCount((count) => count + 1);
+    });
+
+    if (!src) {
+        return null;
+    }
+
+    return (
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource error lifecycle is not user interaction; upstream jsx-a11y exempts img onError
+        <img
+            alt=""
+            className="drag-none absolute top-10 left-3 h-auto w-full rounded-sm object-cover transition-transform ease-out group-data-highlighted:-translate-y-1"
+            decoding="async"
+            draggable="false"
+            height={104}
+            loading="lazy"
+            onError={handleImageError}
+            src={src}
+            width={140}
+        />
+    );
+}
+
+interface ContinueInChatButtonProps {
+    markdown: string;
+    prompt: string;
+}
+
+function ContinueInChatButton({ markdown, prompt }: ContinueInChatButtonProps) {
+    const router = useRouter();
+    const [isPending, startTransition] = React.useTransition();
+    const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+    const handleContinue = useStableCallback(() => {
+        setErrorMessage(null);
+        startTransition(async () => {
+            try {
+                const result = await createChatFromAskCache({
+                    markdown,
+                    prompt,
+                });
+                if (result.status !== ACTION_STATUS.CREATED) {
+                    setErrorMessage(result.message);
+                    return;
+                }
+                router.push(`/c/${result.chatId}`);
+            } catch (error) {
+                log.error("Failed to continue Ask Cache in chat", error);
+                setErrorMessage("We couldn't start this chat right now.");
+            }
+        });
+    });
+
+    return (
+        <span className="ml-auto inline-flex max-w-full items-center gap-2">
+            {errorMessage ? (
+                <span
+                    className="truncate text-destructive text-xs"
+                    role="alert"
+                >
+                    {errorMessage}
+                </span>
+            ) : null}
+            <Button
+                isLoading={isPending}
+                onClick={handleContinue}
+                size="xs"
+                variant="secondary"
+            >
+                <T>Continue in Chat</T>
+                <ArrowUpRight className="size-3.5 shrink-0" />
+            </Button>
+        </span>
     );
 }

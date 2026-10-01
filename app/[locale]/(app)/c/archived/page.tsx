@@ -6,7 +6,7 @@ import { connection } from "next/server";
 import * as React from "react";
 import * as z from "zod";
 import { buildPageMetadata } from "@/app/metadata";
-import { ArchivedChatsList } from "@/components/chats/archived";
+import { ArchivedChatsList } from "@/components/session/archived";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";

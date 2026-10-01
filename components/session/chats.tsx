@@ -11,12 +11,14 @@ import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import { ActivePathname } from "@/components/ui/active-pathname";
 import { Button } from "@/components/ui/button";
+import { ClientOnly } from "@/components/ui/client-only";
 import {
     Collapsible,
     CollapsiblePanel,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { CollapsibleListVertical } from "@/components/ui/collapsible-list";
+import { ErrorMessage } from "@/components/ui/error-message";
 import { HighlightIn } from "@/components/ui/highlight-in";
 import { ChevronDownFilledIcon } from "@/components/ui/icons";
 import { SidebarItem, SidebarItemValue } from "@/components/ui/sidebar";
@@ -52,35 +54,64 @@ const { useStore: useChatsListStore } = createStore({
     }),
 });
 
-function getChatsUpdateCount(chats: ChatListItem[], nowMs: number): number {
-    const cutoff = nowMs - CHAT_SIDEBAR_UPDATE_WINDOW_MS;
+function getChatsUpdateCount(chats: ChatListItem[]): number {
+    const cutoff = Date.now() - CHAT_SIDEBAR_UPDATE_WINDOW_MS;
     return chats.filter((chat) => chat.updatedAt.getTime() >= cutoff).length;
 }
 
-function getChatHref(chat: ChatListItem): string {
-    return `/c/${chat.id}`;
+function useArchiveChat(chatId: string) {
+    const gt = useGT();
+    const router = useRouter();
+    const [isPending, startTransition] = React.useTransition();
+    const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+    const archive = useStableCallback(() => {
+        setErrorMessage(null);
+        startTransition(async () => {
+            try {
+                const result = await setChatArchived({
+                    chatId,
+                    isArchived: true,
+                });
+                if (result.status !== ACTION_STATUS.UPDATED) {
+                    setErrorMessage(result.message);
+                    return;
+                }
+                router.refresh();
+            } catch (error) {
+                log.error("Failed to archive chat", {
+                    chatId,
+                    error,
+                });
+                setErrorMessage(gt("We couldn't archive this chat right now."));
+            }
+        });
+    });
+
+    return { archive, errorMessage, isPending };
 }
 
 interface ChatsListProps {
     chats: ChatListItem[];
-    nowMs: number;
 }
 
-export function ChatsList({ chats, nowMs }: ChatsListProps) {
-    const updateCount = getChatsUpdateCount(chats, nowMs);
-
+export function ChatsList({ chats }: ChatsListProps) {
     return (
         <ChatsListContext value={chats}>
             <ChatsListCollapsible
                 className="group/collapsible"
                 data-sidebar-collapsible=""
             >
-                <ChatsListTrigger updateCount={updateCount}>
+                <ChatsListTrigger>
                     <T>Recents</T>
                 </ChatsListTrigger>
                 <ChatsListPanel>
                     <ChatsListEmpty />
-                    <ChatsListEntries />
+                    <ChatsListContent>
+                        {(entry) => (
+                            <ChatsListItem entry={entry} key={entry.id} />
+                        )}
+                    </ChatsListContent>
                 </ChatsListPanel>
             </ChatsListCollapsible>
         </ChatsListContext>
@@ -97,17 +128,11 @@ function ChatsListPanel(props: React.ComponentProps<typeof CollapsiblePanel>) {
     return <CollapsiblePanel {...props} />;
 }
 
-interface ChatsListTriggerProps
-    extends React.ComponentProps<typeof CollapsibleTrigger> {
-    updateCount: number;
-}
-
 function ChatsListTrigger({
     children,
     render,
-    updateCount,
     ...props
-}: ChatsListTriggerProps) {
+}: React.ComponentProps<typeof CollapsibleTrigger>) {
     return (
         <CollapsibleTrigger
             {...props}
@@ -119,51 +144,67 @@ function ChatsListTrigger({
                 className="-ml-0.5"
                 focusable="false"
             />
-            {updateCount > 0 ? (
-                <HighlightIn
-                    className="absolute right-2 text-[11px] text-muted-foreground"
-                    key={updateCount}
-                >
-                    <T>
-                        <Plural
-                            n={updateCount}
-                            plural={
-                                <>
-                                    <Var>{updateCount}</Var> updates
-                                </>
-                            }
-                            singular={
-                                <>
-                                    <Var>{updateCount}</Var> update
-                                </>
-                            }
-                        />
-                    </T>
-                </HighlightIn>
-            ) : null}
+            <ClientOnly>
+                <ChatsListUpdateCount />
+            </ClientOnly>
         </CollapsibleTrigger>
     );
 }
 
-function ChatsListEntries() {
-    const entries = useChatsListContext();
+function ChatsListUpdateCount() {
+    const chats = useChatsListContext();
+
+    const count = getChatsUpdateCount(chats);
+
+    if (count <= 0) {
+        return null;
+    }
+
+    return (
+        <HighlightIn
+            className="absolute right-2 text-[11px] text-muted-foreground"
+            key={count}
+        >
+            <T>
+                <Plural
+                    n={count}
+                    plural={
+                        <>
+                            <Var>{count}</Var> updates
+                        </>
+                    }
+                    singular={
+                        <>
+                            <Var>{count}</Var> update
+                        </>
+                    }
+                />
+            </T>
+        </HighlightIn>
+    );
+}
+
+interface ChatsListContentProps {
+    children: (entry: ChatListItem, index: number) => React.ReactNode;
+}
+
+function ChatsListContent({ children }: ChatsListContentProps) {
+    const items = useChatsListContext();
 
     return (
         <CollapsibleListVertical
             className="relative ml-1.25 w-full min-w-0 gap-px"
             maxVisible={5}
         >
-            {entries.map((entry) => (
-                <ChatsListEntry entry={entry} key={entry.id} />
-            ))}
+            {items.map(children)}
         </CollapsibleListVertical>
     );
 }
 
 function ChatsListEmpty() {
-    const entries = useChatsListContext();
+    const items = useChatsListContext();
 
-    if (entries.length > 0) {
+    if (items.length > 0) {
         return null;
     }
 
@@ -186,47 +227,18 @@ function ChatsListEmpty() {
     );
 }
 
-interface ChatsListEntryProps {
+interface ChatsListItemProps {
     entry: ChatListItem;
 }
 
-function ChatsListEntry({ entry }: ChatsListEntryProps) {
-    const gt = useGT();
-    const router = useRouter();
-    const [isPending, startTransition] = React.useTransition();
-    const [actionErrorMessage, setActionErrorMessage] = React.useState<
-        string | null
-    >(null);
-    const href = getChatHref(entry);
+function ChatsListItem({ entry }: ChatsListItemProps) {
+    const { archive, errorMessage, isPending } = useArchiveChat(entry.id);
 
-    const handleArchive = useStableCallback(() => {
-        setActionErrorMessage(null);
-        startTransition(async () => {
-            try {
-                const result = await setChatArchived({
-                    chatId: entry.id,
-                    isArchived: true,
-                });
-                if (result.status !== ACTION_STATUS.UPDATED) {
-                    setActionErrorMessage(result.message);
-                    return;
-                }
-                router.refresh();
-            } catch (error) {
-                log.error("Failed to archive chat", {
-                    chatId: entry.id,
-                    error,
-                });
-                setActionErrorMessage(
-                    gt("We couldn't archive this chat right now.")
-                );
-            }
-        });
-    });
+    const href = `/c/${entry.id}`;
 
     return (
         <div>
-            <div className="group/chat-entry relative">
+            <div className="group/chat-item relative">
                 <ActivePathname
                     href={href}
                     render={
@@ -257,54 +269,49 @@ function ChatsListEntry({ entry }: ChatsListEntryProps) {
                         </span>
                     ) : null}
                 </ActivePathname>
-                <ChatsListEntryControls
-                    entry={entry}
+                <ChatsListItemControls
                     isPending={isPending}
-                    onArchive={handleArchive}
+                    onArchive={archive}
+                    updatedAt={entry.updatedAt}
                 />
             </div>
-            {actionErrorMessage ? (
-                <p
-                    className="px-2 py-1 text-[11px] text-destructive"
-                    role="alert"
-                >
-                    {actionErrorMessage}
-                </p>
-            ) : null}
+            <ErrorMessage className="px-2 py-1 text-[11px]">
+                {errorMessage}
+            </ErrorMessage>
         </div>
     );
 }
 
-interface ChatsListEntryControlsProps {
-    entry: ChatListItem;
+interface ChatsListItemControlsProps {
     isPending: boolean;
     onArchive: () => void;
+    updatedAt: Date;
 }
 
-function ChatsListEntryControls({
-    entry,
+function ChatsListItemControls({
     isPending,
     onArchive,
-}: ChatsListEntryControlsProps) {
+    updatedAt,
+}: ChatsListItemControlsProps) {
     const gt = useGT();
 
     return (
         <div className="absolute top-1/2 pointer-fine:right-0 right-1 flex pointer-fine:size-9 h-9 -translate-y-1/2 items-center justify-end pointer-fine:justify-center gap-1 pointer-fine:gap-0">
             <time
                 className={cn(
-                    "pointer-events-none shrink-0 text-nowrap text-[11px] text-muted-foreground/80 tabular-nums pointer-fine:group-focus-within/chat-entry:opacity-0 pointer-fine:group-hover/chat-entry:opacity-0",
+                    "pointer-events-none shrink-0 text-nowrap text-[11px] text-muted-foreground/80 tabular-nums pointer-fine:group-focus-within/chat-item:opacity-0 pointer-fine:group-hover/chat-item:opacity-0",
                     isPending && "opacity-0"
                 )}
                 data-sidebar-collapsible=""
-                dateTime={entry.updatedAt.toISOString()}
-                title={dayjs(entry.updatedAt).format("MMM DD, YYYY, h:mm A")}
+                dateTime={updatedAt.toISOString()}
+                title={dayjs(updatedAt).format("MMM DD, YYYY, h:mm A")}
             >
-                {dayjs(entry.updatedAt).fromNow(true)}
+                {dayjs(updatedAt).fromNow(true)}
             </time>
             <Button
                 aria-label={gt("Archive chat")}
                 className={cn(
-                    "pointer-fine:pointer-events-none pointer-fine:absolute relative size-6 shrink-0 text-muted-foreground pointer-fine:opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 group-focus-within/chat-entry:pointer-events-auto group-focus-within/chat-entry:opacity-100 pointer-fine:group-hover/chat-entry:pointer-events-auto pointer-fine:group-hover/chat-entry:opacity-100",
+                    "pointer-fine:pointer-events-none pointer-fine:absolute relative size-6 shrink-0 text-muted-foreground pointer-fine:opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 group-focus-within/chat-item:pointer-events-auto group-focus-within/chat-item:opacity-100 pointer-fine:group-hover/chat-item:pointer-events-auto pointer-fine:group-hover/chat-item:opacity-100",
                     isPending &&
                         "pointer-fine:pointer-events-auto pointer-fine:opacity-100"
                 )}

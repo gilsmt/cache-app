@@ -91,7 +91,10 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
-import useSWR from "swr";
+import {
+    type OembedResolution,
+    useOembed,
+} from "@/components/hooks/queries/use-oembed";
 import { type SaveStatus, useAutosave } from "@/components/hooks/use-autosave";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
@@ -128,11 +131,7 @@ import { getSystemControlKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { clamp } from "@/lib/common/number";
 import { isRecord } from "@/lib/common/object";
-import {
-    hasOembedSupport,
-    type Oembed,
-    OembedSchema,
-} from "@/lib/common/oembed";
+import { hasOembedSupport, type Oembed } from "@/lib/common/oembed";
 import { slugify } from "@/lib/common/string";
 import {
     openExternalUrl,
@@ -326,15 +325,6 @@ type OembedStatus = "blocked" | "loaded" | "loading" | "oembed";
 
 type Translate = ReturnType<typeof useGT>;
 
-type OembedResolution =
-    | {
-          oembed: Oembed;
-          resolution: "found";
-      }
-    | {
-          resolution: "not-found" | "unsupported";
-      };
-
 export interface SideUrlInput {
     description?: string;
     title?: string;
@@ -471,12 +461,7 @@ function useSideStatus(url: string | null, timeoutMs: number) {
             ? url
             : null;
 
-    const { data, error, mutate } = useSWR(oembedUrl, resolveOembed, {
-        revalidateIfStale: false,
-        revalidateOnFocus: false,
-        revalidateOnReconnect: false,
-        shouldRetryOnError: false,
-    });
+    const { data, error, mutate } = useOembed(oembedUrl);
     const timeout = useTimeout();
     const statusCacheRef = useRefWithInit(
         () => new Map<string, IframeStatus>()
@@ -585,22 +570,6 @@ function parseOembedStatus(
     }
 
     return "loading";
-}
-
-async function resolveOembed(url: string): Promise<OembedResolution> {
-    const response = await fetch(`/api/oembed?url=${encodeURIComponent(url)}`, {
-        headers: { Accept: "application/json" },
-    });
-    if (response.status === 404) {
-        return { resolution: "unsupported" };
-    }
-    if (!response.ok) {
-        return { resolution: "not-found" };
-    }
-    const parsed = OembedSchema.safeParse(await response.json());
-    return parsed.success
-        ? { oembed: parsed.data, resolution: "found" }
-        : { resolution: "not-found" };
 }
 
 function addSideQueueEntry(
@@ -1396,7 +1365,7 @@ function SidePanelEmpty() {
                     <h2 className="font-medium text-foreground text-sm">
                         <T>Recents</T>
                     </h2>
-                    <ul className="mt-2 flex flex-col gap-1">
+                    <ul className="mt-2 flex list-none flex-col gap-1">
                         {recentItems.map((item) => (
                             <SideRecentItem item={item} key={item.id} />
                         ))}
@@ -1425,7 +1394,7 @@ function SideRecentItem({ item }: SideRecentItemProps) {
     });
 
     return (
-        <li>
+        <li className="list-none">
             <Button
                 aria-label={gt("Open {title} in Side", { title })}
                 className="w-full justify-start text-left"
@@ -1626,7 +1595,6 @@ function SideListItem({
                 "relative inline-flex min-w-0 shrink-0 items-center rounded-lg",
                 isActive ? "bg-secondary" : "hover:bg-accent"
             )}
-            role="presentation"
         >
             <Button
                 aria-controls={getSidePanelId(item)}
@@ -2870,7 +2838,7 @@ function ContentPlugin({
             <div className="relative min-h-96 w-full min-w-0 flex-1">
                 <ContentEditable
                     className={cn(
-                        "prose prose-stone h-full min-h-96 w-full min-w-0 max-w-full overflow-y-auto whitespace-pre-wrap text-[15px] leading-7 outline-none [overflow-wrap:anywhere]",
+                        "prose prose-stone wrap-anywhere h-full min-h-96 w-full min-w-0 max-w-full overflow-y-auto whitespace-pre-wrap text-[15px] leading-7 outline-none",
                         "prose-p:my-0 prose-p:min-h-[1.75rem]",
                         "prose-mark:rounded-sm prose-mark:bg-amber-200/90 prose-mark:px-0.5",
                         "prose-strong:font-semibold prose-em:italic prose-u:underline prose-s:line-through"

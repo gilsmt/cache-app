@@ -8,20 +8,75 @@ import {
     parseAsStringEnum,
     useQueryStates,
 } from "nuqs";
-import {
-    COLLECTION_MEMBERSHIP_FILTER_VALUES,
-    COLUMN_COUNT_MODE_VALUES,
-    type CollectionMembershipFilter,
-    type ColumnCountMode,
-    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
-    DEFAULT_COLUMN_COUNT_MODE,
-    DEFAULT_SORT_MODE,
-    GROUP_BY_MODE_VALUES,
-    type GroupByMode,
-    SORT_MODE_VALUES,
-    type SortMode,
-} from "@/components/session/composer";
 import { LibraryItemSource } from "@/prisma/client/enums";
+
+export type GroupByMode =
+    | "none"
+    | "source"
+    | "domain"
+    | "collection"
+    | "year-added"
+    | "year-created"
+    | "month-added"
+    | "month-created";
+
+export type SortMode =
+    | "added-newest"
+    | "added-oldest"
+    | "created-newest"
+    | "created-oldest"
+    | "count-desc"
+    | "source"
+    | "domain"
+    | "title";
+
+export type ColumnCountMode = "auto" | "2" | "3" | "4" | "5" | "6";
+
+export type CollectionMembershipFilter =
+    | "all"
+    | "in-collections"
+    | "not-in-collections";
+
+export const GROUP_BY_MODE_VALUES = [
+    "none",
+    "source",
+    "domain",
+    "collection",
+    "year-added",
+    "year-created",
+    "month-added",
+    "month-created",
+] as const satisfies readonly GroupByMode[];
+
+export const SORT_MODE_VALUES = [
+    "added-newest",
+    "added-oldest",
+    "created-newest",
+    "created-oldest",
+    "count-desc",
+    "source",
+    "domain",
+    "title",
+] as const satisfies readonly SortMode[];
+
+export const COLUMN_COUNT_MODE_VALUES = [
+    "auto",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+] as const satisfies readonly ColumnCountMode[];
+
+export const COLLECTION_MEMBERSHIP_FILTER_VALUES: CollectionMembershipFilter[] =
+    ["all", "in-collections", "not-in-collections"];
+
+export const DEFAULT_SORT_MODE = "added-newest" as const;
+
+export const DEFAULT_COLUMN_COUNT_MODE: ColumnCountMode = "auto";
+
+export const DEFAULT_COLLECTION_MEMBERSHIP_FILTER: CollectionMembershipFilter =
+    "all";
 
 const COMPOSER_FILTER_PARSERS = {
     collectionMembership: parseAsStringEnum<CollectionMembershipFilter>(

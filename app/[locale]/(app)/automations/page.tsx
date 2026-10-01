@@ -7,7 +7,7 @@ import * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
 import { AutomationComposerDialog } from "@/components/automations/composer";
 import { AutomationsList } from "@/components/automations/list";
-import { ChatsList } from "@/components/chats/list";
+import { ChatsList } from "@/components/session/chats";
 import { SidebarPanel } from "@/components/session/sidebar";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -77,29 +77,28 @@ async function AutomationsPageBody() {
         return redirect("/");
     }
 
-    const [automations, collectionOptions, chats] = await Promise.all([
+    const [automations, collections, chats] = await Promise.all([
         listAutomations({ userId }),
         listCollectionOptions({ userId }),
         listChats({ userId }),
     ]);
-    const nowMs = Date.now();
 
     return (
         <>
             <SidebarPanel>
-                <ChatsList chats={chats} nowMs={nowMs} />
+                <ChatsList chats={chats} />
             </SidebarPanel>
             <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col gap-6 p-8">
                 <FadeIn>
                     <div className="flex flex-col gap-8">
                         <AutomationsPageHeader>
                             <AutomationComposerDialog
-                                collections={collectionOptions}
+                                collections={collections}
                             />
                         </AutomationsPageHeader>
                         <AutomationsList
                             automations={automations}
-                            collections={collectionOptions}
+                            collections={collections}
                         />
                     </div>
                 </FadeIn>
