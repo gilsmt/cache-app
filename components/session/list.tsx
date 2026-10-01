@@ -2488,6 +2488,7 @@ const SOURCE_LABEL_BY_VALUE: Partial<Record<string, string>> = {
 };
 
 const NAME_COLLATOR = new Intl.Collator(undefined, {
+    ignorePunctuation: true,
     numeric: true,
     sensitivity: "base",
 });

@@ -370,14 +370,15 @@ const VIEW_OPTIONS = [
     { icon: GlobeCheck, label: "Show shared only", value: "show-shared-only" },
 ] as const;
 
+const NAME_COLLATOR = new Intl.Collator(undefined, {
+    ignorePunctuation: true,
+    numeric: true,
+    sensitivity: "base",
+});
+
 const LIST_FORMATTER = new Intl.ListFormat(undefined, {
     style: "long",
     type: "conjunction",
-});
-
-const NAME_COLLATOR = new Intl.Collator(undefined, {
-    numeric: true,
-    sensitivity: "base",
 });
 
 const SUMMARY_SORTERS = {
