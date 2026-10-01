@@ -23,6 +23,7 @@ import {
 } from "@/components/automations/composer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ErrorMessage } from "@/components/ui/error-message";
 import {
     Menu,
     MenuItem,
@@ -37,6 +38,7 @@ import {
     formatTimeOfDayMinutes,
 } from "@/lib/common/time";
 import {
+    type AutomationActionResult,
     deleteAutomation,
     pauseAutomation,
     resumeAutomation,
@@ -45,7 +47,6 @@ import { AUTOMATION_TEMPLATE_DEFINITIONS } from "@/lib/intelligence/automations/
 import type { AutomationListItem } from "@/lib/intelligence/automations/service";
 
 const DEFAULT_WEEK_DAY = 1;
-const DEFAULT_CADENCE = "weekly";
 const WEEK_DAY_LABELS = [
     "Sunday",
     "Monday",
@@ -58,28 +59,23 @@ const WEEK_DAY_LABELS = [
 
 type AutomationTemplateKey = NonNullable<AutomationListItem["templateKey"]>;
 
-type AutomationTemplateDefinition =
-    (typeof AUTOMATION_TEMPLATE_DEFINITIONS)[number];
-
 type AutomationRunStatus = AutomationListItem["recentRuns"][number]["status"];
+
+interface AutomationSchedule {
+    cadence: NonNullable<AutomationListItem["cadence"]>;
+    timeOfDayMinutes: number;
+    timezone: string;
+}
+
+type AutomationMutationResult =
+    | AutomationActionResult
+    | Awaited<ReturnType<typeof deleteAutomation>>;
 
 const TEMPLATE_ICON: Record<AutomationTemplateKey, LucideIcon> = {
     daily_digest: CalendarClock,
     next_actions: ListTodo,
     worth_revisiting: History,
 };
-
-const TEMPLATE_DEFINITION_BY_KEY = new Map<
-    AutomationTemplateKey,
-    AutomationTemplateDefinition
->(
-    AUTOMATION_TEMPLATE_DEFINITIONS.map(
-        (definition): [AutomationTemplateKey, AutomationTemplateDefinition] => [
-            definition.templateKey,
-            definition,
-        ]
-    )
-);
 
 const RUN_LABEL_BY_STATUS: Record<AutomationRunStatus, string | null> = {
     canceled: "Canceled",
@@ -90,6 +86,30 @@ const RUN_LABEL_BY_STATUS: Record<AutomationRunStatus, string | null> = {
     starting: null,
     succeeded: "Last ran",
 };
+
+interface AutomationsListContext {
+    automations: AutomationListItem[];
+    collections: AutomationCollectionOption[];
+}
+
+const AutomationsListContext =
+    React.createContext<AutomationsListContext | null>(null);
+
+function useAutomationsListContext(): AutomationsListContext {
+    const context = React.use(AutomationsListContext);
+    if (!context) {
+        throw new Error(
+            "AutomationsList compound components must be used within AutomationsList."
+        );
+    }
+    return context;
+}
+
+function getTemplateDefinition(templateKey: AutomationListItem["templateKey"]) {
+    return AUTOMATION_TEMPLATE_DEFINITIONS.find(
+        (definition) => definition.templateKey === templateKey
+    );
+}
 
 function getAutomationTemplateIcon(
     templateKey: AutomationListItem["templateKey"]
@@ -106,8 +126,8 @@ function toComposerAutomation(
     return {
         cadence:
             automation.cadence ??
-            getTemplateDefaultCadence(automation.templateKey) ??
-            DEFAULT_CADENCE,
+            getTemplateDefinition(automation.templateKey)?.cadence ??
+            "weekly",
         collectionId: automation.collectionId ?? undefined,
         id: automation.id,
         monthDay: automation.monthDay ?? undefined,
@@ -125,56 +145,35 @@ function toComposerAutomation(
 }
 
 function getAutomationDescription(automation: AutomationListItem) {
-    const definition = automation.templateKey
-        ? TEMPLATE_DEFINITION_BY_KEY.get(automation.templateKey)
-        : undefined;
-    return definition?.summary ?? automation.prompt;
-}
-
-function getTemplateDefaultCadence(
-    templateKey: AutomationListItem["templateKey"]
-) {
-    if (!templateKey) {
-        return;
-    }
-    return TEMPLATE_DEFINITION_BY_KEY.get(templateKey)?.cadence;
+    return (
+        getTemplateDefinition(automation.templateKey)?.summary ??
+        automation.prompt
+    );
 }
 
 function formatSchedule(automation: AutomationListItem): string | null {
     if (!isCompleteSchedule(automation)) {
         return null;
     }
-
     const time = formatTimeOfDayMinutes(automation.timeOfDayMinutes);
-
     if (automation.cadence === "weekly") {
-        const weekDayLabel =
-            automation.weekDay === null
-                ? null
-                : WEEK_DAY_LABELS[automation.weekDay];
-        if (weekDayLabel) {
-            return `${weekDayLabel}s at ${time}`;
+        if (automation.weekDay === null) {
+            return null;
         }
-        return `Weekly at ${time}`;
+        return `${WEEK_DAY_LABELS[automation.weekDay]}s at ${time}`;
     }
-
     if (automation.cadence === "monthly") {
-        if (automation.monthDay) {
-            return `Monthly on the ${getMonthDayLabel(automation.monthDay)} at ${time}`;
+        if (automation.monthDay === null) {
+            return null;
         }
-        return `Monthly at ${time}`;
+        return `Monthly on the ${getMonthDayLabel(automation.monthDay)} at ${time}`;
     }
-
     return `Daily at ${time}`;
 }
 
 function isCompleteSchedule(
     automation: AutomationListItem
-): automation is AutomationListItem & {
-    cadence: NonNullable<AutomationListItem["cadence"]>;
-    timeOfDayMinutes: number;
-    timezone: string;
-} {
+): automation is AutomationListItem & AutomationSchedule {
     if (!automation.cadence) {
         return false;
     }
@@ -202,13 +201,16 @@ function isSuggestedAutomation(automation: AutomationListItem) {
 }
 
 function getLastRunLabel(
-    lastRun: NonNullable<AutomationListItem["lastRun"]>
+    run: AutomationListItem["recentRuns"][number] | undefined
 ): string | null {
-    const label = RUN_LABEL_BY_STATUS[lastRun.status];
+    if (!run) {
+        return null;
+    }
+    const label = RUN_LABEL_BY_STATUS[run.status];
     if (!label) {
         return null;
     }
-    return `${label} ${dayjs(lastRun.createdAt).fromNow()}`;
+    return `${label} ${dayjs(run.createdAt).fromNow()}`;
 }
 
 function isTerminalRun(run: AutomationListItem["recentRuns"][number]): boolean {
@@ -224,78 +226,120 @@ export function AutomationsList({
     automations,
     collections,
 }: AutomationsListProps) {
-    if (automations.length === 0) {
-        return (
-            <section className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl bg-muted/50 p-8 text-center">
-                <Zap
-                    aria-hidden
-                    className="size-5 text-muted-foreground"
-                    focusable="false"
-                />
-                <div className="flex flex-col gap-1">
-                    <h2 className="font-medium text-foreground text-sm">
-                        <T>No automations yet</T>
-                    </h2>
-                    <p className="max-w-sm text-muted-foreground text-sm leading-6">
-                        <T>
-                            Create one to summarize or organize saved content on
-                            a schedule.
-                        </T>
-                    </p>
-                </div>
-            </section>
-        );
-    }
+    const contextValue = { automations, collections };
 
-    const configuredAutomations: AutomationListItem[] = [];
-    const suggestedAutomations: AutomationListItem[] = [];
-    for (const automation of automations) {
-        if (isSuggestedAutomation(automation)) {
-            suggestedAutomations.push(automation);
-            continue;
-        }
-        configuredAutomations.push(automation);
+    return (
+        <AutomationsListContext value={contextValue}>
+            <AutomationsListEmpty />
+            <div className="flex flex-col gap-8">
+                <AutomationsListManaged>
+                    {(automation) => (
+                        <AutomationsListItem
+                            automation={automation}
+                            key={automation.id}
+                        />
+                    )}
+                </AutomationsListManaged>
+                <AutomationsListSuggestions>
+                    {(automation) => (
+                        <AutomationsListSuggestionsItem
+                            automation={automation}
+                            key={automation.id}
+                        />
+                    )}
+                </AutomationsListSuggestions>
+            </div>
+        </AutomationsListContext>
+    );
+}
+
+function AutomationsListEmpty() {
+    const { automations } = useAutomationsListContext();
+
+    if (automations.length > 0) {
+        return null;
     }
 
     return (
-        <div className="flex flex-col gap-8">
-            {configuredAutomations.length > 0 ? (
-                <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {configuredAutomations.map((automation) => (
-                        <AutomationCard
-                            automation={automation}
-                            collections={collections}
-                            key={automation.id}
-                        />
-                    ))}
-                </section>
-            ) : null}
-            {suggestedAutomations.length > 0 ? (
-                <section className="flex flex-col gap-3">
-                    <h2 className="font-medium text-muted-foreground text-sm">
-                        <T>Suggested</T>
-                    </h2>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {suggestedAutomations.map((automation) => (
-                            <SuggestedAutomationCard
-                                automation={automation}
-                                collections={collections}
-                                key={automation.id}
-                            />
-                        ))}
-                    </div>
-                </section>
-            ) : null}
+        <div className="flex min-h-64 flex-col items-center justify-center gap-2 rounded-2xl bg-muted/50 p-8 text-center">
+            <Zap
+                aria-hidden
+                className="size-5 text-muted-foreground"
+                focusable="false"
+            />
+            <p className="font-medium text-foreground text-sm">
+                <T>No automations yet</T>
+            </p>
+            <p className="text-muted-foreground text-xs">
+                <T>
+                    Create one to summarize or organize saved content on a
+                    schedule.
+                </T>
+            </p>
         </div>
     );
 }
 
-interface AutomationCardProps {
-    automation: AutomationListItem;
-    collections: AutomationCollectionOption[];
+interface AutomationsListManagedProps {
+    children: (
+        automation: AutomationListItem,
+        index: number
+    ) => React.ReactNode;
 }
 
-function AutomationCard({ automation, collections }: AutomationCardProps) {
+function AutomationsListManaged({ children }: AutomationsListManagedProps) {
+    const { automations } = useAutomationsListContext();
+
+    const managedAutomations = automations.filter(
+        (automation) => !isSuggestedAutomation(automation)
+    );
+
+    if (managedAutomations.length === 0) {
+        return null;
+    }
+
+    return (
+        <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {managedAutomations.map(children)}
+        </ul>
+    );
+}
+
+interface AutomationsListSuggestionsProps {
+    children: (
+        automation: AutomationListItem,
+        index: number
+    ) => React.ReactNode;
+}
+
+function AutomationsListSuggestions({
+    children,
+}: AutomationsListSuggestionsProps) {
+    const { automations } = useAutomationsListContext();
+    const suggestedAutomations = automations.filter(isSuggestedAutomation);
+
+    if (suggestedAutomations.length === 0) {
+        return null;
+    }
+
+    return (
+        <section className="flex flex-col gap-3">
+            <h2 className="font-medium text-muted-foreground text-sm">
+                <T>Suggested</T>
+            </h2>
+            <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {suggestedAutomations.map(children)}
+            </ul>
+        </section>
+    );
+}
+
+interface AutomationsListItemProps {
+    automation: AutomationListItem;
+}
+
+function AutomationsListItem({ automation }: AutomationsListItemProps) {
+    const { collections } = useAutomationsListContext();
     const router = useRouter();
     const [isPending, startTransition] = React.useTransition();
     const [isEditOpen, setIsEditOpen] = React.useState(false);
@@ -307,53 +351,53 @@ function AutomationCard({ automation, collections }: AutomationCardProps) {
     const canDelete = !isActive;
     const canResume = !isActive && isCompleteSchedule(automation);
     const Icon = getAutomationTemplateIcon(automation.templateKey);
-    const description = getAutomationDescription(automation);
     const scheduleLabel = formatSchedule(automation);
-    const lastTerminalRun = automation.recentRuns.find(isTerminalRun);
-    const lastRunLabel = lastTerminalRun
-        ? getLastRunLabel(lastTerminalRun)
-        : null;
+    const lastRunLabel = getLastRunLabel(
+        automation.recentRuns.find(isTerminalRun)
+    );
 
-    const handleEditOpen = useStableCallback(() => {
-        setIsEditOpen(true);
-    });
-
-    const handlePause = useStableCallback(() => {
+    function handleAction(action: () => Promise<AutomationMutationResult>) {
         setActionErrorMessage(null);
         startTransition(async () => {
-            const result = await pauseAutomation({
-                automationId: automation.id,
-            });
+            const result = await action();
             if (result.status !== "SUCCESS") {
                 setActionErrorMessage(result.message);
                 return;
             }
             router.refresh();
         });
+    }
+
+    const handlePause = useStableCallback(() => {
+        handleAction(() => pauseAutomation({ automationId: automation.id }));
     });
 
     const handleResume = useStableCallback(() => {
         if (!isCompleteSchedule(automation)) {
             return;
         }
-        setActionErrorMessage(null);
-        startTransition(async () => {
-            const result = await resumeAutomation({
+        handleAction(() =>
+            resumeAutomation({
                 automationId: automation.id,
                 schedule: {
                     cadence: automation.cadence,
-                    monthDay: automation.monthDay,
+                    monthDay:
+                        automation.cadence === "monthly"
+                            ? automation.monthDay
+                            : null,
                     timeOfDayMinutes: automation.timeOfDayMinutes,
                     timezone: automation.timezone,
-                    weekDay: automation.weekDay,
+                    weekDay:
+                        automation.cadence === "weekly"
+                            ? automation.weekDay
+                            : null,
                 },
-            });
-            if (result.status !== "SUCCESS") {
-                setActionErrorMessage(result.message);
-                return;
-            }
-            router.refresh();
-        });
+            })
+        );
+    });
+
+    const handleEditOpen = useStableCallback(() => {
+        setIsEditOpen(true);
     });
 
     const handleEnableOrResume = useStableCallback(() => {
@@ -368,126 +412,56 @@ function AutomationCard({ automation, collections }: AutomationCardProps) {
         if (!canDelete) {
             return;
         }
-        setActionErrorMessage(null);
-        startTransition(async () => {
-            const result = await deleteAutomation({
-                automationId: automation.id,
-            });
-            if (result.status !== "SUCCESS") {
-                setActionErrorMessage(result.message);
-                return;
-            }
-            router.refresh();
-        });
+        handleAction(() => deleteAutomation({ automationId: automation.id }));
     });
 
     return (
-        <article className="group relative flex flex-col gap-3 rounded-2xl bg-muted/60 p-4">
+        <li className="flex list-none flex-col gap-3 rounded-2xl bg-muted/60 p-4">
             <div className="flex items-start justify-between gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-background text-muted-foreground shadow-xs/5">
                     <Icon aria-hidden className="size-4" focusable="false" />
                 </span>
-                <Menu>
-                    <MenuTrigger
-                        render={
-                            <Button
-                                aria-label={`Actions for ${automation.title}`}
-                                className="rounded-full text-muted-foreground"
-                                disabled={isPending}
-                                size="icon-xs"
-                                variant="ghost"
-                            />
-                        }
-                    >
-                        <Ellipsis
-                            aria-hidden
-                            className="size-4"
-                            focusable="false"
-                        />
-                    </MenuTrigger>
-                    <MenuPopup align="end" className="min-w-40">
-                        <MenuItem onClick={handleEditOpen}>
-                            <Pencil
-                                aria-hidden
-                                className="size-4 text-muted-foreground"
-                                focusable="false"
-                            />
-                            Edit
-                        </MenuItem>
-                        {isActive ? (
-                            <MenuItem
-                                disabled={isPending}
-                                onClick={handlePause}
-                            >
-                                <Pause
-                                    aria-hidden
-                                    className="size-4 text-muted-foreground"
-                                    focusable="false"
-                                />
-                                Pause
-                            </MenuItem>
-                        ) : (
-                            <MenuItem
-                                disabled={isPending}
-                                onClick={handleEnableOrResume}
-                            >
-                                <Play
-                                    aria-hidden
-                                    className="size-4 text-muted-foreground"
-                                    focusable="false"
-                                />
-                                {canResume ? "Resume" : "Enable"}
-                            </MenuItem>
-                        )}
-                        <MenuSeparator />
-                        <MenuItem
-                            disabled={isPending || !canDelete}
-                            onClick={canDelete ? handleDelete : undefined}
-                            variant="destructive"
-                        >
-                            <Trash2
-                                aria-hidden
-                                className="size-4"
-                                focusable="false"
-                            />
-                            Delete
-                        </MenuItem>
-                    </MenuPopup>
-                </Menu>
+                <AutomationsListItemMenu
+                    canDelete={canDelete}
+                    canResume={canResume}
+                    isActive={isActive}
+                    isPending={isPending}
+                    onDelete={handleDelete}
+                    onEdit={handleEditOpen}
+                    onEnableOrResume={handleEnableOrResume}
+                    onPause={handlePause}
+                    title={automation.title}
+                />
             </div>
             <div className="flex min-w-0 flex-col gap-1">
                 <div className="flex min-w-0 items-center gap-2">
-                    <h2 className="truncate font-medium text-foreground text-sm">
+                    <p className="truncate font-medium text-foreground text-sm">
                         {automation.title}
-                    </h2>
+                    </p>
                     {isActive ? null : (
                         <Badge variant="secondary">Paused</Badge>
                     )}
                 </div>
                 <p className="line-clamp-2 text-muted-foreground text-xs leading-5">
-                    {description}
+                    {getAutomationDescription(automation)}
                 </p>
-                <div className="flex items-center gap-4">
-                    {scheduleLabel ? (
-                        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                            {scheduleLabel}
-                        </p>
-                    ) : null}
-                    {lastRunLabel ? (
-                        <span className="text-[11px] text-muted-foreground/60">
-                            {lastRunLabel}
-                        </span>
-                    ) : null}
-                </div>
-                {actionErrorMessage ? (
-                    <p
-                        aria-live="polite"
-                        className="mt-1 text-destructive text-xs leading-5"
-                        role="status"
-                    >
-                        {actionErrorMessage}
-                    </p>
+                {scheduleLabel || lastRunLabel ? (
+                    <div className="flex items-center gap-4">
+                        {scheduleLabel ? (
+                            <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                                {scheduleLabel}
+                            </p>
+                        ) : null}
+                        {lastRunLabel ? (
+                            <span className="text-[11px] text-muted-foreground/60">
+                                {lastRunLabel}
+                            </span>
+                        ) : null}
+                    </div>
                 ) : null}
+                <ErrorMessage className="mt-1 leading-5">
+                    {actionErrorMessage}
+                </ErrorMessage>
             </div>
             <AutomationComposerDialog
                 automation={toComposerAutomation(automation)}
@@ -496,19 +470,106 @@ function AutomationCard({ automation, collections }: AutomationCardProps) {
                 open={isEditOpen}
                 trigger={null}
             />
-        </article>
+        </li>
     );
 }
 
-function SuggestedAutomationCard({
+interface AutomationsListItemMenuProps {
+    canDelete: boolean;
+    canResume: boolean;
+    isActive: boolean;
+    isPending: boolean;
+    onDelete: () => void;
+    onEdit: () => void;
+    onEnableOrResume: () => void;
+    onPause: () => void;
+    title: string;
+}
+
+function AutomationsListItemMenu({
+    canDelete,
+    canResume,
+    isActive,
+    isPending,
+    onDelete,
+    onEdit,
+    onEnableOrResume,
+    onPause,
+    title,
+}: AutomationsListItemMenuProps) {
+    return (
+        <Menu>
+            <MenuTrigger
+                render={
+                    <Button
+                        aria-label={`Actions for ${title}`}
+                        className="rounded-full text-muted-foreground"
+                        disabled={isPending}
+                        size="icon-xs"
+                        variant="ghost"
+                    />
+                }
+            >
+                <Ellipsis aria-hidden className="size-4" focusable="false" />
+            </MenuTrigger>
+            <MenuPopup align="end" className="min-w-40">
+                <MenuItem onClick={onEdit}>
+                    <Pencil
+                        aria-hidden
+                        className="size-4 text-muted-foreground"
+                        focusable="false"
+                    />
+                    Edit
+                </MenuItem>
+                {isActive ? (
+                    <MenuItem disabled={isPending} onClick={onPause}>
+                        <Pause
+                            aria-hidden
+                            className="size-4 text-muted-foreground"
+                            focusable="false"
+                        />
+                        Pause
+                    </MenuItem>
+                ) : (
+                    <MenuItem disabled={isPending} onClick={onEnableOrResume}>
+                        <Play
+                            aria-hidden
+                            className="size-4 text-muted-foreground"
+                            focusable="false"
+                        />
+                        {canResume ? "Resume" : "Enable"}
+                    </MenuItem>
+                )}
+                <MenuSeparator />
+                <MenuItem
+                    disabled={isPending || !canDelete}
+                    onClick={onDelete}
+                    variant="destructive"
+                >
+                    <Trash2
+                        aria-hidden
+                        className="size-4 text-muted-foreground"
+                        focusable="false"
+                    />
+                    Delete
+                </MenuItem>
+            </MenuPopup>
+        </Menu>
+    );
+}
+
+interface AutomationsListSuggestedItemProps {
+    automation: AutomationListItem;
+}
+
+function AutomationsListSuggestionsItem({
     automation,
-    collections,
-}: AutomationCardProps) {
+}: AutomationsListSuggestedItemProps) {
+    const { collections } = useAutomationsListContext();
     const Icon = getAutomationTemplateIcon(automation.templateKey);
-    const description = getAutomationDescription(automation);
 
     return (
-        <article className="flex flex-col gap-3 rounded-2xl bg-muted/60 p-4">
+        <li className="flex list-none flex-col gap-3 rounded-2xl bg-muted/60 p-4">
             <div className="flex items-start justify-between gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-background text-muted-foreground shadow-xs/5">
                     <Icon aria-hidden className="size-4" focusable="false" />
@@ -528,13 +589,13 @@ function SuggestedAutomationCard({
                 </AutomationComposerDialog>
             </div>
             <div className="flex min-w-0 flex-col gap-1">
-                <h2 className="truncate font-medium text-foreground text-sm">
+                <p className="truncate font-medium text-foreground text-sm">
                     {automation.title}
-                </h2>
+                </p>
                 <p className="line-clamp-2 text-muted-foreground text-xs leading-5">
-                    {description}
+                    {getAutomationDescription(automation)}
                 </p>
             </div>
-        </article>
+        </li>
     );
 }

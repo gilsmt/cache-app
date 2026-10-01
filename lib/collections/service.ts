@@ -46,7 +46,6 @@ const LIBRARY_ITEMS_PAGE_LIMIT_MAX = 9999;
 const COLLECTION_ITEMS_INSERT_CHUNK_SIZE = 1000;
 const LIBRARY_ITEM_TRASH_WINDOW_MS =
     LIBRARY_ITEM_TRASH_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const RECENTLY_DELETED_LIMIT_MAX = 200;
 const EXPIRED_LIBRARY_ITEM_PURGE_BATCH_SIZE = 1000;
 
@@ -1237,17 +1236,14 @@ interface CountRecentlyDeletedItemsArgs {
 
 interface RecentlyDeletedItem {
     collections: LibraryCollectionTag[];
-    daysRemaining: number;
     deletedAt: Date;
     item: LibraryItemWithCollections;
 }
 
 /**
- * Loads the calling user's tombstones ordered by `deletedAt desc`. Returns
- * each row plus a derived `daysRemaining` countdown used by the UI to
- * communicate when hard deletion will occur. The lazy expiry sweep runs
- * before listing so the user never sees items the next page load would
- * purge anyway.
+ * Loads the calling user's tombstones ordered by `deletedAt desc`. The lazy
+ * expiry sweep runs before listing so the user never sees items the next
+ * page load would purge anyway.
  */
 export async function listRecentlyDeletedItems({
     limit,
@@ -1275,20 +1271,11 @@ export async function listRecentlyDeletedItems({
         },
     });
 
-    return rows.map((item) => {
-        const deletedAt = item.deletedAt ?? now;
-        const expiresAt = deletedAt.getTime() + LIBRARY_ITEM_TRASH_WINDOW_MS;
-        const daysRemaining = Math.max(
-            0,
-            Math.round((expiresAt - now.getTime()) / DAY_IN_MS)
-        );
-        return {
-            collections: item.collections,
-            daysRemaining,
-            deletedAt,
-            item,
-        };
-    });
+    return rows.map((item) => ({
+        collections: item.collections,
+        deletedAt: item.deletedAt ?? now,
+        item,
+    }));
 }
 
 export function countRecentlyDeletedItems({

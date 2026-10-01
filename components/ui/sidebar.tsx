@@ -12,7 +12,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { ActivePathname } from "@/components/ui/active-pathname";
+import {
+    ActivePathname,
+    isPathnameActive,
+} from "@/components/ui/active-pathname";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdCombo } from "@/components/ui/kbd";
 import {
@@ -75,6 +78,84 @@ function readSidebarCookieOpen(): boolean {
     } catch {
         return true;
     }
+}
+
+interface SidebarMenuPromotedLink {
+    content: React.ReactNode;
+    href: string;
+    icon: React.ReactNode;
+    shortcutKeys?: string;
+}
+
+function getSidebarMenuLinkHref(child: React.ReactNode): string | null {
+    if (
+        React.isValidElement<{ href?: unknown }>(child) &&
+        typeof child.props.href === "string"
+    ) {
+        return child.props.href;
+    }
+    return null;
+}
+
+function getSidebarMenuPopupLinks(
+    popup: React.ReactElement<{ children?: React.ReactNode }>
+): React.ReactElement[] {
+    return React.Children.toArray(popup.props.children).filter(
+        (child): child is React.ReactElement =>
+            React.isValidElement(child) &&
+            getSidebarMenuLinkHref(child) !== null
+    );
+}
+
+function findSidebarMenuPopup(
+    menuChildren: React.ReactNode[]
+): React.ReactElement<{ children?: React.ReactNode }> | null {
+    for (const child of menuChildren) {
+        if (
+            React.isValidElement<{ children?: React.ReactNode }>(child) &&
+            child.props.children !== undefined &&
+            getSidebarMenuPopupLinks(child).length > 0
+        ) {
+            return child;
+        }
+    }
+    return null;
+}
+
+function findActiveSidebarMenuLink(
+    popupChildren: React.ReactNode[],
+    pathname: string | null
+): SidebarMenuPromotedLink | null {
+    if (!pathname) {
+        return null;
+    }
+    for (const element of popupChildren) {
+        if (
+            !React.isValidElement<{
+                href?: unknown;
+                icon?: React.ReactNode;
+                shortcutKeys?: unknown;
+                children?: React.ReactNode;
+            }>(element)
+        ) {
+            continue;
+        }
+        const { href, icon, shortcutKeys, children } = element.props;
+        if (typeof href !== "string") {
+            continue;
+        }
+        if (!isPathnameActive(pathname, href, "exact")) {
+            continue;
+        }
+        return {
+            content: children,
+            href,
+            icon,
+            shortcutKeys:
+                typeof shortcutKeys === "string" ? shortcutKeys : undefined,
+        };
+    }
+    return null;
 }
 
 export function SidebarProvider({
@@ -166,6 +247,7 @@ export function Sidebar({ className, side = "left", ...props }: SidebarProps) {
     return (
         <aside
             {...props}
+            aria-label="Sidebar"
             className={cn(
                 "peer group/sidebar relative inset-y-0 flex min-h-full w-full shrink-0 flex-col gap-8 overscroll-contain px-8 py-7 transition-[left,right,width,padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] data-[side=right]:right-0 data-[side=left]:left-0 motion-reduce:transition-none lg:w-[400px] lg:max-w-[400px] lg:justify-between lg:data-[state=collapsed]:w-16 lg:data-[state=collapsed]:px-3 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-[opacity,display] lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-discrete lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:duration-150 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:ease-out motion-reduce:lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-none lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:hidden lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:opacity-0 lg:[&_[data-sidebar-label]]:min-w-0 lg:[&_[data-sidebar-label]]:overflow-hidden lg:[&_[data-sidebar-label]]:text-nowrap lg:data-[state=collapsed]:[&_[data-sidebar=item]]:justify-center lg:data-[state=collapsed]:[&_[data-sidebar=item]]:px-0",
                 className
@@ -286,7 +368,7 @@ export function SidebarItem({
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
         className: cn(
-            "group relative flex h-8 max-h-8 min-h-8 min-w-0 flex-1 cursor-default select-none items-center gap-1.5 truncate rounded-lg px-2.5 text-left font-medium text-[13px] text-foreground leading-[normal] opacity-70 before:absolute before:inset-0 before:-z-10 before:rounded-lg before:bg-muted before:opacity-0 before:transition-transform before:duration-100 before:will-change-transform hover:opacity-100 hover:before:opacity-100 focus-visible:opacity-100 active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80! data-[active=true]:before:opacity-100",
+            "group relative flex h-8 max-h-8 min-h-8 min-w-0 flex-1 flex-1 cursor-default select-none items-center gap-1.5 truncate rounded-lg px-2.5 text-left font-medium text-[13px] text-foreground leading-[normal] opacity-70 before:absolute before:inset-0 before:-z-10 before:rounded-lg before:bg-muted before:opacity-0 before:transition-transform before:duration-100 before:will-change-transform hover:opacity-100 hover:before:opacity-100 focus-visible:opacity-100 active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80! data-[active=true]:before:opacity-100",
             className
         ),
         "data-sidebar": "item",
@@ -340,10 +422,93 @@ export function SidebarMenu({
     children,
     ...props
 }: React.ComponentProps<typeof Menu>) {
+    const pathname = usePathname();
+
+    if (typeof children === "function") {
+        return (
+            <li
+                className="list-none"
+                data-sidebar="menu"
+                data-slot="sidebar-menu"
+            >
+                <Menu {...props}>{children}</Menu>
+            </li>
+        );
+    }
+
+    const menuChildren = React.Children.toArray(children);
+    const popup = findSidebarMenuPopup(menuChildren);
+
+    if (!popup) {
+        return (
+            <li
+                className="list-none"
+                data-sidebar="menu"
+                data-slot="sidebar-menu"
+            >
+                <Menu {...props}>{children}</Menu>
+            </li>
+        );
+    }
+
+    const popupChildren = React.Children.toArray(popup.props.children);
+    const promoted = findActiveSidebarMenuLink(popupChildren, pathname);
+
+    if (!(promoted && pathname)) {
+        return (
+            <li
+                className="list-none"
+                data-sidebar="menu"
+                data-slot="sidebar-menu"
+            >
+                <Menu {...props}>{children}</Menu>
+            </li>
+        );
+    }
+
+    const remainingPopupChildren = popupChildren.filter((child) => {
+        const href = getSidebarMenuLinkHref(child);
+        return href === null || !isPathnameActive(pathname, href, "exact");
+    });
+
+    if (remainingPopupChildren.length === 0) {
+        return (
+            <SidebarMenuPromotedItem
+                href={promoted.href}
+                icon={promoted.icon}
+                shortcutKeys={promoted.shortcutKeys}
+            >
+                {promoted.content}
+            </SidebarMenuPromotedItem>
+        );
+    }
+
+    const filteredPopup = React.cloneElement(
+        popup,
+        undefined,
+        remainingPopupChildren
+    );
+    const filteredChildren = menuChildren.map((child) =>
+        child === popup ? filteredPopup : child
+    );
+
     return (
-        <li data-sidebar="menu" data-slot="sidebar-menu">
-            <Menu {...props}>{children}</Menu>
-        </li>
+        <>
+            <SidebarMenuPromotedItem
+                href={promoted.href}
+                icon={promoted.icon}
+                shortcutKeys={promoted.shortcutKeys}
+            >
+                {promoted.content}
+            </SidebarMenuPromotedItem>
+            <li
+                className="list-none"
+                data-sidebar="menu"
+                data-slot="sidebar-menu"
+            >
+                <Menu {...props}>{filteredChildren}</Menu>
+            </li>
+        </>
     );
 }
 
@@ -501,7 +666,11 @@ export function SidebarNavigationItem({
     const title = titleProp ?? ariaLabel;
 
     return (
-        <li data-sidebar="navigation-item" data-slot="sidebar-navigation-item">
+        <li
+            className="list-none"
+            data-sidebar="navigation-item"
+            data-slot="sidebar-navigation-item"
+        >
             {shortcutKeys ? (
                 <SidebarNavigationShortcut
                     href={href}
@@ -522,6 +691,46 @@ export function SidebarNavigationItem({
                             />
                         }
                     >
+                        {icon}
+                        <SidebarItemValue>{children}</SidebarItemValue>
+                        {shortcutKeys ? (
+                            <Kbd
+                                className="invisible ml-auto bg-transparent opacity-80 group-hover:visible group-focus-visible:visible"
+                                data-sidebar-label=""
+                            >
+                                <KbdCombo keys={shortcutKeys} />
+                            </Kbd>
+                        ) : null}
+                    </SidebarItem>
+                }
+            />
+        </li>
+    );
+}
+
+interface SidebarMenuPromotedItemProps {
+    children: React.ReactNode;
+    href: string;
+    icon: React.ReactNode;
+    shortcutKeys?: string;
+}
+
+function SidebarMenuPromotedItem({
+    href,
+    icon,
+    shortcutKeys,
+    children,
+}: SidebarMenuPromotedItemProps) {
+    return (
+        <li
+            className="list-none"
+            data-sidebar="navigation-item"
+            data-slot="sidebar-navigation-item"
+        >
+            <ActivePathname
+                href={href}
+                render={
+                    <SidebarItem render={<Link href={href} />}>
                         {icon}
                         <SidebarItemValue>{children}</SidebarItemValue>
                         {shortcutKeys ? (

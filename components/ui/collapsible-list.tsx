@@ -117,12 +117,14 @@ export function CollapsibleListHorizontal({
     );
 }
 
+/** @internal */
 function CollapsibleListOverflowTrigger({
     children,
     className,
     ...props
 }: React.ComponentProps<typeof CollapsibleTrigger>) {
     const [isOpen, setIsOpen] = React.useState(false);
+
     const count = React.Children.count(children);
 
     return (

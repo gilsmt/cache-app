@@ -21,7 +21,10 @@ import {
     purgeLibraryItem,
     restoreLibraryItem,
 } from "@/lib/collections/items";
-import type { LibraryItemWithCollections } from "@/lib/collections/utils";
+import {
+    getRecentlyDeletedDaysRemaining,
+    type LibraryItemWithCollections,
+} from "@/lib/collections/utils";
 import { ACTION_STATUS, ITEM_KIND_NOTE } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { parseDisplayUrl } from "@/lib/common/url";
@@ -42,6 +45,28 @@ interface ActionFailure {
 interface PendingAction {
     item: LibraryItemWithCollections;
     kind: "purge" | "restore";
+}
+
+interface RecentlyDeletedListContext {
+    items: LibraryItemWithCollections[];
+    onRequestAction: (
+        item: LibraryItemWithCollections,
+        kind: PendingAction["kind"]
+    ) => void;
+    onRequestDeleteAll: () => void;
+}
+
+const RecentlyDeletedListContext =
+    React.createContext<RecentlyDeletedListContext | null>(null);
+
+function useRecentlyDeletedListContext(): RecentlyDeletedListContext {
+    const context = React.use(RecentlyDeletedListContext);
+    if (!context) {
+        throw new Error(
+            "RecentlyDeletedList compound components must be used within RecentlyDeletedList."
+        );
+    }
+    return context;
 }
 
 function displayTitle(item: LibraryItemWithCollections): string {
@@ -66,14 +91,10 @@ function formatCountdownCopy(daysRemaining: number): React.ReactNode {
 }
 
 interface RecentlyDeletedListProps {
-    itemDaysRemainingById: Record<string, number>;
     items: LibraryItemWithCollections[];
 }
 
-export function RecentlyDeletedList({
-    itemDaysRemainingById,
-    items,
-}: RecentlyDeletedListProps) {
+export function RecentlyDeletedList({ items }: RecentlyDeletedListProps) {
     const [isPending, startTransition] = React.useTransition();
     const [activeAction, setActiveAction] =
         React.useState<PendingAction | null>(null);
@@ -139,10 +160,10 @@ export function RecentlyDeletedList({
                     serverMessage: response.message,
                 });
             } catch (error) {
-                log.error(
-                    `Failed to ${target.kind} recently deleted item`,
-                    error
-                );
+                log.error(`Failed to ${target.kind} recently deleted item`, {
+                    error,
+                    itemId: target.item.id,
+                });
                 setFailure({ kind: target.kind });
             }
         });
@@ -166,7 +187,9 @@ export function RecentlyDeletedList({
                     serverMessage: response.message,
                 });
             } catch (error) {
-                log.error("Failed to purge all recently deleted items", error);
+                log.error("Failed to purge all recently deleted items", {
+                    error,
+                });
                 setFailure({ kind: "purge-all" });
             }
         });
@@ -195,188 +218,134 @@ export function RecentlyDeletedList({
         }
     );
 
+    const contextValue = {
+        items: visibleItems,
+        onRequestAction: handleRequestAction,
+        onRequestDeleteAll: handleRequestDeleteAll,
+    };
+
     return (
-        <div className="flex flex-col gap-3">
-            {visibleItems.length === 0 ? (
-                <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl bg-muted/50 p-8 text-center">
-                    <p className="font-medium text-foreground text-sm">
-                        <T>Nothing to restore right now</T>
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                        <T>
-                            Items you remove from your library stay here for 30
-                            days before being deleted forever.
-                        </T>
-                    </p>
-                </div>
-            ) : (
-                <>
-                    <Button
-                        className="self-end"
-                        onClick={handleRequestDeleteAll}
-                        size="sm"
-                        variant="destructive-outline"
-                    >
-                        <Trash
-                            aria-hidden
-                            className="size-4"
-                            focusable="false"
-                        />
-                        <T>Delete all now</T>
-                    </Button>
-                    {visibleItems.map((item) => (
-                        <RecentlyDeletedRow
-                            daysRemaining={itemDaysRemainingById[item.id]}
-                            item={item}
-                            key={item.id}
-                            onRequestAction={handleRequestAction}
-                        />
-                    ))}
-                </>
-            )}
-            <Dialog
+        <RecentlyDeletedListContext value={contextValue}>
+            <div className="flex flex-col gap-3">
+                <RecentlyDeletedListEmpty />
+                <RecentlyDeletedListToolbar />
+                <RecentlyDeletedListContent>
+                    {(item) => (
+                        <RecentlyDeletedListItem item={item} key={item.id} />
+                    )}
+                </RecentlyDeletedListContent>
+            </div>
+            <RecentlyDeletedConfirmDialog
+                activeAction={activeAction}
+                failure={failure}
+                isPending={isPending}
+                onConfirm={handleConfirmAction}
                 onOpenChange={handleConfirmOpenChange}
                 onOpenChangeComplete={handleConfirmOpenChangeComplete}
                 open={isConfirmOpen}
-            >
-                <DialogPopup>
-                    {activeAction ? (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>
-                                    {activeAction.kind === "restore" ? (
-                                        <T>Restore this saved item?</T>
-                                    ) : (
-                                        <T>Delete forever?</T>
-                                    )}
-                                </DialogTitle>
-                                <DialogDescription>
-                                    {activeAction.kind === "restore" ? (
-                                        <T>
-                                            Move{" "}
-                                            <Var>
-                                                {displayTitle(
-                                                    activeAction.item
-                                                )}
-                                            </Var>{" "}
-                                            back to your library. Collections
-                                            and previews come back intact.
-                                        </T>
-                                    ) : (
-                                        <T>
-                                            Permanently delete{" "}
-                                            <Var>
-                                                {displayTitle(
-                                                    activeAction.item
-                                                )}
-                                            </Var>{" "}
-                                            from Cache. This cannot be undone.
-                                        </T>
-                                    )}
-                                </DialogDescription>
-                            </DialogHeader>
-                            {failure ? (
-                                <ErrorMessage className="px-6 pt-2">
-                                    <ActionFailureMessage failure={failure} />
-                                </ErrorMessage>
-                            ) : null}
-                            <DialogFooter>
-                                <DialogClose
-                                    disabled={isPending}
-                                    render={<Button variant="ghost" />}
-                                >
-                                    <T>Cancel</T>
-                                </DialogClose>
-                                <Button
-                                    isLoading={isPending}
-                                    onClick={handleConfirmAction}
-                                    variant={
-                                        activeAction.kind === "purge"
-                                            ? "destructive"
-                                            : "default"
-                                    }
-                                >
-                                    {activeAction.kind === "restore" ? (
-                                        <T>Restore</T>
-                                    ) : (
-                                        <T>Delete forever</T>
-                                    )}
-                                </Button>
-                            </DialogFooter>
-                        </>
-                    ) : null}
-                </DialogPopup>
-            </Dialog>
-            <Dialog
+            />
+            <RecentlyDeletedDeleteAllDialog
+                failure={failure}
+                isPending={isPending}
+                onDeleteAll={handleDeleteAll}
                 onOpenChange={handleDeleteAllDialogOpenChange}
                 onOpenChangeComplete={handleDeleteAllDialogOpenChangeComplete}
                 open={showDeleteAllDialog}
-            >
-                <DialogPopup>
-                    <DialogHeader>
-                        <DialogTitle>
-                            <T>Delete all items forever?</T>
-                        </DialogTitle>
-                        <DialogDescription>
-                            <T>
-                                Permanently delete all{" "}
-                                <Var>{visibleItems.length}</Var> items from
-                                Recently deleted. This cannot be undone.
-                            </T>
-                        </DialogDescription>
-                    </DialogHeader>
-                    {failure ? (
-                        <ErrorMessage className="px-6 pt-2">
-                            <ActionFailureMessage failure={failure} />
-                        </ErrorMessage>
-                    ) : null}
-                    <DialogFooter>
-                        <DialogClose
-                            disabled={isPending}
-                            render={<Button variant="ghost" />}
-                        >
-                            <T>Cancel</T>
-                        </DialogClose>
-                        <Button
-                            isLoading={isPending}
-                            onClick={handleDeleteAll}
-                            variant="destructive"
-                        >
-                            <T>Delete all</T>
-                        </Button>
-                    </DialogFooter>
-                </DialogPopup>
-            </Dialog>
+            />
+        </RecentlyDeletedListContext>
+    );
+}
+
+interface RecentlyDeletedListContentProps {
+    children: (
+        item: LibraryItemWithCollections,
+        index: number
+    ) => React.ReactNode;
+}
+
+function RecentlyDeletedListContent({
+    children,
+}: RecentlyDeletedListContentProps) {
+    const { items } = useRecentlyDeletedListContext();
+
+    if (items.length === 0) {
+        return null;
+    }
+
+    return (
+        <ul className="flex list-none flex-col gap-3">{items.map(children)}</ul>
+    );
+}
+
+function RecentlyDeletedListToolbar() {
+    const { items, onRequestDeleteAll } = useRecentlyDeletedListContext();
+
+    if (items.length === 0) {
+        return null;
+    }
+
+    return (
+        <Button
+            className="self-end"
+            onClick={onRequestDeleteAll}
+            size="sm"
+            variant="destructive-outline"
+        >
+            <Trash aria-hidden className="size-4" focusable="false" />
+            <T>Delete all</T>
+        </Button>
+    );
+}
+
+function RecentlyDeletedListEmpty() {
+    const { items } = useRecentlyDeletedListContext();
+
+    if (items.length > 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex min-h-64 flex-col items-center justify-center gap-2 rounded-2xl bg-muted/50 p-8 text-center">
+            <RotateCcw
+                aria-hidden
+                className="size-5 text-muted-foreground"
+                focusable="false"
+            />
+            <p className="font-medium text-foreground text-sm">
+                <T>Nothing to restore right now</T>
+            </p>
+            <p className="text-muted-foreground text-xs">
+                <T>
+                    Items you remove from your library stay here for 30 days
+                    before being deleted forever.
+                </T>
+            </p>
         </div>
     );
 }
 
-interface RecentlyDeletedRowProps {
-    daysRemaining?: number;
+interface RecentlyDeletedListItemProps {
     item: LibraryItemWithCollections;
-    onRequestAction: (
-        item: LibraryItemWithCollections,
-        kind: PendingAction["kind"]
-    ) => void;
 }
 
-function RecentlyDeletedRow({
-    item,
-    daysRemaining,
-    onRequestAction,
-}: RecentlyDeletedRowProps) {
+function RecentlyDeletedListItem({ item }: RecentlyDeletedListItemProps) {
+    const { onRequestAction } = useRecentlyDeletedListContext();
+
     const SourceIcon = getSourceIcon(item.source) ?? Trash;
     const displayUrl = parseDisplayUrl(item.url);
-    const handleRestore = useStableCallback(() =>
-        onRequestAction(item, "restore")
-    );
-    const handlePurge = useStableCallback(() => onRequestAction(item, "purge"));
-    const expiresSoon =
-        daysRemaining !== undefined &&
-        daysRemaining <= RECENTLY_DELETED_EXPIRES_SOON_DAYS;
+
+    const handleRestore = useStableCallback(() => {
+        onRequestAction(item, "restore");
+    });
+    const handlePurge = useStableCallback(() => {
+        onRequestAction(item, "purge");
+    });
+
+    const daysRemaining = getRecentlyDeletedDaysRemaining(item.deletedAt);
+    const expiresSoon = daysRemaining <= RECENTLY_DELETED_EXPIRES_SOON_DAYS;
 
     return (
-        <div className="flex items-start gap-4 rounded-2xl bg-muted/60 p-4">
+        <li className="flex list-none items-start gap-4 rounded-2xl bg-muted/60 p-4">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                 <SourceIcon aria-hidden className="size-5" focusable="false" />
             </div>
@@ -390,18 +359,16 @@ function RecentlyDeletedRow({
                     </p>
                 ) : null}
                 <div className="flex items-center gap-2 text-xs">
-                    {daysRemaining === undefined ? null : (
-                        <span
-                            className={cn(
-                                "rounded-full px-2 py-0.5 font-medium",
-                                expiresSoon
-                                    ? "bg-destructive/10 text-destructive"
-                                    : "bg-muted text-muted-foreground"
-                            )}
-                        >
-                            {formatCountdownCopy(daysRemaining)}
-                        </span>
-                    )}
+                    <span
+                        className={cn(
+                            "rounded-full px-2 py-0.5 font-medium",
+                            expiresSoon
+                                ? "bg-destructive/10 text-destructive"
+                                : "bg-muted text-muted-foreground"
+                        )}
+                    >
+                        {formatCountdownCopy(daysRemaining)}
+                    </span>
                     {item.collections.length === 0 ? null : (
                         <span className="truncate text-muted-foreground text-xs">
                             {item.collections.length === 1 ? (
@@ -416,25 +383,196 @@ function RecentlyDeletedRow({
                     )}
                 </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-                <Button onClick={handleRestore} size="sm" variant="outline">
-                    <RotateCcw
-                        aria-hidden
-                        className="size-4"
-                        focusable="false"
-                    />
-                    <T>Restore</T>
-                </Button>
-                <Button onClick={handlePurge} size="sm" variant="destructive">
-                    <Trash aria-hidden className="size-4" focusable="false" />
-                    <T>Delete forever</T>
-                </Button>
-            </div>
+            <RecentlyDeletedListItemControls
+                onPurge={handlePurge}
+                onRestore={handleRestore}
+            />
+        </li>
+    );
+}
+
+interface RecentlyDeletedListItemControlsProps {
+    onPurge: () => void;
+    onRestore: () => void;
+}
+
+function RecentlyDeletedListItemControls({
+    onPurge,
+    onRestore,
+}: RecentlyDeletedListItemControlsProps) {
+    return (
+        <div className="flex shrink-0 items-center gap-2">
+            <Button onClick={onRestore} size="sm" variant="outline">
+                <RotateCcw aria-hidden className="size-4" focusable="false" />
+                <T>Restore</T>
+            </Button>
+            <Button onClick={onPurge} size="sm" variant="destructive">
+                <Trash aria-hidden className="size-4" focusable="false" />
+                <T>Delete forever</T>
+            </Button>
         </div>
     );
 }
 
-function ActionFailureMessage({ failure }: { failure: ActionFailure }) {
+interface RecentlyDeletedConfirmDialogProps {
+    activeAction: PendingAction | null;
+    failure: ActionFailure | null;
+    isPending: boolean;
+    onConfirm: () => void;
+    onOpenChange: (open: boolean) => void;
+    onOpenChangeComplete: (isOpen: boolean) => void;
+    open: boolean;
+}
+
+function RecentlyDeletedConfirmDialog({
+    activeAction,
+    failure,
+    isPending,
+    onConfirm,
+    onOpenChange,
+    onOpenChangeComplete,
+    open,
+}: RecentlyDeletedConfirmDialogProps) {
+    return (
+        <Dialog
+            onOpenChange={onOpenChange}
+            onOpenChangeComplete={onOpenChangeComplete}
+            open={open}
+        >
+            <DialogPopup>
+                {activeAction ? (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>
+                                {activeAction.kind === "restore" ? (
+                                    <T>Restore this saved item?</T>
+                                ) : (
+                                    <T>Delete forever?</T>
+                                )}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {activeAction.kind === "restore" ? (
+                                    <T>
+                                        Move{" "}
+                                        <Var>
+                                            {displayTitle(activeAction.item)}
+                                        </Var>{" "}
+                                        back to your library. Collections and
+                                        previews come back intact.
+                                    </T>
+                                ) : (
+                                    <T>
+                                        Permanently delete{" "}
+                                        <Var>
+                                            {displayTitle(activeAction.item)}
+                                        </Var>{" "}
+                                        from Cache. This cannot be undone.
+                                    </T>
+                                )}
+                            </DialogDescription>
+                        </DialogHeader>
+                        {failure ? (
+                            <ErrorMessage className="px-6 pt-2">
+                                <ActionFailureMessage failure={failure} />
+                            </ErrorMessage>
+                        ) : null}
+                        <DialogFooter>
+                            <DialogClose
+                                disabled={isPending}
+                                render={<Button variant="ghost" />}
+                            >
+                                <T>Cancel</T>
+                            </DialogClose>
+                            <Button
+                                isLoading={isPending}
+                                onClick={onConfirm}
+                                variant={
+                                    activeAction.kind === "purge"
+                                        ? "destructive"
+                                        : "default"
+                                }
+                            >
+                                {activeAction.kind === "restore" ? (
+                                    <T>Restore</T>
+                                ) : (
+                                    <T>Delete forever</T>
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </>
+                ) : null}
+            </DialogPopup>
+        </Dialog>
+    );
+}
+
+interface RecentlyDeletedDeleteAllDialogProps {
+    failure: ActionFailure | null;
+    isPending: boolean;
+    onDeleteAll: () => void;
+    onOpenChange: (isOpen: boolean) => void;
+    onOpenChangeComplete: (isOpen: boolean) => void;
+    open: boolean;
+}
+
+function RecentlyDeletedDeleteAllDialog({
+    failure,
+    isPending,
+    onDeleteAll,
+    onOpenChange,
+    onOpenChangeComplete,
+    open,
+}: RecentlyDeletedDeleteAllDialogProps) {
+    const { items } = useRecentlyDeletedListContext();
+
+    return (
+        <Dialog
+            onOpenChange={onOpenChange}
+            onOpenChangeComplete={onOpenChangeComplete}
+            open={open}
+        >
+            <DialogPopup>
+                <DialogHeader>
+                    <DialogTitle>
+                        <T>Delete all items forever?</T>
+                    </DialogTitle>
+                    <DialogDescription>
+                        <T>
+                            Permanently delete all <Var>{items.length}</Var>{" "}
+                            items from Recently deleted. This cannot be undone.
+                        </T>
+                    </DialogDescription>
+                </DialogHeader>
+                {failure ? (
+                    <ErrorMessage className="px-6 pt-2">
+                        <ActionFailureMessage failure={failure} />
+                    </ErrorMessage>
+                ) : null}
+                <DialogFooter>
+                    <DialogClose
+                        disabled={isPending}
+                        render={<Button variant="ghost" />}
+                    >
+                        <T>Cancel</T>
+                    </DialogClose>
+                    <Button
+                        isLoading={isPending}
+                        onClick={onDeleteAll}
+                        variant="destructive"
+                    >
+                        <T>Delete all</T>
+                    </Button>
+                </DialogFooter>
+            </DialogPopup>
+        </Dialog>
+    );
+}
+
+interface ActionFailureMessageProps {
+    failure: ActionFailure;
+}
+
+function ActionFailureMessage({ failure }: ActionFailureMessageProps) {
     if (failure.serverMessage) {
         return <>{failure.serverMessage}</>;
     }
@@ -447,10 +585,7 @@ function ActionFailureMessage({ failure }: { failure: ActionFailure }) {
             return <T>We couldn't permanently delete your items right now.</T>;
         case "restore":
             return <T>We couldn't restore this saved item right now.</T>;
-        default: {
-            // Exhaustive over ActionFailureKind
-            const unreachable: never = failure.kind;
-            return unreachable;
-        }
+        default:
+            throw new Error(`Unhandled action failure kind: ${failure.kind}.`);
     }
 }

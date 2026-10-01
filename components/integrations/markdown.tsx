@@ -618,9 +618,10 @@ export function MarkdownImportDialog() {
                         {result.skipped.length}{" "}
                         {pluralize(result.skipped.length, "file")} left out
                     </summary>
-                    <ul className="mt-1 max-h-32 space-y-1 overflow-y-auto text-muted-foreground text-xs">
+                    <ul className="mt-1 max-h-32 list-none space-y-1 overflow-y-auto text-muted-foreground text-xs">
                         {result.skipped.map((skippedFile) => (
                             <li
+                                className="list-none"
                                 key={`${skippedFile.relativePath}-${skippedFile.message}`}
                             >
                                 <code>{skippedFile.relativePath}</code>:{" "}
@@ -636,9 +637,12 @@ export function MarkdownImportDialog() {
                         {result.errors.length}{" "}
                         {pluralize(result.errors.length, "error")}
                     </summary>
-                    <ul className="mt-1 max-h-32 space-y-1 overflow-y-auto text-muted-foreground text-xs">
+                    <ul className="mt-1 max-h-32 list-none space-y-1 overflow-y-auto text-muted-foreground text-xs">
                         {result.errors.map((error) => (
-                            <li key={`${error.relativePath}-${error.message}`}>
+                            <li
+                                className="list-none"
+                                key={`${error.relativePath}-${error.message}`}
+                            >
                                 <code>{error.relativePath}</code>:{" "}
                                 {error.message}
                             </li>

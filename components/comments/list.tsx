@@ -1,71 +1,123 @@
+"use client";
+
 import { T } from "gt-next";
 import { MessageSquare } from "lucide-react";
+import * as React from "react";
 import type { ItemCommentWithItem } from "@/lib/comment/service";
 import { FALLBACK_URL } from "@/lib/common/constants";
+import { dayjs } from "@/lib/common/dayjs";
 import { parseDisplayUrl, toValidUrl } from "@/lib/common/url";
 import { getSourceIcon } from "@/lib/integrations/support";
+
+const CommentsListContext = React.createContext<ItemCommentWithItem[] | null>(
+    null
+);
+
+function useCommentsListContext(): ItemCommentWithItem[] {
+    const context = React.use(CommentsListContext);
+    if (!context) {
+        throw new Error(
+            "CommentsList compound components must be used within CommentsList."
+        );
+    }
+    return context;
+}
 
 interface CommentsListProps {
     comments: ItemCommentWithItem[];
 }
 
 export function CommentsList({ comments }: CommentsListProps) {
+    return (
+        <CommentsListContext value={comments}>
+            <CommentsListEmpty />
+            <CommentsListContent>
+                {(comment) => (
+                    <CommentsListItem comment={comment} key={comment.id} />
+                )}
+            </CommentsListContent>
+        </CommentsListContext>
+    );
+}
+
+interface CommentsListContentProps {
+    children: (comment: ItemCommentWithItem, index: number) => React.ReactNode;
+}
+
+function CommentsListContent({ children }: CommentsListContentProps) {
+    const comments = useCommentsListContext();
+
     if (comments.length === 0) {
-        return (
-            <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl bg-muted/50 p-8 text-center">
-                <p className="font-medium text-foreground text-sm">
-                    <T>No comments yet</T>
-                </p>
-                <p className="text-muted-foreground text-xs">
-                    <T>
-                        Add a comment to any saved item and it will show up
-                        here.
-                    </T>
-                </p>
-            </div>
-        );
+        return null;
     }
 
     return (
-        <div className="flex flex-col gap-3">
-            {comments.map((comment) => (
-                <CommentRow comment={comment} key={comment.id} />
-            ))}
+        <ul className="flex list-none flex-col gap-3">
+            {comments.map(children)}
+        </ul>
+    );
+}
+
+function CommentsListEmpty() {
+    const comments = useCommentsListContext();
+
+    if (comments.length > 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex min-h-64 flex-col items-center justify-center gap-2 rounded-2xl bg-muted/50 p-8 text-center">
+            <MessageSquare
+                aria-hidden
+                className="size-5 text-muted-foreground"
+                focusable="false"
+            />
+            <p className="font-medium text-foreground text-sm">
+                <T>No comments yet</T>
+            </p>
+            <p className="text-muted-foreground text-xs">
+                <T>Add a comment to any saved item and it will show up here.</T>
+            </p>
         </div>
     );
 }
 
-interface CommentRowProps {
+interface CommentsListItemProps {
     comment: ItemCommentWithItem;
 }
 
-function CommentRow({ comment }: CommentRowProps) {
+function CommentsListItem({ comment }: CommentsListItemProps) {
     const href = toValidUrl(comment.item.url);
+
     if (href === FALLBACK_URL) {
         return (
-            <div className="flex items-start gap-4 rounded-2xl bg-muted/60 p-4">
-                <CommentRowContent comment={comment} />
-            </div>
+            <li className="list-none rounded-2xl bg-muted/60">
+                <div className="flex items-start gap-4 p-4">
+                    <CommentsListItemValue comment={comment} />
+                </div>
+            </li>
         );
     }
 
     return (
-        <a
-            className="flex items-start gap-4 rounded-2xl bg-muted/60 p-4 transition-colors hover:bg-muted"
-            href={href}
-            rel="noopener noreferrer"
-            target="_blank"
-        >
-            <CommentRowContent comment={comment} />
-        </a>
+        <li className="list-none rounded-2xl bg-muted/60">
+            <a
+                className="flex items-start gap-4 rounded-2xl p-4 transition-colors hover:bg-muted"
+                href={href}
+                rel="noopener noreferrer"
+                target="_blank"
+            >
+                <CommentsListItemValue comment={comment} />
+            </a>
+        </li>
     );
 }
 
-interface CommentRowContentProps {
+interface CommentsListItemValueProps {
     comment: ItemCommentWithItem;
 }
 
-function CommentRowContent({ comment }: CommentRowContentProps) {
+function CommentsListItemValue({ comment }: CommentsListItemValueProps) {
     const SourceIcon = getSourceIcon(comment.item.source) ?? MessageSquare;
     const displayUrl = parseDisplayUrl(comment.item.url);
     const title = comment.item.caption?.trim() || displayUrl;
@@ -90,6 +142,10 @@ function CommentRowContent({ comment }: CommentRowContentProps) {
                 <time
                     className="text-muted-foreground text-xs"
                     dateTime={comment.updatedAt.toISOString()}
+                    suppressHydrationWarning
+                    title={dayjs(comment.updatedAt).format(
+                        "MMM DD, YYYY, h:mm A"
+                    )}
                 >
                     {comment.updatedAt.toLocaleDateString(undefined, {
                         day: "numeric",

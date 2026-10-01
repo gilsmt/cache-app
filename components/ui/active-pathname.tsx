@@ -8,7 +8,7 @@ import { normalizePathname } from "@/lib/common/url";
 
 const HREF_SUFFIX_RE = /[?#]/;
 
-function isPathnameActive(
+export function isPathnameActive(
     pathname: string,
     href: string,
     match: "exact" | "prefix"

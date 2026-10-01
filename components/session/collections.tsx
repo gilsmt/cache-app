@@ -86,6 +86,8 @@ import {
     DataList,
     DataListGroup,
     DataListItem,
+    DataListLabel,
+    DataListValue,
 } from "@/components/ui/data-list";
 import {
     Dialog,
@@ -2178,7 +2180,7 @@ export function Collections() {
                     </CollectionsListContent>
                     <CollectionsListSuggestions>
                         {(template) => (
-                            <CollectionsListSuggestionItem
+                            <CollectionsListSuggestionsItem
                                 key={template.value}
                                 template={template}
                             />
@@ -2766,7 +2768,7 @@ function CollectionsListFavoritesItem({
                     onClick={handleClick}
                     render={
                         <SidebarItem
-                            className="w-full min-w-0 flex-1 justify-start pr-8 pl-8.5 text-left"
+                            className="justify-start pl-8.5 text-left focus-visible:pr-8 group-focus-within:pr-8 pointer-fine:group-hover:pr-8"
                             render={<Button variant="ghost" />}
                         />
                     }
@@ -3372,13 +3374,13 @@ function CollectionsListSuggestions({
     );
 }
 
-interface CollectionsListSuggestionItemProps {
+interface CollectionsListSuggestionsItemProps {
     template: CollectionTemplateOption;
 }
 
-function CollectionsListSuggestionItem({
+function CollectionsListSuggestionsItem({
     template,
-}: CollectionsListSuggestionItemProps) {
+}: CollectionsListSuggestionsItemProps) {
     const { showError, showSuccess } = useCollectionStatus();
     const { syncCreated } = useCollectionsListActionsContext();
     const { mutate: mutateSuggestions } = useCollectionsSuggestions();
@@ -3471,18 +3473,17 @@ function CollectionsListBreakdown({ entries }: CollectionsListBreakdownProps) {
         <DataList>
             <DataListGroup className="mt-0">
                 {entries.map(({ count, icon: Icon, label, value }) => (
-                    <DataListItem
-                        icon={
+                    <DataListItem key={value}>
+                        <DataListLabel>{label}</DataListLabel>
+                        <DataListValue>
                             <Icon
                                 aria-hidden
                                 className="size-4 text-muted-foreground sm:size-3.5"
                                 focusable="false"
                             />
-                        }
-                        key={value}
-                        label={label}
-                        value={count}
-                    />
+                            {count}
+                        </DataListValue>
+                    </DataListItem>
                 ))}
             </DataListGroup>
         </DataList>

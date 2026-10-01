@@ -5,6 +5,7 @@ import { useRender } from "@base-ui/react/use-render";
 import { cn } from "cn";
 import { ChevronDown } from "lucide-react";
 import type * as React from "react";
+import { Button } from "@/components/ui/button";
 import {
     Collapsible,
     CollapsiblePanel,
@@ -16,6 +17,8 @@ import {
     type StackedBarChartSegment,
 } from "@/components/ui/stacked-bar-chart";
 
+const FULL_WIDTH_BLEED = "-mx-2.5 w-[calc(100%+(--spacing(5)))]";
+
 export function DataList({
     className,
     render,
@@ -23,7 +26,7 @@ export function DataList({
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
         className: cn(
-            "grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 [&>*]:col-span-2",
+            "grid w-full grid-cols-[minmax(0,1fr)_auto] gap-1.5 [&>*]:col-span-2",
             className
         ),
         "data-slot": "data-list",
@@ -91,7 +94,8 @@ export function DataListSectionTrigger({
         <CollapsibleTrigger
             {...props}
             className={cn(
-                "group col-span-2 flex pointer-coarse:min-h-11 w-full items-center gap-1 text-left text-muted-foreground text-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:text-xs",
+                "group col-span-2 flex min-h-8 pointer-coarse:min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-left text-muted-foreground text-xs outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:min-h-7",
+                FULL_WIDTH_BLEED,
                 className
             )}
         >
@@ -125,72 +129,110 @@ export function DataListGroup({
     className,
     render,
     ...props
-}: useRender.ComponentProps<"dl">) {
+}: useRender.ComponentProps<"ul">) {
     const defaultProps = {
         className: cn(
-            "col-span-2 mt-1.5 grid grid-cols-subgrid gap-x-3 gap-y-2",
+            "col-span-2 m-0 mt-1.5 grid min-w-0 list-none grid-cols-subgrid gap-x-3 gap-y-2 p-0 pb-1.5",
             className
         ),
         "data-slot": "data-list-group",
     };
 
     return useRender({
-        defaultTagName: "dl",
-        props: mergeProps<"dl">(defaultProps, props),
+        defaultTagName: "ul",
+        props: mergeProps<"ul">(defaultProps, props),
         render,
     });
 }
 
-type DataListItemProps = Omit<useRender.ComponentProps<"div">, "children"> & {
-    label: React.ReactNode;
-    value: React.ReactNode;
-} & (
-        | { color: string; icon?: never }
-        | { color?: never; icon?: React.ReactNode }
-        | { color?: never; icon?: never }
-    );
-
 export function DataListItem({
     className,
-    color,
-    label,
-    value,
+    children,
     render,
-    icon,
     ...props
-}: DataListItemProps) {
+}: useRender.ComponentProps<"li">) {
     const defaultProps = {
         children: (
-            <>
-                <dt className="flex min-w-0 items-center text-foreground">
-                    <span className="min-w-0 truncate">{label}</span>
-                </dt>
-                <dd className="flex items-center justify-start gap-1.5 text-left text-foreground tabular-nums [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5">
-                    <span className="flex size-4 shrink-0 items-center justify-center sm:size-3.5">
-                        {color ? (
-                            <span
-                                aria-hidden
-                                className="size-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: color }}
-                            />
-                        ) : (
-                            (icon ?? null)
-                        )}
-                    </span>
-                    <span className="text-left">{value}</span>
-                </dd>
-            </>
+            <dl className="col-span-2 grid grid-cols-subgrid items-center gap-x-3 text-sm sm:text-xs">
+                {children}
+            </dl>
         ),
         className: cn(
-            "col-span-2 grid grid-cols-subgrid items-center gap-x-3 text-sm sm:text-xs",
+            "col-span-2 grid min-w-0 list-none grid-cols-subgrid",
             className
         ),
         "data-slot": "data-list-item",
     };
 
     return useRender({
-        defaultTagName: "div",
-        props: mergeProps<"div">(defaultProps, props),
+        defaultTagName: "li",
+        props: mergeProps<"li">(defaultProps, props),
         render,
     });
+}
+
+export function DataListLabel({
+    children,
+    className,
+    render,
+    ...props
+}: useRender.ComponentProps<"dt">) {
+    const defaultProps = {
+        children: <span className="min-w-0 truncate">{children}</span>,
+        className: cn("flex min-w-0 items-center text-foreground", className),
+        "data-slot": "data-list-label",
+    };
+
+    return useRender({
+        defaultTagName: "dt",
+        props: mergeProps<"dt">(defaultProps, props),
+        render,
+    });
+}
+
+export function DataListValue({
+    className,
+    render,
+    ...props
+}: useRender.ComponentProps<"dd">) {
+    const defaultProps = {
+        className: cn(
+            "flex min-w-0 items-center justify-start gap-1.5 text-left text-foreground tabular-nums [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5",
+            className
+        ),
+        "data-slot": "data-list-value",
+    };
+
+    return useRender({
+        defaultTagName: "dd",
+        props: mergeProps<"dd">(defaultProps, props),
+        render,
+    });
+}
+
+export function DataListItemButton({
+    className,
+    size = "sm",
+    type = "button",
+    variant = "ghost",
+    ...props
+}: React.ComponentProps<typeof Button>) {
+    return (
+        <li
+            className="col-span-2 min-w-0 list-none"
+            data-slot="data-list-item-button"
+        >
+            <Button
+                {...props}
+                className={cn(
+                    "flex shrink-0 justify-start font-normal text-muted-foreground text-xs!",
+                    FULL_WIDTH_BLEED,
+                    className
+                )}
+                size={size}
+                type={type}
+                variant={variant}
+            />
+        </li>
+    );
 }

@@ -5,6 +5,7 @@ import {
     FALLBACK_URL,
     ITEM_KIND_BOOKMARK,
     ITEM_KIND_NOTE,
+    LIBRARY_ITEM_TRASH_WINDOW_DAYS,
     SORT_ASC,
 } from "@/lib/common/constants";
 import { parseDate } from "@/lib/common/date";
@@ -42,6 +43,18 @@ export function isRecentlySmartCollected(
     }
     const ageMs = nowMs - collectedAt.getTime();
     return ageMs >= 0 && ageMs < SMART_COLLECTED_RECENT_WINDOW_MS;
+}
+
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+export function getRecentlyDeletedDaysRemaining(
+    deletedAt: Date | string | null | undefined,
+    nowMs = Date.now()
+): number {
+    const deletedAtMs = parseDate(deletedAt)?.getTime() ?? nowMs;
+    const expiresAtMs =
+        deletedAtMs + LIBRARY_ITEM_TRASH_WINDOW_DAYS * DAY_IN_MS;
+    return Math.max(0, Math.round((expiresAtMs - nowMs) / DAY_IN_MS));
 }
 
 // ---------------------------------------------------------------------------

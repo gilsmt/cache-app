@@ -16,7 +16,13 @@ export interface LibraryMetricsSegment<TKey extends string = string> {
     value: number;
 }
 
+export interface LibraryMetricsActivityPoint {
+    count: number;
+    date: string;
+}
+
 export interface LibraryMetricsSnapshot {
+    addedActivity: readonly LibraryMetricsActivityPoint[];
     addedInLast30DaysCount: number;
     duplicateCount: number;
     favoriteCount: number;
@@ -45,6 +51,7 @@ export function buildComposerMetrics({
     items: readonly LibraryMetricsItem[];
 }): LibraryMetricsSnapshot {
     const sourceCounts = new Map<LibraryItemSource, number>();
+    const addedCountsByDate = new Map<string, number>();
     const nowMs = Date.now();
     let addedInLast30DaysCount = 0;
     let favoriteCount = 0;
@@ -57,8 +64,20 @@ export function buildComposerMetrics({
         const addedAt = parseDate(item.createdAt);
         if (addedAt) {
             const ageMs = nowMs - addedAt.getTime();
-            if (ageMs >= 0 && ageMs < RECENT_ITEM_WINDOW_MS) {
-                addedInLast30DaysCount += 1;
+            if (ageMs >= 0) {
+                if (ageMs < RECENT_ITEM_WINDOW_MS) {
+                    addedInLast30DaysCount += 1;
+                }
+
+                const date = [
+                    String(addedAt.getFullYear()).padStart(4, "0"),
+                    String(addedAt.getMonth() + 1).padStart(2, "0"),
+                    String(addedAt.getDate()).padStart(2, "0"),
+                ].join("-");
+                addedCountsByDate.set(
+                    date,
+                    (addedCountsByDate.get(date) ?? 0) + 1
+                );
             }
         }
         if (item.favoritedAt !== null) {
@@ -100,6 +119,10 @@ export function buildComposerMetrics({
         );
 
     return {
+        addedActivity: Array.from(addedCountsByDate, ([date, count]) => ({
+            count,
+            date,
+        })),
         addedInLast30DaysCount,
         duplicateCount: collectDuplicateBookmarkItemIds(items).size,
         favoriteCount,

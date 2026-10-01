@@ -1,7 +1,6 @@
 "use client";
 
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
-import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
 import { cn } from "cn";
 import { XIcon } from "lucide-react";
 import * as React from "react";
@@ -19,22 +18,6 @@ const ComboboxContext: React.Context<ComboboxContext> =
         chipsRef: null,
         multiple: false,
     });
-
-function getTextFromReactNode(node: React.ReactNode): string {
-    if (node === null || typeof node === "boolean") {
-        return "";
-    }
-    if (typeof node === "string" || typeof node === "number") {
-        return String(node);
-    }
-    if (Array.isArray(node)) {
-        return node.map(getTextFromReactNode).join(" ");
-    }
-    if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
-        return getTextFromReactNode(node.props.children);
-    }
-    return "";
-}
 
 export function Combobox<Value, Multiple extends boolean | undefined = false>(
     props: ComboboxPrimitive.Root.Props<Value, Multiple>
@@ -383,85 +366,5 @@ export function ComboboxCollection(props: ComboboxPrimitive.Collection.Props) {
             {...props}
             data-slot="combobox-collection"
         />
-    );
-}
-
-interface ComboboxChipsProps extends ComboboxPrimitive.Chips.Props {
-    startAddon?: React.ReactNode;
-}
-
-export function ComboboxChips({
-    className,
-    children,
-    startAddon,
-    ref,
-    ...props
-}: ComboboxChipsProps) {
-    const { chipsRef } = React.use(ComboboxContext);
-    const mergedRef = useMergedRefs(ref, chipsRef);
-
-    return (
-        <ComboboxPrimitive.Chips
-            {...props}
-            className={cn(
-                "relative inline-flex min-h-9 w-full flex-wrap gap-1 rounded-lg border border-input bg-background not-dark:bg-clip-padding p-[calc(--spacing(1)-1px)] text-base shadow-xs/5 outline-none ring-ring/24 transition-shadow *:min-h-7 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] not-has-disabled:not-focus-within:not-aria-invalid:before:shadow-[0_1px_--theme(--color-black/4%)] focus-within:border-ring focus-within:ring-[3px] has-disabled:pointer-events-none has-data-[size=lg]:min-h-10 has-data-[size=sm]:min-h-8 has-aria-invalid:border-destructive/36 has-autofill:bg-foreground/4 has-disabled:opacity-64 has-[:disabled,:focus-within,[aria-invalid]]:shadow-none focus-within:has-aria-invalid:border-destructive/64 focus-within:has-aria-invalid:ring-destructive/16 has-data-[size=lg]:*:min-h-8 has-data-[size=sm]:*:min-h-6 sm:min-h-8 sm:text-sm sm:has-data-[size=lg]:min-h-9 sm:has-data-[size=sm]:min-h-7 sm:*:min-h-6 sm:has-data-[size=lg]:*:min-h-7 sm:has-data-[size=sm]:*:min-h-5 dark:not-has-disabled:bg-input/32 dark:has-autofill:bg-foreground/8 dark:has-aria-invalid:ring-destructive/24 dark:not-has-disabled:not-focus-within:not-aria-invalid:before:shadow-[0_-1px_--theme(--color-white/6%)]",
-                className
-            )}
-            data-slot="combobox-chips"
-            ref={mergedRef}
-        >
-            {startAddon ? (
-                <div
-                    aria-hidden
-                    className="flex shrink-0 items-center ps-2 opacity-80 has-[~[data-size=sm]]:has-[+[data-slot=combobox-chip]]:pe-1.5 has-[~[data-size=sm]]:ps-1.5 has-[+[data-slot=combobox-chip]]:pe-2 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:-ms-0.5 [&_svg]:-me-1.5"
-                    data-slot="combobox-start-addon"
-                >
-                    {startAddon}
-                </div>
-            ) : null}
-            {children}
-        </ComboboxPrimitive.Chips>
-    );
-}
-
-interface ComboboxChipProps extends ComboboxPrimitive.Chip.Props {
-    removeProps?: ComboboxPrimitive.ChipRemove.Props;
-}
-
-export function ComboboxChip({
-    children,
-    removeProps,
-    ...props
-}: ComboboxChipProps) {
-    const chipLabel = getTextFromReactNode(children).trim();
-
-    return (
-        <ComboboxPrimitive.Chip
-            {...props}
-            className="flex items-center rounded-[calc(var(--radius-md)-1px)] bg-accent ps-2 font-medium text-accent-foreground text-sm outline-none sm:text-xs/(--text-xs--line-height) [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5"
-            data-slot="combobox-chip"
-        >
-            {children}
-            <ComboboxChipRemove
-                {...removeProps}
-                aria-label={
-                    removeProps?.["aria-label"] ??
-                    (chipLabel ? `Remove ${chipLabel}` : "Remove")
-                }
-            />
-        </ComboboxPrimitive.Chip>
-    );
-}
-
-export function ComboboxChipRemove(props: ComboboxPrimitive.ChipRemove.Props) {
-    return (
-        <ComboboxPrimitive.ChipRemove
-            {...props}
-            aria-label="Remove"
-            className="h-full shrink-0 cursor-pointer px-1.5 opacity-80 hover:opacity-100 [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5"
-            data-slot="combobox-chip-remove"
-        >
-            <XIcon />
-        </ComboboxPrimitive.ChipRemove>
     );
 }

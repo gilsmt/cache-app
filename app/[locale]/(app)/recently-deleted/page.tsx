@@ -92,15 +92,7 @@ async function RecentlyDeletedPageBody() {
         <FadeIn>
             <div className="flex flex-col gap-8">
                 <RecentlyDeletedPageHeader />
-                <RecentlyDeletedList
-                    itemDaysRemainingById={Object.fromEntries(
-                        items.map((entry) => [
-                            entry.item.id,
-                            entry.daysRemaining,
-                        ])
-                    )}
-                    items={items.map((entry) => entry.item)}
-                />
+                <RecentlyDeletedList items={items.map((entry) => entry.item)} />
             </div>
         </FadeIn>
     );

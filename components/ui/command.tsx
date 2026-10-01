@@ -31,6 +31,7 @@ export function Command({
 interface CommandInputProps extends Omit<Autocomplete.Input.Props, "size"> {
     endAddon?: React.ReactNode;
     ref?: React.Ref<HTMLInputElement>;
+    render?: Autocomplete.Input.Props["render"];
     size?: InputSize;
     startAddon?: React.ReactNode;
 }
@@ -40,8 +41,19 @@ export function CommandInput({
     startAddon,
     size = "default",
     endAddon,
+    render,
     ...props
 }: CommandInputProps) {
+    const defaultClassName = cn(
+        "squircle min-h-11 rounded-full p-1.5",
+        "border border-input/50 bg-card shadow-xs outline-none ring-0 before:hidden has-focus-visible:border-border has-focus-visible:ring-0 has-focus-visible:ring-offset-0",
+        startAddon &&
+            "data-[size=sm]:*:data-[slot=input]:ps-[calc(--spacing(7.5)-1px)] *:data-[slot=input]:ps-[calc(--spacing(8.5)-1px)] sm:data-[size=sm]:*:data-[slot=input]:ps-[calc(--spacing(7)-1px)] sm:*:data-[slot=input]:ps-[calc(--spacing(9)-1px)]",
+        size === "sm"
+            ? "has-[+[data-slot=command-trigger],+[data-slot=command-clear]]:*:data-[slot=command-input]:pe-6.5"
+            : "has-[+[data-slot=command-trigger],+[data-slot=command-clear]]:*:data-[slot=command-input]:pe-7"
+    );
+
     return (
         <Autocomplete.InputGroup
             className="group/input relative z-1 flex w-full text-foreground"
@@ -60,25 +72,16 @@ export function CommandInput({
                 {...props}
                 autoCapitalize="sentences"
                 autoCorrect="on"
-                className={cn(
-                    "squircle min-h-11 rounded-full p-1.5",
-                    "border border-input/50 bg-card shadow-xs outline-none ring-0 before:hidden has-focus-visible:border-border has-focus-visible:ring-0 has-focus-visible:ring-offset-0",
-                    startAddon &&
-                        "data-[size=sm]:*:data-[slot=input]:ps-[calc(--spacing(7.5)-1px)] *:data-[slot=input]:ps-[calc(--spacing(8.5)-1px)] sm:data-[size=sm]:*:data-[slot=input]:ps-[calc(--spacing(7)-1px)] sm:*:data-[slot=input]:ps-[calc(--spacing(9)-1px)]",
-                    size === "sm"
-                        ? "has-[+[data-slot=command-trigger],+[data-slot=command-clear]]:*:data-[slot=command-input]:pe-6.5"
-                        : "has-[+[data-slot=command-trigger],+[data-slot=command-clear]]:*:data-[slot=command-input]:pe-7",
-                    className
-                )}
+                className={render ? className : cn(defaultClassName, className)}
                 data-slot="command-input"
                 inputMode="text"
-                render={<Input shouldUseNativeInput size={size} />}
+                render={render ?? <Input shouldUseNativeInput size={size} />}
                 spellCheck="true"
             />
             {endAddon ? (
                 // biome-ignore lint/a11y/useSemanticElements: groups input adornments without naming a form field group.
                 <div
-                    className="absolute inset-e-0.5 inset-y-0 z-10 flex shrink-0 flex-nowrap items-center justify-end gap-0.5 pe-[calc(--spacing(2)-1px)] has-[+[data-size=sm]]:pe-[calc(--spacing(1.5)-1px)]"
+                    className="absolute inset-e-0.5 top-1.5 z-10 flex shrink-0 flex-nowrap items-center justify-end gap-0.5 pe-[calc(--spacing(2)-1px)] has-[+[data-size=sm]]:pe-[calc(--spacing(1.5)-1px)]"
                     data-slot="command-end-addon"
                     role="group"
                 >

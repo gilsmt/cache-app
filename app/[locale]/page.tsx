@@ -317,16 +317,16 @@ export default async function Home() {
                                     span of a coffee break.
                                 </p>
                             </T>
-                            <ul className="mt-2 flex flex-col space-y-2 text-xs">
+                            <ul className="mt-2 flex list-none flex-col space-y-2 text-xs">
                                 <T context="Features">
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex list-none items-center gap-2">
                                         <Search className="inline-block size-4 shrink-0" />
                                         <span>
                                             Search by asking and Cache will find
                                             what you need
                                         </span>
                                     </li>
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex list-none items-center gap-2">
                                         <Lightbulb className="inline-block size-4 shrink-0" />
                                         <span>
                                             Discuss your bookmarks in context
@@ -364,16 +364,16 @@ export default async function Home() {
                                     to you.
                                 </p>
                             </T>
-                            <ul className="mt-2 flex flex-col space-y-2 text-xs">
+                            <ul className="mt-2 flex list-none flex-col space-y-2 text-xs">
                                 <T context="Features">
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex list-none items-center gap-2">
                                         <SquareMousePointer className="inline-block size-4 shrink-0" />
                                         <span>
                                             Save from anywhere with the browser
                                             extension
                                         </span>
                                     </li>
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex list-none items-center gap-2">
                                         <CloudDownload className="inline-block size-4 shrink-0" />
                                         <span>
                                             Share or export your collections
@@ -461,9 +461,9 @@ export default async function Home() {
                                     you when it's most useful.
                                 </p>
                             </T>
-                            <ul className="mt-2 flex flex-col space-y-2 text-xs">
+                            <ul className="mt-2 flex list-none flex-col space-y-2 text-xs">
                                 <T context="Features">
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex list-none items-center gap-2">
                                         <Workflow className="inline-block size-4 shrink-0" />
                                         <span>
                                             Set up simple routines that show you
@@ -471,7 +471,7 @@ export default async function Home() {
                                             and more
                                         </span>
                                     </li>
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex list-none items-center gap-2">
                                         <Bookmark className="inline-block size-4 shrink-0" />
                                         <span>
                                             Keep important links top of mind
@@ -506,16 +506,16 @@ export default async function Home() {
                                     interface.
                                 </p>
                             </T>
-                            <ul className="mt-2 flex flex-col space-y-2 text-xs">
+                            <ul className="mt-2 flex list-none flex-col space-y-2 text-xs">
                                 <T context="Features">
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex list-none items-center gap-2">
                                         <Terminal className="inline-block size-4 shrink-0" />
                                         <span>
                                             Use command menu and shortcuts for
                                             efficient workflows
                                         </span>
                                     </li>
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex list-none items-center gap-2">
                                         <Album className="inline-block size-4 shrink-0" />
                                         <span>
                                             Read articles without distractions
@@ -551,9 +551,9 @@ export default async function Home() {
                                     in minutes.
                                 </p>
                             </T>
-                            <ul className="mt-2 flex flex-col space-y-2 text-xs">
+                            <ul className="mt-2 flex list-none flex-col space-y-2 text-xs">
                                 <T context="Features">
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex list-none items-center gap-2">
                                         <Component className="inline-block size-4 shrink-0" />
                                         <span>
                                             <span className="font-medium">
@@ -563,7 +563,7 @@ export default async function Home() {
                                             from the inspiration
                                         </span>
                                     </li>
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex list-none items-center gap-2">
                                         <Unlink className="inline-block size-4 shrink-0" />
                                         <span>
                                             Filter duplicates and broken links

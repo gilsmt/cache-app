@@ -1,22 +1,62 @@
 "use client";
 
-import { Clock, Files, GlobeX, NotebookPen, Star } from "lucide-react";
+import { Calligraph } from "calligraph";
+import { cn } from "cn";
+import * as HeatGraph from "heat-graph";
+import {
+    Clock,
+    Files,
+    GlobeX,
+    Grid2x2,
+    Grid2x2X,
+    type LucideIcon,
+    NotebookPen,
+    Star,
+} from "lucide-react";
 import type * as React from "react";
+import { useState } from "react";
 import {
     DataList,
     DataListChart,
     DataListGroup,
     DataListItem,
+    DataListItemButton,
+    DataListLabel,
     DataListSection,
     DataListSectionContent,
     DataListSectionTrigger,
     DataListSeparator,
+    DataListValue,
 } from "@/components/ui/data-list";
-import type {
-    LibraryMetricsSegment,
-    LibraryMetricsSnapshot,
-} from "@/lib/collections/metrics";
+import {
+    Popover,
+    PopoverClose,
+    PopoverPopup,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import type { LibraryMetricsSnapshot } from "@/lib/collections/metrics";
 import { formatSharePercent } from "@/lib/common/number";
+
+const ACTIVITY_COLOR_SCALE = [
+    "var(--muted)",
+    "color-mix(in oklch, var(--primary) 20%, var(--muted))",
+    "color-mix(in oklch, var(--primary) 40%, var(--muted))",
+    "color-mix(in oklch, var(--primary) 65%, var(--muted))",
+    "var(--primary)",
+];
+
+const ACTIVITY_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+});
+
+interface LibraryRow {
+    icon: LucideIcon;
+    isHiddenWhenEmpty?: boolean;
+    label: string;
+    value: number;
+}
 
 function formatShareValue(value: number, total: number): React.ReactNode {
     if (total <= 0) {
@@ -36,12 +76,12 @@ function formatShareValue(value: number, total: number): React.ReactNode {
 
 interface SummaryDataListProps
     extends Omit<React.ComponentProps<typeof DataList>, "children"> {
-    children?: React.ReactNode;
+    actions?: React.ReactNode;
     metrics: LibraryMetricsSnapshot;
 }
 
 export function SummaryDataList({
-    children,
+    actions,
     metrics,
     ...props
 }: SummaryDataListProps) {
@@ -55,136 +95,270 @@ export function SummaryDataList({
         unreachableCount,
     } = metrics;
 
-    const additionalRows = [
+    const rows: readonly LibraryRow[] = [
+        { icon: Star, label: "Favorites", value: favoriteCount },
+        { icon: NotebookPen, label: "Notes", value: noteCount },
         {
-            icon: (
-                <Files
-                    aria-hidden
-                    className="size-4 sm:size-3.5"
-                    focusable="false"
-                />
-            ),
-            key: "duplicates",
+            icon: Clock,
+            isHiddenWhenEmpty: true,
+            label: "Added in last 30 days",
+            value: addedInLast30DaysCount,
+        },
+        {
+            icon: Files,
+            isHiddenWhenEmpty: true,
             label: "Duplicates",
             value: duplicateCount,
         },
         {
-            icon: (
-                <GlobeX
-                    aria-hidden
-                    className="size-4 sm:size-3.5"
-                    focusable="false"
-                />
-            ),
-            key: "unreachable",
+            icon: GlobeX,
+            isHiddenWhenEmpty: true,
             label: "Unreachable",
             value: unreachableCount,
         },
-    ].filter((row) => row.value > 0);
+    ].filter((row) => !row.isHiddenWhenEmpty || row.value > 0);
 
     return (
-        <DataList {...props}>
-            {children}
-            <SummaryBreakdownSection
-                isDefaultOpen
-                label="Summary"
-                segments={sourceSegments}
-                total={itemCount}
-            />
+        <DataList {...props} className="-my-2">
+            {actions ? (
+                <>
+                    {actions}
+                    <DataListSeparator />
+                </>
+            ) : null}
+            <DataListSection defaultOpen>
+                <DataListSectionTrigger
+                    endAddon={
+                        <DataListChart
+                            className="ml-auto max-w-1/3 group-data-open/collapsible:hidden"
+                            segments={sourceSegments}
+                        />
+                    }
+                >
+                    Summary
+                </DataListSectionTrigger>
+                <DataListSectionContent>
+                    <DataListChart segments={sourceSegments} />
+                    <DataListGroup>
+                        {sourceSegments.map((segment) => (
+                            <DataListItem key={segment.key}>
+                                <DataListLabel>{segment.label}</DataListLabel>
+                                <DataListValue>
+                                    <span className="flex size-4 shrink-0 items-center justify-center sm:size-3.5">
+                                        <span
+                                            aria-hidden
+                                            className="size-2 shrink-0 rounded-full"
+                                            style={{
+                                                backgroundColor: segment.color,
+                                            }}
+                                        />
+                                    </span>
+                                    {formatShareValue(segment.value, itemCount)}
+                                </DataListValue>
+                            </DataListItem>
+                        ))}
+                    </DataListGroup>
+                </DataListSectionContent>
+            </DataListSection>
             <DataListSeparator />
             <DataListSection>
                 <DataListSectionTrigger>Library</DataListSectionTrigger>
                 <DataListSectionContent>
                     <DataListGroup>
-                        <DataListItem
-                            icon={
-                                <Star
-                                    aria-hidden
-                                    className="size-4 sm:size-3.5"
-                                    focusable="false"
-                                />
-                            }
-                            label="Favorites"
-                            value={formatShareValue(favoriteCount, itemCount)}
-                        />
-                        <DataListItem
-                            icon={
-                                <NotebookPen
-                                    aria-hidden
-                                    className="size-4 sm:size-3.5"
-                                    focusable="false"
-                                />
-                            }
-                            label="Notes"
-                            value={formatShareValue(noteCount, itemCount)}
-                        />
-                        <DataListItem
-                            icon={
-                                <Clock
-                                    aria-hidden
-                                    className="size-4 sm:size-3.5"
-                                    focusable="false"
-                                />
-                            }
-                            label="Added in last 30 days"
-                            value={formatShareValue(
-                                addedInLast30DaysCount,
-                                itemCount
-                            )}
-                        />
-                        {additionalRows.map((row) => (
-                            <DataListItem
-                                icon={row.icon}
-                                key={row.key}
-                                label={row.label}
-                                value={formatShareValue(row.value, itemCount)}
-                            />
+                        {rows.map(({ icon: Icon, label, value }) => (
+                            <DataListItem key={label}>
+                                <DataListLabel>{label}</DataListLabel>
+                                <DataListValue>
+                                    <Icon
+                                        aria-hidden
+                                        className="size-4 sm:size-3.5"
+                                        focusable="false"
+                                    />
+                                    {formatShareValue(value, itemCount)}
+                                </DataListValue>
+                            </DataListItem>
                         ))}
                     </DataListGroup>
+                </DataListSectionContent>
+            </DataListSection>
+            <DataListSeparator />
+            <DataListSection>
+                <DataListSectionTrigger>Activity</DataListSectionTrigger>
+                <DataListSectionContent>
+                    <ActivityHeatmap activity={metrics.addedActivity} />
                 </DataListSectionContent>
             </DataListSection>
         </DataList>
     );
 }
 
-interface SummaryBreakdownSectionProps {
-    isDefaultOpen?: boolean;
-    label: string;
-    segments: readonly LibraryMetricsSegment[];
-    total: number;
+export function Summary(props: React.ComponentProps<typeof Popover>) {
+    return <Popover {...props} />;
 }
 
-function SummaryBreakdownSection({
-    isDefaultOpen,
-    label,
-    segments,
-    total,
-}: SummaryBreakdownSectionProps) {
+interface SummaryTriggerProps
+    extends Omit<
+        React.ComponentProps<typeof PopoverTrigger>,
+        "children" | "render"
+    > {
+    hasActiveFilters: boolean;
+    render: React.ReactElement;
+    resultsSummary: string;
+    sectionCount: number;
+    showSectionCount: boolean;
+}
+
+export function SummaryTrigger({
+    hasActiveFilters,
+    render,
+    resultsSummary,
+    sectionCount,
+    showSectionCount,
+    ...props
+}: SummaryTriggerProps) {
     return (
-        <DataListSection defaultOpen={isDefaultOpen}>
-            <DataListSectionTrigger
-                endAddon={
-                    <DataListChart
-                        className="ml-auto max-w-1/3 group-data-open/collapsible:hidden"
-                        segments={segments}
-                    />
+        <PopoverTrigger openOnHover {...props} render={render}>
+            {hasActiveFilters ? (
+                <Grid2x2X className="inline-block size-3.5 shrink-0" />
+            ) : (
+                <Grid2x2 className="inline-block size-3.5 shrink-0" />
+            )}
+            <span className="min-w-0 truncate tabular-nums">
+                &nbsp;Showing <Calligraph>{resultsSummary}</Calligraph>
+                {showSectionCount ? (
+                    <>
+                        , <Calligraph>{sectionCount}</Calligraph> group
+                        {sectionCount === 1 ? "" : "s"}
+                    </>
+                ) : null}
+            </span>
+        </PopoverTrigger>
+    );
+}
+
+interface SummaryPopupProps
+    extends Omit<React.ComponentProps<typeof PopoverPopup>, "children"> {
+    metrics: LibraryMetricsSnapshot;
+    onClearFilters?: () => void;
+}
+
+export function SummaryPopup({
+    className,
+    metrics,
+    onClearFilters,
+    ...props
+}: SummaryPopupProps) {
+    return (
+        <PopoverPopup
+            align="start"
+            {...props}
+            className={cn("w-72", className)}
+            positionMethod="fixed"
+            side="top"
+        >
+            <SummaryDataList
+                actions={
+                    onClearFilters ? (
+                        <PopoverClose
+                            render={
+                                <DataListItemButton onClick={onClearFilters} />
+                            }
+                        >
+                            Reset filters
+                        </PopoverClose>
+                    ) : undefined
                 }
+                metrics={metrics}
+            />
+        </PopoverPopup>
+    );
+}
+
+interface ActivityHeatmapProps {
+    activity: LibraryMetricsSnapshot["addedActivity"];
+}
+
+function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
+    const [activeLabel, setActiveLabel] = useState<string | null>(null);
+
+    return (
+        <div className="col-span-full grid min-w-0 gap-3">
+            <HeatGraph.Root
+                aria-label="Daily item additions over the past year. Focus a filled day to see its count."
+                className="grid min-w-0 gap-2"
+                colorScale={ACTIVITY_COLOR_SCALE}
+                data={[...activity]}
+                role="group"
+                weekStart="monday"
             >
-                {label}
-            </DataListSectionTrigger>
-            <DataListSectionContent>
-                <DataListChart segments={segments} />
-                <DataListGroup>
-                    {segments.map((segment) => (
-                        <DataListItem
-                            color={segment.color}
-                            key={segment.key}
-                            label={segment.label}
-                            value={formatShareValue(segment.value, total)}
-                        />
-                    ))}
-                </DataListGroup>
-            </DataListSectionContent>
-        </DataListSection>
+                <div className="relative h-3 overflow-clip text-[10px] text-muted-foreground/80">
+                    <HeatGraph.MonthLabels>
+                        {({ label, totalWeeks }) =>
+                            label.month % 3 === 0 ? (
+                                <span
+                                    className="absolute"
+                                    style={{
+                                        left: `${(label.column / totalWeeks) * 100}%`,
+                                    }}
+                                >
+                                    {HeatGraph.MONTH_SHORT[label.month]}
+                                </span>
+                            ) : null
+                        }
+                    </HeatGraph.MonthLabels>
+                </div>
+                <HeatGraph.Grid className="gap-[1.5px]">
+                    {({ cell }) => {
+                        const isActiveDay = cell.count > 0;
+                        const label = isActiveDay
+                            ? `${cell.count} item${cell.count === 1 ? "" : "s"} added ${ACTIVITY_DATE_FORMATTER.format(cell.date)}`
+                            : undefined;
+
+                        return (
+                            <HeatGraph.Cell
+                                aria-hidden={!isActiveDay}
+                                aria-label={label}
+                                className="aspect-square min-w-0 rounded-[1px] focus-visible:ring-2 focus-visible:ring-ring"
+                                onFocus={
+                                    label
+                                        ? () => setActiveLabel(label)
+                                        : undefined
+                                }
+                                role={isActiveDay ? "img" : undefined}
+                                tabIndex={isActiveDay ? 0 : undefined}
+                                title={label}
+                            />
+                        );
+                    }}
+                </HeatGraph.Grid>
+                <HeatGraph.Tooltip className="z-50 rounded-md border bg-popover px-2 py-1 text-popover-foreground text-xs shadow-md">
+                    {({ cell }) => (
+                        <div>
+                            {cell.count} item{cell.count === 1 ? "" : "s"} added{" "}
+                            {ACTIVITY_DATE_FORMATTER.format(cell.date)}
+                        </div>
+                    )}
+                </HeatGraph.Tooltip>
+                {activeLabel ? (
+                    <p className="text-[11px] text-muted-foreground">
+                        {activeLabel}
+                    </p>
+                ) : null}
+            </HeatGraph.Root>
+            <div
+                aria-hidden="true"
+                className="flex items-center justify-end gap-1 text-[9px] text-muted-foreground"
+            >
+                <span>Less</span>
+                {ACTIVITY_COLOR_SCALE.map((color) => (
+                    <span
+                        className="size-1.5 rounded-xs"
+                        key={color}
+                        style={{ backgroundColor: color }}
+                    />
+                ))}
+                <span>More</span>
+            </div>
+        </div>
     );
 }

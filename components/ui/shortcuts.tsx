@@ -227,7 +227,6 @@ export function KeyboardShortcutsDialogTrigger(
                         >
                             <CommandInput
                                 aria-label={gt("Search shortcuts")}
-                                className="rounded-xl"
                                 placeholder={gt("Search shortcuts")}
                                 startAddon={
                                     <SearchIcon
@@ -240,7 +239,7 @@ export function KeyboardShortcutsDialogTrigger(
                                 <T>No shortcuts found</T>
                             </CommandEmpty>
                             <CommandList
-                                className="px-0"
+                                className="not-empty:px-0"
                                 shouldUseScrollArea={false}
                             >
                                 {(group: ShortcutGroup) => (

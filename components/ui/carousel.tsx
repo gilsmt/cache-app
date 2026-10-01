@@ -41,6 +41,7 @@ interface UseCarouselScrollOverflowOptions {
     resetKey: unknown;
 }
 
+// This could eventually be replaced by the CSS native `scroll()` property with something like https://github.com/petekp/tw-fade
 function useCarouselScrollOverflow({
     handleRef,
     isEnabled,
