@@ -13,12 +13,11 @@ function escapeRegExpLiteral(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const QUERY_TERM_SEPARATOR = /\s+/;
+
 /**
- * Splits text into ordered, non-empty chunks around every case-insensitive,
- * literal occurrence of query (regex metacharacters in the query are matched
- * literally).
- *
- * An empty query yields a single unhighlighted chunk; empty text yields none.
+ * Splits text around each whitespace-separated query term (literal,
+ * case-insensitive, non-overlapping).
  */
 export function splitMatches(
     textToHighlight: string,
@@ -33,8 +32,20 @@ export function splitMatches(
         return [{ chunk: textToHighlight, highlight: false, start: 0 }];
     }
 
+    const terms = [
+        ...new Set(
+            normalizedQuery
+                .split(QUERY_TERM_SEPARATOR)
+                .filter((term) => term.length > 0)
+        ),
+    ];
+    if (terms.length === 0) {
+        return [{ chunk: textToHighlight, highlight: false, start: 0 }];
+    }
+    terms.sort((left, right) => right.length - left.length);
+
     const pattern = new RegExp(
-        `(${escapeRegExpLiteral(normalizedQuery)})`,
+        `(${terms.map(escapeRegExpLiteral).join("|")})`,
         "giu"
     );
 
@@ -48,6 +59,7 @@ export function splitMatches(
         }
         start += segment.length;
     }
+
     return chunks;
 }
 

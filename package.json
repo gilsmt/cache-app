@@ -42,6 +42,7 @@
         "@blossom-carousel/react": "1.5.2",
         "@braintree/sanitize-url": "7.1.2",
         "@google/genai": "2.25.0",
+        "@leeoniya/ufuzzy": "1.0.19",
         "@lexical/a11y": "0.52.0",
         "@lexical/extension": "0.52.0",
         "@lexical/history": "0.52.0",
