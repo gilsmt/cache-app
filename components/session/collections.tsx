@@ -4836,9 +4836,13 @@ function CollectionsDeleteDialog() {
                     <DialogHeader>
                         <DialogTitle>Delete collection?</DialogTitle>
                         <DialogDescription>
-                            Remove {pendingDelete?.name || "this collection"}{" "}
-                            from Cache. Saved items will remain in your library,
-                            but they won't belong to this collection anymore.
+                            This will delete{" "}
+                            <strong>
+                                {pendingDelete?.name || "this collection"}
+                            </strong>{" "}
+                            from your Cache. Saved items will remain in your
+                            library, but they won't belong to this collection
+                            anymore.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogPanel>

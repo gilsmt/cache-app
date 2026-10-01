@@ -258,7 +258,11 @@ import { revokeFileAttachmentObjectUrl, saveFile } from "@/lib/common/file";
 import { filterValidImageUrls } from "@/lib/common/image";
 import { getImageColors } from "@/lib/common/image-color";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { normalizeWhitespace, slugify } from "@/lib/common/string";
+import {
+    normalizeWhitespace,
+    slugify,
+    truncateText,
+} from "@/lib/common/string";
 import { fetchWithTimeout } from "@/lib/common/timeout";
 import {
     normalizeURL,
@@ -6876,15 +6880,18 @@ function DeleteItemDialog({
             <DialogPopup>
                 <DialogHeader>
                     <DialogTitle>
-                        <T>Delete?</T>
+                        <T>Delete entry?</T>
                     </DialogTitle>
                     <DialogDescription>
                         <T>
                             <Var>
-                                {pendingDeleteItem?.noteContentText?.trim() ||
-                                    pendingDeleteItem?.caption?.trim() ||
-                                    pendingDeleteItem?.url ||
-                                    "This saved item"}
+                                {truncateText(
+                                    pendingDeleteItem?.noteContentText?.trim() ||
+                                        pendingDeleteItem?.caption?.trim() ||
+                                        pendingDeleteItem?.url ||
+                                        "This saved item",
+                                    64
+                                )}
                             </Var>{" "}
                             will be moved to Recently deleted. You have 30 days
                             to restore it before it's permanently deleted. This
