@@ -2,7 +2,7 @@
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
-import { Plural, T, useGT, Var } from "gt-next";
+import { T, useGT } from "gt-next";
 import {
     Archive,
     ArchiveRestore,
@@ -19,7 +19,6 @@ import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import { ActivePathname } from "@/components/ui/active-pathname";
 import { Button } from "@/components/ui/button";
-import { ClientOnly } from "@/components/ui/client-only";
 import {
     Collapsible,
     CollapsiblePanel,
@@ -27,7 +26,6 @@ import {
 } from "@/components/ui/collapsible";
 import { CollapsibleListVertical } from "@/components/ui/collapsible-list";
 import { ErrorMessage } from "@/components/ui/error-message";
-import { HighlightIn } from "@/components/ui/highlight-in";
 import { ChevronDownFilledIcon } from "@/components/ui/icons";
 import {
     Menu,
@@ -48,8 +46,6 @@ import { AutomationRunStatus } from "@/prisma/client/enums";
 
 const THREADS_OPEN_STORAGE_KEY = "cache:threads:open";
 const THREADS_LIST_VIEW_STORAGE_KEY = "cache:threads:view:v1";
-
-const THREAD_SIDEBAR_UPDATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type ThreadListView = "show-all" | "exclude-archives";
 
@@ -82,12 +78,6 @@ const { useStore: useThreadsListStore } = createStore({
         storageKey: THREADS_LIST_VIEW_STORAGE_KEY,
     }),
 });
-
-function getThreadsUpdateCount(threads: ThreadListItem[]): number {
-    const cutoff = Date.now() - THREAD_SIDEBAR_UPDATE_WINDOW_MS;
-    return threads.filter((thread) => thread.updatedAt.getTime() >= cutoff)
-        .length;
-}
 
 function getVisibleThreads(
     threads: ThreadListItem[],
@@ -170,9 +160,6 @@ export function Threads({ threads }: ThreadsListProps) {
                         <T>Recents</T>
                     </ThreadsListTrigger>
                     <ToolbarGroup>
-                        <ClientOnly>
-                            <ThreadsListUpdateCount />
-                        </ClientOnly>
                         <ToolbarButton render={<ThreadsListFilterTrigger />} />
                     </ToolbarGroup>
                 </Toolbar>
@@ -273,39 +260,6 @@ function ThreadsListFilterTrigger(
                 </MenuRadioGroup>
             </MenuPopup>
         </Menu>
-    );
-}
-
-function ThreadsListUpdateCount() {
-    const { visibleThreads } = useThreadsListContext();
-
-    const count = getThreadsUpdateCount(visibleThreads);
-
-    if (count <= 0) {
-        return null;
-    }
-
-    return (
-        <HighlightIn
-            className="shrink-0 text-[11px] text-muted-foreground"
-            key={count}
-        >
-            <T>
-                <Plural
-                    n={count}
-                    plural={
-                        <>
-                            <Var>{count}</Var> updates
-                        </>
-                    }
-                    singular={
-                        <>
-                            <Var>{count}</Var> update
-                        </>
-                    }
-                />
-            </T>
-        </HighlightIn>
     );
 }
 
