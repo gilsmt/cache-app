@@ -29,6 +29,7 @@ import { ErrorMessage } from "@/components/ui/error-message";
 import { ChevronDownFilledIcon } from "@/components/ui/icons";
 import {
     Menu,
+    MenuGroupLabel,
     MenuPopup,
     MenuRadioGroup,
     MenuRadioItem,
@@ -237,6 +238,7 @@ function ThreadsListFilterTrigger(
             </MenuTrigger>
             <MenuPopup align="end" side="bottom">
                 <MenuRadioGroup onValueChange={handleViewChange} value={view}>
+                    <MenuGroupLabel>Show</MenuGroupLabel>
                     <MenuRadioItem value="show-all">
                         <span className="flex items-center gap-2">
                             <LayoutList
