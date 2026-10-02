@@ -1,23 +1,23 @@
 import { connection } from "next/server";
 import * as React from "react";
-import { ChatsList } from "@/components/session/chats";
 import { SidebarPanel } from "@/components/session/sidebar";
+import { Threads } from "@/components/session/threads";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";
-import { listChats } from "@/lib/chats/service";
+import { listThreads } from "@/lib/threads/service";
 
-export default function ChatsLayout({ children }: React.PropsWithChildren) {
+export default function ThreadsLayout({ children }: React.PropsWithChildren) {
     return (
         <>
-            <React.Suspense fallback={<ChatsSidebarSkeleton />}>
-                <ChatsSidebar />
+            <React.Suspense fallback={<ThreadsSidebarSkeleton />}>
+                <ThreadsSidebar />
             </React.Suspense>
             {children}
         </>
     );
 }
 
-async function ChatsSidebar() {
+async function ThreadsSidebar() {
     await connection();
 
     const session = await getServerSession();
@@ -27,16 +27,16 @@ async function ChatsSidebar() {
         return <SidebarPanel />;
     }
 
-    const chats = await listChats({ userId });
+    const threads = await listThreads({ userId });
 
     return (
         <SidebarPanel>
-            <ChatsList chats={chats} />
+            <Threads threads={threads} />
         </SidebarPanel>
     );
 }
 
-function ChatsSidebarSkeleton() {
+function ThreadsSidebarSkeleton() {
     return (
         <SidebarPanel>
             <div

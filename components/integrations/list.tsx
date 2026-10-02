@@ -526,18 +526,13 @@ function IntegrationsListPanel({
 }
 
 function IntegrationsListContent({
-    maxVisible = INTEGRATIONS_LIST_MAX_VISIBLE,
-    triggerProps,
     ...props
 }: React.ComponentProps<typeof CollapsibleListVertical>) {
     return (
         <CollapsibleListVertical
             {...props}
-            maxVisible={maxVisible}
-            triggerProps={{
-                ...triggerProps,
-                className: cn("ml-1.25", triggerProps?.className),
-            }}
+            maxVisible={INTEGRATIONS_LIST_MAX_VISIBLE}
+            triggerProps={{ className: "ml-1.25" }}
         />
     );
 }

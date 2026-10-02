@@ -41,7 +41,10 @@ export function CollapsibleListVertical({
     return (
         <div
             {...props}
-            className={cn("flex flex-col gap-1", className)}
+            className={cn(
+                "relative flex w-full min-w-0 flex-col gap-1",
+                className
+            )}
             data-slot="collapsible-list"
         >
             {visible}

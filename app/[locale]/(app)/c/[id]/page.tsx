@@ -4,27 +4,27 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
-import { ChatThread } from "@/components/session/thread";
+import { Thread } from "@/components/session/thread";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";
-import { ChatError } from "@/lib/chats/error";
+import { ThreadError } from "@/lib/threads/error";
 import {
-    type ChatDetail,
-    getChat,
-    getChatTitle,
+    getThread,
+    getThreadTitle,
+    type ThreadDetail,
     toUIMessages,
-} from "@/lib/chats/service";
+} from "@/lib/threads/service";
 
 export const instant = false;
 
-interface ChatPageParams {
+interface ThreadPageParams {
     params: Promise<{ id: string; locale: string }>;
 }
 
 export async function generateMetadata({
     params,
-}: ChatPageParams): Promise<Metadata> {
+}: ThreadPageParams): Promise<Metadata> {
     await connection();
 
     const { id, locale } = await params;
@@ -42,13 +42,13 @@ export async function generateMetadata({
     }
 
     try {
-        const chat = await getChatTitle({ chatId: id, userId });
+        const thread = await getThreadTitle({ threadId: id, userId });
         return {
             ...buildPageMetadata({
                 description: gt("Follow up on this automation run."),
                 locale,
-                path: `/c/${chat.id}`,
-                title: chat.title,
+                path: `/c/${thread.id}`,
+                title: thread.title,
             }),
             robots: {
                 follow: false,
@@ -65,15 +65,15 @@ export async function generateMetadata({
     }
 }
 
-export default function ChatPage({ params }: ChatPageParams) {
+export default function ThreadPage({ params }: ThreadPageParams) {
     return (
-        <React.Suspense fallback={<ChatPageSkeleton />}>
-            <ChatPageBody params={params} />
+        <React.Suspense fallback={<ThreadPageSkeleton />}>
+            <ThreadPageBody params={params} />
         </React.Suspense>
     );
 }
 
-async function ChatPageBody({ params }: ChatPageParams) {
+async function ThreadPageBody({ params }: ThreadPageParams) {
     await connection();
 
     const { id } = await params;
@@ -84,11 +84,11 @@ async function ChatPageBody({ params }: ChatPageParams) {
         return redirect("/");
     }
 
-    let chat: ChatDetail;
+    let thread: ThreadDetail;
     try {
-        chat = await getChat({ chatId: id, userId });
+        thread = await getThread({ threadId: id, userId });
     } catch (error) {
-        if (ChatError.isInstance(error) && error.data.code === "not_found") {
+        if (ThreadError.isInstance(error) && error.data.code === "not_found") {
             return notFound();
         }
         throw error;
@@ -97,12 +97,12 @@ async function ChatPageBody({ params }: ChatPageParams) {
         <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col p-4">
             <FadeIn>
                 <div className="flex h-[calc(100dvh-1rem)] min-h-0 flex-col">
-                    <ChatPageHeader chat={chat} />
-                    <ChatThread
-                        chatId={chat.id}
-                        initialMessages={toUIMessages(chat.messages)}
-                        key={chat.id}
-                        sources={chat.run?.sources ?? []}
+                    <ThreadPageHeader thread={thread} />
+                    <Thread
+                        initialMessages={toUIMessages(thread.messages)}
+                        key={thread.id}
+                        sources={thread.run?.sources ?? []}
+                        threadId={thread.id}
                     />
                 </div>
             </FadeIn>
@@ -110,17 +110,17 @@ async function ChatPageBody({ params }: ChatPageParams) {
     );
 }
 
-function ChatPageHeader({ chat }: { chat: ChatDetail }) {
+function ThreadPageHeader({ thread }: { thread: ThreadDetail }) {
     return (
         <header className="mx-auto flex w-full max-w-3xl flex-col gap-1 px-6 pt-2 pb-4">
             <h1 className="sr-only font-semibold text-2xl text-foreground tracking-tight">
-                {chat.title}
+                {thread.title}
             </h1>
         </header>
     );
 }
 
-function ChatPageSkeleton() {
+function ThreadPageSkeleton() {
     return (
         <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col p-4">
             <div className="flex h-[calc(100dvh-1rem)] min-h-0 flex-col">
@@ -132,13 +132,13 @@ function ChatPageSkeleton() {
                             className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-6"
                             role="status"
                         >
-                            <ChatAssistantSkeleton />
-                            <ChatUserSkeleton />
-                            <ChatAssistantSkeleton showSources={false} />
+                            <ThreadAssistantSkeleton />
+                            <ThreadUserSkeleton />
+                            <ThreadAssistantSkeleton showSources={false} />
                         </div>
                     </div>
                     <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 pb-6">
-                        <ChatComposerSkeleton />
+                        <ThreadComposerSkeleton />
                     </div>
                 </div>
             </div>
@@ -146,13 +146,13 @@ function ChatPageSkeleton() {
     );
 }
 
-interface ChatAssistantSkeletonProps {
+interface ThreadAssistantSkeletonProps {
     showSources?: boolean;
 }
 
-function ChatAssistantSkeleton({
+function ThreadAssistantSkeleton({
     showSources = true,
-}: ChatAssistantSkeletonProps) {
+}: ThreadAssistantSkeletonProps) {
     return (
         <div className="flex min-w-0 flex-col gap-3">
             <div className="flex flex-col gap-2">
@@ -170,7 +170,7 @@ function ChatAssistantSkeleton({
     );
 }
 
-function ChatUserSkeleton() {
+function ThreadUserSkeleton() {
     return (
         <div className="flex flex-col items-end">
             <Skeleton className="h-16 w-2/3 rounded-3xl" />
@@ -178,7 +178,7 @@ function ChatUserSkeleton() {
     );
 }
 
-function ChatComposerSkeleton() {
+function ThreadComposerSkeleton() {
     return (
         <div className="squircle relative rounded-3xl px-3 py-3 ring-1 ring-black/10 ring-inset dark:ring-white/10">
             <div className="flex flex-col gap-3">

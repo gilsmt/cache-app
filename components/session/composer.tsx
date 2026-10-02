@@ -388,6 +388,7 @@ interface CopyResponseButtonProps {
 export function CopyResponseButton({ value }: CopyResponseButtonProps) {
     const gt = useGT();
     const { copyToClipboard, isCopied } = useCopyToClipboard();
+
     const label = isCopied ? gt("Copied") : gt("Copy response");
 
     const handleCopy = useStableCallback(() => copyToClipboard(value));
@@ -410,11 +411,13 @@ export function CopyResponseButton({ value }: CopyResponseButtonProps) {
     );
 }
 
-interface SpeakResponseButtonProps {
+interface ReadAloudResponseButtonProps {
     value: string;
 }
 
-export function SpeakResponseButton({ value }: SpeakResponseButtonProps) {
+export function ReadAloudResponseButton({
+    value,
+}: ReadAloudResponseButtonProps) {
     const gt = useGT();
     const { isSpeaking, isSupported, stop, toggle } = useSpeechSynthesis();
 
@@ -435,7 +438,7 @@ export function SpeakResponseButton({ value }: SpeakResponseButtonProps) {
 
     const label = isSpeaking
         ? gt("Stop reading response")
-        : gt("Listen to response");
+        : gt("Read aloud response ");
 
     if (!isSupported) {
         return null;

@@ -9,20 +9,20 @@ import {
 import { ACTION_STATUS } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
-    CHAT_STANDALONE_MARKDOWN_MAX_LENGTH,
-    CHAT_STANDALONE_PROMPT_MAX_LENGTH,
+    THREAD_STANDALONE_MARKDOWN_MAX_LENGTH,
+    THREAD_STANDALONE_PROMPT_MAX_LENGTH,
 } from "./constants";
-import { ChatError } from "./error";
+import { ThreadError } from "./error";
 import * as service from "./service";
 
-const log = createLogger("chats:actions");
+const log = createLogger("threads:actions");
 
-const SET_CHAT_ARCHIVED_INPUT_SCHEMA = z.object({
-    chatId: z.string().trim().min(1, "Choose a chat."),
+const SET_THREAD_ARCHIVED_INPUT_SCHEMA = z.object({
     isArchived: z.boolean(),
+    threadId: z.string().trim().min(1, "Choose a chat."),
 });
 
-type SetChatArchivedResult =
+type SetThreadArchivedResult =
     | { status: typeof ACTION_STATUS.UPDATED }
     | {
           message: string;
@@ -33,11 +33,11 @@ type SetChatArchivedResult =
               | typeof ACTION_STATUS.UNAUTHORIZED;
       };
 
-export async function setChatArchived(input: {
-    chatId: string;
+export async function setThreadArchived(input: {
     isArchived: boolean;
-}): Promise<SetChatArchivedResult> {
-    const parsed = SET_CHAT_ARCHIVED_INPUT_SCHEMA.safeParse(input);
+    threadId: string;
+}): Promise<SetThreadArchivedResult> {
+    const parsed = SET_THREAD_ARCHIVED_INPUT_SCHEMA.safeParse(input);
     if (!parsed.success) {
         return {
             message: getValidationErrorMessage(parsed, "Choose a chat."),
@@ -51,9 +51,9 @@ export async function setChatArchived(input: {
     }
 
     try {
-        await service.setChatArchived({
-            chatId: parsed.data.chatId,
+        await service.setThreadArchived({
             isArchived: parsed.data.isArchived,
+            threadId: parsed.data.threadId,
             userId: auth.userId,
         });
 
@@ -62,7 +62,7 @@ export async function setChatArchived(input: {
         return handleActionError({
             codeToStatus: { not_found: ACTION_STATUS.NOT_FOUND },
             error,
-            errorFactory: ChatError,
+            errorFactory: ThreadError,
             fallbackMessage: parsed.data.isArchived
                 ? "We couldn't archive this chat right now."
                 : "We couldn't unarchive this chat right now.",
@@ -71,13 +71,13 @@ export async function setChatArchived(input: {
     }
 }
 
-const CREATE_CHAT_FROM_ASK_CACHE_INPUT_SCHEMA = z.object({
+const CREATE_THREAD_FROM_ASK_CACHE_INPUT_SCHEMA = z.object({
     markdown: z
         .string()
         .trim()
         .min(1, "There is no Ask Cache answer to continue.")
         .max(
-            CHAT_STANDALONE_MARKDOWN_MAX_LENGTH,
+            THREAD_STANDALONE_MARKDOWN_MAX_LENGTH,
             "This answer is too long to continue in chat."
         ),
     prompt: z
@@ -85,13 +85,13 @@ const CREATE_CHAT_FROM_ASK_CACHE_INPUT_SCHEMA = z.object({
         .trim()
         .min(1, "Enter a valid prompt to continue in chat.")
         .max(
-            CHAT_STANDALONE_PROMPT_MAX_LENGTH,
+            THREAD_STANDALONE_PROMPT_MAX_LENGTH,
             "This prompt is too long to continue in chat."
         ),
 });
 
-type CreateChatFromAskCacheResult =
-    | { chatId: string; status: typeof ACTION_STATUS.CREATED }
+type CreateThreadFromAskCacheResult =
+    | { status: typeof ACTION_STATUS.CREATED; threadId: string }
     | {
           message: string;
           status:
@@ -100,11 +100,11 @@ type CreateChatFromAskCacheResult =
               | typeof ACTION_STATUS.UNAUTHORIZED;
       };
 
-export async function createChatFromAskCache(input: {
+export async function createThreadFromAskCache(input: {
     markdown: string;
     prompt: string;
-}): Promise<CreateChatFromAskCacheResult> {
-    const parsed = CREATE_CHAT_FROM_ASK_CACHE_INPUT_SCHEMA.safeParse(input);
+}): Promise<CreateThreadFromAskCacheResult> {
+    const parsed = CREATE_THREAD_FROM_ASK_CACHE_INPUT_SCHEMA.safeParse(input);
     if (!parsed.success) {
         return {
             message: getValidationErrorMessage(
@@ -123,18 +123,18 @@ export async function createChatFromAskCache(input: {
     }
 
     try {
-        const chat = await service.createStandaloneChat({
+        const thread = await service.createStandaloneThread({
             markdown: parsed.data.markdown,
             prompt: parsed.data.prompt,
             userId: auth.userId,
         });
 
-        return { chatId: chat.id, status: ACTION_STATUS.CREATED };
+        return { status: ACTION_STATUS.CREATED, threadId: thread.id };
     } catch (error) {
         return handleActionError({
             codeToStatus: { invalid_input: ACTION_STATUS.INVALID },
             error,
-            errorFactory: ChatError,
+            errorFactory: ThreadError,
             fallbackMessage: "We couldn't start this chat right now.",
             log,
         });

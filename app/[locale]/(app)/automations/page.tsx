@@ -7,14 +7,14 @@ import * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
 import { AutomationComposerDialog } from "@/components/automations/composer";
 import { AutomationsList } from "@/components/automations/list";
-import { ChatsList } from "@/components/session/chats";
 import { SidebarPanel } from "@/components/session/sidebar";
+import { Threads } from "@/components/session/threads";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "@/lib/auth/session";
-import { listChats } from "@/lib/chats/service";
 import { listCollectionOptions } from "@/lib/collections/service";
 import { listAutomations } from "@/lib/intelligence/automations/service";
+import { listThreads } from "@/lib/threads/service";
 
 export async function generateMetadata({
     params,
@@ -77,16 +77,16 @@ async function AutomationsPageBody() {
         return redirect("/");
     }
 
-    const [automations, collections, chats] = await Promise.all([
+    const [automations, collections, threads] = await Promise.all([
         listAutomations({ userId }),
         listCollectionOptions({ userId }),
-        listChats({ userId }),
+        listThreads({ userId }),
     ]);
 
     return (
         <>
             <SidebarPanel>
-                <ChatsList chats={chats} />
+                <Threads threads={threads} />
             </SidebarPanel>
             <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col gap-6 p-8">
                 <FadeIn>

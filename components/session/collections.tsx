@@ -2,7 +2,6 @@
 
 import type { BaseUIEvent } from "@base-ui/react";
 import { Combobox as BaseUICombobox } from "@base-ui/react/combobox";
-import { Toolbar } from "@base-ui/react/toolbar";
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
@@ -10,7 +9,7 @@ import { useTimeout } from "@base-ui/utils/useTimeout";
 import { useValueAsRef } from "@base-ui/utils/useValueAsRef";
 import { Calligraph } from "calligraph";
 import { cn } from "cn";
-import { T, useGT } from "gt-next";
+import { T } from "gt-next";
 import {
     ArchiveIcon,
     ArchiveX,
@@ -145,6 +144,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TextMatch } from "@/components/ui/text-match";
 import { Textarea } from "@/components/ui/textarea";
+import { Toolbar, ToolbarButton, ToolbarGroup } from "@/components/ui/toolbar";
 import {
     type CollectionCreateResult,
     createCollection,
@@ -2092,17 +2092,17 @@ export function Collections() {
                 className="group/collapsible"
                 data-sidebar-collapsible=""
             >
-                <CollectionsListToolbar className="group">
+                <Toolbar className="group">
                     <CollectionsListFavoritesTrigger>
                         <T>Favorites</T>
                     </CollectionsListFavoritesTrigger>
-                    <CollectionsListToolbarGroup>
+                    <ToolbarGroup>
                         <Kbd className="invisible bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
                             <ShiftKbd />
                             <CmdKbd />F
                         </Kbd>
-                    </CollectionsListToolbarGroup>
-                </CollectionsListToolbar>
+                    </ToolbarGroup>
+                </Toolbar>
                 <CollapsiblePanel>
                     <CollectionsListFavoritesItemsContent>
                         {(item) => (
@@ -2135,26 +2135,26 @@ export function Collections() {
                 className="group/collapsible"
                 data-sidebar-collapsible=""
             >
-                <CollectionsListToolbar className="group">
+                <Toolbar className="group">
                     <CollectionsListTrigger>
                         <T>Collections</T>
                     </CollectionsListTrigger>
-                    <CollectionsListToolbarGroup>
+                    <ToolbarGroup>
                         <Kbd className="invisible bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
                             <ShiftKbd />
                             <CmdKbd />C
                         </Kbd>
-                        <CollectionsListToolbarButton
+                        <ToolbarButton
                             render={<CollectionsListClearButton />}
                         />
-                        <CollectionsListToolbarButton
+                        <ToolbarButton
                             render={<CollectionsListSortingCombobox />}
                         />
-                        <CollectionsListToolbarButton
+                        <ToolbarButton
                             render={<CollectionsListCreateButton />}
                         />
-                    </CollectionsListToolbarGroup>
-                </CollectionsListToolbar>
+                    </ToolbarGroup>
+                </Toolbar>
                 <CollapsiblePanel>
                     <div className="flex p-1.5 pt-0.5 pl-2.5">
                         <CollectionsListSmartCollectionsPopover />
@@ -2538,8 +2538,6 @@ function CollectionsListGroupTrigger({
     render,
     ...props
 }: CollectionsListGroupTriggerProps) {
-    const gt = useGT();
-
     return (
         <PreviewCard>
             <PreviewCardTrigger
@@ -2552,9 +2550,6 @@ function CollectionsListGroupTrigger({
                                     render={<button type="button" />}
                                 />
                             )
-                        }
-                        title={
-                            isOpen ? gt("Collapse group") : gt("Expand group")
                         }
                     />
                 }
@@ -2682,6 +2677,10 @@ function CollectionsListFavoritesTrigger(
     const collectionLabels = favoriteCollections.map(
         (collection) => collection.name
     );
+    const priorityCounts = countBy(
+        favoriteCollections,
+        (collection) => collection.priority
+    );
 
     return (
         <CollectionsListGroupTrigger
@@ -2694,10 +2693,7 @@ function CollectionsListFavoritesTrigger(
             isOpen={isFavoritesListOpen}
             labels={collectionLabels}
             placeholder="No favorites yet"
-            priorityCounts={countBy(
-                favoriteCollections,
-                (collection) => collection.priority
-            )}
+            priorityCounts={priorityCounts}
         />
     );
 }
@@ -2847,51 +2843,6 @@ function CollectionsListFavoritesItemImage({
             loading="lazy"
             onError={handleError}
             src={src}
-        />
-    );
-}
-
-function CollectionsListToolbar({
-    className,
-    ...props
-}: React.ComponentProps<typeof Toolbar.Root>) {
-    return (
-        <Toolbar.Root
-            {...props}
-            className={cn(
-                "relative flex w-full items-center justify-between",
-                className
-            )}
-        />
-    );
-}
-
-function CollectionsListToolbarGroup({
-    className,
-    ...props
-}: React.ComponentProps<typeof Toolbar.Group>) {
-    return (
-        <Toolbar.Group
-            {...props}
-            className={cn(
-                "pointer-events-none absolute right-1 flex items-center justify-end gap-1",
-                className
-            )}
-        />
-    );
-}
-
-function CollectionsListToolbarButton({
-    className,
-    ...props
-}: React.ComponentProps<typeof Toolbar.Button>) {
-    return (
-        <Toolbar.Button
-            {...props}
-            className={cn(
-                "pointer-events-auto opacity-80 hover:opacity-100",
-                className
-            )}
         />
     );
 }

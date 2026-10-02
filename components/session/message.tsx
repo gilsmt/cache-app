@@ -6,22 +6,22 @@ import * as React from "react";
 import { Streamdown } from "streamdown";
 import {
     CopyResponseButton,
-    SpeakResponseButton,
+    ReadAloudResponseButton,
 } from "@/components/session/composer";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { CollapsibleListHorizontal } from "@/components/ui/collapsible-list";
-import { getMessageCreatedAt, getMessageText } from "@/lib/chats/messages";
-import type { ChatSource } from "@/lib/chats/sources";
 import { dayjs } from "@/lib/common/dayjs";
 import { uses24HourClock } from "@/lib/common/time";
+import { getMessageCreatedAt, getMessageText } from "@/lib/threads/messages";
+import type { ThreadSource } from "@/lib/threads/sources";
 
-interface ChatMessageProps {
+interface ThreadMessageProps {
     message: UIMessage;
-    sources?: ChatSource[];
+    sources?: ThreadSource[];
 }
 
-export function ChatMessage({ message, sources }: ChatMessageProps) {
+export function ThreadMessage({ message, sources }: ThreadMessageProps) {
     const [renderedAt] = React.useState(() => new Date());
 
     const createdAt = getMessageCreatedAt(message) ?? renderedAt;
@@ -33,7 +33,7 @@ export function ChatMessage({ message, sources }: ChatMessageProps) {
                 <Bubble align="end" variant="muted">
                     <BubbleContent>{text}</BubbleContent>
                 </Bubble>
-                <ChatMessageTimestamp createdAt={createdAt} />
+                <ThreadMessageTimestamp createdAt={createdAt} />
             </div>
         );
     }
@@ -43,21 +43,21 @@ export function ChatMessage({ message, sources }: ChatMessageProps) {
             <Streamdown className="text-sm leading-6">{text}</Streamdown>
             <div className="flex flex-wrap items-center gap-1">
                 {sources && sources.length > 0 ? (
-                    <ChatMessageSources sources={sources} />
+                    <ThreadMessageSources sources={sources} />
                 ) : null}
                 <CopyResponseButton value={text} />
-                <SpeakResponseButton value={text} />
-                <ChatMessageTimestamp createdAt={createdAt} />
+                <ReadAloudResponseButton value={text} />
+                <ThreadMessageTimestamp createdAt={createdAt} />
             </div>
         </div>
     );
 }
 
-interface ChatMessageTimestampProps {
+interface ThreadMessageTimestampProps {
     createdAt: Date;
 }
 
-function ChatMessageTimestamp({ createdAt }: ChatMessageTimestampProps) {
+function ThreadMessageTimestamp({ createdAt }: ThreadMessageTimestampProps) {
     return (
         <time
             className="text-muted-foreground/50 text-xs opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
@@ -72,11 +72,11 @@ function ChatMessageTimestamp({ createdAt }: ChatMessageTimestampProps) {
     );
 }
 
-interface ChatMessageSourcesProps {
-    sources: ChatSource[];
+interface ThreadMessageSourcesProps {
+    sources: ThreadSource[];
 }
 
-function ChatMessageSources({ sources }: ChatMessageSourcesProps) {
+function ThreadMessageSources({ sources }: ThreadMessageSourcesProps) {
     return (
         <CollapsibleListHorizontal maxVisible={2}>
             {sources.map((source) => {

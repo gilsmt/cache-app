@@ -7,24 +7,28 @@ import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
 import { AutomationRunStatus, ChatMessageRole } from "@/prisma/client/enums";
 import {
-    CHAT_ARCHIVE_PAGE_SIZE,
-    CHAT_STANDALONE_MARKDOWN_MAX_LENGTH,
-    CHAT_STANDALONE_PROMPT_MAX_LENGTH,
-    CHAT_TITLE_MAX_LENGTH,
-    CHAT_TURN_LEASE_DURATION_MS,
+    THREAD_LIST_MAX_ITEMS,
+    THREAD_STANDALONE_MARKDOWN_MAX_LENGTH,
+    THREAD_STANDALONE_PROMPT_MAX_LENGTH,
+    THREAD_TITLE_MAX_LENGTH,
+    THREAD_TURN_LEASE_DURATION_MS,
 } from "./constants";
-import { ChatError } from "./error";
-import { type ChatSource, parseChatSources } from "./sources";
+import { ThreadError } from "./error";
+import { parseThreadSources, type ThreadSource } from "./sources";
 
-const log = createLogger("chats:service");
+const log = createLogger("threads:service");
 
-const CHAT_LIST_INCLUDE = {
+const THREAD_LIST_SELECT = {
+    archivedAt: true,
     automationRun: {
         select: { status: true },
     },
-} satisfies Prisma.ChatInclude;
+    id: true,
+    title: true,
+    updatedAt: true,
+} satisfies Prisma.ChatSelect;
 
-const CHAT_RUN_CONTEXT_SELECT = {
+const THREAD_RUN_CONTEXT_SELECT = {
     automationRun: {
         select: {
             automation: {
@@ -44,37 +48,30 @@ const CHAT_RUN_CONTEXT_SELECT = {
     id: true,
 } satisfies Prisma.ChatSelect;
 
-type ChatListRecord = Prisma.ChatGetPayload<{
-    include: typeof CHAT_LIST_INCLUDE;
+type ThreadListRecord = Prisma.ChatGetPayload<{
+    select: typeof THREAD_LIST_SELECT;
 }>;
 
-type ChatRunContextRecord = Prisma.ChatGetPayload<{
-    select: typeof CHAT_RUN_CONTEXT_SELECT;
+type ThreadRunContextRecord = Prisma.ChatGetPayload<{
+    select: typeof THREAD_RUN_CONTEXT_SELECT;
 }>;
 
-export interface ChatListItem {
-    automationRunId: string | null;
-    createdAt: Date;
+export interface ThreadListItem {
     id: string;
+    isArchived: boolean;
     runStatus: AutomationRunStatus | null;
     title: string;
     updatedAt: Date;
 }
 
-export interface ArchivedChatListPage {
-    chats: ChatListItem[];
-    page: number;
-    pageCount: number;
-}
-
-export interface ChatMessageItem {
+export interface ThreadMessageItem {
     content: string;
     createdAt: Date;
     id: string;
     role: ChatMessageRole;
 }
 
-export interface ChatRunContext {
+export interface ThreadRunContext {
     automationId: string;
     automationTitle: string;
     createdAt: Date;
@@ -82,123 +79,118 @@ export interface ChatRunContext {
     promptSnapshot: string;
     runId: string;
     scheduledForUtc: Date;
-    sources: ChatSource[];
+    sources: ThreadSource[];
     status: AutomationRunStatus;
     summaryMarkdown: string | null;
 }
 
-export interface ChatFollowupContext {
+export interface ThreadFollowupContext {
     automationRunId: string | null;
     id: string;
-    run: ChatRunContext | null;
+    run: ThreadRunContext | null;
 }
 
-export interface ChatDetail extends ChatFollowupContext {
+export interface ThreadDetail extends ThreadFollowupContext {
     createdAt: Date;
-    messages: ChatMessageItem[];
+    messages: ThreadMessageItem[];
     title: string;
     updatedAt: Date;
 }
 
-export async function listChats(args: {
+export async function listThreads(args: {
     userId: string;
-}): Promise<ChatListItem[]> {
-    const chats = await prisma.chat.findMany({
-        include: CHAT_LIST_INCLUDE,
-        orderBy: { updatedAt: "desc" },
-        where: { archivedAt: null, userId: args.userId },
-    });
+}): Promise<ThreadListItem[]> {
+    const [active, archived] = await Promise.all([
+        prisma.chat.findMany({
+            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+            select: THREAD_LIST_SELECT,
+            take: THREAD_LIST_MAX_ITEMS,
+            where: { archivedAt: null, userId: args.userId },
+        }),
+        prisma.chat.findMany({
+            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+            select: THREAD_LIST_SELECT,
+            take: THREAD_LIST_MAX_ITEMS,
+            where: { archivedAt: { not: null }, userId: args.userId },
+        }),
+    ]);
 
-    return chats.map(toChatListItem);
+    const threads = [...active, ...archived].sort(compareThreadRecords);
+
+    return threads.map(toThreadListItem);
 }
 
-export async function listArchivedChats(args: {
-    page: number;
-    userId: string;
-}): Promise<ArchivedChatListPage> {
-    const where = {
-        archivedAt: { not: null },
-        userId: args.userId,
-    } satisfies Prisma.ChatWhereInput;
-    const totalCount = await prisma.chat.count({ where });
-    const pageCount = Math.max(
-        1,
-        Math.ceil(totalCount / CHAT_ARCHIVE_PAGE_SIZE)
-    );
-    const page = Math.min(args.page, pageCount);
-    const chats = await prisma.chat.findMany({
-        include: CHAT_LIST_INCLUDE,
-        orderBy: [{ archivedAt: "desc" }, { id: "desc" }],
-        skip: (page - 1) * CHAT_ARCHIVE_PAGE_SIZE,
-        take: CHAT_ARCHIVE_PAGE_SIZE,
-        where,
-    });
+function compareThreadRecords(
+    a: ThreadListRecord,
+    b: ThreadListRecord
+): number {
+    const byUpdatedAt = b.updatedAt.getTime() - a.updatedAt.getTime();
+    if (byUpdatedAt !== 0) {
+        return byUpdatedAt;
+    }
+    if (a.id === b.id) {
+        return 0;
+    }
+    return a.id < b.id ? 1 : -1;
+}
 
+function toThreadListItem(thread: ThreadListRecord): ThreadListItem {
     return {
-        chats: chats.map(toChatListItem),
-        page,
-        pageCount,
+        id: thread.id,
+        isArchived: thread.archivedAt !== null,
+        runStatus: thread.automationRun?.status ?? null,
+        title: thread.title,
+        updatedAt: thread.updatedAt,
     };
 }
 
-function toChatListItem(chat: ChatListRecord): ChatListItem {
-    return {
-        automationRunId: chat.automationRunId,
-        createdAt: chat.createdAt,
-        id: chat.id,
-        runStatus: chat.automationRun?.status ?? null,
-        title: chat.title,
-        updatedAt: chat.updatedAt,
-    };
-}
-
-export async function getChatTitle(args: {
-    chatId: string;
+export async function getThreadTitle(args: {
+    threadId: string;
     userId: string;
 }): Promise<{ id: string; title: string }> {
-    const chat = await prisma.chat.findFirst({
+    const thread = await prisma.chat.findFirst({
         select: { id: true, title: true },
-        where: { id: args.chatId, userId: args.userId },
+        where: { id: args.threadId, userId: args.userId },
     });
 
-    if (!chat) {
-        throw new ChatError({
+    if (!thread) {
+        throw new ThreadError({
             code: "not_found",
             message: "That chat is no longer available.",
-            operation: "getChatTitle",
+            operation: "getThreadTitle",
         });
     }
 
-    return chat;
+    return thread;
 }
 
-export async function getChatForFollowup(args: {
-    chatId: string;
+export async function getThreadForFollowup(args: {
+    threadId: string;
     userId: string;
-}): Promise<ChatFollowupContext> {
-    const chat = await prisma.chat.findFirst({
-        select: CHAT_RUN_CONTEXT_SELECT,
-        where: { id: args.chatId, userId: args.userId },
+}): Promise<ThreadFollowupContext> {
+    const thread = await prisma.chat.findFirst({
+        select: THREAD_RUN_CONTEXT_SELECT,
+        where: { id: args.threadId, userId: args.userId },
     });
 
-    if (!chat) {
-        throw new ChatError({
+    if (!thread) {
+        throw new ThreadError({
             code: "not_found",
             message: "That chat is no longer available.",
-            operation: "getChatForFollowup",
+            operation: "getThreadForFollowup",
         });
     }
 
-    return toChatFollowupContext(chat);
+    return toThreadFollowupContext(thread);
 }
 
-export async function getChat(args: {
-    chatId: string;
+export async function getThread(args: {
+    threadId: string;
     userId: string;
-}): Promise<ChatDetail> {
-    const chat = await prisma.chat.findFirst({
+}): Promise<ThreadDetail> {
+    const thread = await prisma.chat.findFirst({
         select: {
-            ...CHAT_RUN_CONTEXT_SELECT,
+            ...THREAD_RUN_CONTEXT_SELECT,
             createdAt: true,
             messages: {
                 orderBy: { sequence: "asc" },
@@ -212,34 +204,34 @@ export async function getChat(args: {
             title: true,
             updatedAt: true,
         },
-        where: { id: args.chatId, userId: args.userId },
+        where: { id: args.threadId, userId: args.userId },
     });
 
-    if (!chat) {
-        throw new ChatError({
+    if (!thread) {
+        throw new ThreadError({
             code: "not_found",
             message: "That chat is no longer available.",
-            operation: "getChat",
+            operation: "getThread",
         });
     }
 
     return {
-        ...toChatFollowupContext(chat),
-        createdAt: chat.createdAt,
-        messages: chat.messages,
-        title: chat.title,
-        updatedAt: chat.updatedAt,
+        ...toThreadFollowupContext(thread),
+        createdAt: thread.createdAt,
+        messages: thread.messages,
+        title: thread.title,
+        updatedAt: thread.updatedAt,
     };
 }
 
-function toChatFollowupContext(
-    chat: ChatRunContextRecord
-): ChatFollowupContext {
-    const run = chat.automationRun;
+function toThreadFollowupContext(
+    thread: ThreadRunContextRecord
+): ThreadFollowupContext {
+    const run = thread.automationRun;
 
     return {
         automationRunId: run?.id ?? null,
-        id: chat.id,
+        id: thread.id,
         run: run
             ? {
                   automationId: run.automation.id,
@@ -257,15 +249,15 @@ function toChatFollowupContext(
     };
 }
 
-export async function setChatArchived(args: {
-    chatId: string;
+export async function setThreadArchived(args: {
     isArchived: boolean;
+    threadId: string;
     userId: string;
 }): Promise<void> {
     const result = await prisma.chat.updateMany({
         data: { archivedAt: args.isArchived ? new Date() : null },
         where: {
-            id: args.chatId,
+            id: args.threadId,
             userId: args.userId,
         },
     });
@@ -274,14 +266,14 @@ export async function setChatArchived(args: {
         return;
     }
 
-    throw new ChatError({
+    throw new ThreadError({
         code: "not_found",
         message: "That chat is no longer available.",
-        operation: "setChatArchived",
+        operation: "setThreadArchived",
     });
 }
 
-export async function createChatForAutomationRun(args: {
+export async function createThreadForAutomationRun(args: {
     runId: string;
     tx: Pick<Prisma.TransactionClient, "automationRun" | "chat">;
     userId: string;
@@ -296,19 +288,19 @@ export async function createChatForAutomationRun(args: {
     });
 
     if (!run) {
-        throw new ChatError({
+        throw new ThreadError({
             code: "not_found",
             message: "That automation run is no longer available.",
-            operation: "createChatForAutomationRun",
+            operation: "createThreadForAutomationRun",
         });
     }
 
     const openingMessage = getRunOpeningMessage(run);
     if (!openingMessage) {
-        throw new ChatError({
+        throw new ThreadError({
             code: "invalid_run_state",
             message: "Wait until the run finishes before opening its chat.",
-            operation: "createChatForAutomationRun",
+            operation: "createThreadForAutomationRun",
         });
     }
 
@@ -330,44 +322,44 @@ export async function createChatForAutomationRun(args: {
     });
 }
 
-export async function createStandaloneChat(args: {
+export async function createStandaloneThread(args: {
     markdown: string;
     prompt: string;
     userId: string;
 }): Promise<{ id: string }> {
     const prompt = args.prompt.trim();
     if (prompt.length === 0) {
-        throw new ChatError({
+        throw new ThreadError({
             code: "invalid_input",
             message: "Enter a valid prompt to continue in chat.",
-            operation: "createStandaloneChat",
+            operation: "createStandaloneThread",
         });
     }
-    if (prompt.length > CHAT_STANDALONE_PROMPT_MAX_LENGTH) {
-        throw new ChatError({
+    if (prompt.length > THREAD_STANDALONE_PROMPT_MAX_LENGTH) {
+        throw new ThreadError({
             code: "invalid_input",
             message: "This prompt is too long to continue in chat.",
-            operation: "createStandaloneChat",
+            operation: "createStandaloneThread",
         });
     }
 
     const markdown = args.markdown.trim();
     if (markdown.length === 0) {
-        throw new ChatError({
+        throw new ThreadError({
             code: "invalid_input",
             message: "There is no Ask Cache answer to continue.",
-            operation: "createStandaloneChat",
+            operation: "createStandaloneThread",
         });
     }
-    if (markdown.length > CHAT_STANDALONE_MARKDOWN_MAX_LENGTH) {
-        throw new ChatError({
+    if (markdown.length > THREAD_STANDALONE_MARKDOWN_MAX_LENGTH) {
+        throw new ThreadError({
             code: "invalid_input",
             message: "This answer is too long to continue in chat.",
-            operation: "createStandaloneChat",
+            operation: "createStandaloneThread",
         });
     }
 
-    const chat = await prisma.chat.create({
+    const thread = await prisma.chat.create({
         data: {
             messages: {
                 create: [
@@ -375,49 +367,49 @@ export async function createStandaloneChat(args: {
                     { content: markdown, role: ChatMessageRole.assistant },
                 ],
             },
-            title: buildStandaloneChatTitle(prompt),
+            title: buildStandaloneThreadTitle(prompt),
             userId: args.userId,
         },
         select: { id: true },
     });
 
-    return chat;
+    return thread;
 }
 
-export function buildStandaloneChatTitle(prompt: string): string {
+export function buildStandaloneThreadTitle(prompt: string): string {
     const title = truncateText(
         normalizeWhitespace(prompt),
-        CHAT_TITLE_MAX_LENGTH
+        THREAD_TITLE_MAX_LENGTH
     );
     return title.length > 0 ? title : "Ask Cache chat";
 }
 
-export async function startChatTurn(args: {
-    chatId: string;
+export async function startThreadTurn(args: {
     message: { content: string; id: string };
     now?: Date;
+    threadId: string;
     userId: string;
-}): Promise<ChatMessageItem[]> {
+}): Promise<ThreadMessageItem[]> {
     const now = args.now ?? new Date();
     const leaseExpiresAt = new Date(
-        now.getTime() + CHAT_TURN_LEASE_DURATION_MS
+        now.getTime() + THREAD_TURN_LEASE_DURATION_MS
     );
 
     return await prisma.$transaction(async (tx) => {
-        const chat = await tx.chat.findFirst({
+        const thread = await tx.chat.findFirst({
             select: { id: true, pendingMessageId: true },
-            where: { id: args.chatId, userId: args.userId },
+            where: { id: args.threadId, userId: args.userId },
         });
 
-        if (!chat) {
-            throw new ChatError({
+        if (!thread) {
+            throw new ThreadError({
                 code: "not_found",
                 message: "That chat is no longer available.",
-                operation: "startChatTurn",
+                operation: "startThreadTurn",
             });
         }
 
-        const previousPendingId = chat.pendingMessageId;
+        const previousPendingId = thread.pendingMessageId;
 
         const claimed = await tx.chat.updateMany({
             data: {
@@ -425,7 +417,7 @@ export async function startChatTurn(args: {
                 pendingMessageId: args.message.id,
             },
             where: {
-                id: chat.id,
+                id: thread.id,
                 OR: [
                     { pendingMessageId: null },
                     { pendingExpiresAt: null },
@@ -437,20 +429,20 @@ export async function startChatTurn(args: {
         if (claimed.count !== 1) {
             const stillExists = await tx.chat.findFirst({
                 select: { id: true },
-                where: { id: chat.id, userId: args.userId },
+                where: { id: thread.id, userId: args.userId },
             });
             if (!stillExists) {
-                throw new ChatError({
+                throw new ThreadError({
                     code: "not_found",
                     message: "That chat is no longer available.",
-                    operation: "startChatTurn",
+                    operation: "startThreadTurn",
                 });
             }
-            throw new ChatError({
+            throw new ThreadError({
                 code: "turn_in_progress",
                 message:
                     "Wait for the current answer before sending another message.",
-                operation: "startChatTurn",
+                operation: "startThreadTurn",
             });
         }
 
@@ -462,7 +454,7 @@ export async function startChatTurn(args: {
                 id: true,
                 role: true,
             },
-            where: { chatId: chat.id },
+            where: { chatId: thread.id },
         });
 
         const trailing = history.at(-1);
@@ -474,13 +466,13 @@ export async function startChatTurn(args: {
                 : null;
         if (orphaned) {
             await tx.chatMessage.deleteMany({
-                where: { chatId: chat.id, id: orphaned.id },
+                where: { chatId: thread.id, id: orphaned.id },
             });
         }
 
         await tx.chatMessage.create({
             data: {
-                chatId: chat.id,
+                chatId: thread.id,
                 content: args.message.content,
                 id: args.message.id,
                 role: ChatMessageRole.user,
@@ -501,10 +493,10 @@ export async function startChatTurn(args: {
     });
 }
 
-export async function completeChatTurn(args: {
+export async function completeThreadTurn(args: {
     assistantMessage: { content: string; id: string };
-    chatId: string;
     now?: Date;
+    threadId: string;
     userId: string;
     userMessageId: string;
 }): Promise<boolean> {
@@ -518,7 +510,7 @@ export async function completeChatTurn(args: {
                 updatedAt: now,
             },
             where: {
-                id: args.chatId,
+                id: args.threadId,
                 pendingMessageId: args.userMessageId,
                 userId: args.userId,
             },
@@ -529,7 +521,7 @@ export async function completeChatTurn(args: {
 
         await tx.chatMessage.create({
             data: {
-                chatId: args.chatId,
+                chatId: args.threadId,
                 content: args.assistantMessage.content,
                 id: args.assistantMessage.id,
                 role: ChatMessageRole.assistant,
@@ -539,9 +531,9 @@ export async function completeChatTurn(args: {
     });
 }
 
-export async function releaseChatTurn(args: {
-    chatId: string;
+export async function releaseThreadTurn(args: {
     deleteMessage?: boolean;
+    threadId: string;
     userId: string;
     userMessageId: string;
 }): Promise<void> {
@@ -549,14 +541,14 @@ export async function releaseChatTurn(args: {
         const released = await tx.chat.updateMany({
             data: { pendingExpiresAt: null, pendingMessageId: null },
             where: {
-                id: args.chatId,
+                id: args.threadId,
                 pendingMessageId: args.userMessageId,
                 userId: args.userId,
             },
         });
         if (released.count === 1 && args.deleteMessage) {
             await tx.chatMessage.deleteMany({
-                where: { chatId: args.chatId, id: args.userMessageId },
+                where: { chatId: args.threadId, id: args.userMessageId },
             });
         }
     });
@@ -605,8 +597,8 @@ function getRunOpeningMessage(run: {
     return null;
 }
 
-function parseSources(value: unknown, runId: string): ChatSource[] {
-    const parsed = parseChatSources(value);
+function parseSources(value: unknown, runId: string): ThreadSource[] {
+    const parsed = parseThreadSources(value);
     if (!parsed.isValid && value !== null && value !== undefined) {
         log.warn("Ignoring malformed automation run sources", { runId });
     }

@@ -3,9 +3,9 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { getRun } from "workflow/api";
 import { userHasActiveSubscription } from "@/lib/billing/service";
-import { createChatForAutomationRun } from "@/lib/chats/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import type { GenerationUsage } from "@/lib/intelligence/generation";
+import { createThreadForAutomationRun } from "@/lib/threads/service";
 import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
 import {
@@ -414,7 +414,7 @@ export async function pauseAutomation(args: {
                     continue;
                 }
                 canceledCount += 1;
-                await createChatForAutomationRun({
+                await createThreadForAutomationRun({
                     runId: run.id,
                     tx,
                     userId: run.userId,
@@ -606,7 +606,7 @@ async function finishTimedOutAutomationRun(args: {
                 return false;
             }
 
-            await createChatForAutomationRun({
+            await createThreadForAutomationRun({
                 runId: args.run.id,
                 tx,
                 userId: args.run.userId,
@@ -752,7 +752,7 @@ export async function markAutomationRunStartFailed(args: { runId: string }) {
             },
         });
 
-        await createChatForAutomationRun({
+        await createThreadForAutomationRun({
             runId: args.runId,
             tx,
             userId: run.userId,
@@ -801,7 +801,7 @@ export async function markAutomationRunRunning(args: {
             if (canceled.count !== 1) {
                 return;
             }
-            await createChatForAutomationRun({
+            await createThreadForAutomationRun({
                 runId: run.id,
                 tx,
                 userId: run.userId,
@@ -940,7 +940,7 @@ export async function finishAutomationRun(args: {
             },
         });
 
-        await createChatForAutomationRun({
+        await createThreadForAutomationRun({
             runId: args.runId,
             tx,
             userId: run.userId,
@@ -1236,7 +1236,7 @@ async function claimAutomationRun(args: {
                     },
                     where: { id: run.id },
                 });
-                await createChatForAutomationRun({
+                await createThreadForAutomationRun({
                     runId: run.id,
                     tx,
                     userId: run.userId,
@@ -1269,7 +1269,7 @@ async function claimAutomationRun(args: {
                     },
                     where: { id: run.id },
                 });
-                await createChatForAutomationRun({
+                await createThreadForAutomationRun({
                     runId: run.id,
                     tx,
                     userId: run.userId,
@@ -1391,7 +1391,7 @@ async function pauseAutomationForMissingCollection(args: {
                 status: AutomationRunStatus.pending,
             },
         });
-        await createChatForAutomationRun({
+        await createThreadForAutomationRun({
             runId: args.runId,
             tx,
             userId: args.userId,

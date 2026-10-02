@@ -84,7 +84,7 @@ import {
     ComposerInput,
     CopyResponseButton,
     isSubmitKey,
-    SpeakResponseButton,
+    ReadAloudResponseButton,
 } from "@/components/session/composer";
 import { MediaCardPreview } from "@/components/session/item";
 import {
@@ -188,7 +188,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Ticker } from "@/components/ui/ticker";
-import { createChatFromAskCache } from "@/lib/chats/actions";
 import {
     type CollectionCreateFromItemsResult,
     createCollectionFromItems,
@@ -222,7 +221,6 @@ import {
     needsLinkReachabilityProbe,
 } from "@/lib/collections/library-quality";
 import { buildComposerMetrics } from "@/lib/collections/metrics";
-
 import {
     buildItemsCsv,
     getLibraryItemPrimaryText,
@@ -311,6 +309,7 @@ import {
     SECTION_DESCRIPTION_URL_MAX_LENGTH,
     type SectionDescriptionContextItem,
 } from "@/lib/intelligence/overview";
+import { createThreadFromAskCache } from "@/lib/threads/actions";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
 
@@ -6008,7 +6007,7 @@ function BrowserGroupAIOverviewContent() {
             {summary && summary.length > 0 ? (
                 <>
                     <CopyResponseButton value={summary} />
-                    <SpeakResponseButton value={summary} />
+                    <ReadAloudResponseButton value={summary} />
                 </>
             ) : null}
             <Button
@@ -7247,8 +7246,8 @@ function AskCacheResponseActions({
     return (
         <div className="flex flex-wrap items-center gap-1">
             <CopyResponseButton value={markdown} />
-            <SpeakResponseButton value={markdown} />
-            <ContinueInChatButton markdown={markdown} prompt={prompt} />
+            <ReadAloudResponseButton value={markdown} />
+            <ContinueInThreadButton markdown={markdown} prompt={prompt} />
         </div>
     );
 }
@@ -7661,12 +7660,15 @@ function PaletteCategoryThumbnail({ urls }: { urls: string[] }) {
     );
 }
 
-interface ContinueInChatButtonProps {
+interface ContinueInThreadButtonProps {
     markdown: string;
     prompt: string;
 }
 
-function ContinueInChatButton({ markdown, prompt }: ContinueInChatButtonProps) {
+function ContinueInThreadButton({
+    markdown,
+    prompt,
+}: ContinueInThreadButtonProps) {
     const router = useRouter();
     const [isPending, startTransition] = React.useTransition();
     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -7675,7 +7677,7 @@ function ContinueInChatButton({ markdown, prompt }: ContinueInChatButtonProps) {
         setErrorMessage(null);
         startTransition(async () => {
             try {
-                const result = await createChatFromAskCache({
+                const result = await createThreadFromAskCache({
                     markdown,
                     prompt,
                 });
@@ -7683,9 +7685,9 @@ function ContinueInChatButton({ markdown, prompt }: ContinueInChatButtonProps) {
                     setErrorMessage(result.message);
                     return;
                 }
-                router.push(`/c/${result.chatId}`);
+                router.push(`/c/${result.threadId}`);
             } catch (error) {
-                log.error("Failed to continue Ask Cache in chat", error);
+                log.error("Failed to continue Ask Cache in thread", error);
                 setErrorMessage("We couldn't start this chat right now.");
             }
         });

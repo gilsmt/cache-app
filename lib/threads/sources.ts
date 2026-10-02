@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-const ChatSourceSchema = z.discriminatedUnion("type", [
+const ThreadSourceSchema = z.discriminatedUnion("type", [
     z.object({
         id: z.string(),
         title: z.string(),
@@ -14,24 +14,26 @@ const ChatSourceSchema = z.discriminatedUnion("type", [
     }),
 ]);
 
-const ChatSourcesSchema = z.array(ChatSourceSchema);
+const ThreadSourcesSchema = z.array(ThreadSourceSchema);
 
-const ChatSourcesEnvelopeSchema = z.object({ sources: ChatSourcesSchema });
+const ThreadSourcesEnvelopeSchema = z.object({
+    sources: ThreadSourcesSchema,
+});
 
-export type ChatSource = z.infer<typeof ChatSourceSchema>;
+export type ThreadSource = z.infer<typeof ThreadSourceSchema>;
 
-export interface ParsedChatSources {
+export interface ParsedThreadSources {
     isValid: boolean;
-    sources: ChatSource[];
+    sources: ThreadSource[];
 }
 
-export function parseChatSources(value: unknown): ParsedChatSources {
-    const envelope = ChatSourcesEnvelopeSchema.safeParse(value);
+export function parseThreadSources(value: unknown): ParsedThreadSources {
+    const envelope = ThreadSourcesEnvelopeSchema.safeParse(value);
     if (envelope.success) {
         return { isValid: true, sources: envelope.data.sources };
     }
 
-    const legacy = ChatSourcesSchema.safeParse(value);
+    const legacy = ThreadSourcesSchema.safeParse(value);
     if (legacy.success) {
         return { isValid: true, sources: legacy.data };
     }

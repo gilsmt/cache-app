@@ -13,40 +13,36 @@ import {
     ComposerInput,
     ComposerSubmitButton,
 } from "@/components/session/composer";
-import { ChatMessage } from "@/components/session/message";
+import { ThreadMessage } from "@/components/session/message";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { ChatSource } from "@/lib/chats/sources";
+import type { ThreadSource } from "@/lib/threads/sources";
 
-const CHAT_SCROLL_STICK_DISTANCE_PX = 80;
+const THREAD_SCROLL_STICK_DISTANCE_PX = 80;
 
-function createChatTransport(chatId: string) {
+function createThreadTransport(threadId: string) {
     return new DefaultChatTransport({
-        api: `/api/chats/${chatId}`,
+        api: `/api/threads/${threadId}`,
         prepareSendMessagesRequest: ({ messages }) => ({
             body: { message: messages.at(-1) },
         }),
     });
 }
 
-interface ChatThreadProps {
-    chatId: string;
+interface ThreadProps {
     initialMessages: UIMessage[];
-    sources: ChatSource[];
+    sources: ThreadSource[];
+    threadId: string;
 }
 
-export function ChatThread({
-    chatId,
-    initialMessages,
-    sources,
-}: ChatThreadProps) {
+export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
     const gt = useGT();
     const animationFrame = useAnimationFrame();
     const { error, messages, sendMessage, status, stop } = useChat({
-        id: chatId,
+        id: threadId,
         messages: initialMessages,
-        transport: createChatTransport(chatId),
+        transport: createThreadTransport(threadId),
     });
     const scrollViewportRef = React.useRef<HTMLDivElement | null>(null);
     const shouldStickRef = React.useRef(true);
@@ -111,7 +107,7 @@ export function ChatThread({
                 >
                     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-6">
                         {messages.map((message, index) => (
-                            <ChatMessage
+                            <ThreadMessage
                                 key={message.id}
                                 message={message}
                                 sources={index === 0 ? sources : undefined}
@@ -144,7 +140,7 @@ export function ChatThread({
                     <Alert variant="error">
                         <AlertTitle>{gt("Request failed")}</AlertTitle>
                         <AlertDescription>
-                            {getChatErrorMessage(error)}
+                            {getThreadErrorMessage(error)}
                         </AlertDescription>
                     </Alert>
                 ) : null}
@@ -171,7 +167,7 @@ export function ChatThread({
     );
 }
 
-function getChatErrorMessage(error: Error): string {
+function getThreadErrorMessage(error: Error): string {
     try {
         const parsed: unknown = JSON.parse(error.message);
         if (
@@ -192,6 +188,6 @@ function getChatErrorMessage(error: Error): string {
 function isScrolledToBottom(viewport: HTMLElement): boolean {
     return (
         viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <
-        CHAT_SCROLL_STICK_DISTANCE_PX
+        THREAD_SCROLL_STICK_DISTANCE_PX
     );
 }

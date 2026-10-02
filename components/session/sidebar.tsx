@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import { msg, T } from "gt-next";
 import {
-    ArchiveRestore,
     ClockFading,
     Compass,
     Ellipsis,
@@ -112,18 +111,6 @@ export function SidebarPanel({
                             <T context="sidebar.more-menu">More</T>
                         </SidebarMenuTrigger>
                         <SidebarMenuPopup>
-                            <SidebarMenuLinkItem
-                                href="/c/archived"
-                                icon={
-                                    <ArchiveRestore
-                                        aria-hidden
-                                        className="inline-block size-4 shrink-0"
-                                        focusable="false"
-                                    />
-                                }
-                            >
-                                <T>Archived chats</T>
-                            </SidebarMenuLinkItem>
                             <SidebarMenuLinkItem
                                 href="/comments"
                                 icon={
