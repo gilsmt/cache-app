@@ -132,7 +132,7 @@ export function DataListGroup({
 }: useRender.ComponentProps<"ul">) {
     const defaultProps = {
         className: cn(
-            "col-span-2 m-0 mt-1.5 grid min-w-0 list-none grid-cols-subgrid gap-x-3 gap-y-2 p-0 pb-1.5",
+            "col-span-2 m-0 mt-0.5 grid min-w-0 list-none grid-cols-subgrid gap-x-3 gap-y-2 p-0 pb-1.5",
             className
         ),
         "data-slot": "data-list-group",

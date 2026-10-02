@@ -51,9 +51,7 @@ const THREADS_LIST_VIEW_STORAGE_KEY = "cache:threads:view:v1";
 type ThreadListView = "show-all" | "exclude-archives";
 
 interface ThreadsListContext {
-    onViewChange: (view: ThreadListView) => void;
     threads: ThreadListItem[];
-    view: ThreadListView;
     visibleThreads: ThreadListItem[];
 }
 
@@ -65,7 +63,7 @@ function useThreadsListContext(): ThreadsListContext {
     const context = React.use(ThreadsListContext);
     if (!context) {
         throw new Error(
-            "ThreadsList compound components must be used within ThreadsList."
+            "ThreadsList compound components must be used within Threads."
         );
     }
     return context;
@@ -136,19 +134,11 @@ interface ThreadsListProps {
 }
 
 export function Threads({ threads }: ThreadsListProps) {
-    const { setView, view } = useThreadsListStore();
-
-    const onViewChange = useStableCallback((nextView: ThreadListView) => {
-        setView(nextView);
-    });
+    const { view } = useThreadsListStore();
 
     const visibleThreads = getVisibleThreads(threads, view);
-    const contextValue: ThreadsListContext = {
-        onViewChange,
-        threads,
-        view,
-        visibleThreads,
-    };
+
+    const contextValue: ThreadsListContext = { threads, visibleThreads };
 
     return (
         <ThreadsListContext value={contextValue}>
@@ -213,11 +203,11 @@ function ThreadsListFilterTrigger(
     props: React.ComponentProps<typeof MenuTrigger>
 ) {
     const gt = useGT();
-    const { onViewChange, view } = useThreadsListContext();
+    const { setView, view } = useThreadsListStore();
 
     const handleViewChange = useStableCallback((value: unknown) => {
         if (value === "show-all" || value === "exclude-archives") {
-            onViewChange(value);
+            setView(value);
         }
     });
 
@@ -236,9 +226,11 @@ function ThreadsListFilterTrigger(
             >
                 <Ellipsis aria-hidden className="size-3.5" focusable="false" />
             </MenuTrigger>
-            <MenuPopup align="end" side="bottom">
+            <MenuPopup align="end">
                 <MenuRadioGroup onValueChange={handleViewChange} value={view}>
-                    <MenuGroupLabel>Show</MenuGroupLabel>
+                    <MenuGroupLabel>
+                        <T>Show</T>
+                    </MenuGroupLabel>
                     <MenuRadioItem value="show-all">
                         <span className="flex items-center gap-2">
                             <LayoutList
@@ -280,8 +272,10 @@ function ThreadsListContent({ children }: ThreadsListContentProps) {
 }
 
 function ThreadsListEmpty() {
-    const { onViewChange, threads, visibleThreads } = useThreadsListContext();
-    const handleShowAll = useStableCallback(() => onViewChange("show-all"));
+    const { threads, visibleThreads } = useThreadsListContext();
+    const { setView } = useThreadsListStore();
+
+    const handleShowAll = useStableCallback(() => setView("show-all"));
 
     if (visibleThreads.length > 0) {
         return null;
@@ -365,14 +359,14 @@ function ThreadsListItem({ entry }: ThreadsListItemProps) {
                             {entry.title}
                         </Ticker>
                     </SidebarItemValue>
-                    {entry.runStatus === AutomationRunStatus.failed ? (
+                    {entry.runStatus === AutomationRunStatus.failed && (
                         <span
                             className="mr-1 shrink-0 text-[11px] text-destructive/80"
                             data-sidebar-collapsible=""
                         >
                             <T>Failed</T>
                         </span>
-                    ) : null}
+                    )}
                 </ActivePathname>
                 <ThreadsListItemControls
                     isArchived={entry.isArchived}

@@ -511,6 +511,7 @@ function MediaCardVisitedIndicator({
     itemId,
 }: MediaCardVisitedIndicatorProps): React.ReactElement {
     const { isLastVisited } = useLastVisited();
+
     const isItemLastVisited = isLastVisited(itemId);
 
     return (
