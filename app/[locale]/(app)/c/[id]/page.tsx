@@ -7,7 +7,7 @@ import { buildPageMetadata } from "@/app/metadata";
 import { Thread } from "@/components/session/thread";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getServerSession } from "@/lib/auth/session";
+import { getSessionUserId } from "@/lib/auth/session";
 import { ThreadError } from "@/lib/threads/error";
 import {
     getThread,
@@ -30,8 +30,7 @@ export async function generateMetadata({
     const { id, locale } = await params;
     const gt = await getGT();
 
-    const session = await getServerSession();
-    const userId = session?.user?.id;
+    const userId = await getSessionUserId();
     if (!userId) {
         return buildPageMetadata({
             description: gt("Chat with Cache about your saved content."),
@@ -77,8 +76,7 @@ async function ThreadPageBody({ params }: ThreadPageParams) {
     await connection();
 
     const { id } = await params;
-    const session = await getServerSession();
-    const userId = session?.user?.id;
+    const userId = await getSessionUserId();
 
     if (!userId) {
         return redirect("/");

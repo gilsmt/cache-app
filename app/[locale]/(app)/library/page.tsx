@@ -12,7 +12,7 @@ import { DimensionCacheProvider } from "@/components/session/dimension-cache";
 import { ItemsStateProvider } from "@/components/session/items";
 import { BrowserContent } from "@/components/session/list";
 import { SidebarPanel } from "@/components/session/sidebar";
-import { getServerSession } from "@/lib/auth/session";
+import { getSessionUserId } from "@/lib/auth/session";
 import { userHasActiveSubscription } from "@/lib/billing/service";
 import { getLibrary, listCollections } from "@/lib/collections/service";
 import { listLinkedIntegrationAccounts } from "@/lib/integrations/account";
@@ -50,8 +50,7 @@ export async function generateMetadata({
 export default async function LibraryPage() {
     await connection();
 
-    const session = await getServerSession();
-    const userId = session?.user?.id;
+    const userId = await getSessionUserId();
 
     if (!userId) {
         return redirect("/");

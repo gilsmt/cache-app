@@ -11,7 +11,7 @@ import { SidebarPanel } from "@/components/session/sidebar";
 import { Threads } from "@/components/session/threads";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getServerSession } from "@/lib/auth/session";
+import { getSessionUserId } from "@/lib/auth/session";
 import { listCollectionOptions } from "@/lib/collections/service";
 import { listAutomations } from "@/lib/intelligence/automations/service";
 import { listThreads } from "@/lib/threads/service";
@@ -70,8 +70,7 @@ function AutomationsPageHeader({ children }: { children: React.ReactNode }) {
 async function AutomationsPageBody() {
     await connection();
 
-    const session = await getServerSession();
-    const userId = session?.user?.id;
+    const userId = await getSessionUserId();
 
     if (!userId) {
         return redirect("/");

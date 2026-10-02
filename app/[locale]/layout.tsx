@@ -86,6 +86,9 @@ export async function generateMetadata(): Promise<Metadata> {
             googleBot: {
                 follow: true,
                 index: true,
+                "max-image-preview": "large",
+                "max-video-preview": -1,
+                noimageindex: true,
             },
             index: true,
         },

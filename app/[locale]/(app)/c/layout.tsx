@@ -3,7 +3,7 @@ import * as React from "react";
 import { SidebarPanel } from "@/components/session/sidebar";
 import { Threads } from "@/components/session/threads";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getServerSession } from "@/lib/auth/session";
+import { getSessionUserId } from "@/lib/auth/session";
 import { listThreads } from "@/lib/threads/service";
 
 export default function ThreadsLayout({ children }: React.PropsWithChildren) {
@@ -20,8 +20,7 @@ export default function ThreadsLayout({ children }: React.PropsWithChildren) {
 async function ThreadsSidebar() {
     await connection();
 
-    const session = await getServerSession();
-    const userId = session?.user?.id;
+    const userId = await getSessionUserId();
 
     if (!userId) {
         return <SidebarPanel />;

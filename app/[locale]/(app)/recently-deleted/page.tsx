@@ -9,7 +9,7 @@ import { RecentlyDeletedList } from "@/components/recently-deleted/list";
 import { SidebarPanel } from "@/components/session/sidebar";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getServerSession } from "@/lib/auth/session";
+import { getSessionUserId } from "@/lib/auth/session";
 import { listRecentlyDeletedItems } from "@/lib/collections/service";
 
 const RECENTLY_DELETED_SKELETON_KEYS = [
@@ -79,8 +79,7 @@ function RecentlyDeletedPageHeader() {
 async function RecentlyDeletedPageBody() {
     await connection();
 
-    const session = await getServerSession();
-    const userId = session?.user?.id;
+    const userId = await getSessionUserId();
 
     if (!userId) {
         return redirect("/");

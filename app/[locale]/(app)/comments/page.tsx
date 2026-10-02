@@ -9,7 +9,7 @@ import { CommentsList } from "@/components/comments/list";
 import { SidebarPanel } from "@/components/session/sidebar";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getServerSession } from "@/lib/auth/session";
+import { getSessionUserId } from "@/lib/auth/session";
 import { listCommentsForUser } from "@/lib/comment/service";
 
 const COMMENTS_SKELETON_KEYS = ["c0", "c1", "c2", "c3", "c4"] as const;
@@ -67,8 +67,7 @@ function CommentsPageHeader() {
 async function CommentsPageBody() {
     await connection();
 
-    const session = await getServerSession();
-    const userId = session?.user?.id;
+    const userId = await getSessionUserId();
 
     if (!userId) {
         return redirect("/");
