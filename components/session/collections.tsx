@@ -2926,6 +2926,7 @@ function CollectionsListStatus({
     ...props
 }: React.ComponentProps<"div">) {
     const { dismissStatus, status } = useCollectionStatus();
+
     const tone = status?.tone;
 
     if (!status?.message) {
