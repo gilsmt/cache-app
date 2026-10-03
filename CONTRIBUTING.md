@@ -9,31 +9,29 @@ Thank you for your interest in contributing to the Cache App. We welcome contrib
 2. **Clone Your Fork**
 
     ```bash
-    git clone https://github.com/<your-username>/cache.git
-    cd cache
+    git clone https://github.com/<your-username>/cache-app.git
+    cd cache-app
     ```
 
-3. **Create a Feature Branch**
+3. **Create a Branch** — Use at most three words, separated by hyphens, with no slashes or type prefixes.
 
     ```bash
-    git checkout -b feat/your-feature-name
+    git checkout -b session-recovery
     ```
 
-    Use clear naming conventions: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`.
+    Examples: `session-recovery`, `fix-scroll-state`, `regenerate-sdk`.
 
-4. **Make Your Changes** — Keep changes small, focused, and consistent with existing code style.
+4. **Make Your Changes** — Solve the problem at its source. Read the full implementation of what you change and its direct callers before you edit it.
 
-5. **Commit Your Changes** — Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) (see [guidelines](#commit-message-guidelines) below).
+5. **Commit Your Changes** — Use a short, imperative subject line. The existing history follows [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) with an optional scope, such as `fix(automations): re-check entitlement before claiming a run`.
 
 6. **Push Your Branch**
 
     ```bash
-    git push origin feat/your-feature-name
+    git push origin session-recovery
     ```
 
-7. **Create a Pull Request** — Open a PR against the `main` branch. Provide a clear description and reference any related issues (e.g., `fixes #123`).
-
----
+7. **Create a Pull Request** — Open a PR against the `main` branch.
 
 ## Reporting Issues
 
@@ -45,65 +43,33 @@ If you find a bug or have a feature request, open an issue on GitHub. Please inc
 - Screenshots or logs if relevant.
 - Environment details (browser, OS, etc.).
 
----
+For security vulnerabilities, do not open a public issue. Follow [SECURITY.md](SECURITY.md) instead.
 
 ## Pull Request Process
 
 1. **Keep your branch up to date** — Rebase onto the latest `main` before submitting.
-2. **Run quality checks** — Your code must pass all CI checks:
+2. **Pass the local gate** — A pre-commit hook runs on every commit:
 
     ```bash
-    bun run type-check
-    bun run lint
-    bun run test
+    bun lint          # Ultracite (Biome)
+    bun type-check    # TypeScript
     ```
 
-3. **Include tests** — New features should include tests. Bug fixes should include a regression test.
-4. **Document changes** — Update relevant documentation if your PR changes behaviour or adds features.
+    Run `bun test` too, and add a test with your change: new features need coverage, and bug fixes need a regression test.
+
+3. **Include tests** — Tests live next to the code they cover, as `*.test.ts`, and run with Bun's test runner.
+4. **Document changes** — Update the relevant documentation if your PR changes behaviour or adds features.
 5. **Reference issues** — Link to any related issues in the PR description.
-6. **Review process** — Maintainers will review your PR and may request changes. We aim to respond within a few business days.
-
----
-
-## Commit Message Guidelines
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
-
-```
-<type>(<scope>): <description>
-```
-
-**Types:**
-
-| Type       | Usage                                   |
-| ---------- | --------------------------------------- |
-| `feat`     | A new feature                           |
-| `fix`      | A bug fix                               |
-| `docs`     | Documentation changes                   |
-| `style`    | Code style (formatting, etc.)           |
-| `refactor` | Code change that neither fixes nor adds |
-| `test`     | Adding or updating tests                |
-| `chore`    | Build process, tooling, dependencies    |
-| `perf`     | Performance improvement                 |
-
-**Examples:**
-
-```
-feat(collections): add AI-assisted relevance ranking
-fix(search): resolve plain English query parsing for non-English text
-docs: update installation instructions
-chore(deps): upgrade Prisma to v7
-```
-
----
+6. **Write a short description** — At most two sentences covering why the change is needed, what used to happen, and what it now does. Reviewers rely on it; do not restate the diff.
+7. **Review process** — Maintainers will review your PR and may request changes.
 
 ## Local Development Setup
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) v1.3.14+
-- [Node.js](https://nodejs.org/) 24.x
-- PostgreSQL 12+
+- [Bun](https://bun.sh/) 1.4.x (see `packageManager` in `package.json`)
+- [Node.js](https://nodejs.org/) 24.x (see `engines` and `.nvmrc`)
+- PostgreSQL 12+ (local or remote)
 
 ### Setup
 
@@ -123,16 +89,18 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Useful Commands
 
-| Command              | Description           |
-| -------------------- | --------------------- |
-| `bun run dev`        | Start dev server      |
-| `bun run build`      | Production build      |
-| `bun run lint`       | Run Ultracite linter  |
-| `bun run lint:fix`   | Auto-fix lint issues  |
-| `bun run test`       | Run unit test suite   |
-| `bun run type-check` | TypeScript type check |
-
----
+| Command              | Description                         |
+| -------------------- | ----------------------------------- |
+| `bun run dev`        | Start the dev server                |
+| `bun run build`      | Production build                    |
+| `bun run start`      | Serve the production build          |
+| `bun lint`           | Run the Ultracite (Biome) linter    |
+| `bun lint:fix`       | Auto-fix lint issues                |
+| `bun type-check`     | TypeScript type check               |
+| `bun test`           | Run the test suite                  |
+| `bun run db-migrate` | Create and apply a Prisma migration |
+| `bun run db-deploy`  | Apply pending migrations            |
+| `bun run translate`  | Sync translations with gt-next      |
 
 ## License
 
