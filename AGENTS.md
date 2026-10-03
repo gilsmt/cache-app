@@ -3,12 +3,9 @@
 Cache has a zero technical debt policy. Do it right the first time: the design that lands in the codebase should be the correct one, with no intentional debt in that surface. A problem solved in design costs less than one solved in implementation, which costs less than one solved in production. "Right the first time" describes the landed output, not the exploration that produced it — see simplicity below.
 
 When rules conflict, prefer in order: correctness and safety of the change surface, then local coherence in files you already touch, then YAGNI, then style. If a tradeoff is required, choose correctness and robustness over short-term convenience or shortcuts.
+Leave the codebase better than you found it. Do not preserve complexity just because it already exists. Understand the real constraint, then fight for the smallest model that makes the correct behavior unsurprising.
 
-Remove all mannered prose.
-
-Leave the codebase better than you found it. Do not preserve complexity just because it already exists. Do not introduce machinery because it looks architecturally impressive. Understand the real constraint, then fight for the smallest model that makes the correct behavior unsurprising.
-
-Suggest solutions or alternatives I didn’t think about and anticipate my needs. When the request is wrong, unsafe, or would not work, block it and offer alternatives. When it is merely suboptimal, challenge once with a concrete alternative, then execute the user's choice unless a hard constraint still fails. Reframe from first principles when that reaches a better answer.
+Suggest solutions or alternatives I didn’t think about and anticipate my needs. When the request is wrong, unsafe, or would not work, block it and offer alternatives. When it is merely suboptimal, challenge once with a concrete alternative, then execute the user's choice unless a hard constraint still fails. If the user's instructions conflict with any rule in this document, ask for explicit confirmation before overriding. Reframe from first principles when that reaches a better answer.
 
 Study and plan before implementing. Identify recurring patterns and design influences in the code. Keep rules or constraints of the task in mind.
 
@@ -24,7 +21,7 @@ Simplicity is not the first attempt. It is the hardest revision. It takes though
 
 Follow the rationale that each function should have a single, named responsibility. Keep functions small enough to reason about in isolation such that it is understandable and verifiable as a logical unit (self-contained). If you need to trace external state to understand it, it's too large or too coupled, step back and consider whether it should be broken up.
 
-Strive for writing fully functional, bug-free code by using best practices and minimizing room for error by, for example, making illegal states unrepresentable.
+Strive for writing fully functional bug-free code by using best practices and minimizing room for error by, for example, making illegal states unrepresentable.
 
 Prohibit over-encapsulation and over-abstraction of code.
 
@@ -46,8 +43,6 @@ Minimize risk by anticipating what’s most likely to fail (platforms, language 
 
 When a function has several validation branches or supporting details, make the main function read as the happy path and move supporting details into small helpers below it. Keep helpers close to the code they support, below the main export when that improves readability.
 
-Great names capture what a thing is or does. Append qualifiers to names. Units, bounds, and modifiers come at the end. This groups related variables together and makes scanning easier.
-
 Anchor design decisions on the user's primary task or focus, to make sure the user can complete those tasks easily, not overwhelmed by unrelated UI clutter or user flows. Our UI should help users complete their tasks, not hinder them.
 
 Constants are module-level and UPPER_SNAKE_CASE: Physics constants, selectors, and thresholds are declared at the top of the file, never inside the component.
@@ -56,15 +51,29 @@ Inline single-use values when the expression is obvious in place. Keep a name wh
 
 Before adding a new utility, check if a similar one exists in the `lib/common` directory or nearby module scope as utils. Keep the utility at the smallest scope that uses it: file-private, then `lib/{module}/utils.ts` for domain logic. Promote to `lib/common` only when two or more unrelated modules share the same reason to change under a domain-free name with no domain imports.
 
+## Naming conventions
+
+Great names capture what a thing actually is or does. Append qualifiers to names. Units, bounds, and modifiers come at the end. This groups related variables together and makes scanning easier. The adequate variables should also follow a regular prefix convention, such as `is`, `has`, `can`, `should` or `allow`.
+
+## Comments in code
+
+Use mostly ASD-STE100 Simplified Technical English. Active-voice, simple tenses, single-meaning sentences, and consistent terms. Avoid dense, jargon-heavy, or ambiguous prose.
+
+Explain why, not what, and only when a future reader (with no access to this PR or chat) would otherwise be confused, otherwise prefer no inline code comments at all.
+
+Never log change history or chat context in code — no "previously did X, now does Y", "per <task/PR>", "changed because…", or "AI:"/"agent:" notes.
+
+When refactoring or moving code, preserve existing comments unless they are explicitly made obsolete by the change.
+
 ## React
 
-Build React components following full `vercel-composition-patterns` and `vercel-react-best-practices` rules.
+Build components following `vercel-composition-patterns` and `vercel-react-best-practices` rules.
 
 Every component should be co-located into a single file with its parts, and should use a common, composable interface, making them predictable.
 
 Avoid duplicating logic where necessary: If two components can share logic (such as event handlers), define the logic/handlers in the parent and share it through a context to the child; use the existing context if it exists. Before building any new UI element, search for an existing one to reuse. The same goes for patterns, not just components: before building a new scene or view, read 2–3 comparable ones and model yours on those that follow these rules or best practices.
 
-Loading, empty, and error are three different views. Never show an empty state during the loading state. Loading indicators (skeletons, spinners) and empty states are mutually exclusive — guard empty state checks with `isLoading` so the loading UI renders first, and the empty state only appears after if loading actually completes with zero results.
+"Loading", "empty", and "error" are three different views. Never show an empty state during the loading state. Loading indicators (skeletons, spinners) and empty states are mutually exclusive — guard empty state checks with `isLoading` or similar so the loading UI renders first, and the empty state only appears once loading completes with zero results.
 
 Make sure every component file follows the same definition order: one shared module block (steps 2–5) at the top, then the exported components in original order (each with its props interfaces above), then the private sub-components at the bottom.
 
@@ -78,30 +87,6 @@ Make sure every component file follows the same definition order: one shared mod
 8. Private sub-components, at the bottom after the components, in original file order, each preceded by its props interface
 
 Inside component functions, hooks and logic should be grouped in a predictable sequence.
-
-## Naming Conventions
-
-Boolean variables follow a prefix convention:
-
-| Prefix | Example                                                | Context                      |
-| ------ | ------------------------------------------------------ | ---------------------------- |
-| is     | isVerticalScrollAxis, isNestedDrawerOpenRef            | State or derived condition   |
-| has    | hasNestedDrawer, hasCrossAxisScrollableContent         | Possession                   |
-| should | shouldUseAutoHeight, shouldApplySnapPoints, shouldDamp | Conditional behavior         |
-| can    | canSwipeFromScrollEdgeOnMove, canStart                 | Capability / permission      |
-| allow  | allowSwipe, allowTouchMove                             | Permission in touch handling |
-
-Refs should be suffixed with `Ref` (e.g. `popupHeightRef`, `lastPointerTypeRef`)
-
-Naming should match what the code actually does and follow sibling file/function names.
-
-## Comments
-
-Use mostly ASD-STE100 Simplified Technical English. Use active voice, simple tenses, one idea per sentence, and consistent terms. Explain why, not what, and only when a future reader (with no access to this PR or chat) would otherwise be confused. Prefer no inline comments at all.
-
-Never log change history or chat context in code — no "previously did X, now does Y", "per <task/PR>", "changed because…", or "AI:"/"agent:" notes. That goes in the commit message and PR description.
-
-When refactoring or moving code, preserve existing comments unless they are explicitly made obsolete by the change.
 
 ## Tech stack
 
@@ -154,7 +139,7 @@ The data model and schemas can be found at `prisma/schema.prisma`
 
 ## Git safety
 
-Never discard or hide user work with a git command. `git restore`, `git checkout --`, `git reset`, `git clean`, and `git stash` (including `drop` and `clear`) destroy or hide staged and worktree changes. Stashed work leaves the normal status and diff flow and gets forgotten. Use them only when the user explicitly asks to discard to HEAD, and then ask for the deny to be lifted first.
+Never discard or hide user work with a git command. `git restore`, `git checkout --`, `git reset`, `git clean`, and/or `git stash` (including `drop` and `clear`) destroy or hide staged and worktree changes. Stashed work leaves the normal status and diff flow and gets forgotten. Ask for confirmation each time when you need to do git mutations, even if the user has confirmed in earlier conversations.
 
 Before any git write, inspect `git status --short`, `git diff`, and `git diff --cached` for the named paths. Touch only those paths. Keep edits in the worktree. Do not change the index (`--staged`) unless the user explicitly asks. Do not modify or revert changes you didn't author.
 
@@ -162,13 +147,6 @@ If rebase conflicts occur: Resolve conflicts only in files you modified. If a co
 
 Never force push.
 
-Don't make a PR unless the user explicitly asks.
+Don't make a PR unless the user explicitly asks. If you do need to make a PR, make sure the description is crystal clear with at most 2 sentences explaining why the change is needed, including what used to happen, and what it now does.
 
 Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`. Examples: `session-recovery`, `fix-scroll-state`, `regenerate-sdk`.
-
-## User Override
-
-If the user's instructions conflict with any rule in this document, ask for explicit confirmation before overriding. Only then execute their instructions.
-
-Don't verify with browsers or computer use unless the user explicitly agrees or requests it.
-
