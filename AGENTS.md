@@ -1,4 +1,4 @@
-[README.md](README.md) for project overview.
+[README.md](README.md) for the product overview.
 
 Cache has a zero technical debt policy. Do it right the first time: the design that lands in the codebase should be the correct one, with no intentional debt in that surface. A problem solved in design costs less than one solved in implementation, which costs less than one solved in production. "Right the first time" describes the landed output, not the exploration that produced it — see simplicity below.
 
@@ -133,10 +133,6 @@ Named error module lives at `lib/common/error.ts`:
 
 Use these in services and actions to propagate domain failures with structured metadata (e.g., `{ operation, message, ... }`).
 
-## Data model
-
-The data model and schemas can be found at `prisma/schema.prisma`
-
 ## Git safety
 
 Never discard or hide user work with a git command. `git restore`, `git checkout --`, `git reset`, `git clean`, and/or `git stash` (including `drop` and `clear`) destroy or hide staged and worktree changes. Stashed work leaves the normal status and diff flow and gets forgotten. Ask for confirmation each time when you need to do git mutations, even if the user has confirmed in earlier conversations.
@@ -150,3 +146,15 @@ Never force push.
 Don't make a PR unless the user explicitly asks. If you do need to make a PR, make sure the description is crystal clear with at most 2 sentences explaining why the change is needed, including what used to happen, and what it now does.
 
 Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`. Examples: `session-recovery`, `fix-scroll-state`, `regenerate-sdk`.
+
+## Code map
+
+- Session UI: `components/session/`. Start with `list.tsx` for the library view, `side.tsx` for the selected item panel, `message.tsx` for shared message rendering, and `summary.tsx` for session summaries.
+- Automations: `components/automations/` contains the UI; `lib/intelligence/automations/` contains the domain logic. Scheduled runs enter through `app/api/cron/automations/route.ts`.
+- Previews: `app/api/preview/route.ts` owns the preview request flow; `lib/common/extract.ts` extracts page metadata.
+- MCP: `app/mcp/route.ts` defines the tools; `app/mcp/prompt/route.ts` provides the setup prompt.
+- Data model: `prisma/schema.prisma` defines the database schema. Shared, domain-free utilities live in `lib/common/`.
+
+## Local skills
+
+Repository-provided skills live in `.agents/skills/<name>/SKILL.md`. Check there first. If a requested skill is not present, use the active skills catalog to locate an installed copy instead of guessing filesystem paths.
