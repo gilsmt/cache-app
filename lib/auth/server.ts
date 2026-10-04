@@ -97,6 +97,14 @@ const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
 
 const OAUTH_USER_FETCH_TIMEOUT_MS = 10_000;
 
+/**
+ * Notion publishes no `expires_in`, so better-auth cannot age the stored token
+ * and never refreshes it. Notion does not publish a lifetime either, so this
+ * stays a deliberate underestimate: a needless refresh costs one request, while
+ * an overestimate leaves users with a dead connection until they reconnect.
+ */
+const NOTION_ACCESS_TOKEN_EXPIRES_IN_SECONDS = 30 * 60;
+
 function requiredEnv(name: string): string {
     const value = process.env[name];
     if (value === undefined || value === "") {
@@ -193,13 +201,14 @@ async function fetchOAuthUser<T>(
 }
 
 interface IntegrationOAuthDef<T> {
+    accessTokenExpiresIn?: number;
+    authentication?: "basic" | "post";
     authorizationHeaders?: Record<string, string>;
     authorizationUrl: string;
     authorizationUrlParams?: Record<string, string>;
     envPrefix: string;
     extraHeaders?: Record<string, string>;
     mapUser: (data: T) => { id: string; image?: string; name?: string } | null;
-    pkce?: boolean;
     providerId: string;
     schema: z.ZodType<T>;
     scopes?: string[];
@@ -216,7 +225,8 @@ function buildIntegrationOAuthConfig<T>(
     }
 
     return {
-        authentication: "basic",
+        accessTokenExpiresIn: def.accessTokenExpiresIn,
+        authentication: def.authentication,
         authorizationHeaders: def.authorizationHeaders,
         authorizationUrl: def.authorizationUrl,
         authorizationUrlParams: def.authorizationUrlParams,
@@ -244,7 +254,6 @@ function buildIntegrationOAuthConfig<T>(
                 },
                 def.extraHeaders
             ),
-        pkce: def.pkce,
         providerId: def.providerId,
         scopes: def.scopes,
         tokenUrl: def.tokenUrl,
@@ -275,14 +284,25 @@ const GitHubUserAccountSchema = z.object({
     name: z.string().optional(),
 });
 
+/**
+ * `/v1/users/me` returns the connection's bot. The authorizing person — the
+ * identity that must stay unique per Cache user — sits at `bot.owner.user`.
+ */
 const NotionUserSchema = z.object({
-    avatar_url: z.string().nullable().optional(),
-    id: z.string().optional(),
-    name: z.string().nullable().optional(),
+    bot: z.object({
+        owner: z.object({
+            user: z.object({
+                avatar_url: z.string().nullable().optional(),
+                id: z.string(),
+                name: z.string().nullable().optional(),
+            }),
+        }),
+    }),
 });
 
 const genericOAuthConfig = [
     buildIntegrationOAuthConfig({
+        authentication: "basic",
         authorizationUrl: "https://www.pinterest.com/oauth/",
         envPrefix: "PINTEREST",
         mapUser: (data) => {
@@ -296,7 +316,6 @@ const genericOAuthConfig = [
                 name: data.username ?? id,
             };
         },
-        pkce: true,
         providerId: "pinterest",
         schema: PinterestUserAccountSchema,
         scopes: ["user_accounts:read", "boards:read", "pins:read"],
@@ -304,6 +323,7 @@ const genericOAuthConfig = [
         userInfoUrl: "https://api.pinterest.com/v5/user_account",
     }),
     buildIntegrationOAuthConfig({
+        authentication: "basic",
         authorizationUrl: "https://x.com/i/oauth2/authorize",
         envPrefix: "X",
         extraHeaders: { Accept: "application/json" },
@@ -318,15 +338,17 @@ const genericOAuthConfig = [
                 name: data.data?.name ?? data.data?.username ?? id,
             };
         },
-        pkce: true,
         providerId: "x",
         schema: XUserAccountSchema,
         scopes: ["bookmark.read", "offline.access", "tweet.read", "users.read"],
-        tokenUrl: "https://api.twitter.com/2/oauth2/token",
+        tokenUrl: "https://api.x.com/2/oauth2/token",
         userInfoUrl:
-            "https://api.twitter.com/2/users/me?user.fields=profile_image_url",
+            "https://api.x.com/2/users/me?user.fields=profile_image_url",
     }),
     buildIntegrationOAuthConfig({
+        // GitHub reads the client credentials from the request body, so the
+        // default `post` method applies and Basic auth must not be requested.
+        authentication: "post",
         authorizationUrl: "https://github.com/login/oauth/authorize",
         envPrefix: "GITHUB",
         extraHeaders: {
@@ -346,11 +368,13 @@ const genericOAuthConfig = [
         },
         providerId: "github",
         schema: GitHubUserAccountSchema,
-        scopes: ["read:user", "public_repo"],
+        scopes: ["read:user"],
         tokenUrl: "https://github.com/login/oauth/access_token",
         userInfoUrl: "https://api.github.com/user",
     }),
     buildIntegrationOAuthConfig({
+        accessTokenExpiresIn: NOTION_ACCESS_TOKEN_EXPIRES_IN_SECONDS,
+        authentication: "basic",
         authorizationHeaders: {
             "Notion-Version": NOTION_API_VERSION,
         },
@@ -363,13 +387,11 @@ const genericOAuthConfig = [
             "Notion-Version": NOTION_API_VERSION,
         },
         mapUser: (data) => {
-            if (!data.id) {
-                return null;
-            }
+            const { user } = data.bot.owner;
             return {
-                id: data.id,
-                image: data.avatar_url ?? undefined,
-                name: data.name ?? "Notion",
+                id: user.id,
+                image: user.avatar_url ?? undefined,
+                name: user.name ?? undefined,
             };
         },
         providerId: "notion",
