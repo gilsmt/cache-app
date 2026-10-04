@@ -86,8 +86,10 @@ function getSnapshot(): string[] {
     return cachedSnapshot ?? readLastVisitedItemIds();
 }
 
+const SERVER_SNAPSHOT: string[] = [];
+
 function getServerSnapshot(): string[] {
-    return [];
+    return SERVER_SNAPSHOT;
 }
 
 function subscribe(listener: () => void): () => void {
