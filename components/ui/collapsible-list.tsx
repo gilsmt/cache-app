@@ -16,6 +16,8 @@ const MAX_VISIBLE_VERTICAL_DEFAULT = 15;
 const MAX_VISIBLE_HORIZONTAL_DEFAULT = 8;
 
 interface CollapsibleListVerticalProps extends React.ComponentProps<"div"> {
+    /** Preview rendered inside the overflow trigger while collapsed (e.g. hidden item icons). */
+    collapsedPreview?: React.ReactNode;
     /** Items rendered inline before the rest collapse behind the overflow trigger. */
     maxVisible?: number;
     /** Props forwarded to the overflow trigger. */
@@ -23,6 +25,7 @@ interface CollapsibleListVerticalProps extends React.ComponentProps<"div"> {
 }
 
 export function CollapsibleListVertical({
+    collapsedPreview,
     maxVisible = MAX_VISIBLE_VERTICAL_DEFAULT,
     children,
     className,
@@ -49,7 +52,10 @@ export function CollapsibleListVertical({
         >
             {visible}
             {hidden.length > 0 ? (
-                <CollapsibleListOverflowTrigger {...triggerProps}>
+                <CollapsibleListOverflowTrigger
+                    {...triggerProps}
+                    collapsedPreview={collapsedPreview}
+                >
                     {hidden}
                 </CollapsibleListOverflowTrigger>
             ) : null}
@@ -121,11 +127,17 @@ export function CollapsibleListHorizontal({
 }
 
 /** @internal */
+interface CollapsibleListOverflowTriggerProps
+    extends React.ComponentProps<typeof CollapsibleTrigger> {
+    collapsedPreview?: React.ReactNode;
+}
+
 function CollapsibleListOverflowTrigger({
     children,
+    collapsedPreview,
     className,
     ...props
-}: React.ComponentProps<typeof CollapsibleTrigger>) {
+}: CollapsibleListOverflowTriggerProps) {
     const [isOpen, setIsOpen] = React.useState(false);
 
     const count = React.Children.count(children);
@@ -136,6 +148,7 @@ function CollapsibleListOverflowTrigger({
                 {...props}
                 className={cn(
                     "flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground",
+                    collapsedPreview && "gap-2",
                     className
                 )}
             >
@@ -145,9 +158,12 @@ function CollapsibleListOverflowTrigger({
                         <ChevronUp className="ml-1 size-3.5" />
                     </>
                 ) : (
-                    <T>
-                        Show <Var>{count}</Var> more
-                    </T>
+                    <>
+                        {collapsedPreview}
+                        <T>
+                            Show <Var>{count}</Var> more
+                        </T>
+                    </>
                 )}
             </CollapsibleTrigger>
             <CollapsiblePanel>{children}</CollapsiblePanel>

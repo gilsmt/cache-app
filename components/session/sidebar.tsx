@@ -8,6 +8,7 @@ import {
     MessageSquare,
 } from "lucide-react";
 import type * as React from "react";
+import { Suspense } from "react";
 import {
     UserMenu,
     UserMenuContent,
@@ -16,6 +17,7 @@ import {
     UserMenuPopup,
     UserMenuTrigger,
 } from "@/components/auth/user-menu";
+import { AutomationsCount } from "@/components/automations/count";
 import { OfflineBadge } from "@/components/ui/offline";
 import {
     Sidebar,
@@ -27,7 +29,6 @@ import {
     SidebarMenuPopup,
     SidebarMenuTrigger,
     SidebarNavigationItem,
-    SidebarNavigationShortcut,
     SidebarRail,
     SidebarTrigger,
 } from "@/components/ui/sidebar";
@@ -59,87 +60,56 @@ export function SidebarPanel({
                     <OfflineBadge />
                     <SidebarTrigger />
                 </div>
-                <SidebarGroup>
-                    <SidebarNavigationItem
-                        href="/library"
-                        icon={
-                            <Compass
-                                aria-hidden
-                                className="inline-block size-4 shrink-0"
-                                focusable="false"
-                            />
-                        }
-                        label={msg("Library")}
-                        shortcutKeys="mod+alt+h"
-                    >
-                        <T>Library</T>
-                    </SidebarNavigationItem>
-                    <SidebarNavigationItem
-                        href="/automations"
-                        icon={
-                            <ClockFading
-                                aria-hidden
-                                className="inline-block size-4 shrink-0"
-                                focusable="false"
-                            />
-                        }
-                        label={msg("Automations")}
-                        shortcutKeys="mod+alt+a"
-                    >
-                        <T>Automations</T>
-                    </SidebarNavigationItem>
-                    <SidebarNavigationShortcut
-                        href="/comments"
-                        label={msg("Comments")}
-                        shortcutKeys={COMMENTS_SHORTCUT_KEYS}
-                    />
-                    <SidebarNavigationShortcut
-                        href="/recently-deleted"
-                        label={msg("Recently deleted")}
-                        shortcutKeys={RECENTLY_DELETED_SHORTCUT_KEYS}
-                    />
-                    <SidebarMenu>
-                        <SidebarMenuTrigger
-                            icon={
-                                <Ellipsis
-                                    aria-hidden
-                                    className="inline-block size-4 shrink-0"
-                                    focusable="false"
-                                />
+                <nav aria-label="Main navigation">
+                    <SidebarGroup>
+                        <SidebarNavigationItem
+                            href="/library"
+                            icon={<Compass />}
+                            label={msg("Library")}
+                            shortcutKeys="mod+alt+h"
+                        >
+                            <T>Library</T>
+                        </SidebarNavigationItem>
+                        <SidebarNavigationItem
+                            href="/automations"
+                            icon={<ClockFading />}
+                            label={msg("Automations")}
+                            shortcutKeys="mod+alt+a"
+                            trailing={
+                                <Suspense>
+                                    <AutomationsCount />
+                                </Suspense>
                             }
                         >
-                            <T context="sidebar.more-menu">More</T>
-                        </SidebarMenuTrigger>
-                        <SidebarMenuPopup>
-                            <SidebarMenuLinkItem
-                                href="/comments"
-                                icon={
-                                    <MessageSquare
-                                        aria-hidden
-                                        className="inline-block size-4 shrink-0"
-                                        focusable="false"
-                                    />
-                                }
-                                shortcutKeys={COMMENTS_SHORTCUT_KEYS}
-                            >
-                                <T>Comments</T>
-                            </SidebarMenuLinkItem>
-                            <SidebarMenuLinkItem
-                                href="/recently-deleted"
-                                icon={
-                                    <History
-                                        aria-hidden
-                                        className="inline-block size-4 shrink-0"
-                                        focusable="false"
-                                    />
-                                }
-                                shortcutKeys={RECENTLY_DELETED_SHORTCUT_KEYS}
-                            >
-                                <T>Recently deleted</T>
-                            </SidebarMenuLinkItem>
-                        </SidebarMenuPopup>
-                    </SidebarMenu>
-                </SidebarGroup>
+                            <T>Automations</T>
+                        </SidebarNavigationItem>
+                        <SidebarMenu>
+                            <SidebarMenuTrigger icon={<Ellipsis />}>
+                                <T context="sidebar.more-menu">More</T>
+                            </SidebarMenuTrigger>
+                            <SidebarMenuPopup>
+                                <SidebarMenuLinkItem
+                                    href="/comments"
+                                    icon={<MessageSquare />}
+                                    label={msg("Comments")}
+                                    shortcutKeys={COMMENTS_SHORTCUT_KEYS}
+                                >
+                                    <T>Comments</T>
+                                </SidebarMenuLinkItem>
+                                <SidebarMenuLinkItem
+                                    href="/recently-deleted"
+                                    icon={<History />}
+                                    label={msg("Recently deleted")}
+                                    shortcutKeys={
+                                        RECENTLY_DELETED_SHORTCUT_KEYS
+                                    }
+                                >
+                                    <T>Recently deleted</T>
+                                </SidebarMenuLinkItem>
+                            </SidebarMenuPopup>
+                        </SidebarMenu>
+                    </SidebarGroup>
+                </nav>
                 {children}
             </SidebarContent>
             <SidebarRail />

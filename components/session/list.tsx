@@ -5,6 +5,7 @@ import type {
     BaseUIEvent,
 } from "@base-ui/react";
 import { Toolbar } from "@base-ui/react/toolbar";
+import { areArraysEqual } from "@base-ui/utils/areArraysEqual";
 import { getTarget } from "@base-ui/utils/shadowDom";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
@@ -12,9 +13,9 @@ import { useTimeout } from "@base-ui/utils/useTimeout";
 import { cn } from "cn";
 import { T, useGT, Var } from "gt-next";
 import {
+    ArrowDownWideNarrow,
     ArrowUpRight,
     Astroid,
-    Check,
     ChevronDown,
     ChevronRight,
     ChevronsDown,
@@ -25,28 +26,24 @@ import {
     CopyX,
     DownloadIcon,
     Ellipsis,
-    ExternalLinkIcon,
-    EyeIcon,
-    FilePenLineIcon,
     FileSpreadsheetIcon,
     FolderOpen,
+    Funnel,
+    Globe,
     History,
-    LinkIcon,
+    Layers3,
     ListChevronsUpDown,
     RotateCcw,
     SearchIcon,
+    SearchX,
     SquarePen,
-    Squircle,
-    SquircleDashed,
-    Star,
-    ZoomIn,
+    Tags,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Streamdown } from "streamdown";
-import useSWR from "swr";
 import { ThinkingOrb } from "thinking-orbs";
 import {
     BlockPaywallBanner,
@@ -54,7 +51,6 @@ import {
 } from "@/components/billing/paywall";
 import { useSubscriptionAccess } from "@/components/billing/subscription";
 import { SuccessfulUpgradeDialog } from "@/components/billing/success";
-import { CommentComposer } from "@/components/comments/composer";
 import { useSectionDescription } from "@/components/hooks/queries/use-section-description";
 import {
     type CollectionMembershipFilter,
@@ -86,12 +82,27 @@ import {
     isSubmitKey,
     ReadAloudResponseButton,
 } from "@/components/session/composer";
-import { MediaCardPreview } from "@/components/session/item";
+import {
+    ItemCardDownloadProvider,
+    ItemCardEnvironmentContext,
+    ItemCardFooter,
+    ItemCardProvider,
+    ItemCardSkeleton,
+    ItemCardSurface,
+    ItemCardTarget,
+    ItemCardZoomProvider,
+    ItemCollectionsCombobox,
+    type ItemPeekPlaceholder,
+} from "@/components/session/item";
 import {
     ItemsContext,
     useItemsContext,
     useItemsStateContext,
 } from "@/components/session/items";
+import {
+    AssistantMessageActions,
+    AssistantMessageBody,
+} from "@/components/session/message";
 import { OnboardingMenu } from "@/components/session/onboarding";
 
 import {
@@ -106,27 +117,11 @@ import {
     SummaryPopup,
     SummaryTrigger,
 } from "@/components/session/summary";
-import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent, BubbleGroup } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
-import {
-    Collapsible,
-    CollapsiblePanel,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsiblePanel } from "@/components/ui/collapsible";
 import { CollapsibleListHorizontal } from "@/components/ui/collapsible-list";
-import {
-    Combobox,
-    ComboboxCollection,
-    ComboboxEmpty,
-    ComboboxInput,
-    ComboboxItem,
-    ComboboxList,
-    ComboboxPopup,
-    ComboboxStatus,
-    ComboboxTrigger,
-} from "@/components/ui/combobox";
 import {
     CommandCollection,
     CommandEmpty,
@@ -141,14 +136,9 @@ import {
 } from "@/components/ui/command";
 import {
     ContextMenu,
-    ContextMenuGroup,
-    ContextMenuGroupLabel,
     ContextMenuItem,
     ContextMenuPopup,
     ContextMenuSeparator,
-    ContextMenuSub,
-    ContextMenuSubPopup,
-    ContextMenuSubTrigger,
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
@@ -169,29 +159,21 @@ import {
 } from "@/components/ui/hover-hotkey-surface";
 import { ChevronDownFilledIcon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
-import { AltKbd, CmdKbd, Kbd } from "@/components/ui/kbd";
+import { CmdKbd, Kbd } from "@/components/ui/kbd";
 import { MasonryItem, MasonryRoot } from "@/components/ui/masonry";
 import {
     Menu,
-    MenuGroup,
-    MenuGroupLabel,
     MenuItem,
     MenuPopup,
     MenuSeparator,
-    MenuSub,
-    MenuSubPopup,
-    MenuSubTrigger,
     MenuTrigger,
 } from "@/components/ui/menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { Ticker } from "@/components/ui/ticker";
 import {
     type CollectionCreateFromItemsResult,
     createCollectionFromItems,
-    downloadMedia,
 } from "@/lib/collections/actions";
 import {
     buildLibraryItemIndexes,
@@ -226,11 +208,7 @@ import {
     getLibraryItemPrimaryText,
     getLibraryItemTitle,
     getNoteExcerpt,
-    isRecentlySmartCollected,
-    itemPreviewImageProxyUrl,
-    itemPreviewImageUrl,
     type LibraryCollectionSummary,
-    type LibraryCollectionTag,
     type LibraryItemWithCollections,
     truncateLabel,
 } from "@/lib/collections/utils";
@@ -254,20 +232,13 @@ import { parseDate } from "@/lib/common/date";
 import { isTextEntryTarget } from "@/lib/common/dom";
 import { revokeFileAttachmentObjectUrl, saveFile } from "@/lib/common/file";
 import { filterValidImageUrls } from "@/lib/common/image";
-import { getImageColors } from "@/lib/common/image-color";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import {
-    normalizeWhitespace,
-    slugify,
-    truncateText,
-} from "@/lib/common/string";
-import { fetchWithTimeout } from "@/lib/common/timeout";
+import { NAME_COLLATOR, slugify, truncateText } from "@/lib/common/string";
 import {
     normalizeURL,
     openExternalUrl,
     parseDisplayUrl,
     toValidUrl,
-    tryParseUrl,
 } from "@/lib/common/url";
 import {
     type CreateChromeBookmarkFromUrlResult,
@@ -278,20 +249,20 @@ import {
     type NoteMutationResult,
     updateNote,
 } from "@/lib/integrations/notes/actions";
-import { getSourceIcon } from "@/lib/integrations/support";
-import { askCache, getAgentViewPage } from "@/lib/intelligence/actions";
+import { getSourceIcon, getSourceLabel } from "@/lib/integrations/support";
+import { getAgentViewPage, runAssistant } from "@/lib/intelligence/actions";
 import type {
-    AskCacheComposerPatch,
-    AskCacheRequest,
-    AskCacheResult,
-    AskCacheVisibleItem,
-} from "@/lib/intelligence/composer/ask-cache";
+    AssistantComposerPatch,
+    AssistantRequest,
+    AssistantResult,
+    AssistantVisibleItem,
+} from "@/lib/intelligence/composer/assistant";
 import {
-    ASK_CACHE_CONTEXT_COLLECTION_LIMIT,
-    ASK_CACHE_CONTEXT_DOMAIN_LIMIT,
-    ASK_CACHE_VISIBLE_ITEM_LABEL_MAX_LENGTH,
-    ASK_CACHE_VISIBLE_ITEM_LIMIT,
-} from "@/lib/intelligence/composer/ask-cache";
+    ASSISTANT_CONTEXT_COLLECTION_LIMIT,
+    ASSISTANT_CONTEXT_DOMAIN_LIMIT,
+    ASSISTANT_VISIBLE_ITEM_LABEL_MAX_LENGTH,
+    ASSISTANT_VISIBLE_ITEM_LIMIT,
+} from "@/lib/intelligence/composer/assistant";
 import type {
     AgentViewPage,
     AgentViewQuery,
@@ -309,27 +280,17 @@ import {
     SECTION_DESCRIPTION_URL_MAX_LENGTH,
     type SectionDescriptionContextItem,
 } from "@/lib/intelligence/overview";
-import { createThreadFromAskCache } from "@/lib/threads/actions";
+import { createThreadFromAssistant } from "@/lib/threads/actions";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
-
-const MEDIA_DOWNLOAD_TIMEOUT_MS = 60_000;
-
-const COBALT_SOURCES = new Set<LibraryItemSource>([
-    LibraryItemSource.google_photos,
-    LibraryItemSource.instagram,
-    LibraryItemSource.pinterest,
-    LibraryItemSource.tiktok,
-    LibraryItemSource.x_bookmarks,
-    LibraryItemSource.youtube_watch_later,
-]);
+import { ToolbarGroup } from "../ui/toolbar";
 
 const DOMAIN_RELATED_SOURCES = new Set<LibraryItemSource>([
     LibraryItemSource.chrome_bookmarks,
     LibraryItemSource.other,
 ]);
 
-const EMPTY_LIBRARY_PEEK_PLACEHOLDERS = [
+const EMPTY_PEEK_PLACEHOLDERS = [
     { aspect: "aspect-[3/4]", id: "library-empty-peek-0" },
     { aspect: "aspect-[4/5]", id: "library-empty-peek-1" },
     { aspect: "aspect-square", id: "library-empty-peek-2" },
@@ -353,59 +314,21 @@ const LOCKED_PEEK_ASPECT_CYCLE = [
 
 const LOCKED_PEEK_PLACEHOLDERS_MAX = 24;
 
-interface LibraryPeekPlaceholder {
-    aspect: string;
-    id: string;
-}
-
-function buildLockedPeekPlaceholders(
-    lockedItemCount: number
-): LibraryPeekPlaceholder[] {
-    const length = Math.min(
-        Math.max(0, Math.floor(lockedItemCount)),
-        LOCKED_PEEK_PLACEHOLDERS_MAX
-    );
-    return Array.from({ length }, (_, index) => ({
-        aspect: LOCKED_PEEK_ASPECT_CYCLE[
-            index % LOCKED_PEEK_ASPECT_CYCLE.length
-        ],
-        id: `locked-library-peek-${index}`,
-    }));
-}
-
-const MEDIA_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE: Record<
-    string,
-    MediaDownloadFileExtension
-> = {
-    [MIME_TYPES.avif]: "avif",
-    [MIME_TYPES.bmp]: "bmp",
-    [MIME_TYPES.gif]: "gif",
-    [MIME_TYPES.ico]: "ico",
-    [MIME_TYPES.jfif]: "jfif",
-    [MIME_TYPES.jpg]: "jpg",
-    [MIME_TYPES.mov]: "mov",
-    [MIME_TYPES.mp4]: "mp4",
-    [MIME_TYPES.png]: "png",
-    [MIME_TYPES.svg]: "svg",
-    [MIME_TYPES.webp]: "webp",
-    [MIME_TYPES.webm]: "webm",
-} as const;
-
-interface BrowserGroup {
+interface ItemsGroup {
     items: LibraryItemWithCollections[];
     key: string;
     title: string | null;
 }
 
-interface CreateCollectionFromResultsInput {
+interface CreateItemsCollectionInput {
     description?: string;
     itemIds: string[];
     name: string;
 }
 
-interface BrowserContext {
+interface ItemsListContext {
     clearLibraryPalette: () => void;
-    collapsedSectionKeys: Set<string>;
+    collapsedSectionKeys: ReadonlySet<string>;
     collections: LibraryCollectionSummary[];
     columnCount?: number;
     enableSectionCollapse: boolean;
@@ -428,181 +351,16 @@ interface BrowserContext {
     shouldShowUnreachableProbePending: boolean;
 }
 
-interface BrowserGroupContext {
+interface ItemsGroupContext {
     accentKey: string;
     collapsed: boolean;
     isMainResults: boolean;
     items: LibraryItemWithCollections[];
-    key: string;
     onToggle: () => void;
     title: string;
 }
 
-interface MediaCardEnvironmentContext {
-    collections: LibraryCollectionSummary[];
-    favoriteItemIdSet: ReadonlySet<string>;
-    hoveredItemIdRef: React.RefObject<string | null>;
-    hoverPinnedItemIdRef: React.RefObject<string | null>;
-    markVisited: (itemId: string) => void;
-    onCopyLink: (item: LibraryItemWithCollections) => void;
-    onDelete: (item: LibraryItemWithCollections) => void;
-    onFindSimilar: (item: LibraryItemWithCollections) => void;
-    onItemFavoriteToggle: (item: LibraryItemWithCollections) => void;
-    onOpenInNewTab: (item: LibraryItemWithCollections) => void;
-    onOpenNote: (item: LibraryItemWithCollections) => void;
-    onUpdateItemCollections: (
-        itemId: string,
-        collectionIds: string[]
-    ) => Promise<LibraryItemCollectionsUpdateResult>;
-    openPickerItemId: string | null;
-    pendingDeleteItemId: string | null;
-    setOpenPickerItemId: (id: string | null) => void;
-}
-
-interface MediaCardData {
-    displayTitle: string;
-    isNote: boolean;
-    item: LibraryItemWithCollections;
-    previewImageUrl: string | null;
-}
-
-interface MediaCardDownloadContext {
-    isDownloading: boolean;
-    onDownload: () => void;
-}
-
-interface MediaCardZoomContext {
-    isZoomed: boolean;
-    onZoomChange: (nextZoomed: boolean) => void;
-    onZoomIn: () => void;
-}
-
-interface MediaCardSurfaceContext {
-    isMenuOpen: boolean;
-    isOverlayOpen: boolean;
-    onMenuOpenChange: (open: boolean) => void;
-}
-
-const MEDIA_CARD_ACTION_PLUGINS = [
-    {
-        id: "favorite",
-        isAvailable: () => true,
-        render: (variant: "menu" | "contextMenu") =>
-            variant === "menu" ? (
-                <MediaCardFavoriteAction variant="menu" />
-            ) : (
-                <MediaCardFavoriteAction variant="contextMenu" />
-            ),
-        separatorBefore: false,
-    },
-    {
-        id: "edit-note",
-        isAvailable: ({ isNote }: MediaCardData) => isNote,
-        render: (variant: "menu" | "contextMenu") =>
-            variant === "menu" ? (
-                <MediaCardNoteAction variant="menu" />
-            ) : (
-                <MediaCardNoteAction variant="contextMenu" />
-            ),
-        separatorBefore: false,
-    },
-    {
-        id: "side",
-        isAvailable: ({ item }: MediaCardData) =>
-            item.kind !== ITEM_KIND_NOTE &&
-            toValidUrl(normalizeURL(item.url)) !== FALLBACK_URL,
-        render: (variant: "menu" | "contextMenu") =>
-            variant === "menu" ? (
-                <MediaCardSideAction variant="menu" />
-            ) : (
-                <MediaCardSideAction variant="contextMenu" />
-            ),
-        separatorBefore: false,
-    },
-    {
-        id: "zoom",
-        isAvailable: ({ previewImageUrl }: MediaCardData) =>
-            previewImageUrl !== null,
-        render: (variant: "menu" | "contextMenu") =>
-            variant === "menu" ? (
-                <MediaCardZoomAction variant="menu" />
-            ) : (
-                <MediaCardZoomAction variant="contextMenu" />
-            ),
-        separatorBefore: false,
-    },
-    {
-        id: "open-link",
-        isAvailable: ({ isNote }: MediaCardData) => !isNote,
-        render: (variant: "menu" | "contextMenu") =>
-            variant === "menu" ? (
-                <MediaCardOpenLinkAction variant="menu" />
-            ) : (
-                <MediaCardOpenLinkAction variant="contextMenu" />
-            ),
-        separatorBefore: false,
-    },
-    {
-        id: "copy-link",
-        isAvailable: ({ isNote }: MediaCardData) => !isNote,
-        render: (variant: "menu" | "contextMenu") =>
-            variant === "menu" ? (
-                <MediaCardCopyLinkAction variant="menu" />
-            ) : (
-                <MediaCardCopyLinkAction variant="contextMenu" />
-            ),
-        separatorBefore: false,
-    },
-    {
-        id: "download",
-        isAvailable: ({ isNote, item }: MediaCardData) =>
-            !isNote && COBALT_SOURCES.has(item.source),
-        render: (variant: "menu" | "contextMenu") =>
-            variant === "menu" ? (
-                <MediaCardDownloadAction variant="menu" />
-            ) : (
-                <MediaCardDownloadAction variant="contextMenu" />
-            ),
-        separatorBefore: true,
-    },
-    {
-        id: "find-similar",
-        isAvailable: () => true,
-        render: (variant: "menu" | "contextMenu") =>
-            variant === "menu" ? (
-                <MediaCardFindSimilarAction variant="menu" />
-            ) : (
-                <MediaCardFindSimilarAction variant="contextMenu" />
-            ),
-        separatorBefore: false,
-    },
-    {
-        id: "wayback",
-        isAvailable: ({ isNote }: MediaCardData) => !isNote,
-        render: (variant: "menu" | "contextMenu") =>
-            variant === "menu" ? (
-                <MediaCardWaybackAction variant="menu" />
-            ) : (
-                <MediaCardWaybackAction variant="contextMenu" />
-            ),
-        separatorBefore: false,
-    },
-    {
-        id: "delete",
-        isAvailable: () => true,
-        render: (variant: "menu" | "contextMenu") =>
-            variant === "menu" ? (
-                <MediaCardDeleteAction variant="menu" />
-            ) : (
-                <MediaCardDeleteAction variant="contextMenu" />
-            ),
-        separatorBefore: true,
-    },
-] as const;
-
-type MediaDownloadFileExtension = Exclude<keyof typeof MIME_TYPES, "binary">;
-
-interface BrowserSimilarFilterState {
+interface SimilarItemFilterState {
     collectionMembershipFilter: CollectionMembershipFilter;
     domainFilters: string[];
     searchTerms: string[];
@@ -610,7 +368,7 @@ interface BrowserSimilarFilterState {
     sourceFilters: LibraryItemSource[];
 }
 
-interface FilterBrowserItemsInput {
+interface FilterItemsInput {
     collectionMembershipFilter: CollectionMembershipFilter;
     domainFilters: string[];
     duplicateItemIds: ReadonlySet<string>;
@@ -623,219 +381,378 @@ interface FilterBrowserItemsInput {
     unreachableItemIds: ReadonlySet<string>;
 }
 
-interface BrowserSimilarFilterOptions {
+interface SimilarItemFilterOptions {
     domain: string;
     source: LibraryItemSource;
 }
 
-interface LibraryItemIndexesCache {
+interface ItemIndexesCache {
     indexes: LibraryItemIndexes;
     items: LibraryItemWithCollections[];
     previewUrlCache: WeakMap<LibraryItemWithCollections, string | null>;
 }
 
-const log = createLogger("library:browser");
+const ALL_DOMAIN_FILTER = "__all_domains__";
+const UNSPECIFIC_LIBRARY_DOMAIN = "Other";
+const COLLECTION_NAME_MAX_LENGTH = 64;
 
-const BrowserContext = React.createContext<BrowserContext | null>(null);
+const FILTERABLE_LIBRARY_SOURCES = [
+    LibraryItemSource.cache_note,
+    LibraryItemSource.chrome_bookmarks,
+    LibraryItemSource.extension_clip,
+    LibraryItemSource.github_starred_repositories,
+    LibraryItemSource.google_photos,
+    LibraryItemSource.instagram,
+    LibraryItemSource.markdown_import,
+    LibraryItemSource.pinterest,
+    LibraryItemSource.rss_feed,
+    LibraryItemSource.tiktok,
+    LibraryItemSource.x_bookmarks,
+    LibraryItemSource.youtube_watch_later,
+] as const satisfies LibraryItemSource[];
 
-function useBrowserContext(): BrowserContext {
-    const context = React.use(BrowserContext);
-    if (!context) {
-        throw new Error(
-            "Browser components must be used inside <BrowserContent>."
-        );
-    }
-    return context;
-}
+const MATCH_WORD_SEPARATOR_PATTERN = /[\s:./_-]+/;
 
-const BrowserGroupContext = React.createContext<BrowserGroupContext | null>(
-    null
-);
+const SUGGESTION_LIMIT = 3;
+const SUGGESTION_ICON_CLASS = "size-3.5 shrink-0";
+const MULTI_WORD_QUERY_PATTERN = /\S+\s+\S+/;
+const COMBOBOX_ITEM_PRESS_REASON = "item-press";
+const COMBOBOX_ESCAPE_KEY_REASON = "escape-key";
+const COMPOSER_OPEN_HOTKEYS = [
+    "ctrl+g",
+    "ctrl+k",
+    "ctrl+p",
+    "cmd+g",
+    "cmd+k",
+    "cmd+p",
+    "Meta+g",
+    "Meta+k",
+    "Meta+p",
+] as const;
 
-function useBrowserGroupContext(): BrowserGroupContext {
-    const context = React.use(BrowserGroupContext);
-    if (!context) {
-        throw new Error(
-            "BrowserGroup components must be used inside <BrowserGroupProvider>."
-        );
-    }
-    return context;
-}
-
-const MediaCardEnvironmentContext =
-    React.createContext<MediaCardEnvironmentContext | null>(null);
-
-function useMediaCardEnvironmentContext(): MediaCardEnvironmentContext {
-    const environment = React.use(MediaCardEnvironmentContext);
-    if (!environment) {
-        throw new Error(
-            "MediaCard components must be used inside <MediaCardEnvironmentContext>."
-        );
-    }
-    return environment;
-}
-
-const MediaCardDataContext = React.createContext<MediaCardData | null>(null);
-
-function useMediaCardDataContext(): MediaCardData {
-    const data = React.use(MediaCardDataContext);
-    if (!data) {
-        throw new Error(
-            "Media card components must be used inside <MediaCardDataProvider>."
-        );
-    }
-    return data;
-}
-
-const MediaCardDownloadContext =
-    React.createContext<MediaCardDownloadContext | null>(null);
-
-function useMediaCardDownloadContext(): MediaCardDownloadContext {
-    const context = React.use(MediaCardDownloadContext);
-    if (!context) {
-        throw new Error(
-            "Media card components must be used inside <MediaCardDownloadProvider>."
-        );
-    }
-    return context;
-}
-
-const MediaCardZoomContext = React.createContext<MediaCardZoomContext | null>(
-    null
-);
-
-function useMediaCardZoomContext(): MediaCardZoomContext {
-    const context = React.use(MediaCardZoomContext);
-    if (!context) {
-        throw new Error(
-            "Media card components must be used inside <MediaCardZoomProvider>."
-        );
-    }
-    return context;
-}
-
-const MediaCardSurfaceContext =
-    React.createContext<MediaCardSurfaceContext | null>(null);
-
-function useMediaCardSurfaceContext(): MediaCardSurfaceContext {
-    const context = React.use(MediaCardSurfaceContext);
-    if (!context) {
-        throw new Error(
-            "Media card surfaces must be used inside <MediaCardContextMenuSurface>."
-        );
-    }
-    return context;
-}
-
-function useMediaCardFavoriteAction() {
-    const { item } = useMediaCardDataContext();
-    const { favoriteItemIdSet, onItemFavoriteToggle } =
-        useMediaCardEnvironmentContext();
-    const isFavorite = favoriteItemIdSet.has(item.id);
-    const handleToggle = useStableCallback(() => onItemFavoriteToggle(item));
-
-    return { handleToggle, isFavorite };
-}
-
-function useMediaCardNoteAction() {
-    const { item } = useMediaCardDataContext();
-    const { onOpenNote } = useMediaCardEnvironmentContext();
-
-    return useStableCallback(() => onOpenNote(item));
-}
-
-function useMediaCardLinkActions() {
-    const { item } = useMediaCardDataContext();
-    const { onCopyLink, onOpenInNewTab } = useMediaCardEnvironmentContext();
-    const SourceIcon = getSourceIcon(item.source);
-
-    const handleOpenInNewTab = useStableCallback(() => onOpenInNewTab(item));
-    const handleCopyLink = useStableCallback(() => onCopyLink(item));
-
-    return { handleCopyLink, handleOpenInNewTab, SourceIcon };
-}
-
-function useMediaCardFindSimilarAction() {
-    const { item } = useMediaCardDataContext();
-    const { onFindSimilar } = useMediaCardEnvironmentContext();
-
-    return useStableCallback(() => onFindSimilar(item));
-}
-
-function useMediaCardWaybackActions() {
-    const { item } = useMediaCardDataContext();
-
-    const handleWayback30 = useStableCallback(() =>
-        openExternalUrl(
-            "https://web.archive.org/web/" +
-                formatWaybackDate(-30) +
-                "/" +
-                item.url
-        )
-    );
-
-    const handleWayback90 = useStableCallback(() =>
-        openExternalUrl(
-            "https://web.archive.org/web/" +
-                formatWaybackDate(-90) +
-                "/" +
-                item.url
-        )
-    );
-
-    const handleWayback180 = useStableCallback(() =>
-        openExternalUrl(
-            "https://web.archive.org/web/" +
-                formatWaybackDate(-180) +
-                "/" +
-                item.url
-        )
-    );
-
-    const handleWayback365 = useStableCallback(() =>
-        openExternalUrl(
-            "https://web.archive.org/web/" +
-                formatWaybackDate(-365) +
-                "/" +
-                item.url
-        )
-    );
-
-    const handleWaybackAll = useStableCallback(() =>
-        openExternalUrl(`https://web.archive.org/web/*/${item.url}`)
-    );
-
-    return {
-        handleWayback30,
-        handleWayback90,
-        handleWayback180,
-        handleWayback365,
-        handleWaybackAll,
+const PALETTE_PLACEHOLDER_BY_SECTION: Partial<Record<PaletteSection, string>> =
+    {
+        advanced: "Refine with exact filters",
     };
+
+const PALETTE_SORT_OPTIONS = [
+    { label: "Added: Newest first", value: "added-newest" },
+    { label: "Added: Oldest first", value: "added-oldest" },
+    { label: "Created: Newest first", value: "created-newest" },
+    { label: "Created: Oldest first", value: "created-oldest" },
+    { label: "Count: Most items first", value: "count-desc" },
+    { label: "Source", value: "source" },
+    { label: "Domain", value: "domain" },
+    { label: "Title", value: "title" },
+] satisfies readonly { label: string; value: SortMode }[];
+
+const PALETTE_GROUP_OPTIONS = [
+    { label: "No grouping", value: "none" },
+    { label: "Source", value: "source" },
+    { label: "Domain", value: "domain" },
+    { label: "Collection", value: "collection" },
+    { label: "Year Added", value: "year-added" },
+    { label: "Year Created", value: "year-created" },
+    { label: "Month Added", value: "month-added" },
+    { label: "Month Created", value: "month-created" },
+] satisfies readonly { label: string; value: GroupByMode }[];
+
+const PALETTE_COLUMN_OPTIONS = [
+    { label: "Adjust automatically", value: "auto" },
+    { label: "2 columns", value: "2" },
+    { label: "3 columns", value: "3" },
+    { label: "4 columns", value: "4" },
+    { label: "5 columns", value: "5" },
+    { label: "6 columns", value: "6" },
+] satisfies readonly { label: string; value: ColumnCountMode }[];
+
+const PALETTE_SOURCE_OPTIONS = [
+    { label: "All sources", value: "all" },
+    ...FILTERABLE_LIBRARY_SOURCES.map((source) => ({
+        label: getSourceLabel(source),
+        value: source,
+    })),
+    {
+        label: getSourceLabel(LibraryItemSource.other),
+        value: LibraryItemSource.other,
+    },
+] satisfies readonly { label: string; value: LibraryItemSource | "all" }[];
+
+const PALETTE_SOURCE_FILTER_OPTIONS = PALETTE_SOURCE_OPTIONS.filter(
+    (
+        option
+    ): option is {
+        label: string;
+        value: Exclude<(typeof PALETTE_SOURCE_OPTIONS)[number]["value"], "all">;
+    } => option.value !== "all"
+);
+
+type PaletteSection = "search" | "advanced" | "ai-response";
+
+type EffectiveGroupByMode = GroupByMode | "canonical-url";
+
+type ComposerSortMode = Exclude<SortMode, "count-desc">;
+
+interface DecoratedSortableItem {
+    domain: string;
+    item: LibraryItemWithCollections;
+    primaryText: string;
+    sourceLabel: string;
+    timestamp: number;
 }
 
-function formatWaybackDate(daysOffset: number): string {
-    const date = new Date();
-    date.setDate(date.getDate() + daysOffset);
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    const h = String(date.getHours()).padStart(2, "0");
-    const min = String(date.getMinutes()).padStart(2, "0");
-    const s = String(date.getSeconds()).padStart(2, "0");
-    return `${y}${m}${d}${h}${min}${s}`;
+type ComposerStackEntry = {
+    key: string;
+    onRemove: () => void;
+} & (
+    | {
+          kind: "chip";
+          label: string;
+      }
+    | {
+          attachment: ComposerAttachment;
+          kind: "attachment";
+          onRemoveAttachment: (id: string) => void;
+      }
+);
+
+interface ComposerCommand {
+    children?: React.ReactNode;
+    description?: string;
+    disabled?: boolean;
+    isActive?: boolean;
+    label: string;
+    onSelect: (
+        event: BaseUIEvent<React.MouseEvent> | KeyboardEvent
+    ) => void | Promise<void>;
+    shortcut?: string;
+    value: string;
 }
 
-function useMediaCardDeleteAction() {
-    const { item } = useMediaCardDataContext();
-    const { onDelete, pendingDeleteItemId } = useMediaCardEnvironmentContext();
-    const isDeletePending = pendingDeleteItemId === item.id;
-    const handleDelete = useStableCallback(() => onDelete(item));
-
-    return { handleDelete, isDeletePending };
+interface ComposerCommandGroup {
+    items: ComposerCommand[];
+    label: string;
+    layout?: "horizontal" | "vertical";
 }
 
-function useSectionCollapseState({
+interface ComposerSuggestion {
+    icon?: React.ReactNode;
+    id: string;
+    label: string;
+    onSelect: () => void;
+}
+
+interface ItemFacetCounts {
+    collectionCounts: Map<string, number>;
+    domainCounts: Map<string, number>;
+    sourceCounts: Map<LibraryItemSource, number>;
+}
+
+interface TopFacet<TValue> {
+    label: string;
+    value: TValue;
+}
+
+type AssistantResponseState =
+    | { prompt: string; status: "loading" }
+    | {
+          markdown: string;
+          operationCount: number;
+          prompt: string;
+          status: "success";
+      }
+    | { message: string; prompt: string; status: "error" };
+
+interface BuildComposerSuggestionsInput {
+    clearLibraryPalette: () => void;
+    collectionMembershipFilter: CollectionMembershipFilter;
+    collections: LibraryCollectionSummary[];
+    domainFilters: string[];
+    effectiveGroupBy: EffectiveGroupByMode;
+    groupBy: GroupByMode;
+    hasAnyRefinements: boolean;
+    isEmpty: boolean;
+    isExtensionInstalled: boolean;
+    items: LibraryItemWithCollections[];
+    onClearCollectionFilters: () => void;
+    onCreateCollection: () => void;
+    onToggleCollectionSelection: (id: string) => void;
+    searchTerms: string[];
+    selectedCollectionIds: string[];
+    setCollectionMembershipFilter: (value: CollectionMembershipFilter) => void;
+    setDomainFilters: (
+        value: string[] | ((value: string[]) => string[])
+    ) => void;
+    setGroupBy: (value: GroupByMode) => void;
+    setIsComposerOpen: (value: boolean) => void;
+    setQuery: (value: string) => void;
+    setSearchTerms: (value: string[] | ((value: string[]) => string[])) => void;
+    setSortMode: (value: SortMode) => void;
+    setSourceFilters: (
+        value:
+            | LibraryItemSource[]
+            | ((value: LibraryItemSource[]) => LibraryItemSource[])
+    ) => void;
+    sortMode: SortMode;
+    sourceFilters: LibraryItemSource[];
+}
+
+interface BuildComposerStackEntriesInput {
+    agentViewTitle: string | null;
+    collectionMembershipFilter: CollectionMembershipFilter;
+    collections: LibraryCollectionSummary[];
+    columnCountMode: ColumnCountMode;
+    composerAttachments: ComposerAttachment[];
+    domainFilters: string[];
+    duplicatesFilterEnabled: boolean;
+    groupBy: GroupByMode;
+    lastVisitedFilterEnabled: boolean;
+    onDismissAgentView: () => void;
+    onRemoveCollectionFilter: (id: string) => void;
+    onRemoveComposerAttachment: (id: string) => void;
+    searchTerms: string[];
+    selectedCollectionIds: string[];
+    setCollectionMembershipFilter: (value: CollectionMembershipFilter) => void;
+    setColumnCountMode: (value: ColumnCountMode) => void;
+    setDomainFilters: (
+        value: string[] | ((value: string[]) => string[])
+    ) => void;
+    setDuplicatesFilterEnabled: (value: boolean) => void;
+    setGroupBy: (value: GroupByMode) => void;
+    setLastVisitedFilterEnabled: (value: boolean) => void;
+    setSearchTerms: (value: string[] | ((value: string[]) => string[])) => void;
+    setSortMode: (value: SortMode) => void;
+    setSourceFilters: (
+        value:
+            | LibraryItemSource[]
+            | ((value: LibraryItemSource[]) => LibraryItemSource[])
+    ) => void;
+    setUnreachableFilterEnabled: (value: boolean) => void;
+    sortMode: SortMode;
+    sourceFilters: LibraryItemSource[];
+    unreachableFilterEnabled: boolean;
+}
+
+interface BuildComposerCommandsInput {
+    assistantResponse: AssistantResponseState | null;
+    clearLibraryPalette: () => void;
+    collectionMembershipFilter: CollectionMembershipFilter;
+    collectionPreviewThumbnailUrlsById: Map<string, string[]>;
+    collections: LibraryCollectionSummary[];
+    columnCountMode: ColumnCountMode;
+    domainFilters: string[];
+    domainOptions: {
+        itemCount: number;
+        label: string;
+        value: string;
+    }[];
+    duplicateItemCount: number;
+    duplicatesFilterEnabled: boolean;
+    groupBy: GroupByMode;
+    lastVisitedFilterEnabled: boolean;
+    lastVisitedItemIds: string[];
+    onAssistantSubmit: (prompt: string) => void | Promise<void>;
+    onClearCollectionFilters: () => void;
+    onClearSearchHistory: () => void;
+    onToggleCollectionSelection: (id: string) => void;
+    openPaletteSection: (
+        section: Exclude<PaletteSection, "search">,
+        event: BaseUIEvent<React.MouseEvent> | KeyboardEvent
+    ) => void;
+    paletteSection: PaletteSection;
+    query: string;
+    returnToSearchSection: () => void;
+    searchHistory: string[];
+    searchTerms: string[];
+    selectedCollectionIds: string[];
+    setCollectionMembershipFilter: (value: CollectionMembershipFilter) => void;
+    setColumnCountMode: (value: ColumnCountMode) => void;
+    setDomainFilters: (
+        value: string[] | ((value: string[]) => string[])
+    ) => void;
+    setDuplicatesFilterEnabled: (value: boolean) => void;
+    setGroupBy: (value: GroupByMode) => void;
+    setIsComposerOpen: (value: boolean) => void;
+    setLastVisitedFilterEnabled: (value: boolean) => void;
+    setQuery: (value: string) => void;
+    setSearchTerms: (value: string[] | ((value: string[]) => string[])) => void;
+    setSortMode: (value: SortMode) => void;
+    setSourceFilters: (
+        value:
+            | LibraryItemSource[]
+            | ((value: LibraryItemSource[]) => LibraryItemSource[])
+    ) => void;
+    setUnreachableFilterEnabled: (value: boolean) => void;
+    sortMode: SortMode;
+    sourceFilters: LibraryItemSource[];
+    unreachableFilterEnabled: boolean;
+}
+
+interface ComposerCommandRank {
+    index: number;
+    score: number;
+}
+
+interface ComposerCommandSearchFields {
+    lowerDescription: string;
+    lowerLabel: string;
+    lowerValue: string;
+    words: string[];
+}
+
+interface RankedComposerCommand {
+    item: ComposerCommand;
+    rank: ComposerCommandRank;
+}
+
+interface PaletteActionsContext {
+    duplicatesFilterEnabled: boolean;
+    onCreateNote: () => void;
+    onRemoveDuplicates: () => void;
+    removableDuplicateCount: number;
+}
+
+const log = createLogger("library:items");
+
+const ItemsListContext = React.createContext<ItemsListContext | null>(null);
+
+function useItemsListContext(): ItemsListContext {
+    const context = React.use(ItemsListContext);
+    if (!context) {
+        throw new Error(
+            "ItemsList components must be used inside <ItemsList>."
+        );
+    }
+    return context;
+}
+
+const ItemsGroupContext = React.createContext<ItemsGroupContext | null>(null);
+
+function useItemsGroupContext(): ItemsGroupContext {
+    const context = React.use(ItemsGroupContext);
+    if (!context) {
+        throw new Error(
+            "ItemsGroup components must be used inside <ItemsGroupProvider>."
+        );
+    }
+    return context;
+}
+
+const PaletteActionsContext = React.createContext<PaletteActionsContext | null>(
+    null
+);
+
+function usePaletteActionsContext(): PaletteActionsContext {
+    const context = React.use(PaletteActionsContext);
+    if (!context) {
+        throw new Error(
+            "Palette action components must be used inside <PaletteActionsList>."
+        );
+    }
+    return context;
+}
+
+function useItemsGroupCollapse({
     groupBy,
     hasActiveFilters,
     groups,
@@ -844,28 +761,32 @@ function useSectionCollapseState({
 }: {
     groupBy: EffectiveGroupByMode;
     hasActiveFilters: boolean;
-    groups: BrowserGroup[];
+    groups: ItemsGroup[];
     shouldShowEmptyLibraryPeek: boolean;
     shouldShowNoFilteredResults: boolean;
 }) {
     const [collapsedSectionKeys, setCollapsedSectionKeys] = React.useState<
-        string[]
-    >([]);
+        ReadonlySet<string>
+    >(() => new Set<string>());
 
     const enableSectionCollapse =
         !(shouldShowEmptyLibraryPeek || shouldShowNoFilteredResults) &&
         (hasActiveFilters || groupBy !== "none");
 
-    const sectionKeySignature = groups.map((section) => section.key).join("\0");
-    const [prevSectionKeySignature, setPrevSectionKeySignature] =
-        React.useState(sectionKeySignature);
+    const groupKeys = groups.map((section) => section.key);
+    const [prevGroupKeys, setPrevGroupKeys] = React.useState(groupKeys);
 
-    if (!Object.is(sectionKeySignature, prevSectionKeySignature)) {
-        setPrevSectionKeySignature(sectionKeySignature);
-        const validKeys = new Set(groups.map((section) => section.key));
+    if (!areArraysEqual(groupKeys, prevGroupKeys)) {
+        setPrevGroupKeys(groupKeys);
+        const validKeys = new Set(groupKeys);
         setCollapsedSectionKeys((current) => {
-            const next = current.filter((key) => validKeys.has(key));
-            return next.length === current.length ? current : next;
+            const next = new Set<string>();
+            for (const key of current) {
+                if (validKeys.has(key)) {
+                    next.add(key);
+                }
+            }
+            return next.size === current.size ? current : next;
         });
     }
 
@@ -876,25 +797,29 @@ function useSectionCollapseState({
         setPrevEnableSectionCollapse(enableSectionCollapse);
         if (!enableSectionCollapse) {
             setCollapsedSectionKeys((current) =>
-                current.length === 0 ? current : []
+                current.size === 0 ? current : new Set<string>()
             );
         }
     }
 
     const toggleSection = useStableCallback((key: string) => {
-        setCollapsedSectionKeys((current) =>
-            current.includes(key)
-                ? current.filter((entry) => entry !== key)
-                : [...current, key]
-        );
+        setCollapsedSectionKeys((current) => {
+            const next = new Set(current);
+            if (!next.delete(key)) {
+                next.add(key);
+            }
+            return next;
+        });
     });
 
     const collapseAllSections = useStableCallback(() => {
-        setCollapsedSectionKeys(groups.map((section) => section.key));
+        setCollapsedSectionKeys(new Set(groupKeys));
     });
 
     const expandAllSections = useStableCallback(() => {
-        setCollapsedSectionKeys([]);
+        setCollapsedSectionKeys((current) =>
+            current.size === 0 ? current : new Set<string>()
+        );
     });
 
     return {
@@ -906,7 +831,7 @@ function useSectionCollapseState({
     };
 }
 
-function useLibraryItemActions(args: {
+function useItemActions(args: {
     onDeleteSuccess: (collectionSummaries: LibraryCollectionSummary[]) => void;
     setItems: React.Dispatch<
         React.SetStateAction<LibraryItemWithCollections[]>
@@ -997,30 +922,30 @@ function useLibraryItemActions(args: {
     };
 }
 
-function useCardHoverHotkeys({
+function useItemHoverHotkeys({
     hoverHotkeySurface,
     hoveredItemIdRef,
-    itemsRef,
+    itemsById,
     onDelete,
     onItemFavoriteToggle,
-    pendingDeleteItemIdRef,
+    pendingDeleteItemId,
 }: {
     hoverHotkeySurface: HoverHotkeySurface<HoverHotkeyRegion>;
     hoveredItemIdRef: React.RefObject<string | null>;
-    itemsRef: React.RefObject<LibraryItemWithCollections[]>;
+    itemsById: ReadonlyMap<string, LibraryItemWithCollections>;
     onDelete: (item: LibraryItemWithCollections) => void;
     onItemFavoriteToggle: (item: LibraryItemWithCollections) => void;
-    pendingDeleteItemIdRef: React.RefObject<string | null>;
+    pendingDeleteItemId: string | null;
 }) {
     const resolveHoveredItem = useStableCallback(() => {
         if (hoverHotkeySurface.isClaimed()) {
             return null;
         }
         const id = hoveredItemIdRef.current;
-        if (!id || pendingDeleteItemIdRef.current === id) {
+        if (!id || pendingDeleteItemId === id) {
             return null;
         }
-        return itemsRef.current.find((item) => item.id === id) ?? null;
+        return itemsById.get(id) ?? null;
     });
 
     useHotkeys(
@@ -1054,7 +979,6 @@ function useCardHoverHotkeys({
             }
             event.preventDefault();
             openSide({
-                description: getLibraryItemDomain(item.url),
                 title: getLibraryItemTitle(item),
                 url: item.url,
             });
@@ -1086,10 +1010,10 @@ function useCardHoverHotkeys({
     );
 }
 
-function useLibraryItemIndexes(
+function useItemIndexes(
     items: LibraryItemWithCollections[]
 ): LibraryItemIndexes {
-    const cacheRef = useRefWithInit<LibraryItemIndexesCache | null>(() => null);
+    const cacheRef = useRefWithInit<ItemIndexesCache | null>(() => null);
     const cached = cacheRef.current;
     if (cached?.items === items) {
         return cached.indexes;
@@ -1104,13 +1028,13 @@ function useLibraryItemIndexes(
 
 function useCollectionMutations({
     allCollections,
-    items,
+    itemsById,
     mergeCollectionSummaries,
     setItems,
     syncCollectionCreated,
 }: {
     allCollections: LibraryCollectionSummary[];
-    items: LibraryItemWithCollections[];
+    itemsById: ReadonlyMap<string, LibraryItemWithCollections>;
     mergeCollectionSummaries: (s: LibraryCollectionSummary[]) => void;
     setItems: React.Dispatch<
         React.SetStateAction<LibraryItemWithCollections[]>
@@ -1134,7 +1058,7 @@ function useCollectionMutations({
         ): Promise<LibraryItemCollectionsUpdateResult> => {
             const requestToken = Symbol(itemId);
             collectionUpdateRequestTokenByItemId.set(itemId, requestToken);
-            const existingItem = items.find((item) => item.id === itemId);
+            const existingItem = itemsById.get(itemId);
             if (!existingItem) {
                 collectionUpdateRequestTokenByItemId.delete(itemId);
                 return {
@@ -1161,7 +1085,10 @@ function useCollectionMutations({
                     collectionIds,
                     itemId,
                 });
-            } catch {
+            } catch (error) {
+                log.error("Failed to update item collections", error, {
+                    itemId,
+                });
                 result = {
                     message: "We couldn't update collections for this item.",
                     status: "ERROR",
@@ -1204,12 +1131,19 @@ function useCollectionMutations({
             previousSharedCollectionIds: string[];
         }): Promise<LibraryItemsCollectionsUpdateResult> => {
             const requestedItemIds = new Set(input.itemIds);
-            const previousItemCollections = items
-                .filter((item) => requestedItemIds.has(item.id))
-                .map((item) => ({
-                    collections: item.collections,
-                    itemId: item.id,
-                }));
+            const previousItemCollections: {
+                collections: LibraryItemWithCollections["collections"];
+                itemId: string;
+            }[] = [];
+            for (const itemId of requestedItemIds) {
+                const item = itemsById.get(itemId);
+                if (item) {
+                    previousItemCollections.push({
+                        collections: item.collections,
+                        itemId: item.id,
+                    });
+                }
+            }
             const nextSharedCollectionIdSet = new Set(
                 input.nextSharedCollectionIds
             );
@@ -1251,7 +1185,10 @@ function useCollectionMutations({
             let result: LibraryItemsCollectionsUpdateResult;
             try {
                 result = await updateLibraryItemsCollections(input);
-            } catch {
+            } catch (error) {
+                log.error("Failed to update items collections", error, {
+                    itemIds: input.itemIds,
+                });
                 result = {
                     message: "We couldn't update collections for those items.",
                     status: "ERROR",
@@ -1314,7 +1251,7 @@ function useCollectionMutations({
         ): Promise<LibraryItemFavoriteToggleResult> => {
             const requestToken = Symbol(item.id);
             itemFavoriteToggleRequestTokenByItemId.set(item.id, requestToken);
-            const currentItem = items.find((entry) => entry.id === item.id);
+            const currentItem = itemsById.get(item.id);
             if (!currentItem) {
                 itemFavoriteToggleRequestTokenByItemId.delete(item.id);
                 return {
@@ -1335,7 +1272,10 @@ function useCollectionMutations({
             let result: LibraryItemFavoriteToggleResult;
             try {
                 result = await toggleLibraryItemFavorite(item.id);
-            } catch {
+            } catch (error) {
+                log.error("Failed to toggle item favorite", error, {
+                    itemId: item.id,
+                });
                 result = {
                     message: "We couldn't update this favorite right now.",
                     status: "ERROR",
@@ -1366,12 +1306,13 @@ function useCollectionMutations({
 
     const handleCreateCollectionFromResults = useStableCallback(
         async (
-            input: CreateCollectionFromResultsInput
+            input: CreateItemsCollectionInput
         ): Promise<CollectionCreateFromItemsResult> => {
             let result: CollectionCreateFromItemsResult;
             try {
                 result = await createCollectionFromItems(input);
-            } catch {
+            } catch (error) {
+                log.error("Failed to create collection from results", error);
                 result = {
                     message: "We couldn't create this collection right now.",
                     status: "ERROR",
@@ -1685,34 +1626,17 @@ function getAgentViewCollectionDialogName(
     return buildResultsCollectionName(searchTerms);
 }
 
-function buildAskCacheVisibleItems(
+function buildAssistantVisibleItems(
     items: LibraryItemWithCollections[]
-): AskCacheVisibleItem[] {
-    return items.slice(0, ASK_CACHE_VISIBLE_ITEM_LIMIT).map((item) => ({
+): AssistantVisibleItem[] {
+    return items.slice(0, ASSISTANT_VISIBLE_ITEM_LIMIT).map((item) => ({
         domain: getLibraryItemDomain(item.url),
         id: item.id,
         label: truncateLabel(
             getLibraryItemPrimaryText(item),
-            ASK_CACHE_VISIBLE_ITEM_LABEL_MAX_LENGTH
+            ASSISTANT_VISIBLE_ITEM_LABEL_MAX_LENGTH
         ),
     }));
-}
-
-function isEqualStringArray(
-    left: readonly string[] | undefined,
-    right: readonly string[] | undefined
-): boolean {
-    const leftValues = left ?? [];
-    const rightValues = right ?? [];
-    if (leftValues.length !== rightValues.length) {
-        return false;
-    }
-    for (let index = 0; index < leftValues.length; index += 1) {
-        if (leftValues[index] !== rightValues[index]) {
-            return false;
-        }
-    }
-    return true;
 }
 
 function isEqualAgentViewQuery(
@@ -1720,12 +1644,12 @@ function isEqualAgentViewQuery(
     right: AgentViewQuery
 ): boolean {
     return (
-        isEqualStringArray(left.collectionIds, right.collectionIds) &&
-        isEqualStringArray(left.domainFilters, right.domainFilters) &&
+        areArraysEqual(left.collectionIds ?? [], right.collectionIds ?? []) &&
+        areArraysEqual(left.domainFilters ?? [], right.domainFilters ?? []) &&
         left.favoritedOnly === right.favoritedOnly &&
         left.kind === right.kind &&
         left.membership === right.membership &&
-        isEqualStringArray(left.sourceFilters, right.sourceFilters) &&
+        areArraysEqual(left.sourceFilters ?? [], right.sourceFilters ?? []) &&
         left.text === right.text
     );
 }
@@ -1756,17 +1680,6 @@ function appendAgentViewPage(
     };
 }
 
-function normalizeSectionDescriptionText(
-    value: string | null | undefined,
-    maxLength: number
-): string {
-    const normalized = normalizeWhitespace(value ?? "");
-    if (normalized.length <= maxLength) {
-        return normalized;
-    }
-    return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
-}
-
 function toIsoTimestamp(value: Date | string | null | undefined) {
     const date = parseDate(value);
     return date?.toISOString();
@@ -1776,22 +1689,22 @@ function buildSectionDescriptionContextItem(
     item: LibraryItemWithCollections
 ): SectionDescriptionContextItem {
     const title =
-        normalizeSectionDescriptionText(
+        getNoteExcerpt(
             getLibraryItemTitle(item),
             SECTION_DESCRIPTION_TITLE_MAX_LENGTH
         ) || "Untitled";
 
     const noteExcerpt =
         item.kind === "note"
-            ? normalizeSectionDescriptionText(
-                  getNoteExcerpt(item.noteContentText),
+            ? getNoteExcerpt(
+                  item.noteContentText,
                   SECTION_DESCRIPTION_TEXT_MAX_LENGTH
               ) || undefined
             : undefined;
 
     const primaryText =
         noteExcerpt ??
-        (normalizeSectionDescriptionText(
+        (getNoteExcerpt(
             getLibraryItemPrimaryText(item),
             SECTION_DESCRIPTION_TEXT_MAX_LENGTH
         ) ||
@@ -1800,7 +1713,7 @@ function buildSectionDescriptionContextItem(
     const normalizedUrl =
         item.kind === "note"
             ? undefined
-            : normalizeSectionDescriptionText(
+            : getNoteExcerpt(
                   normalizeURL(item.url),
                   SECTION_DESCRIPTION_URL_MAX_LENGTH
               ) || undefined;
@@ -1808,7 +1721,7 @@ function buildSectionDescriptionContextItem(
     const domain =
         item.kind === "note"
             ? undefined
-            : normalizeSectionDescriptionText(
+            : getNoteExcerpt(
                   getLibraryItemDomain(item.url),
                   SECTION_DESCRIPTION_DOMAIN_MAX_LENGTH
               ) || undefined;
@@ -1828,7 +1741,7 @@ function buildSectionDescriptionContextItem(
     };
 }
 
-function getBrowserSectionExportFileName(sectionTitle: string): string {
+function getItemsGroupExportFileName(sectionTitle: string): string {
     const slug = slugify(sectionTitle);
     return slug.length > 0 ? `${slug}-links` : "results-links";
 }
@@ -1968,9 +1881,9 @@ function buildResultsCollectionName(searchTerms: string[]): string {
     return normalizedTerms.join(" + ").slice(0, COLLECTION_NAME_MAX_LENGTH);
 }
 
-function filterBrowserItems(
+function filterItems(
     items: LibraryItemWithCollections[],
-    input: FilterBrowserItemsInput
+    input: FilterItemsInput
 ): LibraryItemWithCollections[] {
     if (
         !hasActiveComposerFilters({
@@ -2080,7 +1993,7 @@ function formatGroupHeading(
         return collectionNames?.get(key) ?? key;
     }
     if (mode === "source") {
-        return SOURCE_LABEL_BY_VALUE[key] ?? "Other";
+        return getSourceLabel(key);
     }
     if (mode === "canonical-url") {
         return truncateLabel(key, 64);
@@ -2100,10 +2013,10 @@ function formatGroupHeading(
     return key;
 }
 
-function decorateComposerItem(
+function decorateSortableItem(
     item: LibraryItemWithCollections,
     sortMode: ComposerSortMode
-): DecoratedComposerItem {
+): DecoratedSortableItem {
     const timestampMode =
         sortMode === "created-newest" || sortMode === "created-oldest"
             ? "created"
@@ -2117,9 +2030,9 @@ function decorateComposerItem(
     };
 }
 
-function compareDecoratedComposerItems(
-    a: DecoratedComposerItem,
-    b: DecoratedComposerItem,
+function compareSortableItems(
+    a: DecoratedSortableItem,
+    b: DecoratedSortableItem,
     sortMode: ComposerSortMode
 ): number {
     if (sortMode === "title") {
@@ -2173,24 +2086,24 @@ function compareSectionKeys(
     return NAME_COLLATOR.compare(a, b);
 }
 
-function sortComposerItems(
+function sortItems(
     filteredItems: LibraryItemWithCollections[],
     sortMode: SortMode
 ): LibraryItemWithCollections[] {
     const itemSortMode =
         sortMode === "count-desc" ? DEFAULT_SORT_MODE : sortMode;
     return filteredItems
-        .map((item) => decorateComposerItem(item, itemSortMode))
-        .sort((a, b) => compareDecoratedComposerItems(a, b, itemSortMode))
+        .map((item) => decorateSortableItem(item, itemSortMode))
+        .sort((a, b) => compareSortableItems(a, b, itemSortMode))
         .map((decorated) => decorated.item);
 }
 
-function buildBrowserGroups(
+function buildItemsGroups(
     sortedItems: LibraryItemWithCollections[],
     groupBy: EffectiveGroupByMode,
     sortMode: SortMode,
     collections?: LibraryCollectionSummary[]
-): BrowserGroup[] {
+): ItemsGroup[] {
     if (groupBy === "none") {
         return [
             {
@@ -2205,25 +2118,11 @@ function buildBrowserGroups(
 
     const buckets = new Map<string, LibraryItemWithCollections[]>();
     for (const item of sortedItems) {
-        if (groupBy === "collection") {
-            if (item.collections.length === 0) {
-                const bucket = buckets.get(UNCATEGORIZED_GROUP_KEY) ?? [];
-                bucket.push(item);
-                buckets.set(UNCATEGORIZED_GROUP_KEY, bucket);
-            } else {
-                for (const collection of item.collections) {
-                    const bucket = buckets.get(collection.id) ?? [];
-                    bucket.push(item);
-                    buckets.set(collection.id, bucket);
-                }
-            }
-            continue;
+        for (const key of getItemGroupKeys(item, groupBy)) {
+            const bucket = buckets.get(key) ?? [];
+            bucket.push(item);
+            buckets.set(key, bucket);
         }
-
-        const key = getItemGroupKey(item, groupBy);
-        const bucket = buckets.get(key) ?? [];
-        bucket.push(item);
-        buckets.set(key, bucket);
     }
 
     return Array.from(buckets.entries())
@@ -2289,122 +2188,10 @@ async function createLibraryBookmarkFromPastedUrl({
     }
 }
 
-function getSharedCollections(
-    items: LibraryItemWithCollections[]
-): LibraryCollectionTag[] {
-    const [firstItem, ...remainingItems] = items;
-    if (!firstItem) {
-        return [];
-    }
-
-    const sharedCollections = new Map(
-        firstItem.collections.map((collection) => [collection.id, collection])
-    );
-
-    for (const item of remainingItems) {
-        const itemCollectionIds = new Set(
-            item.collections.map((collection) => collection.id)
-        );
-        for (const collectionId of [...sharedCollections.keys()]) {
-            if (!itemCollectionIds.has(collectionId)) {
-                sharedCollections.delete(collectionId);
-            }
-        }
-    }
-
-    return [...sharedCollections.values()];
-}
-
-function getMediaDownloadFileExtension(
-    url: string,
-    contentType: string | null
-): MediaDownloadFileExtension | null {
-    const normalizedContentType = contentType
-        ?.split(";", 1)[0]
-        ?.trim()
-        .toLowerCase();
-    const contentTypeExtension =
-        normalizedContentType &&
-        MEDIA_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE[normalizedContentType];
-    if (contentTypeExtension) {
-        return contentTypeExtension;
-    }
-
-    const pathname = tryParseUrl(url)?.pathname;
-    if (!pathname) {
-        return null;
-    }
-
-    let urlExtension = pathname
-        .slice(pathname.lastIndexOf(".") + 1)
-        .toLowerCase();
-    if (urlExtension === "jpeg") {
-        urlExtension = "jpg";
-    }
-    for (const extension of Object.values(
-        MEDIA_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE
-    )) {
-        if (extension === urlExtension) {
-            return extension;
-        }
-    }
-
-    return null;
-}
-
-function itemDateLabel(dateValue: Date | string | null | undefined): string {
-    const date = parseDate(dateValue);
-    if (!date) {
-        return "";
-    }
-    return date.toLocaleDateString(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    });
-}
-
-async function saveLibraryItemMedia(
-    item: LibraryItemWithCollections
-): Promise<void> {
-    if (!COBALT_SOURCES.has(item.source)) {
-        throw new Error("Media downloads are not available for this source.");
-    }
-
-    const result = await downloadMedia(item.url);
-    if (result.status !== ACTION_STATUS.SUCCESS) {
-        throw new Error(result.message);
-    }
-
-    const response = await fetchWithTimeout(
-        result.downloadUrl,
-        {},
-        MEDIA_DOWNLOAD_TIMEOUT_MS
-    );
-    if (!response.ok) {
-        throw new Error(`Failed to fetch media download (${response.status})`);
-    }
-
-    const blob = await response.blob();
-    const extension = getMediaDownloadFileExtension(
-        response.url || result.downloadUrl,
-        response.headers.get("content-type") || blob.type
-    );
-    if (!extension) {
-        throw new Error("Could not determine the downloaded media type.");
-    }
-
-    await saveFile(blob, {
-        description: "Media file",
-        extension,
-        name: slugify(getLibraryItemTitle(item)) || "cache-media",
-    });
-}
-
-function buildSimilarBrowserFilterState(
-    state: BrowserSimilarFilterState,
-    options: BrowserSimilarFilterOptions
-): BrowserSimilarFilterState {
+function buildSimilarItemFilterState(
+    state: SimilarItemFilterState,
+    options: SimilarItemFilterOptions
+): SimilarItemFilterState {
     const shouldUseDomainFilter =
         DOMAIN_RELATED_SOURCES.has(options.source) &&
         options.domain !== UNSPECIFIC_LIBRARY_DOMAIN;
@@ -2417,83 +2204,6 @@ function buildSimilarBrowserFilterState(
         selectedCollectionIds: [],
         sourceFilters: shouldUseDomainFilter ? [] : [options.source],
     };
-}
-
-function defaultCollectionTriggerIcon(
-    selectedCount: number,
-    shouldShowSmartCollectionsIndicator: boolean
-) {
-    if (selectedCount === 0) {
-        return <SquircleDashed aria-hidden className="size-4" />;
-    }
-    if (shouldShowSmartCollectionsIndicator) {
-        return <MediaCardSmartCollectionsIndicator />;
-    }
-    return <Squircle aria-hidden className="size-4" />;
-}
-
-function getArchivedAssignedStatus(count: number): string {
-    return count === 1
-        ? "1 assigned collection is archived"
-        : `${count} assigned collections are archived`;
-}
-
-const ALL_DOMAIN_FILTER = "__all_domains__";
-const UNSPECIFIC_LIBRARY_DOMAIN = "Other";
-const COLLECTION_NAME_MAX_LENGTH = 64;
-
-type PaletteSection = "search" | "advanced" | "ai-response";
-
-type EffectiveGroupByMode = GroupByMode | "canonical-url";
-
-type ComposerSortMode = Exclude<SortMode, "count-desc">;
-
-interface DecoratedComposerItem {
-    domain: string;
-    item: LibraryItemWithCollections;
-    primaryText: string;
-    sourceLabel: string;
-    timestamp: number;
-}
-
-const FILTERABLE_LIBRARY_SOURCES = [
-    LibraryItemSource.cache_note,
-    LibraryItemSource.chrome_bookmarks,
-    LibraryItemSource.extension_clip,
-    LibraryItemSource.github_starred_repositories,
-    LibraryItemSource.google_photos,
-    LibraryItemSource.instagram,
-    LibraryItemSource.markdown_import,
-    LibraryItemSource.pinterest,
-    LibraryItemSource.rss_feed,
-    LibraryItemSource.tiktok,
-    LibraryItemSource.x_bookmarks,
-    LibraryItemSource.youtube_watch_later,
-] as const satisfies LibraryItemSource[];
-
-const SOURCE_LABEL_BY_VALUE: Partial<Record<string, string>> = {
-    [LibraryItemSource.cache_note]: "Notes",
-    [LibraryItemSource.chrome_bookmarks]: "Chrome",
-    [LibraryItemSource.extension_clip]: "Web",
-    [LibraryItemSource.markdown_import]: "Markdown",
-    [LibraryItemSource.github_starred_repositories]: "GitHub",
-    [LibraryItemSource.google_photos]: "Google Photos",
-    [LibraryItemSource.instagram]: "Instagram",
-    [LibraryItemSource.pinterest]: "Pinterest",
-    [LibraryItemSource.rss_feed]: "RSS",
-    [LibraryItemSource.tiktok]: "TikTok",
-    [LibraryItemSource.x_bookmarks]: "X",
-    [LibraryItemSource.youtube_watch_later]: "YouTube",
-};
-
-const NAME_COLLATOR = new Intl.Collator(undefined, {
-    ignorePunctuation: true,
-    numeric: true,
-    sensitivity: "base",
-});
-
-function getSourceLabel(source: LibraryItemSource): string {
-    return SOURCE_LABEL_BY_VALUE[source] ?? "Other";
 }
 
 function getLibraryItemDomain(url: string): string {
@@ -2634,279 +2344,41 @@ function getItemGroupKey(
     return _exhaustive;
 }
 
-const MATCH_WORD_SEPARATOR_PATTERN = /[\s:./_-]+/;
-
-const SUGGESTION_ICON_CLASS = "size-3.5 shrink-0";
-const MULTI_WORD_QUERY_PATTERN = /\S+\s+\S+/;
-const COMBOBOX_ITEM_PRESS_REASON = "item-press";
-const COMBOBOX_ESCAPE_KEY_REASON = "escape-key";
-const COMPOSER_OPEN_HOTKEYS = [
-    "ctrl+g",
-    "ctrl+k",
-    "ctrl+p",
-    "cmd+g",
-    "cmd+k",
-    "cmd+p",
-    "Meta+g",
-    "Meta+k",
-    "Meta+p",
-] as const;
-
-const PALETTE_PLACEHOLDER_BY_SECTION: Partial<Record<PaletteSection, string>> =
-    {
-        advanced: "Refine with exact filters",
-    };
-
-const PALETTE_SORT_OPTIONS = [
-    { label: "Added: Newest first", value: "added-newest" },
-    { label: "Added: Oldest first", value: "added-oldest" },
-    { label: "Created: Newest first", value: "created-newest" },
-    { label: "Created: Oldest first", value: "created-oldest" },
-    { label: "Count: Most items first", value: "count-desc" },
-    { label: "Source", value: "source" },
-    { label: "Domain", value: "domain" },
-    { label: "Title", value: "title" },
-] satisfies readonly { label: string; value: SortMode }[];
-
-const PALETTE_GROUP_OPTIONS = [
-    { label: "No grouping", value: "none" },
-    { label: "Source", value: "source" },
-    { label: "Domain", value: "domain" },
-    { label: "Collection", value: "collection" },
-    { label: "Year Added", value: "year-added" },
-    { label: "Year Created", value: "year-created" },
-    { label: "Month Added", value: "month-added" },
-    { label: "Month Created", value: "month-created" },
-] satisfies readonly { label: string; value: GroupByMode }[];
-
-const PALETTE_COLUMN_OPTIONS = [
-    { label: "Adjust automatically", value: "auto" },
-    { label: "2 columns", value: "2" },
-    { label: "3 columns", value: "3" },
-    { label: "4 columns", value: "4" },
-    { label: "5 columns", value: "5" },
-    { label: "6 columns", value: "6" },
-] satisfies readonly { label: string; value: ColumnCountMode }[];
-
-const PALETTE_SOURCE_OPTIONS = [
-    { label: "All sources", value: "all" },
-    ...FILTERABLE_LIBRARY_SOURCES.map((source) => ({
-        label: SOURCE_LABEL_BY_VALUE[source] ?? "Other",
-        value: source,
-    })),
-    {
-        label: SOURCE_LABEL_BY_VALUE[LibraryItemSource.other] ?? "Other",
-        value: LibraryItemSource.other,
-    },
-] satisfies readonly { label: string; value: LibraryItemSource | "all" }[];
-
-const PALETTE_SOURCE_FILTER_OPTIONS = PALETTE_SOURCE_OPTIONS.filter(
-    (
-        option
-    ): option is {
-        label: string;
-        value: Exclude<(typeof PALETTE_SOURCE_OPTIONS)[number]["value"], "all">;
-    } => option.value !== "all"
-);
-
-type ComposerPaletteStackEntry = {
-    key: string;
-    onRemove: () => void;
-} & (
-    | {
-          kind: "chip";
-          label: string;
-      }
-    | {
-          attachment: ComposerAttachment;
-          kind: "attachment";
-          onRemoveAttachment: (id: string) => void;
-      }
-);
-
-interface ComposerPaletteItem {
-    children?: React.ReactNode;
-    description?: string;
-    disabled?: boolean;
-    isActive?: boolean;
-    label: string;
-    onSelect: (
-        event: BaseUIEvent<React.MouseEvent> | KeyboardEvent
-    ) => void | Promise<void>;
-    shortcut?: string;
-    value: string;
-}
-
-interface ComposerPaletteGroup {
-    items: ComposerPaletteItem[];
-    label: string;
-    layout?: "horizontal" | "vertical";
-}
-
-interface ComposerSuggestion {
-    icon?: React.ReactNode;
-    label: string;
-    onSelect: () => void;
-}
-
-type AskCacheResponseState =
-    | { prompt: string; status: "loading" }
-    | {
-          markdown: string;
-          operationCount: number;
-          prompt: string;
-          status: "success";
-      }
-    | { message: string; prompt: string; status: "error" };
-
-interface BuildComposerSuggestionsInput {
-    clearLibraryPalette: () => void;
-    hasAnyRefinements: boolean;
-    isEmpty: boolean;
-    isExtensionInstalled: boolean;
-    onCreateCollection: () => void;
-    setIsComposerOpen: (value: boolean) => void;
-    setQuery: (value: string) => void;
-}
-
-interface BuildPaletteStackEntriesInput {
-    agentViewTitle: string | null;
-    collectionMembershipFilter: CollectionMembershipFilter;
-    collections: LibraryCollectionSummary[];
-    columnCountMode: ColumnCountMode;
-    composerAttachments: ComposerAttachment[];
-    domainFilters: string[];
-    duplicatesFilterEnabled: boolean;
-    groupBy: GroupByMode;
-    lastVisitedFilterEnabled: boolean;
-    onDismissAgentView: () => void;
-    onRemoveCollectionFilter: (id: string) => void;
-    onRemoveComposerAttachment: (id: string) => void;
-    searchTerms: string[];
-    selectedCollectionIds: string[];
-    setCollectionMembershipFilter: (value: CollectionMembershipFilter) => void;
-    setColumnCountMode: (value: ColumnCountMode) => void;
-    setDomainFilters: (
-        value: string[] | ((value: string[]) => string[])
-    ) => void;
-    setDuplicatesFilterEnabled: (value: boolean) => void;
-    setGroupBy: (value: GroupByMode) => void;
-    setLastVisitedFilterEnabled: (value: boolean) => void;
-    setSearchTerms: (value: string[] | ((value: string[]) => string[])) => void;
-    setSortMode: (value: SortMode) => void;
-    setSourceFilters: (
-        value:
-            | LibraryItemSource[]
-            | ((value: LibraryItemSource[]) => LibraryItemSource[])
-    ) => void;
-    setUnreachableFilterEnabled: (value: boolean) => void;
-    sortMode: SortMode;
-    sourceFilters: LibraryItemSource[];
-    unreachableFilterEnabled: boolean;
-}
-
-interface BuildPaletteGroupsInput {
-    askCacheResponse: AskCacheResponseState | null;
-    clearLibraryPalette: () => void;
-    collectionMembershipFilter: CollectionMembershipFilter;
-    collectionPreviewThumbnailUrlsById: Map<string, string[]>;
-    collections: LibraryCollectionSummary[];
-    columnCountMode: ColumnCountMode;
-    domainFilters: string[];
-    domainOptions: {
-        itemCount: number;
-        label: string;
-        value: string;
-    }[];
-    duplicateItemCount: number;
-    duplicatesFilterEnabled: boolean;
-    groupBy: GroupByMode;
-    lastVisitedFilterEnabled: boolean;
-    lastVisitedItemIds: string[];
-    onAskCacheSubmit: (prompt: string) => void | Promise<void>;
-    onClearCollectionFilters: () => void;
-    onClearSearchHistory: () => void;
-    onToggleCollectionSelection: (id: string) => void;
-    openPaletteSection: (
-        section: Exclude<PaletteSection, "search">,
-        event: BaseUIEvent<React.MouseEvent> | KeyboardEvent
-    ) => void;
-    paletteSection: PaletteSection;
-    query: string;
-    returnToSearchSection: () => void;
-    searchHistory: string[];
-    searchTerms: string[];
-    selectedCollectionIds: string[];
-    setCollectionMembershipFilter: (value: CollectionMembershipFilter) => void;
-    setColumnCountMode: (value: ColumnCountMode) => void;
-    setDomainFilters: (
-        value: string[] | ((value: string[]) => string[])
-    ) => void;
-    setDuplicatesFilterEnabled: (value: boolean) => void;
-    setGroupBy: (value: GroupByMode) => void;
-    setIsComposerOpen: (value: boolean) => void;
-    setLastVisitedFilterEnabled: (value: boolean) => void;
-    setQuery: (value: string) => void;
-    setSearchTerms: (value: string[] | ((value: string[]) => string[])) => void;
-    setSortMode: (value: SortMode) => void;
-    setSourceFilters: (
-        value:
-            | LibraryItemSource[]
-            | ((value: LibraryItemSource[]) => LibraryItemSource[])
-    ) => void;
-    setUnreachableFilterEnabled: (value: boolean) => void;
-    sortMode: SortMode;
-    sourceFilters: LibraryItemSource[];
-    unreachableFilterEnabled: boolean;
-}
-
-interface ComposerItemRank {
-    index: number;
-    score: number;
-}
-
-interface ComposerItemSearchFields {
-    lowerDescription: string;
-    lowerLabel: string;
-    lowerValue: string;
-    words: string[];
-}
-
-interface RankedComposerItem {
-    item: ComposerPaletteItem;
-    rank: ComposerItemRank;
-}
-
-interface PaletteActionsContext {
-    duplicatesFilterEnabled: boolean;
-    onCreateNote: () => void;
-    onRemoveDuplicates: () => void;
-    removableDuplicateCount: number;
-}
-
-const PaletteActionsContext = React.createContext<PaletteActionsContext | null>(
-    null
-);
-
-function usePaletteActionsContext(): PaletteActionsContext {
-    const context = React.use(PaletteActionsContext);
-    if (!context) {
-        throw new Error(
-            "Palette action components must be used inside <PaletteActionsList>."
-        );
+function getItemGroupKeys(
+    item: LibraryItemWithCollections,
+    groupBy: Exclude<EffectiveGroupByMode, "none">
+): string[] {
+    if (groupBy === "collection") {
+        if (item.collections.length === 0) {
+            return [UNCATEGORIZED_GROUP_KEY];
+        }
+        return [...new Set(item.collections.map(({ id }) => id))];
     }
-    return context;
+    return [getItemGroupKey(item, groupBy)];
 }
 
-interface UseVisibleItemGroupsProps {
-    groups: ComposerPaletteGroup[];
+function countItemGroupKeys(
+    items: LibraryItemWithCollections[],
+    groupBy: Exclude<EffectiveGroupByMode, "none">
+): number {
+    const keys = new Set<string>();
+    for (const item of items) {
+        for (const key of getItemGroupKeys(item, groupBy)) {
+            keys.add(key);
+        }
+    }
+    return keys.size;
+}
+
+interface UseVisibleCommandsProps {
+    groups: ComposerCommandGroup[];
     query: string;
 }
 
-function useVisibleItemGroups({
+function useVisibleCommands({
     groups,
     query,
-}: UseVisibleItemGroupsProps): ComposerPaletteGroup[] {
+}: UseVisibleCommandsProps): ComposerCommandGroup[] {
     const filter = useCommandFilter();
     const normalizedQuery = query.trim();
 
@@ -2915,13 +2387,13 @@ function useVisibleItemGroups({
     }
 
     const lowerQuery = normalizedQuery.toLowerCase();
-    const visibleGroups: ComposerPaletteGroup[] = [];
+    const visibleCommandGroups: ComposerCommandGroup[] = [];
 
     for (const group of groups) {
-        const rankedItems: RankedComposerItem[] = [];
+        const rankedItems: RankedComposerCommand[] = [];
 
         for (const [index, item] of group.items.entries()) {
-            const score = getComposerItemScore(filter, item, lowerQuery);
+            const score = getComposerCommandScore(filter, item, lowerQuery);
             if (score !== null) {
                 rankedItems.push({
                     item,
@@ -2940,18 +2412,18 @@ function useVisibleItemGroups({
                 first.rank.index - second.rank.index
         );
 
-        visibleGroups.push({
+        visibleCommandGroups.push({
             ...group,
             items: rankedItems.map(({ item }) => item),
         });
     }
 
-    return visibleGroups;
+    return visibleCommandGroups;
 }
 
-function getComposerItemSearchFields(
-    item: ComposerPaletteItem
-): ComposerItemSearchFields {
+function getComposerCommandSearchFields(
+    item: ComposerCommand
+): ComposerCommandSearchFields {
     const lowerLabel = item.label.trim().toLowerCase();
     return {
         lowerDescription: (item.description ?? "").toLowerCase(),
@@ -2961,13 +2433,13 @@ function getComposerItemSearchFields(
     };
 }
 
-function getComposerItemScore(
+function getComposerCommandScore(
     filter: ReturnType<typeof useCommandFilter>,
-    item: ComposerPaletteItem,
+    item: ComposerCommand,
     lowerQuery: string
 ): number | null {
     const { lowerDescription, lowerLabel, lowerValue, words } =
-        getComposerItemSearchFields(item);
+        getComposerCommandSearchFields(item);
 
     if (lowerLabel === lowerQuery) {
         return 0;
@@ -3035,7 +2507,7 @@ function collectionItemCountLabel(count: number): string {
     return `${count} item${count === 1 ? "" : "s"}`;
 }
 
-function buildCollectionPaletteDescription(
+function buildCollectionCommandDescription(
     collection: LibraryCollectionSummary,
     isActive: boolean
 ): string {
@@ -3048,7 +2520,7 @@ function buildCollectionPaletteDescription(
         : details.join(". ");
 }
 
-function buildCollectionPaletteItems({
+function buildCollectionCommands({
     collections,
     onClearCollectionFilters,
     onToggleCollectionSelection,
@@ -3060,7 +2532,7 @@ function buildCollectionPaletteItems({
     onToggleCollectionSelection: (id: string) => void;
     selectedCollectionIds: string[];
     wrapOnSelect: (fn: () => void) => () => void;
-}): ComposerPaletteItem[] {
+}): ComposerCommand[] {
     return [
         {
             description:
@@ -3075,7 +2547,7 @@ function buildCollectionPaletteItems({
         ...collections.map((collection) => {
             const isActive = selectedCollectionIds.includes(collection.id);
             return {
-                description: buildCollectionPaletteDescription(
+                description: buildCollectionCommandDescription(
                     collection,
                     isActive
                 ),
@@ -3085,21 +2557,9 @@ function buildCollectionPaletteItems({
                     onToggleCollectionSelection(collection.id)
                 ),
                 value: `filter collection ${collection.id}`,
-            } satisfies ComposerPaletteItem;
+            } satisfies ComposerCommand;
         }),
     ];
-}
-
-function buildPaletteGroupValueSet(
-    groups: ComposerPaletteGroup[]
-): Set<string> {
-    const valueSet = new Set<string>();
-    for (const group of groups) {
-        for (const item of group.items) {
-            valueSet.add(item.value);
-        }
-    }
-    return valueSet;
 }
 
 function appendUniqueSearchTerm(values: string[], next: string): string[] {
@@ -3118,9 +2578,7 @@ function isMultiWordQuery(query: string): boolean {
     return MULTI_WORD_QUERY_PATTERN.test(query.trim());
 }
 
-function removeLastPaletteStackEntry(
-    entries: ComposerPaletteStackEntry[]
-): boolean {
+function removeLastPaletteStackEntry(entries: ComposerStackEntry[]): boolean {
     const lastEntry = entries.at(-1);
     if (!lastEntry) {
         return false;
@@ -3162,12 +2620,30 @@ function isPrintablePaletteKey(event: KeyboardEvent): boolean {
 
 function buildComposerSuggestions({
     clearLibraryPalette,
+    collectionMembershipFilter,
+    collections,
+    domainFilters,
+    effectiveGroupBy,
+    groupBy,
     hasAnyRefinements,
     isEmpty,
     isExtensionInstalled,
+    items,
+    onClearCollectionFilters,
     onCreateCollection,
+    onToggleCollectionSelection,
+    searchTerms,
+    selectedCollectionIds,
+    setCollectionMembershipFilter,
+    setDomainFilters,
+    setGroupBy,
     setIsComposerOpen,
     setQuery,
+    setSearchTerms,
+    setSortMode,
+    setSourceFilters,
+    sortMode,
+    sourceFilters,
 }: BuildComposerSuggestionsInput): ComposerSuggestion[] {
     const commitSelection = (fn: () => void) => () => {
         fn();
@@ -3175,40 +2651,298 @@ function buildComposerSuggestions({
         setIsComposerOpen(false);
     };
 
-    // Refinement shortcuts (filter by source, group by domain, clear one
-    // facet) are the agent's job now; Advanced keeps the exact controls.
-    if (hasAnyRefinements) {
-        return [
-            {
-                icon: <RotateCcw className={SUGGESTION_ICON_CLASS} />,
-                label: "Reset filters",
-                onSelect: commitSelection(clearLibraryPalette),
-            },
-        ];
+    const collectionNames = new Map(
+        collections.map((collection) => [collection.id, collection.name])
+    );
+    const { collectionCounts, domainCounts, sourceCounts } =
+        countItemFacets(items);
+    const topCollection = pickTopFacet(
+        collectionCounts,
+        (collectionId) => !selectedCollectionIds.includes(collectionId),
+        (collectionId) => collectionNames.get(collectionId) ?? collectionId
+    );
+    const topSource = pickTopFacet(
+        sourceCounts,
+        (source) => !sourceFilters.includes(source),
+        getSourceLabel
+    );
+    const topDomain = pickTopFacet(
+        domainCounts,
+        (domain) => !domainFilters.includes(domain),
+        (domain) => domain
+    );
+    // The duplicates filter forces canonical-url grouping outside groupBy,
+    // so grouping suggestions would apply to a view the user never sees.
+    const isGroupingLocked = effectiveGroupBy === "canonical-url";
+    const nextGroupBy = isGroupingLocked
+        ? null
+        : findNextGroupBy(items, groupBy, sourceFilters, domainFilters);
+    const groupKeyCount =
+        effectiveGroupBy === "none"
+            ? 0
+            : countItemGroupKeys(items, effectiveGroupBy);
+
+    // Undo actions for active data filters rank first, because a narrowed or
+    // empty result set must offer a way back before new refinements take
+    // the remaining slots. Sorting the open groups comes next because it
+    // improves the view the user is looking at now. Discovery actions follow
+    // and stay empty while no item matches, so an empty result set surfaces
+    // the undo actions alone. View reversals rank last: the visible facet
+    // chips and the palette already expose them.
+    const suggestions: ComposerSuggestion[] = [];
+
+    if (searchTerms.length > 0) {
+        suggestions.push({
+            icon: <SearchX className={SUGGESTION_ICON_CLASS} />,
+            id: "clear-searches",
+            label: "Clear searches",
+            onSelect: commitSelection(() => setSearchTerms([])),
+        });
     }
 
-    const suggestions: ComposerSuggestion[] = [];
+    if (selectedCollectionIds.length > 0) {
+        suggestions.push({
+            icon: <FolderOpen className={SUGGESTION_ICON_CLASS} />,
+            id: "show-all-collections",
+            label: "Show all collections",
+            onSelect: commitSelection(onClearCollectionFilters),
+        });
+    }
+
+    if (sourceFilters.length > 0) {
+        suggestions.push({
+            icon: <Funnel className={SUGGESTION_ICON_CLASS} />,
+            id: "show-all-sources",
+            label: "Show all sources",
+            onSelect: commitSelection(() => setSourceFilters([])),
+        });
+    }
+
+    if (domainFilters.length > 0) {
+        suggestions.push({
+            icon: <Globe className={SUGGESTION_ICON_CLASS} />,
+            id: "show-all-domains",
+            label: "Show all domains",
+            onSelect: commitSelection(() => setDomainFilters([])),
+        });
+    }
+
+    if (collectionMembershipFilter !== DEFAULT_COLLECTION_MEMBERSHIP_FILTER) {
+        suggestions.push({
+            icon: <Tags className={SUGGESTION_ICON_CLASS} />,
+            id: "show-all-items",
+            label: "Show all items",
+            onSelect: commitSelection(() =>
+                setCollectionMembershipFilter(
+                    DEFAULT_COLLECTION_MEMBERSHIP_FILTER
+                )
+            ),
+        });
+    }
+
+    const resetFilters: ComposerSuggestion | null = hasAnyRefinements
+        ? {
+              icon: <RotateCcw className={SUGGESTION_ICON_CLASS} />,
+              id: "reset-filters",
+              label: "Reset filters",
+              onSelect: commitSelection(clearLibraryPalette),
+          }
+        : null;
+    if (resetFilters !== null) {
+        suggestions.push(resetFilters);
+    }
+
+    if (groupKeyCount > 1 && sortMode !== "count-desc") {
+        suggestions.push({
+            icon: <ArrowDownWideNarrow className={SUGGESTION_ICON_CLASS} />,
+            id: "sort-groups-by-size",
+            label: "Sort groups by size",
+            onSelect: commitSelection(() => setSortMode("count-desc")),
+        });
+    }
+
+    if (topCollection !== null) {
+        const collectionName = truncateLabel(topCollection.label, 24);
+        suggestions.push({
+            icon: <FolderOpen className={SUGGESTION_ICON_CLASS} />,
+            id: `collection:${topCollection.value}`,
+            label:
+                selectedCollectionIds.length === 0
+                    ? `Browse “${collectionName}”`
+                    : `Add “${collectionName}” collection`,
+            onSelect: commitSelection(() =>
+                onToggleCollectionSelection(topCollection.value)
+            ),
+        });
+    }
+
+    if (topSource !== null) {
+        suggestions.push({
+            icon: <Funnel className={SUGGESTION_ICON_CLASS} />,
+            id: `source:${topSource.value}`,
+            label: `Filter by ${topSource.label}`,
+            onSelect: commitSelection(() =>
+                setSourceFilters((current) =>
+                    toggleValue(current, topSource.value)
+                )
+            ),
+        });
+    }
+
+    if (nextGroupBy !== null) {
+        const nextGroupLabel = groupByLabel(nextGroupBy).toLowerCase();
+        suggestions.push({
+            icon: <Layers3 className={SUGGESTION_ICON_CLASS} />,
+            id: `group:${nextGroupBy}`,
+            label:
+                groupBy === "none"
+                    ? `Group by ${nextGroupLabel}`
+                    : `Try ${nextGroupLabel} groups`,
+            onSelect: commitSelection(() => setGroupBy(nextGroupBy)),
+        });
+    }
+
+    if (topDomain !== null) {
+        suggestions.push({
+            icon: <Globe className={SUGGESTION_ICON_CLASS} />,
+            id: `domain:${topDomain.value}`,
+            label: `Filter to ${truncateLabel(topDomain.label, 24)}`,
+            onSelect: commitSelection(() =>
+                setDomainFilters((current) =>
+                    toggleValue(current, topDomain.value)
+                )
+            ),
+        });
+    }
+
+    if (groupBy !== "none") {
+        suggestions.push({
+            icon: <Layers3 className={SUGGESTION_ICON_CLASS} />,
+            id: "ungroup",
+            label: "Ungroup",
+            onSelect: commitSelection(() => setGroupBy("none")),
+        });
+    }
+
+    if (sortMode !== DEFAULT_SORT_MODE) {
+        suggestions.push({
+            icon: <ArrowDownWideNarrow className={SUGGESTION_ICON_CLASS} />,
+            id: "reset-sort",
+            label: "Reset sort",
+            onSelect: commitSelection(() => setSortMode(DEFAULT_SORT_MODE)),
+        });
+    }
+
+    if (isEmpty) {
+        suggestions.push({
+            icon: <FolderOpen className={SUGGESTION_ICON_CLASS} />,
+            id: "create-collection",
+            label: "Create a new collection",
+            onSelect: commitSelection(onCreateCollection),
+        });
+    }
+
     if (!isExtensionInstalled) {
         suggestions.push({
             icon: <DownloadIcon className={SUGGESTION_ICON_CLASS} />,
+            id: "get-extension",
             label: "Get extension",
             onSelect: commitSelection(() =>
                 openExternalUrl(CACHE_EXTENSION_DOWNLOAD_URL)
             ),
         });
     }
-    if (isEmpty) {
-        suggestions.push({
-            icon: <FolderOpen className={SUGGESTION_ICON_CLASS} />,
-            label: "Create a new collection",
-            onSelect: commitSelection(() => onCreateCollection()),
-        });
+
+    const visible = suggestions.slice(0, SUGGESTION_LIMIT);
+    // The row budget must never drop the only action that clears every
+    // refinement at once.
+    if (resetFilters !== null && !visible.includes(resetFilters)) {
+        visible[visible.length - 1] = resetFilters;
     }
-    return suggestions;
+    return visible;
 }
 
-function buildPaletteGroups({
-    askCacheResponse,
+function countItemFacets(items: LibraryItemWithCollections[]): ItemFacetCounts {
+    const collectionCounts = new Map<string, number>();
+    const domainCounts = new Map<string, number>();
+    const sourceCounts = new Map<LibraryItemSource, number>();
+
+    for (const item of items) {
+        sourceCounts.set(item.source, (sourceCounts.get(item.source) ?? 0) + 1);
+
+        const domain = getLibraryItemDomain(item.url);
+        domainCounts.set(domain, (domainCounts.get(domain) ?? 0) + 1);
+
+        for (const collectionId of new Set(
+            item.collections.map(({ id }) => id)
+        )) {
+            collectionCounts.set(
+                collectionId,
+                (collectionCounts.get(collectionId) ?? 0) + 1
+            );
+        }
+    }
+
+    return { collectionCounts, domainCounts, sourceCounts };
+}
+
+function pickTopFacet<TValue>(
+    counts: Map<TValue, number>,
+    isEligible: (value: TValue) => boolean,
+    getLabel: (value: TValue) => string
+): TopFacet<TValue> | null {
+    const top = Array.from(counts.entries())
+        .filter(([value]) => isEligible(value))
+        .sort(
+            ([firstValue, firstCount], [secondValue, secondCount]) =>
+                secondCount - firstCount ||
+                NAME_COLLATOR.compare(
+                    getLabel(firstValue),
+                    getLabel(secondValue)
+                )
+        )[0];
+
+    return top === undefined
+        ? null
+        : { label: getLabel(top[0]), value: top[0] };
+}
+
+function findNextGroupBy(
+    items: LibraryItemWithCollections[],
+    currentGroupBy: GroupByMode,
+    sourceFilters: LibraryItemSource[],
+    domainFilters: string[]
+): GroupByMode | null {
+    const groupingModes: GroupByMode[] = PALETTE_GROUP_OPTIONS.map(
+        (option) => option.value
+    );
+    const filteredAxes = new Set<GroupByMode>();
+    if (sourceFilters.length > 0) {
+        filteredAxes.add("source");
+    }
+    if (domainFilters.length > 0) {
+        filteredAxes.add("domain");
+    }
+
+    // Grouping on an axis the user already filtered on repeats the current
+    // view, so filtered axes rank last.
+    const candidateModes: GroupByMode[] = [
+        ...groupingModes.filter((mode) => !filteredAxes.has(mode)),
+        ...groupingModes.filter((mode) => filteredAxes.has(mode)),
+    ];
+
+    return (
+        candidateModes.find(
+            (mode) =>
+                mode !== "none" &&
+                mode !== currentGroupBy &&
+                countItemGroupKeys(items, mode) > 1
+        ) ?? null
+    );
+}
+
+function buildComposerCommandGroups({
+    assistantResponse,
     clearLibraryPalette,
     columnCountMode,
     collectionMembershipFilter,
@@ -3223,7 +2957,7 @@ function buildPaletteGroups({
     lastVisitedItemIds,
     onClearCollectionFilters,
     onClearSearchHistory,
-    onAskCacheSubmit,
+    onAssistantSubmit,
     onToggleCollectionSelection,
     openPaletteSection,
     query,
@@ -3247,9 +2981,9 @@ function buildPaletteGroups({
     sortMode,
     sourceFilters,
     unreachableFilterEnabled,
-}: BuildPaletteGroupsInput): ComposerPaletteGroup[] {
+}: BuildComposerCommandsInput): ComposerCommandGroup[] {
     const draft = query.trim();
-    const groups: ComposerPaletteGroup[] = [];
+    const groups: ComposerCommandGroup[] = [];
 
     const applyAndReturn = (fn: () => void | Promise<void>) => async () => {
         await fn();
@@ -3262,7 +2996,7 @@ function buildPaletteGroups({
         setIsComposerOpen(true);
     };
 
-    const navigationItems: ComposerPaletteItem[] = [
+    const navigationItems: ComposerCommand[] = [
         {
             description: "Exact filters, grouping, sort, and columns",
             label: "Advanced…",
@@ -3271,7 +3005,7 @@ function buildPaletteGroups({
         },
     ];
 
-    const backItem: ComposerPaletteItem = {
+    const backItem: ComposerCommand = {
         description: "Return to search and quick actions",
         label: "Back",
         onSelect: returnToSearchSection,
@@ -3295,7 +3029,7 @@ function buildPaletteGroups({
         columnCountMode !== DEFAULT_COLUMN_COUNT_MODE;
 
     if (paletteSection === "search") {
-        return buildSearchPaletteGroups({
+        return buildSearchCommands({
             clearLibraryPalette,
             collectionPreviewThumbnailUrlsById,
             collections,
@@ -3304,7 +3038,7 @@ function buildPaletteGroups({
             lastVisitedFilterEnabled,
             lastVisitedItemIds,
             navigationItems,
-            onAskCacheSubmit,
+            onAssistantSubmit,
             onClearCollectionFilters,
             onClearSearchHistory,
             onToggleCollectionSelection,
@@ -3319,11 +3053,11 @@ function buildPaletteGroups({
     }
 
     if (paletteSection === "ai-response") {
-        return buildAskCachePaletteGroups({
-            askCacheResponse,
+        return buildAssistantCommands({
+            assistantResponse,
             backItem,
             draft,
-            onAskCacheSubmit,
+            onAssistantSubmit,
         });
     }
 
@@ -3423,7 +3157,7 @@ function buildPaletteGroups({
             label: "Collection state",
         });
         groups.push({
-            items: buildCollectionPaletteItems({
+            items: buildCollectionCommands({
                 collections,
                 onClearCollectionFilters,
                 onToggleCollectionSelection,
@@ -3489,13 +3223,12 @@ function buildPaletteGroups({
             })),
             label: "Columns",
         });
-        return groups;
     }
 
-    return [{ items: [backItem], label: "Navigation" }];
+    return groups;
 }
 
-function buildSearchPaletteGroups({
+function buildSearchCommands({
     collections,
     collectionPreviewThumbnailUrlsById,
     clearLibraryPalette,
@@ -3504,7 +3237,7 @@ function buildSearchPaletteGroups({
     lastVisitedFilterEnabled,
     lastVisitedItemIds,
     navigationItems,
-    onAskCacheSubmit,
+    onAssistantSubmit,
     onClearCollectionFilters,
     onClearSearchHistory,
     onToggleCollectionSelection,
@@ -3523,8 +3256,8 @@ function buildSearchPaletteGroups({
     hasAnyRefinements: boolean;
     lastVisitedFilterEnabled: boolean;
     lastVisitedItemIds: string[];
-    navigationItems: ComposerPaletteItem[];
-    onAskCacheSubmit: (prompt: string) => void | Promise<void>;
+    navigationItems: ComposerCommand[];
+    onAssistantSubmit: (prompt: string) => void | Promise<void>;
     onClearCollectionFilters: () => void;
     onClearSearchHistory: () => void;
     onToggleCollectionSelection: (id: string) => void;
@@ -3535,8 +3268,8 @@ function buildSearchPaletteGroups({
     setLastVisitedFilterEnabled: (value: boolean) => void;
     setQuery: (value: string) => void;
     setSearchTerms: (value: string[] | ((value: string[]) => string[])) => void;
-}): ComposerPaletteGroup[] {
-    const groups: ComposerPaletteGroup[] = [];
+}): ComposerCommandGroup[] {
+    const groups: ComposerCommandGroup[] = [];
     const draftAlreadyIncluded = searchTerms.some(
         (term) => term.toLowerCase() === draft.toLowerCase()
     );
@@ -3554,8 +3287,8 @@ function buildSearchPaletteGroups({
     };
 
     if (draft) {
-        const shouldDefaultToAskCache = isMultiWordQuery(draft);
-        const addSearchItem: ComposerPaletteItem = {
+        const shouldDefaultToAssistant = isMultiWordQuery(draft);
+        const addSearchItem: ComposerCommand = {
             description: draftAlreadyIncluded
                 ? "Already included in the search"
                 : "Add this search term",
@@ -3569,21 +3302,21 @@ function buildSearchPaletteGroups({
                 setQuery("");
                 setIsComposerOpen(true);
             },
-            shortcut: shouldDefaultToAskCache ? undefined : "Enter",
+            shortcut: shouldDefaultToAssistant ? undefined : "Enter",
             value: `search ${draft}`,
         };
-        const askCacheItem: ComposerPaletteItem = {
+        const assistantItem: ComposerCommand = {
             description: "AI Search",
             label: `Ask Cache "${draft}"`,
-            onSelect: () => onAskCacheSubmit(draft),
-            shortcut: shouldDefaultToAskCache ? "Enter" : "Tab",
+            onSelect: () => onAssistantSubmit(draft),
+            shortcut: shouldDefaultToAssistant ? "Enter" : "Tab",
             value: `ask cache ${draft}`,
         };
 
         groups.push({
-            items: shouldDefaultToAskCache
-                ? [askCacheItem, addSearchItem]
-                : [addSearchItem, askCacheItem],
+            items: shouldDefaultToAssistant
+                ? [assistantItem, addSearchItem]
+                : [addSearchItem, assistantItem],
             label: "Search",
         });
     }
@@ -3615,7 +3348,7 @@ function buildSearchPaletteGroups({
 
     if (showCollectionsGroup) {
         if (isDefaultState) {
-            const collectionItems: ComposerPaletteItem[] = [];
+            const collectionItems: ComposerCommand[] = [];
             for (const collection of collections) {
                 if (collectionItems.length >= 4) {
                     break;
@@ -3629,7 +3362,9 @@ function buildSearchPaletteGroups({
                     children: (
                         <div className="flex aspect-4/3 size-full flex-1 flex-col">
                             {thumbnails.length > 0 && (
-                                <PaletteCategoryThumbnail urls={thumbnails} />
+                                <ComposerCollectionCommandThumbnail
+                                    urls={thumbnails}
+                                />
                             )}
                             <span className="truncate p-1 font-medium">
                                 {collection.name}
@@ -3654,7 +3389,7 @@ function buildSearchPaletteGroups({
             }
         } else {
             groups.push({
-                items: buildCollectionPaletteItems({
+                items: buildCollectionCommands({
                     collections,
                     onClearCollectionFilters,
                     onToggleCollectionSelection,
@@ -3754,20 +3489,20 @@ function buildSearchPaletteGroups({
     return groups;
 }
 
-function buildAskCachePaletteGroups({
-    askCacheResponse,
+function buildAssistantCommands({
+    assistantResponse,
     backItem,
     draft,
-    onAskCacheSubmit,
+    onAssistantSubmit,
 }: {
-    askCacheResponse: AskCacheResponseState | null;
-    backItem: ComposerPaletteItem;
+    assistantResponse: AssistantResponseState | null;
+    backItem: ComposerCommand;
     draft: string;
-    onAskCacheSubmit: (prompt: string) => void | Promise<void>;
-}): ComposerPaletteGroup[] {
-    const items: ComposerPaletteItem[] = [
+    onAssistantSubmit: (prompt: string) => void | Promise<void>;
+}): ComposerCommandGroup[] {
+    const items: ComposerCommand[] = [
         {
-            children: <AskCacheResponsePanel response={askCacheResponse} />,
+            children: <AssistantResponsePanel response={assistantResponse} />,
             label: "Ask Cache response",
             onSelect: () => undefined,
             value: "ask cache response",
@@ -3777,7 +3512,7 @@ function buildAskCachePaletteGroups({
     if (draft) {
         items.unshift({
             label: `Ask Cache "${draft}"`,
-            onSelect: () => onAskCacheSubmit(draft),
+            onSelect: () => onAssistantSubmit(draft),
             value: `ask cache ${draft}`,
         });
     }
@@ -3794,7 +3529,7 @@ function buildAskCachePaletteGroups({
     ];
 }
 
-function buildPaletteStackEntries({
+function buildComposerStackEntries({
     agentViewTitle,
     collectionMembershipFilter,
     collections,
@@ -3822,8 +3557,8 @@ function buildPaletteStackEntries({
     sortMode,
     sourceFilters,
     unreachableFilterEnabled,
-}: BuildPaletteStackEntriesInput): ComposerPaletteStackEntry[] {
-    const entries: ComposerPaletteStackEntry[] = [];
+}: BuildComposerStackEntriesInput): ComposerStackEntry[] {
+    const entries: ComposerStackEntry[] = [];
     const collectionById = new Map(collections.map((c) => [c.id, c]));
 
     const pushChip = (key: string, label: string, onRemove: () => void) => {
@@ -3934,18 +3669,18 @@ function buildPaletteStackEntries({
     return entries;
 }
 
-interface BrowserContentProps extends React.PropsWithChildren {
+interface ItemsListProps extends React.PropsWithChildren {
     connectedIntegrationCount: number;
     lockedItemCount: number;
     totalItemCount: number;
 }
 
-export function BrowserContent({
+export function ItemsList({
     children,
     connectedIntegrationCount,
     lockedItemCount,
     totalItemCount,
-}: BrowserContentProps) {
+}: ItemsListProps) {
     const { items, setItems } = useItemsStateContext();
     const { hasAccess } = useSubscriptionAccess();
     const isExtensionInstalled = useIsExtensionInstalled();
@@ -3966,7 +3701,8 @@ export function BrowserContent({
         favoriteItemIdSet,
         favoriteItems,
         itemsByCollectionId,
-    } = useLibraryItemIndexes(items);
+        itemsById,
+    } = useItemIndexes(items);
     const hoverHotkeySurface = useHoverHotkeySurface();
 
     const {
@@ -3976,7 +3712,7 @@ export function BrowserContent({
         handleUpdateItemsCollections,
     } = useCollectionMutations({
         allCollections,
-        items,
+        itemsById,
         mergeCollectionSummaries,
         setItems,
         syncCollectionCreated,
@@ -4015,8 +3751,8 @@ export function BrowserContent({
     const [composerAttachments, setComposerAttachments] = React.useState<
         ComposerAttachment[]
     >([]);
-    const [askCacheResponse, setAskCacheResponse] =
-        React.useState<AskCacheResponseState | null>(null);
+    const [assistantResponse, setAssistantResponse] =
+        React.useState<AssistantResponseState | null>(null);
     const [agentView, setAgentView] = React.useState<AgentViewPage | null>(
         null
     );
@@ -4033,7 +3769,7 @@ export function BrowserContent({
     const inputRef = React.useRef<HTMLTextAreaElement>(null);
     const [isComposerOpen, setIsComposerOpen] = React.useState(false);
     const composerAttachmentsRef = React.useRef<ComposerAttachment[]>([]);
-    const askCacheRequestVersionRef = React.useRef(0);
+    const assistantRequestVersionRef = React.useRef(0);
 
     const {
         deleteErrorMessage,
@@ -4043,23 +3779,17 @@ export function BrowserContent({
         handleOpenInNewTab,
         handleRequestDelete,
         pendingDeleteItem,
-    } = useLibraryItemActions({
+    } = useItemActions({
         onDeleteSuccess: mergeCollectionSummaries,
         setItems,
     });
-    const pendingDeleteItemIdRef = React.useRef<string | null>(
-        pendingDeleteItem?.id ?? null
-    );
+
+    const pendingDeleteItemId = pendingDeleteItem?.id ?? null;
 
     React.useEffect(() => {
         itemsRef.current = items;
         composerAttachmentsRef.current = composerAttachments;
-        pendingDeleteItemIdRef.current = pendingDeleteItem?.id ?? null;
     });
-
-    const visibleResultItemsRef = React.useRef<LibraryItemWithCollections[]>(
-        []
-    );
 
     const unreachableProbe = useUnreachableItemProbe({
         isEnabled: unreachableFilterEnabled,
@@ -4113,8 +3843,32 @@ export function BrowserContent({
 
     const domainOptions = buildDomainPaletteOptions(items);
 
-    const buildAskCacheRequest = useStableCallback(
-        (prompt: string): AskCacheRequest => ({
+    const activeLastVisitedItemIds = lastVisitedFilterEnabled
+        ? lastVisitedItemIds
+        : [];
+
+    const filteredItems = filterItemsToAgentView(
+        filterItems(items, {
+            collectionMembershipFilter,
+            domainFilters,
+            duplicateItemIds,
+            duplicatesFilterEnabled,
+            lastVisitedItemIds: activeLastVisitedItemIds,
+            searchTerms,
+            selectedCollectionIds,
+            sourceFilters,
+            unreachableFilterEnabled,
+            unreachableItemIds,
+        }),
+        agentView
+    );
+
+    // `groups` projects this list into sections and repeats items that belong to
+    // several collections. Result counts and exports must read this list instead.
+    const sortedItems = sortItems(filteredItems, sortMode);
+
+    const buildAssistantRequest = useStableCallback(
+        (prompt: string): AssistantRequest => ({
             composerState: {
                 collectionMembershipFilter,
                 columnCountMode,
@@ -4134,7 +3888,7 @@ export function BrowserContent({
             },
             visibleContext: {
                 availableCollections: collections
-                    .slice(0, ASK_CACHE_CONTEXT_COLLECTION_LIMIT)
+                    .slice(0, ASSISTANT_CONTEXT_COLLECTION_LIMIT)
                     .map((collection) => ({
                         id: collection.id,
                         itemCount: collection.itemCount,
@@ -4142,35 +3896,20 @@ export function BrowserContent({
                     })),
                 availableDomains: domainOptions
                     .filter((option) => option.value !== ALL_DOMAIN_FILTER)
-                    .slice(0, ASK_CACHE_CONTEXT_DOMAIN_LIMIT)
+                    .slice(0, ASSISTANT_CONTEXT_DOMAIN_LIMIT)
                     .map((option) => ({
                         domain: option.value,
                         itemCount: option.itemCount,
                     })),
-                filteredItemCount: filterBrowserItems(items, {
-                    collectionMembershipFilter,
-                    domainFilters,
-                    duplicateItemIds,
-                    duplicatesFilterEnabled,
-                    lastVisitedItemIds: lastVisitedFilterEnabled
-                        ? lastVisitedItemIds
-                        : [],
-                    searchTerms,
-                    selectedCollectionIds,
-                    sourceFilters,
-                    unreachableFilterEnabled,
-                    unreachableItemIds,
-                }).length,
+                filteredItemCount: filteredItems.length,
                 totalItemCount,
-                visibleItems: buildAskCacheVisibleItems(
-                    visibleResultItemsRef.current
-                ),
+                visibleItems: buildAssistantVisibleItems(sortedItems),
             },
         })
     );
 
-    const applyAskCachePatch = useStableCallback(
-        (patch: AskCacheComposerPatch) => {
+    const applyAssistantPatch = useStableCallback(
+        (patch: AssistantComposerPatch) => {
             if (patch.reset) {
                 clearLibraryPalette();
             }
@@ -4205,10 +3944,10 @@ export function BrowserContent({
         }
     );
 
-    const handleAskCacheResult = useStableCallback(
-        (prompt: string, result: AskCacheResult) => {
+    const handleAssistantResult = useStableCallback(
+        (prompt: string, result: AssistantResult) => {
             if (result.status !== ACTION_STATUS.SUCCESS) {
-                setAskCacheResponse({
+                setAssistantResponse({
                     message: result.message,
                     prompt,
                     status: "error",
@@ -4217,7 +3956,7 @@ export function BrowserContent({
             }
 
             for (const operation of result.operations) {
-                applyAskCachePatch(operation);
+                applyAssistantPatch(operation);
             }
             if (result.operations.some((operation) => operation.reset)) {
                 setAgentView(null);
@@ -4226,7 +3965,7 @@ export function BrowserContent({
                 setAgentView(result.view);
             }
             setPaletteSection("ai-response");
-            setAskCacheResponse({
+            setAssistantResponse({
                 markdown: result.markdown,
                 operationCount: result.operations.length,
                 prompt,
@@ -4235,31 +3974,33 @@ export function BrowserContent({
         }
     );
 
-    const handleAskCacheSubmit = useStableCallback(
+    const handleAssistantSubmit = useStableCallback(
         async (rawPrompt: string) => {
             const prompt = rawPrompt.trim();
             if (prompt.length === 0) {
                 return;
             }
 
-            const requestVersion = askCacheRequestVersionRef.current + 1;
-            askCacheRequestVersionRef.current = requestVersion;
-            setAskCacheResponse({ prompt, status: "loading" });
+            const requestVersion = assistantRequestVersionRef.current + 1;
+            assistantRequestVersionRef.current = requestVersion;
+            setAssistantResponse({ prompt, status: "loading" });
             setPaletteSection("ai-response");
             setQuery("");
 
             try {
-                const result = await askCache(buildAskCacheRequest(prompt));
-                if (askCacheRequestVersionRef.current !== requestVersion) {
+                const result = await runAssistant(
+                    buildAssistantRequest(prompt)
+                );
+                if (assistantRequestVersionRef.current !== requestVersion) {
                     return;
                 }
-                handleAskCacheResult(prompt, result);
+                handleAssistantResult(prompt, result);
             } catch (error) {
-                if (askCacheRequestVersionRef.current !== requestVersion) {
+                if (assistantRequestVersionRef.current !== requestVersion) {
                     return;
                 }
                 log.error("Failed to submit Ask Cache request", error);
-                setAskCacheResponse({
+                setAssistantResponse({
                     message: "Ask Cache is unavailable right now.",
                     prompt,
                     status: "error",
@@ -4269,11 +4010,11 @@ export function BrowserContent({
         }
     );
 
-    const isAskLoading = askCacheResponse?.status === "loading";
+    const isAssistantLoading = assistantResponse?.status === "loading";
 
-    const handleCancelAskCache = useStableCallback(() => {
-        askCacheRequestVersionRef.current += 1;
-        setAskCacheResponse(null);
+    const handleCancelAssistant = useStableCallback(() => {
+        assistantRequestVersionRef.current += 1;
+        setAssistantResponse(null);
         setPaletteSection("search");
     });
 
@@ -4312,8 +4053,8 @@ export function BrowserContent({
         paletteCaretTimeout.start(0, placeCaret);
     });
 
-    const paletteGroups = buildPaletteGroups({
-        askCacheResponse,
+    const commandGroups = buildComposerCommandGroups({
+        assistantResponse,
         clearLibraryPalette,
         collectionMembershipFilter,
         collectionPreviewThumbnailUrlsById,
@@ -4326,7 +4067,7 @@ export function BrowserContent({
         groupBy,
         lastVisitedFilterEnabled,
         lastVisitedItemIds,
-        onAskCacheSubmit: handleAskCacheSubmit,
+        onAssistantSubmit: handleAssistantSubmit,
         onClearCollectionFilters,
         onClearSearchHistory: clearSearchHistory,
         onToggleCollectionSelection: onRemoveCollectionFilter,
@@ -4354,32 +4095,10 @@ export function BrowserContent({
         unreachableFilterEnabled,
     });
 
-    const activeLastVisitedItemIds = lastVisitedFilterEnabled
-        ? lastVisitedItemIds
-        : [];
-
-    const visibleGroups = useVisibleItemGroups({
-        groups: paletteGroups,
+    const visibleCommandGroups = useVisibleCommands({
+        groups: commandGroups,
         query,
     });
-
-    const paletteGroupValueSet = buildPaletteGroupValueSet(paletteGroups);
-
-    const filteredItems = filterItemsToAgentView(
-        filterBrowserItems(items, {
-            collectionMembershipFilter,
-            domainFilters,
-            duplicateItemIds,
-            duplicatesFilterEnabled,
-            lastVisitedItemIds: activeLastVisitedItemIds,
-            searchTerms,
-            selectedCollectionIds,
-            sourceFilters,
-            unreachableFilterEnabled,
-            unreachableItemIds,
-        }),
-        agentView
-    );
 
     const removableDuplicateIds = buildRemovableDuplicateItemIds({
         allItems: items,
@@ -4400,13 +4119,11 @@ export function BrowserContent({
         setItems,
     });
 
-    const sortedItems = sortComposerItems(filteredItems, sortMode);
-
     const effectiveGroupBy: EffectiveGroupByMode = duplicatesFilterEnabled
         ? "canonical-url"
         : groupBy;
 
-    const groups = buildBrowserGroups(
+    const groups = buildItemsGroups(
         sortedItems,
         effectiveGroupBy,
         sortMode,
@@ -4447,7 +4164,7 @@ export function BrowserContent({
         enableSectionCollapse,
         expandAllSections,
         toggleSection,
-    } = useSectionCollapseState({
+    } = useItemsGroupCollapse({
         groupBy: effectiveGroupBy,
         groups,
         hasActiveFilters,
@@ -4457,8 +4174,6 @@ export function BrowserContent({
 
     const resolvedColumnCount =
         columnCountMode === "auto" ? undefined : Number(columnCountMode);
-
-    const collapsedSectionKeySet = new Set(collapsedSectionKeys);
 
     const isPreviewOnly = !hasAccess && lockedItemCount > 0;
 
@@ -4493,12 +4208,6 @@ export function BrowserContent({
         resultsSummary = `${resultsSummary} · ${progressLabel}`;
     }
 
-    const visibleResultItems = groups.flatMap((section) => section.items);
-
-    React.useEffect(() => {
-        visibleResultItemsRef.current = visibleResultItems;
-    });
-
     const resolvedAgentViewItems = resolveAgentViewDisplayItems(
         items,
         agentView
@@ -4527,23 +4236,50 @@ export function BrowserContent({
 
     const suggestions = buildComposerSuggestions({
         clearLibraryPalette,
+        collectionMembershipFilter,
+        collections,
+        domainFilters,
+        effectiveGroupBy,
+        groupBy,
         hasAnyRefinements: hasActiveFilters || hasNonDefaultView,
         isEmpty: filteredItems.length === 0,
         isExtensionInstalled,
+        items: filteredItems,
+        onClearCollectionFilters,
         onCreateCollection: requestCreate,
+        onToggleCollectionSelection: onRemoveCollectionFilter,
+        searchTerms,
+        selectedCollectionIds,
+        setCollectionMembershipFilter,
+        setDomainFilters,
+        setGroupBy,
         setIsComposerOpen,
         setQuery,
+        setSearchTerms,
+        setSortMode,
+        setSourceFilters,
+        sortMode,
+        sourceFilters,
     });
 
     const [isSuggestionsOpen, setIsSuggestionsOpen] = React.useState(true);
 
-    const prevSuggestionCountRef = React.useRef(0);
+    const suggestionKey = suggestions
+        .map((suggestion) => suggestion.id)
+        .join("\0");
+
+    const prevSuggestionKeyRef = React.useRef(suggestionKey);
     React.useEffect(() => {
-        if (prevSuggestionCountRef.current === 0 && suggestions.length > 0) {
+        // Resurface the row when a new suggestion set arrives.
+        // Dismissal persists while the set stays identical.
+        if (
+            prevSuggestionKeyRef.current !== suggestionKey &&
+            suggestionKey !== ""
+        ) {
             setIsSuggestionsOpen(true);
         }
-        prevSuggestionCountRef.current = suggestions.length;
-    }, [suggestions.length]);
+        prevSuggestionKeyRef.current = suggestionKey;
+    }, [suggestionKey]);
 
     const handleComposerOpenChange = useStableCallback(
         (
@@ -4661,7 +4397,9 @@ export function BrowserContent({
 
     const handleComposerInputChange = useStableCallback(
         (next: string, eventDetails: AutocompleteRootChangeEventDetails) => {
-            if (paletteGroupValueSet.has(next)) {
+            // Base UI fills the input with the pressed item's raw value, such as
+            // "sort title". Keep that internal token out of the user's query.
+            if (eventDetails.reason === COMBOBOX_ITEM_PRESS_REASON) {
                 eventDetails.cancel();
                 return;
             }
@@ -4687,7 +4425,7 @@ export function BrowserContent({
         setAgentView(null);
     });
 
-    const stackEntries = buildPaletteStackEntries({
+    const stackEntries = buildComposerStackEntries({
         agentViewTitle: agentView?.title ?? null,
         collectionMembershipFilter,
         collections,
@@ -4741,7 +4479,7 @@ export function BrowserContent({
                     event.currentTarget.blur();
                     return;
                 }
-                handleAskCacheSubmit(query).catch((error) => {
+                handleAssistantSubmit(query).catch((error) => {
                     log.error("Failed to handle Ask Cache shortcut", error);
                 });
                 return;
@@ -4762,10 +4500,10 @@ export function BrowserContent({
             if (!isComposerOpen && isSubmitKey(event)) {
                 event.preventDefault();
                 event.stopPropagation();
-                if (isAskLoading) {
+                if (isAssistantLoading) {
                     return;
                 }
-                handleAskCacheSubmit(query).catch((error) => {
+                handleAssistantSubmit(query).catch((error) => {
                     log.error("Failed to submit palette query", error);
                 });
             }
@@ -4809,7 +4547,7 @@ export function BrowserContent({
                     {
                         description: "CSV file",
                         extension: "csv",
-                        name: getBrowserSectionExportFileName(sectionTitle),
+                        name: getItemsGroupExportFileName(sectionTitle),
                     }
                 );
             } catch (error) {
@@ -4848,19 +4586,19 @@ export function BrowserContent({
         }
     );
 
-    useCardHoverHotkeys({
+    useItemHoverHotkeys({
         hoveredItemIdRef,
         hoverHotkeySurface,
-        itemsRef,
+        itemsById,
         onDelete: handleRequestDelete,
         onItemFavoriteToggle: handleItemFavoriteToggle,
-        pendingDeleteItemIdRef,
+        pendingDeleteItemId,
     });
 
     const handleFindSimilar = useStableCallback(
         (item: LibraryItemWithCollections) => {
             const similarDomain = getLibraryItemDomain(item.url);
-            const nextFilters = buildSimilarBrowserFilterState(
+            const nextFilters = buildSimilarItemFilterState(
                 {
                     collectionMembershipFilter,
                     domainFilters,
@@ -4935,7 +4673,6 @@ export function BrowserContent({
         collectionPreviewThumbnailUrlsById,
         favoriteItemIdSet,
         favoriteItems,
-        items,
         itemsByCollectionId,
         mergeImportedItems: mergeImportedLibraryItems,
         onCopyLink: handleCopyLink,
@@ -4947,12 +4684,11 @@ export function BrowserContent({
         onOpenNote: handleOpenNote,
         onUpdateItemCollections: handleUpdateItemCollections,
         pendingDeleteItemId: pendingDeleteItem?.id ?? null,
-        setItems,
     };
 
-    const browserContextValue: BrowserContext = {
+    const itemsListContextValue: ItemsListContext = {
         clearLibraryPalette,
-        collapsedSectionKeys: collapsedSectionKeySet,
+        collapsedSectionKeys,
         collections,
         columnCount: resolvedColumnCount,
         enableSectionCollapse,
@@ -4979,7 +4715,7 @@ export function BrowserContent({
                 onSaveNote={handleSaveNote}
                 onUrlPaste={handlePasteUrlIntoLibrary}
             >
-                <BrowserContext value={browserContextValue}>
+                <ItemsListContext value={itemsListContextValue}>
                     {children}
                     <div className="z-0 flex min-h-0 w-full min-w-0 flex-1 items-stretch">
                         <div
@@ -4991,9 +4727,9 @@ export function BrowserContent({
                             }
                         >
                             <Composer
-                                isBusy={isAskLoading}
-                                onStop={handleCancelAskCache}
-                                onSubmit={handleAskCacheSubmit}
+                                isBusy={isAssistantLoading}
+                                onStop={handleCancelAssistant}
+                                onSubmit={handleAssistantSubmit}
                                 onValueChange={setQuery}
                                 value={query}
                             >
@@ -5008,8 +4744,10 @@ export function BrowserContent({
                                                         }
                                                     />
                                                 }
-                                                filteredItems={visibleGroups}
-                                                items={paletteGroups}
+                                                filteredItems={
+                                                    visibleCommandGroups
+                                                }
+                                                items={commandGroups}
                                                 onKeyDown={
                                                     handlePaletteInputKeyDown
                                                 }
@@ -5044,7 +4782,7 @@ export function BrowserContent({
                                                     </CommandEmpty>
                                                     <CommandList className="max-w-2xl">
                                                         {(
-                                                            group: ComposerPaletteGroup
+                                                            group: ComposerCommandGroup
                                                         ) => (
                                                             <CommandGroup
                                                                 items={
@@ -5064,9 +4802,9 @@ export function BrowserContent({
                                                                     <CommandRow className="grid grid-cols-2 gap-2 pt-1 pr-2 pb-4 md:grid-cols-3 lg:grid-cols-4">
                                                                         <CommandCollection>
                                                                             {(
-                                                                                item: ComposerPaletteItem
+                                                                                item: ComposerCommand
                                                                             ) => (
-                                                                                <PaletteCollectionCard
+                                                                                <ComposerCollectionCommandCard
                                                                                     item={
                                                                                         item
                                                                                     }
@@ -5080,9 +4818,9 @@ export function BrowserContent({
                                                                 ) : (
                                                                     <CommandCollection>
                                                                         {(
-                                                                            item: ComposerPaletteItem
+                                                                            item: ComposerCommand
                                                                         ) => (
-                                                                            <PaletteItem
+                                                                            <ComposerCommandRow
                                                                                 item={
                                                                                     item
                                                                                 }
@@ -5193,48 +4931,48 @@ export function BrowserContent({
                                 resolvedCount={resolvedAgentViewItems.length}
                                 view={agentView}
                             />
-                            <BrowserEmpty />
-                            <BrowserEmptyWithFilters />
-                            <BrowserUnreachableProbePending />
-                            <BrowserGroupList groups={groups}>
+                            <ItemsListEmpty />
+                            <ItemsListEmptyWithFilters />
+                            <ItemsListLinkCheckPending />
+                            <ItemsGroupList groups={groups}>
                                 {(group) => (
-                                    <BrowserGroup>
+                                    <ItemsGroup>
                                         {enableSectionCollapse ? (
                                             <>
-                                                <BrowserGroupResults />
+                                                <ItemsGroupResults />
                                                 {group.title ? null : (
-                                                    <BrowserGroupAIOverview>
-                                                        <BrowserGroupAIOverviewContent />
-                                                    </BrowserGroupAIOverview>
+                                                    <ItemsGroupOverview>
+                                                        <ItemsGroupOverviewContent />
+                                                    </ItemsGroupOverview>
                                                 )}
-                                                <BrowserGroupEmpty>
+                                                <ItemsGroupEmpty>
                                                     No items were found in this
                                                     section.
-                                                </BrowserGroupEmpty>
+                                                </ItemsGroupEmpty>
                                             </>
                                         ) : null}
-                                        <BrowserMasonry>
+                                        <ItemsMasonry>
                                             {(item) => (
                                                 <MasonryItem key={item.id}>
-                                                    <MediaCardDataProvider
+                                                    <ItemCardProvider
                                                         value={item}
                                                     >
-                                                        <MediaCardZoomProvider>
-                                                            <MediaCardDownloadProvider>
-                                                                <MediaCardContextMenuSurface>
-                                                                    <MediaCardOpenTarget />
-                                                                    <MediaCardActions />
-                                                                </MediaCardContextMenuSurface>
-                                                            </MediaCardDownloadProvider>
-                                                        </MediaCardZoomProvider>
-                                                    </MediaCardDataProvider>
+                                                        <ItemCardZoomProvider>
+                                                            <ItemCardDownloadProvider>
+                                                                <ItemCardSurface>
+                                                                    <ItemCardTarget />
+                                                                    <ItemCardFooter />
+                                                                </ItemCardSurface>
+                                                            </ItemCardDownloadProvider>
+                                                        </ItemCardZoomProvider>
+                                                    </ItemCardProvider>
                                                 </MasonryItem>
                                             )}
-                                        </BrowserMasonry>
-                                    </BrowserGroup>
+                                        </ItemsMasonry>
+                                    </ItemsGroup>
                                 )}
-                            </BrowserGroupList>
-                            <BrowserLocked
+                            </ItemsGroupList>
+                            <ItemsListLocked
                                 length={totalItemCount}
                                 lockedItemCount={lockedItemCount}
                             />
@@ -5266,174 +5004,17 @@ export function BrowserContent({
                         onUpdateItemCollections={handleUpdateItemCollections}
                         onUpdateItemsCollections={handleUpdateItemsCollections}
                         open={isCreateResultsDialogOpen}
-                        visibleResultItems={visibleResultItems}
+                        resultItems={sortedItems}
                     />
                     <SuccessfulUpgradeDialog />
-                </BrowserContext>
+                </ItemsListContext>
             </SideRoot>
         </ItemsContext>
     );
 }
 
-interface CollectionComboboxPickerProps
-    extends React.ComponentProps<typeof ComboboxTrigger> {
-    collections: LibraryCollectionSummary[];
-    items: LibraryItemWithCollections[];
-    onOpenChange?: (open: boolean) => void;
-    onUpdateItemCollections: (
-        itemId: string,
-        collectionIds: string[]
-    ) => Promise<LibraryItemCollectionsUpdateResult>;
-    onUpdateItemsCollections?: (input: {
-        itemIds: string[];
-        nextSharedCollectionIds: string[];
-        previousSharedCollectionIds: string[];
-    }) => Promise<LibraryItemsCollectionsUpdateResult>;
-    open?: boolean;
-    showSmartCollectionsIndicator?: boolean;
-}
-
-function CollectionComboboxPicker({
-    collections,
-    items,
-    onUpdateItemsCollections,
-    onUpdateItemCollections,
-    open: openProp,
-    onOpenChange,
-    children,
-    render,
-    showSmartCollectionsIndicator = false,
-    ...props
-}: CollectionComboboxPickerProps) {
-    const [isOpenInternal, setIsOpenInternal] = React.useState(false);
-    const isOpen = openProp ?? isOpenInternal;
-    const setIsOpen = onOpenChange ?? setIsOpenInternal;
-    const sharedCollections = getSharedCollections(items);
-    const selectedCollectionIds = sharedCollections.map(
-        (collection) => collection.id
-    );
-    const selectedCount = selectedCollectionIds.length;
-    const archivedAssignedCollectionCount = sharedCollections.filter(
-        (collection) => collection.priority === "archive"
-    ).length;
-    const shouldShowSmartCollectionsIndicator =
-        showSmartCollectionsIndicator && selectedCount > 0;
-
-    const handleValueChange = useStableCallback((nextIds: string[]) => {
-        const nextCollectionIds = [...nextIds];
-
-        if (items.length === 1) {
-            const [item] = items;
-            if (!item) {
-                return;
-            }
-            onUpdateItemCollections(item.id, nextCollectionIds).catch(
-                (error: unknown) => {
-                    log.error("Failed to update item collections", error, {
-                        itemId: item.id,
-                    });
-                }
-            );
-            return;
-        }
-
-        if (!onUpdateItemsCollections) {
-            throw new Error(
-                "Bulk collection updates require onUpdateItemsCollections."
-            );
-        }
-
-        onUpdateItemsCollections({
-            itemIds: items.map((item) => item.id),
-            nextSharedCollectionIds: nextCollectionIds,
-            previousSharedCollectionIds: selectedCollectionIds,
-        }).catch((error: unknown) => {
-            log.error("Failed to update item collections", error, {
-                itemIds: items.map((item) => item.id),
-            });
-        });
-    });
-
-    let defaultTriggerAriaLabel = "Add to collections";
-    if (shouldShowSmartCollectionsIndicator) {
-        defaultTriggerAriaLabel = "Smart Collections just organized this";
-    } else if (selectedCount > 0) {
-        defaultTriggerAriaLabel = `Edit collections (${selectedCount} selected)`;
-    }
-
-    return (
-        <Combobox
-            autoHighlight
-            items={collections}
-            multiple
-            onOpenChange={setIsOpen}
-            onValueChange={handleValueChange}
-            open={isOpen}
-            value={selectedCollectionIds}
-        >
-            <ComboboxTrigger
-                {...props}
-                render={
-                    render ?? (
-                        <Button
-                            aria-label={defaultTriggerAriaLabel}
-                            size="icon-xs"
-                            variant="ghost"
-                        />
-                    )
-                }
-            >
-                {children ??
-                    defaultCollectionTriggerIcon(
-                        selectedCount,
-                        shouldShowSmartCollectionsIndicator
-                    )}
-            </ComboboxTrigger>
-            <ComboboxPopup>
-                <ComboboxInput
-                    endAddon={<Kbd>S</Kbd>}
-                    placeholder="Assign collections…"
-                />
-                <ComboboxStatus>
-                    {archivedAssignedCollectionCount > 0
-                        ? getArchivedAssignedStatus(
-                              archivedAssignedCollectionCount
-                          )
-                        : null}
-                </ComboboxStatus>
-                <ComboboxEmpty>No matching collections</ComboboxEmpty>
-                <ComboboxList>
-                    <ComboboxCollection>
-                        {(collection) => (
-                            <ComboboxItem
-                                className="group/item"
-                                key={collection.id}
-                                value={collection.id}
-                            >
-                                <div className="flex max-w-56 items-center justify-between gap-3">
-                                    <span className="min-w-0 max-w-full flex-1 truncate text-foreground text-sm">
-                                        {collection.name}
-                                    </span>
-                                    <div className="relative flex w-fit items-center justify-end pl-4">
-                                        <span className="shrink-0 text-nowrap text-muted-foreground text-xs tabular-nums transition-opacity ease-out group-data-highlighted/item:opacity-0">
-                                            {collection.itemCount}
-                                        </span>
-                                        <span className="absolute right-0 shrink-0 text-nowrap text-muted-foreground text-xs opacity-0 transition-opacity ease-out group-data-highlighted/item:opacity-100">
-                                            Save
-                                        </span>
-                                    </div>
-                                </div>
-                            </ComboboxItem>
-                        )}
-                    </ComboboxCollection>
-                </ComboboxList>
-            </ComboboxPopup>
-        </Combobox>
-    );
-}
-
-function BrowserEmpty() {
-    const { shouldShowEmptyLibraryPeek } = useBrowserContext();
+function ItemsListEmpty() {
+    const { shouldShowEmptyLibraryPeek } = useItemsListContext();
 
     if (!shouldShowEmptyLibraryPeek) {
         return null;
@@ -5441,7 +5022,7 @@ function BrowserEmpty() {
 
     return (
         <>
-            <BrowserGroupHeader>
+            <ItemsGroupHeader>
                 <h3 className="font-medium text-foreground text-sm">
                     <GradientWaveText
                         ariaLabel="Welcome to your Cache"
@@ -5462,15 +5043,15 @@ function BrowserEmpty() {
                         add, the smarter it gets.
                     </T>
                 </p>
-            </BrowserGroupHeader>
+            </ItemsGroupHeader>
             <MasonryRoot
                 gap={16}
-                items={EMPTY_LIBRARY_PEEK_PLACEHOLDERS}
+                items={EMPTY_PEEK_PLACEHOLDERS}
                 maxColumnCount={7}
             >
                 {(placeholder, index) => (
                     <MasonryItem key={placeholder.id}>
-                        <MediaCardEmptyCell data={placeholder} index={index} />
+                        <ItemCardSkeleton data={placeholder} index={index} />
                     </MasonryItem>
                 )}
             </MasonryRoot>
@@ -5478,9 +5059,9 @@ function BrowserEmpty() {
     );
 }
 
-function BrowserEmptyWithFilters() {
+function ItemsListEmptyWithFilters() {
     const { shouldShowNoFilteredResults, clearLibraryPalette } =
-        useBrowserContext();
+        useItemsListContext();
 
     if (!shouldShowNoFilteredResults) {
         return null;
@@ -5498,13 +5079,28 @@ function BrowserEmptyWithFilters() {
     );
 }
 
-interface BrowserLockedProps {
+function buildLockedPeekPlaceholders(
+    lockedItemCount: number
+): ItemPeekPlaceholder[] {
+    const length = Math.min(
+        Math.max(0, Math.floor(lockedItemCount)),
+        LOCKED_PEEK_PLACEHOLDERS_MAX
+    );
+    return Array.from({ length }, (_, index) => ({
+        aspect: LOCKED_PEEK_ASPECT_CYCLE[
+            index % LOCKED_PEEK_ASPECT_CYCLE.length
+        ],
+        id: `locked-library-peek-${index}`,
+    }));
+}
+
+interface ItemsListLockedProps {
     length: number;
     lockedItemCount: number;
 }
 
-function BrowserLocked({ length, lockedItemCount }: BrowserLockedProps) {
-    const { columnCount, shouldShowLockedPreview } = useBrowserContext();
+function ItemsListLocked({ length, lockedItemCount }: ItemsListLockedProps) {
+    const { columnCount, shouldShowLockedPreview } = useItemsListContext();
 
     const placeholders = buildLockedPeekPlaceholders(lockedItemCount);
 
@@ -5523,7 +5119,7 @@ function BrowserLocked({ length, lockedItemCount }: BrowserLockedProps) {
             >
                 {(placeholder, index) => (
                     <MasonryItem key={placeholder.id}>
-                        <MediaCardEmptyCell data={placeholder} index={index} />
+                        <ItemCardSkeleton data={placeholder} index={index} />
                     </MasonryItem>
                 )}
             </MasonryRoot>
@@ -5531,8 +5127,8 @@ function BrowserLocked({ length, lockedItemCount }: BrowserLockedProps) {
     );
 }
 
-function BrowserUnreachableProbePending() {
-    const { shouldShowUnreachableProbePending } = useBrowserContext();
+function ItemsListLinkCheckPending() {
+    const { shouldShowUnreachableProbePending } = useItemsListContext();
 
     if (!shouldShowUnreachableProbePending) {
         return null;
@@ -5645,47 +5241,43 @@ function AgentViewBar({
     );
 }
 
-function BrowserGroupList({
+function ItemsGroupList({
     groups,
     children,
 }: {
-    groups: BrowserGroup[];
-    children: (section: BrowserGroup) => React.ReactNode;
+    groups: ItemsGroup[];
+    children: (section: ItemsGroup) => React.ReactNode;
 }) {
     return groups.map((group) => (
-        <BrowserGroupProvider key={group.key} section={group}>
+        <ItemsGroupProvider key={group.key} section={group}>
             {children(group)}
-        </BrowserGroupProvider>
+        </ItemsGroupProvider>
     ));
 }
 
-function BrowserGroupProvider({
+function ItemsGroupProvider({
     children,
     section,
-}: React.PropsWithChildren<{ section: BrowserGroup }>) {
-    const { collapsedSectionKeys, onToggleSection } = useBrowserContext();
+}: React.PropsWithChildren<{ section: ItemsGroup }>) {
+    const { collapsedSectionKeys, onToggleSection } = useItemsListContext();
 
     return (
-        <BrowserGroupContext
+        <ItemsGroupContext
             value={{
                 accentKey: section.key,
                 collapsed: collapsedSectionKeys.has(section.key),
                 isMainResults: section.title === null,
                 items: section.items,
-                key: section.key,
                 onToggle: () => onToggleSection(section.key),
                 title: section.title ?? "Results",
             }}
         >
             {children}
-        </BrowserGroupContext>
+        </ItemsGroupContext>
     );
 }
 
-function BrowserGroup({
-    className,
-    ...props
-}: React.ComponentProps<"section">) {
+function ItemsGroup({ className, ...props }: React.ComponentProps<"section">) {
     return (
         <section
             {...props}
@@ -5697,7 +5289,7 @@ function BrowserGroup({
     );
 }
 
-function BrowserGroupHeader({
+function ItemsGroupHeader({
     className,
     ...props
 }: React.ComponentProps<"div">) {
@@ -5712,11 +5304,11 @@ function BrowserGroupHeader({
     );
 }
 
-interface BrowserGroupSourceIconsProps {
+interface ItemsGroupSourceIconsProps {
     items: LibraryItemWithCollections[];
 }
 
-function BrowserGroupSourceIcons({ items }: BrowserGroupSourceIconsProps) {
+function ItemsGroupSourceIcons({ items }: ItemsGroupSourceIconsProps) {
     const seenSources = new Set<LibraryItemSource>();
     for (const item of items) {
         seenSources.add(item.source);
@@ -5755,15 +5347,15 @@ function BrowserGroupSourceIcons({ items }: BrowserGroupSourceIconsProps) {
     );
 }
 
-function BrowserGroupResults() {
-    const group = useBrowserGroupContext();
+function ItemsGroupResults() {
+    const group = useItemsGroupContext();
     const {
         enableSectionCollapse,
         onCreateCollectionFromResults,
         onExportSectionResults,
         onExpandAllSections,
         onCollapseAllSections,
-    } = useBrowserContext();
+    } = useItemsListContext();
 
     const hasItems = group.items.length > 0;
     const canCreateCollectionFromResults = group.isMainResults;
@@ -5908,8 +5500,8 @@ function BrowserGroupResults() {
     );
 }
 
-function BrowserGroupEmpty({ className, ...props }: React.ComponentProps<"p">) {
-    const { collapsed, items } = useBrowserGroupContext();
+function ItemsGroupEmpty({ className, ...props }: React.ComponentProps<"p">) {
+    const { collapsed, items } = useItemsGroupContext();
 
     if (collapsed || items.length > 0) {
         return null;
@@ -5923,18 +5515,18 @@ function BrowserGroupEmpty({ className, ...props }: React.ComponentProps<"p">) {
     );
 }
 
-function BrowserGroupAIOverview({
+function ItemsGroupOverview({
     children,
     ...props
 }: React.ComponentProps<"div">) {
-    const { collapsed, items } = useBrowserGroupContext();
+    const { collapsed, items } = useItemsGroupContext();
 
     if (collapsed) {
         return null;
     }
 
     return (
-        <BrowserGroupHeader {...props}>
+        <ItemsGroupHeader {...props}>
             <div className="flex items-center gap-1.5">
                 <Astroid
                     aria-hidden
@@ -5947,16 +5539,16 @@ function BrowserGroupAIOverview({
                 >
                     Overview
                 </GradientWaveText>
-                <BrowserGroupSourceIcons items={items} />
+                <ItemsGroupSourceIcons items={items} />
             </div>
             {children}
-        </BrowserGroupHeader>
+        </ItemsGroupHeader>
     );
 }
 
-function BrowserGroupAIOverviewContent() {
+function ItemsGroupOverviewContent() {
     const t = useGT();
-    const { collapsed, items, title } = useBrowserGroupContext();
+    const { collapsed, items, title } = useItemsGroupContext();
     const [isExpanded, setIsExpanded] = React.useState(false);
     const contentId = React.useId();
 
@@ -6026,15 +5618,15 @@ function BrowserGroupAIOverviewContent() {
     );
 }
 
-interface BrowserMasonryProps {
+interface ItemsMasonryProps {
     children: (
         data: LibraryItemWithCollections,
         index: number
     ) => React.ReactElement;
 }
 
-function BrowserMasonry({ children }: BrowserMasonryProps) {
-    const { collapsed, items } = useBrowserGroupContext();
+function ItemsMasonry({ children }: ItemsMasonryProps) {
+    const { collapsed, items } = useItemsGroupContext();
     const {
         collections,
         columnCount,
@@ -6043,7 +5635,7 @@ function BrowserMasonry({ children }: BrowserMasonryProps) {
         markVisited,
         openPickerItemId,
         setOpenPickerItemId,
-    } = useBrowserContext();
+    } = useItemsListContext();
     const {
         favoriteItemIdSet,
         onCopyLink,
@@ -6056,7 +5648,7 @@ function BrowserMasonry({ children }: BrowserMasonryProps) {
         pendingDeleteItemId,
     } = useItemsContext();
 
-    const contextValue: MediaCardEnvironmentContext = {
+    const contextValue: ItemCardEnvironmentContext = {
         collections,
         favoriteItemIdSet,
         hoveredItemIdRef,
@@ -6079,7 +5671,7 @@ function BrowserMasonry({ children }: BrowserMasonryProps) {
     }
 
     return (
-        <MediaCardEnvironmentContext value={contextValue}>
+        <ItemCardEnvironmentContext value={contextValue}>
             <div className="contain-layout contain-paint contain-style [overflow-clip-margin:0.5rem]">
                 <MasonryRoot
                     columnCount={columnCount}
@@ -6090,773 +5682,7 @@ function BrowserMasonry({ children }: BrowserMasonryProps) {
                     {children}
                 </MasonryRoot>
             </div>
-        </MediaCardEnvironmentContext>
-    );
-}
-
-function MediaCardDataProvider({
-    children,
-    value,
-}: React.PropsWithChildren<{ value: LibraryItemWithCollections }>) {
-    return (
-        <MediaCardDataContext
-            value={{
-                displayTitle: getLibraryItemPrimaryText(value),
-                isNote: value.kind === ITEM_KIND_NOTE,
-                item: value,
-                previewImageUrl: itemPreviewImageUrl(value),
-            }}
-        >
-            {children}
-        </MediaCardDataContext>
-    );
-}
-
-function MediaCardSmartCollectionsIndicator() {
-    return (
-        <svg
-            aria-hidden="true"
-            className="size-4"
-            fill="none"
-            focusable="false"
-            role="img"
-            viewBox="0 0 24 24"
-        >
-            <path
-                d="M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9-9-1.8-9-9 1.8-9 9-9"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-            />
-            <path
-                className="animate-smart-collections-indicator"
-                d="M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9-9-1.8-9-9 1.8-9 9-9"
-                fill="none"
-                pathLength={1}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.25}
-            />
-        </svg>
-    );
-}
-
-function MediaCardEmptyCell({
-    data,
-    index,
-}: {
-    data: LibraryPeekPlaceholder;
-    index: number;
-}) {
-    const opacity = Math.max(0.25, 1 - index * 0.03);
-
-    return (
-        <div className="flex flex-col" style={{ opacity }}>
-            <Skeleton
-                className={cn(
-                    "squircle w-full rounded-xl [background:var(--color-muted)]",
-                    data.aspect
-                )}
-            />
-            <Skeleton className="mt-2 h-3 w-11/12 [background:var(--color-muted)]" />
-        </div>
-    );
-}
-
-function MediaCardZoomProvider({ children }: React.PropsWithChildren) {
-    const [isZoomed, setIsZoomed] = React.useState(false);
-
-    // Ignore zoom-in requests so clicks keep opening the item; zooming in is
-    // the card menu's job.
-    const handleZoomChange = useStableCallback((nextZoomed: boolean) => {
-        if (!nextZoomed) {
-            setIsZoomed(false);
-        }
-    });
-
-    const handleZoomIn = useStableCallback(() => {
-        setIsZoomed(true);
-    });
-
-    const contextValue = {
-        isZoomed,
-        onZoomChange: handleZoomChange,
-        onZoomIn: handleZoomIn,
-    };
-
-    return (
-        <MediaCardZoomContext value={contextValue}>
-            {children}
-        </MediaCardZoomContext>
-    );
-}
-
-function MediaCardDownloadProvider({ children }: React.PropsWithChildren) {
-    const { item } = useMediaCardDataContext();
-    const [isDownloading, startDownloadTransition] = React.useTransition();
-    const [hasDownloadError, setHasDownloadError] = React.useState(false);
-
-    const handleDownload = useStableCallback(() => {
-        setHasDownloadError(false);
-        startDownloadTransition(async () => {
-            try {
-                await saveLibraryItemMedia(item);
-            } catch (error) {
-                setHasDownloadError(true);
-                log.error("Failed to prepare media download", error, {
-                    itemId: item.id,
-                    url: item.url,
-                });
-            }
-        });
-    });
-
-    return (
-        <>
-            <MediaCardDownloadContext
-                value={{ isDownloading, onDownload: handleDownload }}
-            >
-                {children}
-            </MediaCardDownloadContext>
-            {hasDownloadError ? (
-                <p
-                    aria-atomic="true"
-                    aria-live="assertive"
-                    className="mt-1 px-1 text-destructive text-xs leading-tight"
-                    role="alert"
-                >
-                    <T>Couldn't download this media. Please try again.</T>
-                </p>
-            ) : null}
-        </>
-    );
-}
-
-function MediaCardColorsBadge({ value }: { value: string }) {
-    const { copyToClipboard, isCopied } = useCopyToClipboard();
-
-    const handleCopy = useStableCallback(() => copyToClipboard(value));
-
-    return (
-        <Avatar
-            className="relative size-4.5 cursor-pointer overflow-visible"
-            onClick={handleCopy}
-        >
-            <AvatarFallback style={{ backgroundColor: value }}>
-                {isCopied ? (
-                    <>
-                        <Check className="size-3 text-black invert" />
-                        <span className="absolute -bottom-4 text-nowrap rounded-xl bg-background text-[11px] text-success-foreground">
-                            Copied!
-                        </span>
-                    </>
-                ) : null}
-            </AvatarFallback>
-        </Avatar>
-    );
-}
-
-function MediaCardColorsPalette({ src }: { src: string }) {
-    // src must serve same-origin image bytes (proxy delivery): a redirect
-    // URL taints the canvas on cross-origin upstreams and yields no colors.
-    const { data } = useSWR(src, getImageColors, {
-        keepPreviousData: true,
-    });
-
-    if (!data?.length) {
-        return null;
-    }
-
-    return (
-        <AvatarGroup className="justify-end -space-x-1">
-            {data.map(({ hex, name }) => (
-                <MediaCardColorsBadge key={name} value={hex} />
-            ))}
-        </AvatarGroup>
-    );
-}
-
-function MediaCardMenuDetails() {
-    const { displayTitle, isNote, item } = useMediaCardDataContext();
-
-    const addedLabel = itemDateLabel(item.scrapedAt ?? item.createdAt);
-    const createdLabel = itemDateLabel(item.createdAt);
-    const shouldShowFullTitle = !isNote && displayTitle !== item.url;
-    const paletteSrc = itemPreviewImageProxyUrl(item);
-
-    return (
-        <Collapsible className="group/collapsible">
-            <CollapsibleTrigger
-                render={
-                    <Button
-                        className="max-w-60 justify-between rounded-xl"
-                        variant="ghost"
-                    />
-                }
-            >
-                <span className="block min-w-0 truncate text-xs">
-                    {displayTitle}
-                </span>
-                <ChevronDown className="ml-auto inline-block size-4 -rotate-90 transition-transform group-data-open/collapsible:rotate-0" />
-            </CollapsibleTrigger>
-            <CollapsiblePanel className="px-2.5 text-[11px] text-muted-foreground">
-                {shouldShowFullTitle ? (
-                    <p className="wrap-break-words max-w-52 whitespace-normal py-0.5 text-foreground">
-                        {displayTitle}
-                    </p>
-                ) : null}
-                {isNote ? null : (
-                    <span className="inline-block min-w-0 max-w-52 truncate py-0.5 text-muted-foreground underline">
-                        {item.url}
-                    </span>
-                )}
-                <div className="flex items-center justify-between gap-3 py-0.5">
-                    <span>Created</span>
-                    <span className="text-foreground tabular-nums">
-                        {createdLabel}
-                    </span>
-                </div>
-                <div className="flex items-center justify-between gap-3 py-0.5">
-                    <span>Added</span>
-                    <span className="text-foreground tabular-nums">
-                        {addedLabel}
-                    </span>
-                </div>
-                {paletteSrc ? (
-                    <div className="flex items-center justify-between gap-3 py-0.5 pb-3">
-                        <span>Palette</span>
-                        <MediaCardColorsPalette src={paletteSrc} />
-                    </div>
-                ) : null}
-            </CollapsiblePanel>
-        </Collapsible>
-    );
-}
-
-function MediaCardMenuActionList() {
-    const data = useMediaCardDataContext();
-    const visiblePlugins = MEDIA_CARD_ACTION_PLUGINS.filter((plugin) =>
-        plugin.isAvailable(data)
-    );
-    return (
-        <>
-            {visiblePlugins.map((plugin) => (
-                <React.Fragment key={plugin.id}>
-                    {plugin.separatorBefore ? <MenuSeparator /> : null}
-                    {plugin.render("menu")}
-                </React.Fragment>
-            ))}
-        </>
-    );
-}
-
-function MediaCardContextMenuActionList() {
-    const data = useMediaCardDataContext();
-    const visiblePlugins = MEDIA_CARD_ACTION_PLUGINS.filter((plugin) =>
-        plugin.isAvailable(data)
-    );
-    return (
-        <>
-            {visiblePlugins.map((plugin) => (
-                <React.Fragment key={plugin.id}>
-                    {plugin.separatorBefore ? <ContextMenuSeparator /> : null}
-                    {plugin.render("contextMenu")}
-                </React.Fragment>
-            ))}
-        </>
-    );
-}
-
-function MediaCardMenuCommentComposer() {
-    const { isNote, item } = useMediaCardDataContext();
-    const { isOverlayOpen } = useMediaCardSurfaceContext();
-
-    if (isNote) {
-        return null;
-    }
-
-    return <CommentComposer isOpen={isOverlayOpen} itemId={item.id} />;
-}
-
-function MediaCardMenuContent() {
-    return (
-        <>
-            <MediaCardMenuDetails />
-            <MediaCardMenuCommentComposer />
-            <MenuSeparator />
-            <MediaCardMenuActionList />
-        </>
-    );
-}
-
-function MediaCardContextMenuContent() {
-    return (
-        <>
-            <MediaCardMenuDetails />
-            <MediaCardMenuCommentComposer />
-            <ContextMenuSeparator />
-            <MediaCardContextMenuActionList />
-        </>
-    );
-}
-
-function MediaCardMenuSurface() {
-    const { displayTitle } = useMediaCardDataContext();
-    const { isMenuOpen, onMenuOpenChange } = useMediaCardSurfaceContext();
-
-    return (
-        <Menu modal={false} onOpenChange={onMenuOpenChange} open={isMenuOpen}>
-            <MenuTrigger
-                render={
-                    <Button
-                        className="w-full min-w-0 flex-1 justify-start overflow-clip text-nowrap px-0 text-left text-xs!"
-                        size="xs"
-                        title={displayTitle}
-                        type="button"
-                        variant="ghost"
-                    />
-                }
-            >
-                <Ticker className="pt-px">{displayTitle}</Ticker>
-            </MenuTrigger>
-            <MenuPopup>
-                <MediaCardMenuContent />
-            </MenuPopup>
-        </Menu>
-    );
-}
-
-function MediaCardContextMenuSurface({ children }: React.PropsWithChildren) {
-    const { item } = useMediaCardDataContext();
-    const { hoveredItemIdRef, hoverPinnedItemIdRef, openPickerItemId } =
-        useMediaCardEnvironmentContext();
-
-    const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-    const [isContextMenuOpen, setIsContextMenuOpen] = React.useState(false);
-
-    const isPointerOverCardRef = React.useRef(false);
-    const isPickerOpen = openPickerItemId === item.id;
-    const isHoverPinned = isMenuOpen || isContextMenuOpen || isPickerOpen;
-
-    React.useEffect(
-        () => () => {
-            if (hoveredItemIdRef.current === item.id) {
-                hoveredItemIdRef.current = null;
-            }
-            if (hoverPinnedItemIdRef.current === item.id) {
-                hoverPinnedItemIdRef.current = null;
-            }
-        },
-        [hoveredItemIdRef, hoverPinnedItemIdRef, item.id]
-    );
-
-    React.useEffect(() => {
-        if (isHoverPinned) {
-            hoverPinnedItemIdRef.current = item.id;
-            hoveredItemIdRef.current = item.id;
-            return;
-        }
-        if (hoverPinnedItemIdRef.current !== item.id) {
-            return;
-        }
-        hoverPinnedItemIdRef.current = null;
-        if (
-            !isPointerOverCardRef.current &&
-            hoveredItemIdRef.current === item.id
-        ) {
-            hoveredItemIdRef.current = null;
-        }
-    }, [hoveredItemIdRef, hoverPinnedItemIdRef, isHoverPinned, item.id]);
-
-    const handleMouseEnter = useStableCallback(() => {
-        isPointerOverCardRef.current = true;
-        const pinnedId = hoverPinnedItemIdRef.current;
-        if (pinnedId !== null && pinnedId !== item.id) {
-            return;
-        }
-        hoveredItemIdRef.current = item.id;
-    });
-
-    const handleMouseLeave = useStableCallback(() => {
-        isPointerOverCardRef.current = false;
-        if (hoveredItemIdRef.current === item.id && !isHoverPinned) {
-            hoveredItemIdRef.current = null;
-        }
-    });
-
-    return (
-        <MediaCardSurfaceContext
-            value={{
-                isMenuOpen,
-                isOverlayOpen: isMenuOpen || isContextMenuOpen,
-                onMenuOpenChange: setIsMenuOpen,
-            }}
-        >
-            <ContextMenu onOpenChange={setIsContextMenuOpen}>
-                <ContextMenuTrigger
-                    className="group relative flex shrink-0 flex-col ease-out before:absolute before:-inset-x-2 before:-top-2 before:bottom-0 before:-z-10 before:rounded-xl before:bg-muted/50 before:opacity-0 before:transition-transform before:ease-out hover:before:opacity-100 focus-visible:outline-none active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80!"
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                    role="group"
-                >
-                    {children}
-                </ContextMenuTrigger>
-                <ContextMenuPopup>
-                    <MediaCardContextMenuContent />
-                </ContextMenuPopup>
-            </ContextMenu>
-        </MediaCardSurfaceContext>
-    );
-}
-
-function MediaCardOpenTarget() {
-    const { isNote, item } = useMediaCardDataContext();
-    const {
-        favoriteItemIdSet,
-        markVisited,
-        onItemFavoriteToggle,
-        onOpenInNewTab,
-        onOpenNote,
-    } = useMediaCardEnvironmentContext();
-    const { isZoomed, onZoomChange } = useMediaCardZoomContext();
-
-    const handleOpen = useStableCallback(() => {
-        if (isNote) {
-            onOpenNote(item);
-            return;
-        }
-        onOpenInNewTab(item);
-        markVisited(item.id);
-    });
-
-    const handleToggleFavorite = useStableCallback(() => {
-        onItemFavoriteToggle(item);
-    });
-
-    return (
-        <MediaCardPreview
-            isFavorite={favoriteItemIdSet.has(item.id)}
-            isZoomed={isZoomed}
-            item={item}
-            onOpen={handleOpen}
-            onToggleFavorite={handleToggleFavorite}
-            onZoomChange={onZoomChange}
-        />
-    );
-}
-
-function MediaCardActions() {
-    const { item } = useMediaCardDataContext();
-    const {
-        collections,
-        onUpdateItemCollections,
-        openPickerItemId,
-        setOpenPickerItemId,
-    } = useMediaCardEnvironmentContext();
-
-    const isPickerOpen = openPickerItemId === item.id;
-
-    const handlePickerOpenChange = useStableCallback((nextOpen: boolean) => {
-        setOpenPickerItemId(nextOpen ? item.id : null);
-    });
-
-    return (
-        <div className="flex items-center py-1.5">
-            <CollectionComboboxPicker
-                collections={collections}
-                items={[item]}
-                onOpenChange={handlePickerOpenChange}
-                onUpdateItemCollections={onUpdateItemCollections}
-                open={isPickerOpen}
-                showSmartCollectionsIndicator={
-                    item.collections.length > 0 &&
-                    isRecentlySmartCollected(item.smartCollectedAt)
-                }
-            />
-            <MediaCardMenuSurface />
-        </div>
-    );
-}
-
-function MediaCardFavoriteAction({
-    variant,
-}: {
-    variant: "menu" | "contextMenu";
-}) {
-    const { handleToggle, isFavorite } = useMediaCardFavoriteAction();
-    const content = (
-        <>
-            <Star
-                className={cn(
-                    "size-4.5 text-muted-foreground",
-                    isFavorite && "fill-current"
-                )}
-            />
-            {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
-            <Kbd className="ml-auto">
-                <AltKbd />F
-            </Kbd>
-        </>
-    );
-    return variant === "menu" ? (
-        <MenuItem onClick={handleToggle}>{content}</MenuItem>
-    ) : (
-        <ContextMenuItem onClick={handleToggle}>{content}</ContextMenuItem>
-    );
-}
-
-function MediaCardNoteAction({ variant }: { variant: "menu" | "contextMenu" }) {
-    const handleOpenNote = useMediaCardNoteAction();
-    const content = (
-        <>
-            <FilePenLineIcon className="size-4.5 text-muted-foreground" />
-            Edit note
-        </>
-    );
-    return variant === "menu" ? (
-        <MenuItem onClick={handleOpenNote}>{content}</MenuItem>
-    ) : (
-        <ContextMenuItem onClick={handleOpenNote}>{content}</ContextMenuItem>
-    );
-}
-
-function MediaCardSideAction({ variant }: { variant: "menu" | "contextMenu" }) {
-    const { displayTitle, item } = useMediaCardDataContext();
-
-    const handleOpen = useStableCallback(() => {
-        openSide({
-            description: getLibraryItemDomain(item.url),
-            title: displayTitle,
-            url: item.url,
-        });
-    });
-    const content = (
-        <>
-            <EyeIcon className="size-4.5 text-muted-foreground" />
-            Quick look
-            <Kbd className="ml-auto">
-                <AltKbd />E
-            </Kbd>
-        </>
-    );
-    return variant === "menu" ? (
-        <MenuItem onClick={handleOpen}>{content}</MenuItem>
-    ) : (
-        <ContextMenuItem onClick={handleOpen}>{content}</ContextMenuItem>
-    );
-}
-
-function MediaCardZoomAction({ variant }: { variant: "menu" | "contextMenu" }) {
-    const { onZoomIn } = useMediaCardZoomContext();
-    const content = (
-        <>
-            <ZoomIn className="size-4.5 text-muted-foreground" />
-            Zoom in
-        </>
-    );
-    return variant === "menu" ? (
-        <MenuItem onClick={onZoomIn}>{content}</MenuItem>
-    ) : (
-        <ContextMenuItem onClick={onZoomIn}>{content}</ContextMenuItem>
-    );
-}
-
-function MediaCardOpenLinkAction({
-    variant,
-}: {
-    variant: "menu" | "contextMenu";
-}) {
-    const { SourceIcon, handleOpenInNewTab } = useMediaCardLinkActions();
-    const content = (
-        <>
-            {SourceIcon ? (
-                <SourceIcon className="size-4 text-muted-foreground" />
-            ) : (
-                <ExternalLinkIcon className="size-4.5 text-muted-foreground" />
-            )}
-            Open in New Tab
-            <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
-        </>
-    );
-    return variant === "menu" ? (
-        <MenuItem className="cursor-alias" onClick={handleOpenInNewTab}>
-            {content}
-        </MenuItem>
-    ) : (
-        <ContextMenuItem className="cursor-alias" onClick={handleOpenInNewTab}>
-            {content}
-        </ContextMenuItem>
-    );
-}
-
-function MediaCardCopyLinkAction({
-    variant,
-}: {
-    variant: "menu" | "contextMenu";
-}) {
-    const { handleCopyLink } = useMediaCardLinkActions();
-    const content = (
-        <>
-            <LinkIcon className="size-4.5 text-muted-foreground" />
-            Copy link URL
-        </>
-    );
-    return variant === "menu" ? (
-        <MenuItem onClick={handleCopyLink}>{content}</MenuItem>
-    ) : (
-        <ContextMenuItem onClick={handleCopyLink}>{content}</ContextMenuItem>
-    );
-}
-
-function MediaCardDownloadAction({
-    variant,
-}: {
-    variant: "menu" | "contextMenu";
-}) {
-    const { isDownloading, onDownload } = useMediaCardDownloadContext();
-    const content = (
-        <>
-            <DownloadIcon className="size-4.5 text-muted-foreground" />
-            {isDownloading ? "Downloading…" : "Download"}
-        </>
-    );
-    return variant === "menu" ? (
-        <MenuItem disabled={isDownloading} onClick={onDownload}>
-            {content}
-        </MenuItem>
-    ) : (
-        <ContextMenuItem disabled={isDownloading} onClick={onDownload}>
-            {content}
-        </ContextMenuItem>
-    );
-}
-
-function MediaCardFindSimilarAction({
-    variant,
-}: {
-    variant: "menu" | "contextMenu";
-}) {
-    const handleFindSimilar = useMediaCardFindSimilarAction();
-    const content = (
-        <>
-            <SearchIcon className="size-4.5 text-muted-foreground" />
-            Find similar
-        </>
-    );
-    return variant === "menu" ? (
-        <MenuItem onClick={handleFindSimilar}>{content}</MenuItem>
-    ) : (
-        <ContextMenuItem onClick={handleFindSimilar}>{content}</ContextMenuItem>
-    );
-}
-
-function MediaCardWaybackAction({
-    variant,
-}: {
-    variant: "menu" | "contextMenu";
-}) {
-    const {
-        handleWayback180,
-        handleWayback30,
-        handleWayback365,
-        handleWayback90,
-        handleWaybackAll,
-    } = useMediaCardWaybackActions();
-    const menuContent = (
-        <>
-            <History className="size-4.5 text-muted-foreground" />
-            Previous versions
-        </>
-    );
-    if (variant === "menu") {
-        return (
-            <MenuSub>
-                <MenuSubTrigger>{menuContent}</MenuSubTrigger>
-                <MenuSubPopup>
-                    <MenuGroup>
-                        <MenuGroupLabel>Wayback Machine</MenuGroupLabel>
-                        <MenuItem onClick={handleWayback30}>
-                            <History className="size-4 text-muted-foreground" />{" "}
-                            1 month ago
-                        </MenuItem>
-                        <MenuItem onClick={handleWayback90}>
-                            <History className="size-4 text-muted-foreground" />{" "}
-                            3 months ago
-                        </MenuItem>
-                        <MenuItem onClick={handleWayback180}>
-                            <History className="size-4 text-muted-foreground" />{" "}
-                            6 months ago
-                        </MenuItem>
-                        <MenuItem onClick={handleWayback365}>
-                            <History className="size-4 text-muted-foreground" />{" "}
-                            1 year ago
-                        </MenuItem>
-                        <MenuItem onClick={handleWaybackAll}>
-                            <History className="size-4 text-muted-foreground" />
-                            View all snapshots
-                        </MenuItem>
-                    </MenuGroup>
-                </MenuSubPopup>
-            </MenuSub>
-        );
-    }
-    return (
-        <ContextMenuSub>
-            <ContextMenuSubTrigger>{menuContent}</ContextMenuSubTrigger>
-            <ContextMenuSubPopup>
-                <ContextMenuGroup>
-                    <ContextMenuGroupLabel>
-                        Wayback Machine
-                    </ContextMenuGroupLabel>
-                    <ContextMenuItem onClick={handleWayback30}>
-                        <History className="size-4 text-muted-foreground" /> 1
-                        month ago
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={handleWayback90}>
-                        <History className="size-4 text-muted-foreground" /> 3
-                        months ago
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={handleWayback180}>
-                        <History className="size-4 text-muted-foreground" /> 6
-                        months ago
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={handleWayback365}>
-                        <History className="size-4 text-muted-foreground" /> 1
-                        year ago
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={handleWaybackAll}>
-                        <History className="size-4 text-muted-foreground" />
-                        View all snapshots
-                    </ContextMenuItem>
-                </ContextMenuGroup>
-            </ContextMenuSubPopup>
-        </ContextMenuSub>
-    );
-}
-
-function MediaCardDeleteAction({
-    variant,
-}: {
-    variant: "menu" | "contextMenu";
-}) {
-    const { handleDelete, isDeletePending } = useMediaCardDeleteAction();
-    const content = (
-        <>
-            {isDeletePending ? <T>Deleting…</T> : <T>Delete</T>}
-            <Kbd className="ml-auto">
-                <CmdKbd />⌫
-            </Kbd>
-        </>
-    );
-    return variant === "menu" ? (
-        <MenuItem disabled={isDeletePending} onClick={handleDelete}>
-            {content}
-        </MenuItem>
-    ) : (
-        <ContextMenuItem disabled={isDeletePending} onClick={handleDelete}>
-            {content}
-        </ContextMenuItem>
+        </ItemCardEnvironmentContext>
     );
 }
 
@@ -6973,7 +5799,7 @@ interface CreateFromResultsCollectionDialogProps {
     collections: LibraryCollectionSummary[];
     initialName: string;
     onCreateCollection: (
-        input: CreateCollectionFromResultsInput
+        input: CreateItemsCollectionInput
     ) => Promise<CollectionCreateFromItemsResult>;
     onOpenChange: (open: boolean) => void;
     onUpdateItemCollections: (
@@ -6986,7 +5812,7 @@ interface CreateFromResultsCollectionDialogProps {
         previousSharedCollectionIds: string[];
     }) => Promise<LibraryItemsCollectionsUpdateResult>;
     open: boolean;
-    visibleResultItems: LibraryItemWithCollections[];
+    resultItems: LibraryItemWithCollections[];
 }
 
 function CreateFromResultsCollectionDialog({
@@ -6997,7 +5823,7 @@ function CreateFromResultsCollectionDialog({
     onUpdateItemCollections,
     onUpdateItemsCollections,
     open,
-    visibleResultItems,
+    resultItems,
 }: CreateFromResultsCollectionDialogProps) {
     const [createResultsNameDraft, setCreateResultsNameDraft] =
         React.useState(initialName);
@@ -7029,14 +5855,14 @@ function CreateFromResultsCollectionDialog({
                 try {
                     result = await onCreateCollection({
                         description: createResultsDescriptionDraft || undefined,
-                        itemIds: visibleResultItems.map((item) => item.id),
+                        itemIds: resultItems.map((item) => item.id),
                         name: createResultsNameDraft,
                     });
                 } catch (error) {
                     log.error(
                         "Failed to create collection from browser results",
                         error,
-                        { itemCount: visibleResultItems.length }
+                        { itemCount: resultItems.length }
                     );
                     result = {
                         message:
@@ -7098,9 +5924,9 @@ function CreateFromResultsCollectionDialog({
                             </Badge>
                             <ChevronRight className="inline-block size-3.5 shrink-0" />
                             <DialogTitle className="font-medium text-sm">
-                                New collection with {visibleResultItems.length}{" "}
-                                current result
-                                {visibleResultItems.length === 1 ? "" : "s"}
+                                New collection with {resultItems.length} current
+                                result
+                                {resultItems.length === 1 ? "" : "s"}
                             </DialogTitle>
                         </div>
                     </DialogHeader>
@@ -7151,9 +5977,9 @@ function CreateFromResultsCollectionDialog({
                         ) : null}
                     </DialogPanel>
                     <DialogFooter>
-                        <CollectionComboboxPicker
+                        <ItemCollectionsCombobox
                             collections={collections}
-                            items={visibleResultItems}
+                            items={resultItems}
                             onUpdateItemCollections={onUpdateItemCollections}
                             onUpdateItemsCollections={onUpdateItemsCollections}
                             render={
@@ -7167,7 +5993,7 @@ function CreateFromResultsCollectionDialog({
                         >
                             <Component className="mr-0.5! size-4" />
                             Add to existing
-                        </CollectionComboboxPicker>
+                        </ItemCollectionsCombobox>
                         <DialogClose
                             disabled={isCreatingResultsCollection}
                             render={<Button size="sm" variant="ghost" />}
@@ -7188,7 +6014,7 @@ function CreateFromResultsCollectionDialog({
     );
 }
 
-function AskCacheResponseShell({
+function AssistantResponseShell({
     children,
     prompt,
 }: {
@@ -7199,7 +6025,9 @@ function AskCacheResponseShell({
         <BubbleGroup className="w-full min-w-0 flex-1 py-1 pr-2">
             {prompt ? (
                 <Bubble align="end" variant="muted">
-                    <BubbleContent>{prompt}</BubbleContent>
+                    <BubbleContent>
+                        <Streamdown>{prompt}</Streamdown>
+                    </BubbleContent>
                 </Bubble>
             ) : null}
             {children}
@@ -7207,20 +6035,20 @@ function AskCacheResponseShell({
     );
 }
 
-function AskCacheLoadingPanel({ prompt }: { prompt?: string }) {
+function AssistantResponseLoadingPanel({ prompt }: { prompt?: string }) {
     return (
-        <AskCacheResponseShell prompt={prompt}>
+        <AssistantResponseShell prompt={prompt}>
             <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
                 <ThinkingOrb size={20} state="shaping" />
                 <span className="text-muted-foreground text-xs">
                     <T>Thinking…</T>
                 </span>
             </div>
-        </AskCacheResponseShell>
+        </AssistantResponseShell>
     );
 }
 
-function AskCacheErrorPanel({
+function AssistantResponseErrorPanel({
     message,
     prompt,
 }: {
@@ -7228,15 +6056,15 @@ function AskCacheErrorPanel({
     prompt: string;
 }) {
     return (
-        <AskCacheResponseShell prompt={prompt}>
+        <AssistantResponseShell prompt={prompt}>
             <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
                 <p className="text-sm">{message}</p>
             </div>
-        </AskCacheResponseShell>
+        </AssistantResponseShell>
     );
 }
 
-function AskCacheResponseActions({
+function AssistantResponseSuccessPanel({
     markdown,
     prompt,
 }: {
@@ -7244,45 +6072,38 @@ function AskCacheResponseActions({
     prompt: string;
 }) {
     return (
-        <div className="flex flex-wrap items-center gap-1">
-            <CopyResponseButton value={markdown} />
-            <ReadAloudResponseButton value={markdown} />
-            <ContinueInThreadButton markdown={markdown} prompt={prompt} />
-        </div>
-    );
-}
-
-function AskCacheSuccessPanel({
-    markdown,
-    prompt,
-}: {
-    markdown: string;
-    prompt: string;
-}) {
-    return (
-        <AskCacheResponseShell prompt={prompt}>
-            <div className="flex min-w-0 flex-1 flex-col gap-2 py-1">
-                <Streamdown className="whitespace-pre-line text-sm leading-relaxed">
-                    {markdown}
-                </Streamdown>
-                <AskCacheResponseActions markdown={markdown} prompt={prompt} />
+        <AssistantResponseShell prompt={prompt}>
+            <div className="flex min-w-0 flex-1 flex-col py-1">
+                <AssistantMessageBody>
+                    <Streamdown className="whitespace-pre-line text-sm leading-relaxed">
+                        {markdown}
+                    </Streamdown>
+                    <AssistantMessageActions>
+                        <CopyResponseButton value={markdown} />
+                        <ReadAloudResponseButton value={markdown} />
+                        <ContinueInThreadButton
+                            markdown={markdown}
+                            prompt={prompt}
+                        />
+                    </AssistantMessageActions>
+                </AssistantMessageBody>
             </div>
-        </AskCacheResponseShell>
+        </AssistantResponseShell>
     );
 }
 
-function AskCacheResponsePanel({
+function AssistantResponsePanel({
     response,
 }: {
-    response: AskCacheResponseState | null;
+    response: AssistantResponseState | null;
 }) {
     if (!response || response.status === "loading") {
-        return <AskCacheLoadingPanel prompt={response?.prompt} />;
+        return <AssistantResponseLoadingPanel prompt={response?.prompt} />;
     }
 
     if (response.status === "error") {
         return (
-            <AskCacheErrorPanel
+            <AssistantResponseErrorPanel
                 message={response.message}
                 prompt={response.prompt}
             />
@@ -7290,7 +6111,7 @@ function AskCacheResponsePanel({
     }
 
     return (
-        <AskCacheSuccessPanel
+        <AssistantResponseSuccessPanel
             markdown={response.markdown}
             prompt={response.prompt}
         />
@@ -7310,14 +6131,10 @@ function Palette({
 }
 
 interface PaletteInputEndAddonProps {
-    stackEntries: ComposerPaletteStackEntry[];
+    stackEntries: ComposerStackEntry[];
 }
 
-function PaletteStackEntryChip({
-    entry,
-}: {
-    entry: ComposerPaletteStackEntry;
-}) {
+function PaletteStackEntryChip({ entry }: { entry: ComposerStackEntry }) {
     if (entry.kind === "attachment") {
         return (
             <ComposerAttachmentChip
@@ -7395,12 +6212,9 @@ function PaletteActionsList({
     return (
         <PaletteActionsContext value={contextValue}>
             <ScrollArea className="h-fit" shouldScrollFade>
-                <Toolbar.Group
+                <ToolbarGroup
                     {...props}
-                    className={cn(
-                        "flex items-center gap-2 text-nowrap px-3",
-                        className
-                    )}
+                    className={cn("gap-2 px-3", className)}
                 />
             </ScrollArea>
         </PaletteActionsContext>
@@ -7447,30 +6261,30 @@ function PaletteActionRemoveDuplicates() {
     );
 }
 
-interface PaletteItemProps {
-    item: ComposerPaletteItem;
+interface ComposerCommandRowProps {
+    item: ComposerCommand;
 }
 
-function usePaletteItemSelect(item: ComposerPaletteItem) {
+function useComposerCommandSelect(item: ComposerCommand) {
     return useStableCallback((event: BaseUIEvent<React.MouseEvent>) => {
         try {
             const result = item.onSelect(event);
             if (result) {
                 result.catch((error: unknown) => {
-                    log.error("PaletteItem selection failed", error, {
+                    log.error("ComposerCommandRow selection failed", error, {
                         value: item.value,
                     });
                 });
             }
         } catch (error) {
-            log.error("PaletteItem selection failed", error, {
+            log.error("ComposerCommandRow selection failed", error, {
                 value: item.value,
             });
         }
     });
 }
 
-function PaletteItemContent({ item }: { item: ComposerPaletteItem }) {
+function ComposerCommandContent({ item }: { item: ComposerCommand }) {
     if (item.children) {
         return item.children;
     }
@@ -7491,8 +6305,8 @@ function PaletteItemContent({ item }: { item: ComposerPaletteItem }) {
     );
 }
 
-function PaletteItem({ item }: PaletteItemProps) {
-    const handleSelect = usePaletteItemSelect(item);
+function ComposerCommandRow({ item }: ComposerCommandRowProps) {
+    const handleSelect = useComposerCommandSelect(item);
 
     return (
         <CommandItem
@@ -7500,13 +6314,13 @@ function PaletteItem({ item }: PaletteItemProps) {
             onClick={handleSelect}
             value={item.value}
         >
-            <PaletteItemContent item={item} />
+            <ComposerCommandContent item={item} />
         </CommandItem>
     );
 }
 
-function PaletteCollectionCard({ item }: PaletteItemProps) {
-    const handleSelect = usePaletteItemSelect(item);
+function ComposerCollectionCommandCard({ item }: ComposerCommandRowProps) {
+    const handleSelect = useComposerCommandSelect(item);
 
     return (
         <CommandItem
@@ -7515,7 +6329,7 @@ function PaletteCollectionCard({ item }: PaletteItemProps) {
             onClick={handleSelect}
             value={item.value}
         >
-            <PaletteItemContent item={item} />
+            <ComposerCommandContent item={item} />
         </CommandItem>
     );
 }
@@ -7590,6 +6404,7 @@ function PaletteSuggestionsList({
     const handleDismiss = useStableCallback(() => setIsOpen(false));
 
     const dismissSuggestion: ComposerSuggestion = {
+        id: "dismiss",
         label: "Dismiss",
         onSelect: handleDismiss,
     };
@@ -7607,7 +6422,7 @@ function PaletteSuggestionsList({
             >
                 <div className="flex w-max select-none flex-nowrap items-center gap-1.5 text-nowrap">
                     {suggestions.map((suggestion, index) => (
-                        <React.Fragment key={suggestion.label}>
+                        <React.Fragment key={suggestion.id}>
                             {children(suggestion, index)}
                             <span className="mr-0.5 -ml-0.5 font-medium text-muted-foreground text-xs">
                                 ·
@@ -7621,7 +6436,7 @@ function PaletteSuggestionsList({
     );
 }
 
-function PaletteCategoryThumbnail({ urls }: { urls: string[] }) {
+function ComposerCollectionCommandThumbnail({ urls }: { urls: string[] }) {
     const validUrls = filterValidImageUrls(urls);
     const urlsKey = validUrls.join("\0");
     const [errorCount, setErrorCount] = React.useState(0);
@@ -7677,7 +6492,7 @@ function ContinueInThreadButton({
         setErrorMessage(null);
         startTransition(async () => {
             try {
-                const result = await createThreadFromAskCache({
+                const result = await createThreadFromAssistant({
                     markdown,
                     prompt,
                 });

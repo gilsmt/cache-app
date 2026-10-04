@@ -15,11 +15,11 @@ import {
 } from "@/components/session/composer";
 import { ThreadMessage } from "@/components/session/message";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { ScrollToBottomButton } from "@/components/ui/scroll-to-bottom-button";
 import { Textarea } from "@/components/ui/textarea";
+import { getErrorMessage } from "@/lib/common/error";
+import { getMessageText } from "@/lib/threads/messages";
 import type { ThreadSource } from "@/lib/threads/sources";
-
-const THREAD_SCROLL_STICK_DISTANCE_PX = 80;
 
 function createThreadTransport(threadId: string) {
     return new DefaultChatTransport({
@@ -46,14 +46,15 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
     });
     const scrollViewportRef = React.useRef<HTMLDivElement | null>(null);
     const shouldStickRef = React.useRef(true);
-    const [isAwayFromBottom, setIsAwayFromBottom] = React.useState(false);
 
     const isBusy = status === "submitted" || status === "streaming";
-    const lastMessageId = messages.at(-1)?.id;
-    const lastMessageText = messages
-        .at(-1)
-        ?.parts.map((part) => (part.type === "text" ? part.text : ""))
-        .join("");
+    const lastMessage = messages.at(-1);
+    const lastMessageId = lastMessage?.id;
+    const lastMessageText = lastMessage ? getMessageText(lastMessage) : "";
+    const isAwaitingFirstToken =
+        isBusy &&
+        lastMessage?.role === "assistant" &&
+        lastMessageText.length === 0;
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: streamed text must trigger the effect so the viewport follows each new chunk; the effect only reads refs.
     React.useEffect(() => {
@@ -71,22 +72,8 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
         return animationFrame.cancel;
     }, [animationFrame, lastMessageId, lastMessageText, status]);
 
-    const handleViewportScroll = useStableCallback(
-        (event: React.UIEvent<HTMLDivElement>) => {
-            const viewport = event.currentTarget;
-            shouldStickRef.current = isScrolledToBottom(viewport);
-            setIsAwayFromBottom(!shouldStickRef.current);
-        }
-    );
-
-    const handleScrollToBottom = useStableCallback(() => {
-        const viewport = scrollViewportRef.current;
-        if (!viewport) {
-            return;
-        }
-        shouldStickRef.current = true;
-        viewport.scrollTo({ behavior: "smooth", top: viewport.scrollHeight });
-        setIsAwayFromBottom(false);
+    const handleStickChange = useStableCallback((shouldStick: boolean) => {
+        shouldStickRef.current = shouldStick;
     });
 
     const handleSubmit = useStableCallback((text: string) => {
@@ -102,7 +89,6 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
             <div className="relative min-h-0 flex-1">
                 <div
                     className="h-full min-h-0 overflow-y-auto overscroll-contain"
-                    onScroll={handleViewportScroll}
                     ref={scrollViewportRef}
                 >
                     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-6">
@@ -113,7 +99,7 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
                                 sources={index === 0 ? sources : undefined}
                             />
                         ))}
-                        {status === "submitted" ? (
+                        {status === "submitted" || isAwaitingFirstToken ? (
                             <div className="flex items-center gap-2 px-1 py-1">
                                 <ThinkingOrb size={20} state="shaping" />
                                 <span className="text-muted-foreground text-sm">
@@ -123,17 +109,13 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
                         ) : null}
                     </div>
                 </div>
-                {isAwayFromBottom ? (
-                    <Button
-                        aria-label={gt("Scroll to bottom")}
-                        className="absolute bottom-4 left-1/2 -translate-x-1/2 shadow-md/5"
-                        onClick={handleScrollToBottom}
-                        size="icon-sm"
-                        variant="secondary"
-                    >
-                        <ArrowDown aria-hidden focusable="false" />
-                    </Button>
-                ) : null}
+                <ScrollToBottomButton
+                    aria-label={gt("Scroll to bottom")}
+                    onStickChange={handleStickChange}
+                    viewportRef={scrollViewportRef}
+                >
+                    <ArrowDown aria-hidden focusable="false" />
+                </ScrollToBottomButton>
             </div>
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 pb-6">
                 {error ? (
@@ -169,25 +151,10 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
 
 function getThreadErrorMessage(error: Error): string {
     try {
-        const parsed: unknown = JSON.parse(error.message);
-        if (
-            typeof parsed === "object" &&
-            parsed !== null &&
-            "error" in parsed &&
-            typeof parsed.error === "string" &&
-            parsed.error.length > 0
-        ) {
-            return parsed.error;
-        }
+        // AI SDK surfaces the response body as Error.message.
+        return getErrorMessage(JSON.parse(error.message), error.message);
     } catch {
         // Non-JSON message; use the raw message below.
     }
     return error.message;
-}
-
-function isScrolledToBottom(viewport: HTMLElement): boolean {
-    return (
-        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <
-        THREAD_SCROLL_STICK_DISTANCE_PX
-    );
 }

@@ -1,4 +1,4 @@
-import type { AskCacheComposerPatch, AskCacheRequest } from "./ask-cache";
+import type { AssistantComposerPatch, AssistantRequest } from "./assistant";
 
 function arraysEqual(left: string[], right: string[]): boolean {
     if (left.length !== right.length) {
@@ -15,9 +15,9 @@ function arraysEqual(left: string[], right: string[]): boolean {
 }
 
 export function normalizeComposerPatchForContext(
-    patch: AskCacheComposerPatch,
-    request: AskCacheRequest
-): AskCacheComposerPatch {
+    patch: AssistantComposerPatch,
+    request: AssistantRequest
+): AssistantComposerPatch {
     const collectionIds = new Set(
         request.visibleContext.availableCollections.map(
             (collection) => collection.id
@@ -61,9 +61,9 @@ export function normalizeComposerPatchForContext(
  * patches so a partial update (e.g. searchTerms only) does not keep zero results.
  */
 export function resolveComposerPatchContradictions(
-    patch: AskCacheComposerPatch,
-    state: AskCacheRequest["composerState"]
-): AskCacheComposerPatch {
+    patch: AssistantComposerPatch,
+    state: AssistantRequest["composerState"]
+): AssistantComposerPatch {
     const resultingMembership =
         patch.collectionMembershipFilter ?? state.collectionMembershipFilter;
     const resultingSelectedCollectionIds =
@@ -91,8 +91,8 @@ export function resolveComposerPatchContradictions(
 }
 
 export function isNoopComposerPatch(
-    patch: AskCacheComposerPatch,
-    state: AskCacheRequest["composerState"]
+    patch: AssistantComposerPatch,
+    state: AssistantRequest["composerState"]
 ): boolean {
     if (patch.reset) {
         return false;

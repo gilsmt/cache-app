@@ -71,7 +71,56 @@ export async function setThreadArchived(input: {
     }
 }
 
-const CREATE_THREAD_FROM_ASK_CACHE_INPUT_SCHEMA = z.object({
+const DELETE_THREAD_INPUT_SCHEMA = z.object({
+    threadId: z.string().trim().min(1, "Choose a chat."),
+});
+
+type DeleteThreadResult =
+    | { status: typeof ACTION_STATUS.DELETED }
+    | {
+          message: string;
+          status:
+              | typeof ACTION_STATUS.ERROR
+              | typeof ACTION_STATUS.INVALID
+              | typeof ACTION_STATUS.NOT_FOUND
+              | typeof ACTION_STATUS.UNAUTHORIZED;
+      };
+
+export async function deleteThread(input: {
+    threadId: string;
+}): Promise<DeleteThreadResult> {
+    const parsed = DELETE_THREAD_INPUT_SCHEMA.safeParse(input);
+    if (!parsed.success) {
+        return {
+            message: getValidationErrorMessage(parsed, "Choose a chat."),
+            status: ACTION_STATUS.INVALID,
+        };
+    }
+
+    const auth = await requireActionUserId("Sign in again to manage chats.");
+    if (isUnauthenticated(auth)) {
+        return auth;
+    }
+
+    try {
+        await service.deleteThread({
+            threadId: parsed.data.threadId,
+            userId: auth.userId,
+        });
+
+        return { status: ACTION_STATUS.DELETED };
+    } catch (error) {
+        return handleActionError({
+            codeToStatus: { not_found: ACTION_STATUS.NOT_FOUND },
+            error,
+            errorFactory: ThreadError,
+            fallbackMessage: "We couldn't delete this chat right now.",
+            log,
+        });
+    }
+}
+
+const CREATE_THREAD_FROM_ASSISTANT_INPUT_SCHEMA = z.object({
     markdown: z
         .string()
         .trim()
@@ -90,7 +139,7 @@ const CREATE_THREAD_FROM_ASK_CACHE_INPUT_SCHEMA = z.object({
         ),
 });
 
-type CreateThreadFromAskCacheResult =
+type CreateThreadFromAssistantResult =
     | { status: typeof ACTION_STATUS.CREATED; threadId: string }
     | {
           message: string;
@@ -100,11 +149,11 @@ type CreateThreadFromAskCacheResult =
               | typeof ACTION_STATUS.UNAUTHORIZED;
       };
 
-export async function createThreadFromAskCache(input: {
+export async function createThreadFromAssistant(input: {
     markdown: string;
     prompt: string;
-}): Promise<CreateThreadFromAskCacheResult> {
-    const parsed = CREATE_THREAD_FROM_ASK_CACHE_INPUT_SCHEMA.safeParse(input);
+}): Promise<CreateThreadFromAssistantResult> {
+    const parsed = CREATE_THREAD_FROM_ASSISTANT_INPUT_SCHEMA.safeParse(input);
     if (!parsed.success) {
         return {
             message: getValidationErrorMessage(

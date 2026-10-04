@@ -8,52 +8,52 @@ import { type GenerationUsage, runGeneration } from "../generation";
 import { normalizeGeneratedMarkdown } from "../markdown";
 import { protectGenAiRequest } from "../protection";
 import type { resolveRegisteredModel } from "../providers/model-resolver";
-import { createAskCacheAgentTools } from "../tools/agent-tools";
+import { createAssistantAgentTools } from "../tools/agent-tools";
 import { estimateTokens } from "../usage";
 import {
-    ASK_CACHE_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX,
-    type AskCacheComposerPatch,
-    type AskCacheRequest,
-} from "./ask-cache";
+    ASSISTANT_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX,
+    type AssistantComposerPatch,
+    type AssistantRequest,
+} from "./assistant";
 import { AGENT_VIEW_TEXT_MAX_LENGTH, type AgentViewPage } from "./view";
 
-const ASK_CACHE_OUTPUT_TOKEN_LIMIT = 8192;
-const ASK_CACHE_MAX_STEPS = 12;
-const ASK_CACHE_TIMEOUT_MS = 60_000;
-const ASK_CACHE_RUNTIME_CONTEXT_LOCALE_DEFAULT = "en-US";
-const ASK_CACHE_RUNTIME_CONTEXT_SURFACE_LABEL_BY_VALUE = {
+const ASSISTANT_OUTPUT_TOKEN_LIMIT = 8192;
+const ASSISTANT_MAX_STEPS = 12;
+const ASSISTANT_TIMEOUT_MS = 60_000;
+const ASSISTANT_RUNTIME_CONTEXT_LOCALE_DEFAULT = "en-US";
+const ASSISTANT_RUNTIME_CONTEXT_SURFACE_LABEL_BY_VALUE = {
     library_composer: "Cache library composer",
 } as const;
 
-const log = createLogger("intelligence:ask-cache");
+const log = createLogger("intelligence:assistant");
 
-interface RunAskCacheAgentInput {
-    input: AskCacheRequest;
+interface RunAssistantAgentInput {
+    input: AssistantRequest;
     request: ArcjetNextRequest;
     userId: string;
 }
 
-interface RunAskCacheAgentResult {
+interface RunAssistantAgentResult {
     markdown: string;
-    operations: AskCacheComposerPatch[];
+    operations: AssistantComposerPatch[];
     usage?: GenerationUsage;
     view?: AgentViewPage | null;
 }
 
-export async function runAskCacheAgent({
+export async function runAssistantAgent({
     input,
     request,
     userId,
-}: RunAskCacheAgentInput): Promise<RunAskCacheAgentResult> {
-    const instructions = buildAskCacheInstructions(input);
-    const userMessage = buildAskCacheUserMessage(input);
+}: RunAssistantAgentInput): Promise<RunAssistantAgentResult> {
+    const instructions = buildAssistantInstructions(input);
+    const userMessage = buildAssistantUserMessage(input);
 
     await protectGenAiRequest({
-        feature: "ask_cache_agent",
+        feature: "assistant_agent",
         request,
         requestedTokens: estimateTokens(
             `${instructions}\n\n${userMessage}`,
-            ASK_CACHE_OUTPUT_TOKEN_LIMIT
+            ASSISTANT_OUTPUT_TOKEN_LIMIT
         ),
         userId,
     });
@@ -62,12 +62,12 @@ export async function runAskCacheAgent({
         const result = await runGeneration(
             {
                 defaultErrorMessage: "We couldn't ask Cache right now.",
-                feature: "ask-cache-agent",
+                feature: "assistant-agent",
                 logContext: { userId },
-                operation: "runAskCacheAgent",
+                operation: "runAssistantAgent",
             },
             (model) =>
-                runAskCacheAgentModel({
+                runAssistantAgentModel({
                     input,
                     instructions,
                     model,
@@ -92,8 +92,8 @@ export async function runAskCacheAgent({
     }
 }
 
-async function runAskCacheAgentModel(args: {
-    input: AskCacheRequest;
+async function runAssistantAgentModel(args: {
+    input: AssistantRequest;
     instructions: string;
     model: Awaited<ReturnType<typeof resolveRegisteredModel>>;
     userMessage: string;
@@ -101,28 +101,28 @@ async function runAskCacheAgentModel(args: {
 }): Promise<{
     output: {
         markdown: string;
-        operations: AskCacheComposerPatch[];
+        operations: AssistantComposerPatch[];
         view?: AgentViewPage | null;
     };
     usage?: GenerationUsage;
 }> {
     const { getOperations, getOperationSummaries, getView, tools } =
-        createAskCacheAgentTools({
+        createAssistantAgentTools({
             input: args.input,
             userId: args.userId,
         });
 
     const agent = new ToolLoopAgent({
         instructions: args.instructions,
-        maxOutputTokens: ASK_CACHE_OUTPUT_TOKEN_LIMIT,
+        maxOutputTokens: ASSISTANT_OUTPUT_TOKEN_LIMIT,
         model: args.model,
-        stopWhen: isStepCount(ASK_CACHE_MAX_STEPS),
+        stopWhen: isStepCount(ASSISTANT_MAX_STEPS),
         tools,
     });
 
     const result = await agent.generate({
         messages: [{ content: args.userMessage, role: "user" }],
-        timeout: ASK_CACHE_TIMEOUT_MS,
+        timeout: ASSISTANT_TIMEOUT_MS,
     });
 
     const markdown = getFinalMarkdown(result.steps, getOperationSummaries());
@@ -136,7 +136,7 @@ async function runAskCacheAgentModel(args: {
     };
 }
 
-function buildAskCacheInstructions(input: AskCacheRequest): string {
+function buildAssistantInstructions(input: AssistantRequest): string {
     const collectionCatalog = input.visibleContext.availableCollections.map(
         (collection) => ({
             id: collection.id,
@@ -144,7 +144,7 @@ function buildAskCacheInstructions(input: AskCacheRequest): string {
             name: collection.name,
         })
     );
-    const runtimeContext = buildAskCacheRuntimeContext(input);
+    const runtimeContext = buildAssistantRuntimeContext(input);
 
     return [
         "You are Ask Cache, an assistant embedded in Cache's library composer.",
@@ -166,7 +166,7 @@ function buildAskCacheInstructions(input: AskCacheRequest): string {
         "Do not set text to broad category words such as software, product, tool, recipe, tutorial, article, inspiration, or design unless the user explicitly asks for those literal words.",
         "For conceptual requests: (1) prefer an exact matching collection if one exists; (2) inspect with search_library using concrete product, brand, domain, source, or URL signals; (3) apply high-confidence concrete filters with define_view.",
         "When domainFilters express a conceptual match, include every high-confidence matching domain from availableDomains — do not sample a short representative list when more matching domains are available.",
-        `domainFilters accept up to ${ASK_CACHE_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX} domains; view text accepts up to ${AGENT_VIEW_TEXT_MAX_LENGTH} characters. Use the full budget when the user wants a complete set.`,
+        `domainFilters accept up to ${ASSISTANT_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX} domains; view text accepts up to ${AGENT_VIEW_TEXT_MAX_LENGTH} characters. Use the full budget when the user wants a complete set.`,
         "Relevant sourceFilters can help (for example github_starred_repositories for developer tools) and may be combined with domainFilters.",
         "For 'show me all …' inventory requests, call define_view once with the bounded query. Use search_library to inspect saved items or find concrete signals. When truncated is true, report a partial result.",
         "Example: for 'show me all software products I saved', do not set text to ['software']. Prefer a matching collection if present; otherwise select all high-confidence product/app/SaaS/tool domains from availableDomains, include relevant sources, apply them together with define_view, and note any mixed-content domains you intentionally left out.",
@@ -197,12 +197,12 @@ function buildAskCacheInstructions(input: AskCacheRequest): string {
     ].join("\n");
 }
 
-function buildAskCacheRuntimeContext(input: AskCacheRequest) {
+function buildAssistantRuntimeContext(input: AssistantRequest) {
     const now = new Date();
-    const clientTimeZone = normalizeAskCacheTimeZone(
+    const clientTimeZone = normalizeAssistantTimeZone(
         input.runtimeContext.clientTimeZone
     );
-    const clientLocale = normalizeAskCacheLocale(
+    const clientLocale = normalizeAssistantLocale(
         input.runtimeContext.clientLocale
     );
     const formatter = new Intl.DateTimeFormat(clientLocale, {
@@ -216,20 +216,20 @@ function buildAskCacheRuntimeContext(input: AskCacheRequest) {
         currentDateTime: formatter.format(now),
         currentIsoDateTime: now.toISOString(),
         surface:
-            ASK_CACHE_RUNTIME_CONTEXT_SURFACE_LABEL_BY_VALUE[
+            ASSISTANT_RUNTIME_CONTEXT_SURFACE_LABEL_BY_VALUE[
                 input.runtimeContext.surface
             ],
         timeZone: clientTimeZone,
     };
 }
 
-function normalizeAskCacheTimeZone(timeZone: string | undefined): string {
+function normalizeAssistantTimeZone(timeZone: string | undefined): string {
     if (!timeZone) {
         return "UTC";
     }
 
     try {
-        new Intl.DateTimeFormat(ASK_CACHE_RUNTIME_CONTEXT_LOCALE_DEFAULT, {
+        new Intl.DateTimeFormat(ASSISTANT_RUNTIME_CONTEXT_LOCALE_DEFAULT, {
             timeZone,
         }).format(new Date());
         return timeZone;
@@ -238,20 +238,20 @@ function normalizeAskCacheTimeZone(timeZone: string | undefined): string {
     }
 }
 
-function normalizeAskCacheLocale(locale: string | undefined): string {
+function normalizeAssistantLocale(locale: string | undefined): string {
     if (!locale) {
-        return ASK_CACHE_RUNTIME_CONTEXT_LOCALE_DEFAULT;
+        return ASSISTANT_RUNTIME_CONTEXT_LOCALE_DEFAULT;
     }
 
     try {
         Intl.getCanonicalLocales(locale);
         return locale;
     } catch {
-        return ASK_CACHE_RUNTIME_CONTEXT_LOCALE_DEFAULT;
+        return ASSISTANT_RUNTIME_CONTEXT_LOCALE_DEFAULT;
     }
 }
 
-function buildAskCacheUserMessage(input: AskCacheRequest): string {
+function buildAssistantUserMessage(input: AssistantRequest): string {
     return [
         "User request:",
         input.prompt,

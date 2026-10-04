@@ -5,55 +5,362 @@ import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
 import { cn } from "cn";
 import { T } from "gt-next";
-import { ArrowUpRight, Star, Volume2Icon, VolumeXIcon } from "lucide-react";
+import {
+    ArrowUpRight,
+    Check,
+    ChevronDown,
+    DownloadIcon,
+    ExternalLinkIcon,
+    EyeIcon,
+    FilePenLineIcon,
+    History,
+    LinkIcon,
+    SearchIcon,
+    Squircle,
+    SquircleDashed,
+    Star,
+    Volume2Icon,
+    VolumeXIcon,
+    ZoomIn,
+} from "lucide-react";
+import {
+    AnimatePresence,
+    motion,
+    type Transition,
+    useReducedMotion,
+} from "motion/react";
 import * as React from "react";
 import { Controlled as ControlledZoom } from "react-medium-image-zoom";
 import { Streamdown } from "streamdown";
+import useSWR from "swr";
+import { CommentComposer } from "@/components/comments/composer";
+import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
+import { openSide } from "@/components/session/side";
+import { AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Placeholder } from "@/components/ui/placeholder";
-import { Spinner } from "@/components/ui/spinner";
 import {
+    Collapsible,
+    CollapsiblePanel,
+    CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+    Combobox,
+    ComboboxCollection,
+    ComboboxEmpty,
+    ComboboxInput,
+    ComboboxItem,
+    ComboboxList,
+    ComboboxPopup,
+    ComboboxStatus,
+    ComboboxTrigger,
+} from "@/components/ui/combobox";
+import {
+    ContextMenu,
+    ContextMenuGroup,
+    ContextMenuGroupLabel,
+    ContextMenuItem,
+    ContextMenuPopup,
+    ContextMenuSeparator,
+    ContextMenuSub,
+    ContextMenuSubPopup,
+    ContextMenuSubTrigger,
+    ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { AltKbd, CmdKbd, Kbd } from "@/components/ui/kbd";
+import {
+    Menu,
+    MenuGroup,
+    MenuGroupLabel,
+    MenuItem,
+    MenuPopup,
+    MenuSeparator,
+    MenuSub,
+    MenuSubPopup,
+    MenuSubTrigger,
+    MenuTrigger,
+} from "@/components/ui/menu";
+import { Placeholder } from "@/components/ui/placeholder";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { Ticker } from "@/components/ui/ticker";
+import { Toolbar, ToolbarButton } from "@/components/ui/toolbar";
+import { downloadMedia } from "@/lib/collections/actions";
+import type {
+    LibraryItemCollectionsUpdateResult,
+    LibraryItemsCollectionsUpdateResult,
+} from "@/lib/collections/items";
+import {
+    getLibraryItemPrimaryText,
     getLibraryItemTitle,
+    isRecentlySmartCollected,
+    itemPreviewImageProxyUrl,
     itemPreviewImageUrl,
     itemPreviewVideoUrl,
+    type LibraryCollectionSummary,
+    type LibraryCollectionTag,
     type LibraryItemWithCollections,
 } from "@/lib/collections/utils";
-import { ITEM_KIND_NOTE } from "@/lib/common/constants";
+import {
+    ACTION_STATUS,
+    FALLBACK_URL,
+    ITEM_KIND_NOTE,
+    MIME_TYPES,
+} from "@/lib/common/constants";
+import { parseDate } from "@/lib/common/date";
 import {
     type Dimensions,
     resolveDisplayDimensions,
 } from "@/lib/common/dimension";
 import { getOwnerDocument, getOwnerWindow } from "@/lib/common/dom";
+import { saveFile } from "@/lib/common/file";
+import { getImageColors } from "@/lib/common/image-color";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { slugify } from "@/lib/common/string";
+import { fetchWithTimeout } from "@/lib/common/timeout";
+import {
+    normalizeURL,
+    openExternalUrl,
+    toValidUrl,
+    tryParseUrl,
+} from "@/lib/common/url";
+import { getSourceIcon } from "@/lib/integrations/support";
+import { LibraryItemSource } from "@/prisma/client/enums";
 import { useDimensionCacheContext } from "./dimension-cache";
 
 const FAVORITE_REVEAL_TIMEOUT_MS = 2000;
+const TOOLBAR_SLOT_DURATION_SECONDS = 0.22;
 
-const log = createLogger("session:preview");
+const log = createLogger("session:item");
 
-interface PreviewImageProps extends React.ComponentProps<"div"> {
-    src: string | null;
+const ITEM_DOWNLOAD_TIMEOUT_MS = 60_000;
+
+const COBALT_SOURCES = new Set<LibraryItemSource>([
+    LibraryItemSource.google_photos,
+    LibraryItemSource.instagram,
+    LibraryItemSource.pinterest,
+    LibraryItemSource.tiktok,
+    LibraryItemSource.x_bookmarks,
+    LibraryItemSource.youtube_watch_later,
+]);
+
+const ITEM_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE: Partial<
+    Record<string, ItemDownloadFileExtension>
+> = {
+    [MIME_TYPES.avif]: "avif",
+    [MIME_TYPES.bmp]: "bmp",
+    [MIME_TYPES.gif]: "gif",
+    [MIME_TYPES.ico]: "ico",
+    [MIME_TYPES.jfif]: "jfif",
+    [MIME_TYPES.jpg]: "jpg",
+    [MIME_TYPES.mov]: "mov",
+    [MIME_TYPES.mp4]: "mp4",
+    [MIME_TYPES.png]: "png",
+    [MIME_TYPES.svg]: "svg",
+    [MIME_TYPES.webp]: "webp",
+    [MIME_TYPES.webm]: "webm",
+};
+
+type ItemCardActionVariant = "menu" | "contextMenu";
+
+const ITEM_CARD_ACTIONS: {
+    Component: (props: {
+        surface: ItemCardActionVariant;
+    }) => React.ReactElement;
+    id: string;
+    isAvailable?: (data: ItemCardDataContext) => boolean;
+    separatorBefore?: boolean;
+}[] = [
+    { Component: ItemCardFavoriteAction, id: "favorite" },
+    {
+        Component: ItemCardNoteAction,
+        id: "edit-note",
+        isAvailable: ({ isNote }) => isNote,
+    },
+    {
+        Component: ItemCardQuickLookAction,
+        id: "side",
+        isAvailable: ({ item }) =>
+            item.kind !== ITEM_KIND_NOTE &&
+            toValidUrl(normalizeURL(item.url)) !== FALLBACK_URL,
+    },
+    {
+        Component: ItemCardZoomAction,
+        id: "zoom",
+        isAvailable: ({ previewImageUrl }) => previewImageUrl !== null,
+    },
+    {
+        Component: ItemCardOpenLinkAction,
+        id: "open-link",
+        isAvailable: ({ isNote }) => !isNote,
+    },
+    {
+        Component: ItemCardCopyLinkAction,
+        id: "copy-link",
+        isAvailable: ({ isNote }) => !isNote,
+    },
+    {
+        Component: ItemCardDownloadAction,
+        id: "download",
+        isAvailable: ({ isNote, item }) =>
+            !isNote && COBALT_SOURCES.has(item.source),
+        separatorBefore: true,
+    },
+    { Component: ItemCardFindSimilarAction, id: "find-similar" },
+    {
+        Component: ItemCardWaybackAction,
+        id: "wayback",
+        isAvailable: ({ isNote }) => !isNote,
+    },
+    {
+        Component: ItemCardDeleteAction,
+        id: "delete",
+        separatorBefore: true,
+    },
+];
+
+type ItemDownloadFileExtension = Exclude<keyof typeof MIME_TYPES, "binary">;
+
+interface ItemHoverVideo {
+    handleCanPlay: (event: React.SyntheticEvent<HTMLVideoElement>) => void;
+    handlePointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+    handlePointerEnter: () => void;
+    handlePointerLeave: () => void;
+    handleSoundToggle: (event: React.MouseEvent) => void;
+    handleVideoError: (event: React.SyntheticEvent<HTMLVideoElement>) => void;
+    isSoundEnabled: boolean;
+    isVideoLoading: boolean;
+    shouldLoadVideo: boolean;
+    videoRef: React.RefObject<HTMLVideoElement | null>;
 }
 
-export function PreviewImage({
-    children,
-    className,
-    src,
-    style,
-    ...rest
-}: PreviewImageProps): React.ReactElement {
+export interface ItemPeekPlaceholder {
+    aspect: string;
+    id: string;
+}
+
+export interface ItemCardEnvironmentContext {
+    collections: LibraryCollectionSummary[];
+    favoriteItemIdSet: ReadonlySet<string>;
+    hoveredItemIdRef: React.RefObject<string | null>;
+    hoverPinnedItemIdRef: React.RefObject<string | null>;
+    markVisited: (itemId: string) => void;
+    onCopyLink: (item: LibraryItemWithCollections) => void;
+    onDelete: (item: LibraryItemWithCollections) => void;
+    onFindSimilar: (item: LibraryItemWithCollections) => void;
+    onItemFavoriteToggle: (item: LibraryItemWithCollections) => void;
+    onOpenInNewTab: (item: LibraryItemWithCollections) => void;
+    onOpenNote: (item: LibraryItemWithCollections) => void;
+    onUpdateItemCollections: (
+        itemId: string,
+        collectionIds: string[]
+    ) => Promise<LibraryItemCollectionsUpdateResult>;
+    openPickerItemId: string | null;
+    pendingDeleteItemId: string | null;
+    setOpenPickerItemId: (id: string | null) => void;
+}
+
+interface ItemCardDataContext {
+    displayTitle: string;
+    isNote: boolean;
+    item: LibraryItemWithCollections;
+    previewImageUrl: string | null;
+}
+
+interface ItemCardDownloadContext {
+    isDownloading: boolean;
+    onDownload: () => void;
+}
+
+interface ItemCardZoomContext {
+    isZoomed: boolean;
+    onZoomChange: (nextZoomed: boolean) => void;
+    onZoomIn: () => void;
+}
+
+interface ItemCardSurfaceContext {
+    isMenuOpen: boolean;
+    isOverlayOpen: boolean;
+    onMenuOpenChange: (open: boolean) => void;
+}
+
+export const ItemCardEnvironmentContext =
+    React.createContext<ItemCardEnvironmentContext | null>(null);
+
+function useItemCardEnvironmentContext(): ItemCardEnvironmentContext {
+    const context = React.use(ItemCardEnvironmentContext);
+    if (!context) {
+        throw new Error(
+            "ItemCard components must be used inside <ItemCardEnvironmentContext>."
+        );
+    }
+    return context;
+}
+
+const ItemCardDataContext = React.createContext<ItemCardDataContext | null>(
+    null
+);
+
+function useItemCardDataContext(): ItemCardDataContext {
+    const context = React.use(ItemCardDataContext);
+    if (!context) {
+        throw new Error(
+            "ItemCard components must be used inside <ItemCardProvider>."
+        );
+    }
+    return context;
+}
+
+const ItemCardDownloadContext =
+    React.createContext<ItemCardDownloadContext | null>(null);
+
+function useItemCardDownloadContext(): ItemCardDownloadContext {
+    const context = React.use(ItemCardDownloadContext);
+    if (!context) {
+        throw new Error(
+            "ItemCard components must be used inside <ItemCardDownloadProvider>."
+        );
+    }
+    return context;
+}
+
+const ItemCardZoomContext = React.createContext<ItemCardZoomContext | null>(
+    null
+);
+
+function useItemCardZoomContext(): ItemCardZoomContext {
+    const context = React.use(ItemCardZoomContext);
+    if (!context) {
+        throw new Error(
+            "ItemCard components must be used inside <ItemCardZoomProvider>."
+        );
+    }
+    return context;
+}
+
+const ItemCardSurfaceContext =
+    React.createContext<ItemCardSurfaceContext | null>(null);
+
+function useItemCardSurfaceContext(): ItemCardSurfaceContext {
+    const context = React.use(ItemCardSurfaceContext);
+    if (!context) {
+        throw new Error(
+            "ItemCard surfaces must be used inside <ItemCardSurface>."
+        );
+    }
+    return context;
+}
+
+function useItemPreviewDimensions(src: string | null) {
     const imgRef = React.useRef<HTMLImageElement | null>(null);
-
-    const [hasFailed, setHasFailed] = React.useState(false);
-    const [prevSrc, setPrevSrc] = React.useState(src);
-
     const dimensionsCache = useDimensionCacheContext();
+    const [hasFailed, setHasFailed] = React.useState(false);
     const [dimensions, setDimensions] = React.useState<Dimensions | null>(() =>
         dimensionsCache.readCached(src)
     );
+    const [prevSrc, setPrevSrc] = React.useState(src);
 
-    if (!Object.is(src, prevSrc)) {
+    if (src !== prevSrc) {
         setPrevSrc(src);
         setHasFailed(false);
         setDimensions(dimensionsCache.readCached(src));
@@ -75,7 +382,7 @@ export function PreviewImage({
             const next: Dimensions = { h, w };
             dimensionsCache.dimensions(src, next);
             setDimensions((current) =>
-                current?.w === w && current.h === h ? current : next
+                current?.w === w && current?.h === h ? current : next
             );
         }
     );
@@ -121,85 +428,30 @@ export function PreviewImage({
         };
     }, [dimensionsCache, src]);
 
-    const canRenderImage = !!src && !hasFailed;
-    const displayDimensions = resolveDisplayDimensions(dimensions);
-    const aspectRatio = `${displayDimensions.w} / ${displayDimensions.h}`;
-
-    return (
-        <div
-            {...rest}
-            className={cn("relative w-full break-inside-avoid", className)}
-            style={{ ...style, aspectRatio }}
-        >
-            {canRenderImage ? (
-                // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts img onError/onLoad
-                <img
-                    alt=""
-                    className="drag-none size-full object-cover"
-                    decoding="async"
-                    draggable="false"
-                    fetchPriority="auto"
-                    height={displayDimensions.h}
-                    // Remount on src change so aborted prior loads cannot
-                    // fire stale error/load events against the new URL.
-                    key={src}
-                    loading="eager"
-                    onError={handleError}
-                    onLoad={handleLoad}
-                    ref={imgRef}
-                    src={src ?? undefined}
-                    style={{ cursor: "pointer" }}
-                    width={displayDimensions.w}
-                />
-            ) : (
-                <Placeholder className="-z-1 size-full" />
-            )}
-            {children}
-        </div>
-    );
+    return {
+        displayDimensions: resolveDisplayDimensions(dimensions),
+        handleError,
+        handleLoad,
+        imgRef,
+        isRenderable: !!src && !hasFailed,
+    };
 }
 
-interface NoteContentPreviewProps {
-    contentHtml: string | null;
-}
-
-export function NoteContentPreview({
-    contentHtml,
-}: NoteContentPreviewProps): React.ReactElement {
-    return (
-        <div className="mask-b-from-[calc(100%-var(--fade-size))] size-full max-h-60 select-none p-4 [--fade-size:2rem]">
-            <Streamdown className="text-[11px] text-foreground" mode="static">
-                {contentHtml ?? "Tap to start writing in this note"}
-            </Streamdown>
-        </div>
-    );
-}
-
-interface MediaPreviewProps {
-    src: string | null;
-    videoSrc?: string | null;
-}
-
-export function MediaPreview({
-    src,
-    videoSrc,
-}: MediaPreviewProps): React.ReactElement {
+function useItemHoverVideo(videoSrc: string | null): ItemHoverVideo {
     const videoRef = React.useRef<HTMLVideoElement | null>(null);
-
     const [isHovered, setIsHovered] = React.useState(false);
     const [isSoundEnabled, setIsSoundEnabled] = React.useState(true);
-
     const [hasVideoFailed, setHasVideoFailed] = React.useState(false);
     const [hasVideoStarted, setHasVideoStarted] = React.useState(false);
     const [prevVideoSrc, setPrevVideoSrc] = React.useState(videoSrc);
 
-    if (!Object.is(videoSrc, prevVideoSrc)) {
+    if (videoSrc !== prevVideoSrc) {
         setPrevVideoSrc(videoSrc);
         setHasVideoStarted(false);
         setHasVideoFailed(false);
     }
 
-    const canRenderVideo = typeof videoSrc === "string" && videoSrc.length > 0;
+    const canRenderVideo = videoSrc !== null && videoSrc.length > 0;
     const shouldLoadVideo = isHovered && canRenderVideo && !hasVideoFailed;
     const isVideoLoading = !hasVideoStarted && shouldLoadVideo;
 
@@ -322,128 +574,462 @@ export function MediaPreview({
         };
     }, [shouldLoadVideo, stopHoverPlayback]);
 
-    const SoundIcon = isSoundEnabled ? Volume2Icon : VolumeXIcon;
+    return {
+        handleCanPlay,
+        handlePointerDown,
+        handlePointerEnter,
+        handlePointerLeave: stopHoverPlayback,
+        handleSoundToggle,
+        handleVideoError,
+        isSoundEnabled,
+        isVideoLoading,
+        shouldLoadVideo,
+        videoRef,
+    };
+}
 
+function useItemHoverReveal(allowReveal: boolean) {
+    const [isRevealed, setIsRevealed] = React.useState(false);
+    const revealTimeout = useTimeout();
+
+    const handleRevealStart = useStableCallback(() => {
+        if (!allowReveal) {
+            return;
+        }
+        revealTimeout.start(FAVORITE_REVEAL_TIMEOUT_MS, () => {
+            setIsRevealed(true);
+        });
+    });
+
+    const handleRevealEnd = useStableCallback(() => {
+        revealTimeout.clear();
+        setIsRevealed(false);
+    });
+
+    return { handleRevealEnd, handleRevealStart, isRevealed };
+}
+
+function useItemCardLinkActions() {
+    const { item } = useItemCardDataContext();
+    const { onCopyLink, onOpenInNewTab } = useItemCardEnvironmentContext();
+
+    const SourceIcon = getSourceIcon(item.source);
+
+    const handleOpenInNewTab = useStableCallback(() => onOpenInNewTab(item));
+    const handleCopyLink = useStableCallback(() => onCopyLink(item));
+
+    return { handleCopyLink, handleOpenInNewTab, SourceIcon };
+}
+
+function formatWaybackTimestamp(daysOffset: number): string {
+    const date = new Date();
+    date.setDate(date.getDate() + daysOffset);
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const h = String(date.getHours()).padStart(2, "0");
+    const min = String(date.getMinutes()).padStart(2, "0");
+    const s = String(date.getSeconds()).padStart(2, "0");
+    return `${y}${m}${d}${h}${min}${s}`;
+}
+
+function getItemDownloadFileExtension(
+    url: string,
+    contentType: string | null
+): ItemDownloadFileExtension | null {
+    const normalizedContentType = contentType
+        ?.split(";", 1)[0]
+        ?.trim()
+        .toLowerCase();
+
+    const contentTypeExtension =
+        normalizedContentType &&
+        ITEM_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE[normalizedContentType];
+
+    if (contentTypeExtension) {
+        return contentTypeExtension;
+    }
+
+    const pathname = tryParseUrl(url)?.pathname;
+    if (!pathname) {
+        return null;
+    }
+
+    let urlExtension = pathname
+        .slice(pathname.lastIndexOf(".") + 1)
+        .toLowerCase();
+    if (urlExtension === "jpeg") {
+        urlExtension = "jpg";
+    }
+    const downloadExtensions = Object.values(
+        ITEM_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE
+    );
+    return downloadExtensions.includes(
+        urlExtension as ItemDownloadFileExtension
+    )
+        ? (urlExtension as ItemDownloadFileExtension)
+        : null;
+}
+
+function formatItemDate(dateValue: Date | string | null | undefined): string {
+    const date = parseDate(dateValue);
+    if (!date) {
+        return "";
+    }
+    return date.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+    });
+}
+
+async function saveItemMedia(item: LibraryItemWithCollections): Promise<void> {
+    if (!COBALT_SOURCES.has(item.source)) {
+        throw new Error("Media downloads are not available for this source.");
+    }
+
+    const result = await downloadMedia(item.url);
+    if (result.status !== ACTION_STATUS.SUCCESS) {
+        throw new Error(result.message);
+    }
+
+    const response = await fetchWithTimeout(
+        result.downloadUrl,
+        {},
+        ITEM_DOWNLOAD_TIMEOUT_MS
+    );
+    if (!response.ok) {
+        throw new Error(`Failed to fetch media download (${response.status})`);
+    }
+
+    const blob = await response.blob();
+    const extension = getItemDownloadFileExtension(
+        response.url || result.downloadUrl,
+        response.headers.get("content-type") || blob.type
+    );
+    if (!extension) {
+        throw new Error("Could not determine the downloaded media type.");
+    }
+
+    await saveFile(blob, {
+        description: "Media file",
+        extension,
+        name: slugify(getLibraryItemTitle(item)) || "cache-media",
+    });
+}
+
+function getSharedCollections(
+    items: LibraryItemWithCollections[]
+): LibraryCollectionTag[] {
+    const [firstItem, ...remainingItems] = items;
+    if (!firstItem) {
+        return [];
+    }
+
+    const sharedCollections = new Map(
+        firstItem.collections.map((collection) => [collection.id, collection])
+    );
+
+    for (const item of remainingItems) {
+        const itemCollectionIds = new Set(
+            item.collections.map((collection) => collection.id)
+        );
+        for (const collectionId of sharedCollections.keys()) {
+            if (!itemCollectionIds.has(collectionId)) {
+                sharedCollections.delete(collectionId);
+            }
+        }
+    }
+
+    return [...sharedCollections.values()];
+}
+
+function getCollectionTriggerIcon(
+    selectedCount: number,
+    shouldShowSmartCollectionsIndicator: boolean
+) {
+    if (selectedCount === 0) {
+        return <SquircleDashed aria-hidden className="size-4" />;
+    }
+    if (shouldShowSmartCollectionsIndicator) {
+        return <ItemCardSmartCollectionsIndicator />;
+    }
+    return <Squircle aria-hidden className="size-4" />;
+}
+
+function getArchivedCollectionsStatus(count: number): string {
+    return count === 1
+        ? "1 assigned collection is archived"
+        : `${count} assigned collections are archived`;
+}
+
+interface ItemPreviewProps {
+    hover?: ItemHoverVideo | null;
+    src: string | null;
+    videoSrc?: string | null;
+}
+
+export function ItemPreview({
+    hover,
+    src,
+    videoSrc,
+}: ItemPreviewProps): React.ReactElement {
     return (
-        <PreviewImage
-            onPointerDown={handlePointerDown}
-            onPointerEnter={handlePointerEnter}
-            onPointerLeave={stopHoverPlayback}
-            src={src}
-        >
-            {shouldLoadVideo ? (
-                <>
-                    <video
-                        className="squircle drag-none pointer-events-none absolute inset-0 size-full rounded-xl object-contain transition-opacity ease-out"
-                        crossOrigin="use-credentials"
-                        draggable="false"
-                        key={videoSrc}
-                        loop
-                        muted={!isSoundEnabled}
-                        onCanPlay={handleCanPlay}
-                        onError={handleVideoError}
-                        playsInline
-                        preload="none"
-                        ref={videoRef}
-                        src={videoSrc}
-                    />
-                    {isVideoLoading ? (
-                        <div
-                            className={cn(
-                                "pointer-events-none absolute bottom-2 left-2 rounded-xl bg-black/50 text-white opacity-0 transition-opacity ease-out",
-                                { "opacity-100": isHovered }
-                            )}
-                        >
-                            <Spinner
-                                aria-hidden
-                                className="m-1.5 size-4"
-                                focusable="false"
-                            />
-                        </div>
-                    ) : (
-                        <Button
-                            aria-label={
-                                isSoundEnabled
-                                    ? "Mute video preview"
-                                    : "Enable video preview sound"
-                            }
-                            aria-pressed={isSoundEnabled}
-                            className={cn(
-                                "pointer-events-auto absolute bottom-2 left-2 rounded-xl bg-black/50 text-white opacity-0 transition-opacity ease-out hover:bg-black/60 focus-visible:opacity-100 focus-visible:ring-ring/70",
-                                { "opacity-100": isHovered }
-                            )}
-                            onClick={handleSoundToggle}
-                            size="icon-sm"
-                            variant="ghost"
-                        >
-                            <SoundIcon
-                                aria-hidden
-                                className="size-4"
-                                focusable="false"
-                            />
-                        </Button>
-                    )}
-                </>
+        <ItemPreviewImage src={src}>
+            {hover?.shouldLoadVideo ? (
+                <video
+                    className="squircle drag-none pointer-events-none absolute inset-0 size-full rounded-xl object-contain transition-opacity ease-out"
+                    crossOrigin="use-credentials"
+                    draggable="false"
+                    key={videoSrc}
+                    loop
+                    muted={!hover.isSoundEnabled}
+                    onCanPlay={hover.handleCanPlay}
+                    onError={hover.handleVideoError}
+                    playsInline
+                    preload="none"
+                    ref={hover.videoRef}
+                    src={videoSrc ?? undefined}
+                />
             ) : null}
-        </PreviewImage>
+        </ItemPreviewImage>
     );
 }
 
-interface MediaCardPreviewProps
-    extends Omit<
-        React.ComponentProps<"div">,
-        "children" | "onClick" | "onKeyDown" | "onMouseEnter" | "onMouseLeave"
-    > {
-    isFavorite: boolean;
-    isZoomed: boolean;
-    item: LibraryItemWithCollections;
-    onOpen: () => void;
-    onToggleFavorite: () => void;
-    onZoomChange: (nextZoomed: boolean) => void;
+interface ItemNotePreviewProps {
+    contentHtml: string | null;
 }
 
-export function MediaCardPreview({
-    isFavorite,
-    isZoomed,
-    item,
-    onOpen,
-    onToggleFavorite,
-    onZoomChange,
-    ...props
-}: MediaCardPreviewProps): React.ReactElement {
-    const isNote = item.kind === ITEM_KIND_NOTE;
+export function ItemNotePreview({
+    contentHtml,
+}: ItemNotePreviewProps): React.ReactElement {
+    return (
+        <div className="mask-b-from-[calc(100%-var(--fade-size))] size-full max-h-60 select-none p-4 [--fade-size:2rem]">
+            <Streamdown className="text-[11px] text-foreground" mode="static">
+                {contentHtml ?? "Tap to start writing in this note"}
+            </Streamdown>
+        </div>
+    );
+}
+
+export function ItemCardProvider({
+    children,
+    value,
+}: React.PropsWithChildren<{ value: LibraryItemWithCollections }>) {
+    return (
+        <ItemCardDataContext
+            value={{
+                displayTitle: getLibraryItemPrimaryText(value),
+                isNote: value.kind === ITEM_KIND_NOTE,
+                item: value,
+                previewImageUrl: itemPreviewImageUrl(value),
+            }}
+        >
+            {children}
+        </ItemCardDataContext>
+    );
+}
+
+export function ItemCardZoomProvider({ children }: React.PropsWithChildren) {
+    const [isZoomed, setIsZoomed] = React.useState(false);
+
+    // Ignore zoom-in requests so clicks keep opening the item; zooming in is
+    // the card menu's job.
+    const handleZoomChange = useStableCallback((nextZoomed: boolean) => {
+        if (!nextZoomed) {
+            setIsZoomed(false);
+        }
+    });
+
+    const handleZoomIn = useStableCallback(() => {
+        setIsZoomed(true);
+    });
+
+    return (
+        <ItemCardZoomContext
+            value={{
+                isZoomed,
+                onZoomChange: handleZoomChange,
+                onZoomIn: handleZoomIn,
+            }}
+        >
+            {children}
+        </ItemCardZoomContext>
+    );
+}
+
+export function ItemCardDownloadProvider({
+    children,
+}: React.PropsWithChildren) {
+    const { item } = useItemCardDataContext();
+    const [isDownloading, startDownloadTransition] = React.useTransition();
+    const [hasDownloadError, setHasDownloadError] = React.useState(false);
+
+    const handleDownload = useStableCallback(() => {
+        setHasDownloadError(false);
+        startDownloadTransition(async () => {
+            try {
+                await saveItemMedia(item);
+            } catch (error) {
+                setHasDownloadError(true);
+                log.error("Failed to prepare media download", error, {
+                    itemId: item.id,
+                    url: item.url,
+                });
+            }
+        });
+    });
+
+    return (
+        <>
+            <ItemCardDownloadContext
+                value={{ isDownloading, onDownload: handleDownload }}
+            >
+                {children}
+            </ItemCardDownloadContext>
+            {hasDownloadError ? (
+                <p
+                    aria-atomic="true"
+                    aria-live="assertive"
+                    className="mt-1 px-1 text-destructive text-xs leading-tight"
+                    role="alert"
+                >
+                    <T>Couldn't download this media. Please try again.</T>
+                </p>
+            ) : null}
+        </>
+    );
+}
+
+export function ItemCardSurface({ children }: React.PropsWithChildren) {
+    const { item } = useItemCardDataContext();
+    const { hoveredItemIdRef, hoverPinnedItemIdRef, openPickerItemId } =
+        useItemCardEnvironmentContext();
+
+    const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+    const [isContextMenuOpen, setIsContextMenuOpen] = React.useState(false);
+
+    const isPointerOverCardRef = React.useRef(false);
+    const isPickerOpen = openPickerItemId === item.id;
+    const isHoverPinned = isMenuOpen || isContextMenuOpen || isPickerOpen;
+
+    React.useEffect(
+        () => () => {
+            if (hoveredItemIdRef.current === item.id) {
+                hoveredItemIdRef.current = null;
+            }
+            if (hoverPinnedItemIdRef.current === item.id) {
+                hoverPinnedItemIdRef.current = null;
+            }
+        },
+        [hoveredItemIdRef, hoverPinnedItemIdRef, item.id]
+    );
+
+    React.useEffect(() => {
+        if (isHoverPinned) {
+            hoverPinnedItemIdRef.current = item.id;
+            hoveredItemIdRef.current = item.id;
+            return;
+        }
+        if (hoverPinnedItemIdRef.current !== item.id) {
+            return;
+        }
+        hoverPinnedItemIdRef.current = null;
+        if (
+            !isPointerOverCardRef.current &&
+            hoveredItemIdRef.current === item.id
+        ) {
+            hoveredItemIdRef.current = null;
+        }
+    }, [hoveredItemIdRef, hoverPinnedItemIdRef, isHoverPinned, item.id]);
+
+    const handleMouseEnter = useStableCallback(() => {
+        isPointerOverCardRef.current = true;
+        const pinnedId = hoverPinnedItemIdRef.current;
+        if (pinnedId !== null && pinnedId !== item.id) {
+            return;
+        }
+        hoveredItemIdRef.current = item.id;
+    });
+
+    const handleMouseLeave = useStableCallback(() => {
+        isPointerOverCardRef.current = false;
+        if (hoveredItemIdRef.current === item.id && !isHoverPinned) {
+            hoveredItemIdRef.current = null;
+        }
+    });
+
+    return (
+        <ItemCardSurfaceContext
+            value={{
+                isMenuOpen,
+                isOverlayOpen: isMenuOpen || isContextMenuOpen,
+                onMenuOpenChange: setIsMenuOpen,
+            }}
+        >
+            <ContextMenu onOpenChange={setIsContextMenuOpen}>
+                <ContextMenuTrigger
+                    className="group relative flex shrink-0 flex-col ease-out before:absolute before:-inset-x-2 before:-top-2 before:bottom-0 before:-z-10 before:rounded-xl before:bg-muted/50 before:opacity-0 before:transition-transform before:ease-out hover:before:opacity-100 focus-visible:outline-none active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80!"
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    role="group"
+                >
+                    {children}
+                </ContextMenuTrigger>
+                <ContextMenuPopup>
+                    <ItemCardPopupContent surface="contextMenu" />
+                </ContextMenuPopup>
+            </ContextMenu>
+        </ItemCardSurfaceContext>
+    );
+}
+
+export function ItemCardTarget() {
+    const { isNote, item } = useItemCardDataContext();
+    const {
+        favoriteItemIdSet,
+        markVisited,
+        onItemFavoriteToggle,
+        onOpenInNewTab,
+        onOpenNote,
+    } = useItemCardEnvironmentContext();
+    const { isZoomed, onZoomChange } = useItemCardZoomContext();
+
+    const isFavorite = favoriteItemIdSet.has(item.id);
     const hasNoteContent = (item.noteContentText ?? "").trim().length > 0;
     const previewImageUrl = itemPreviewImageUrl(item);
     const previewVideoUrl = itemPreviewVideoUrl(item);
 
-    const [isFavoriteRevealed, setIsFavoriteRevealed] = React.useState(false);
-    const favoriteRevealTimeout = useTimeout();
+    const hover = useItemHoverVideo(isNote ? null : previewVideoUrl);
+    const reveal = useItemHoverReveal(!isNote);
 
-    const handleFavoriteRevealStart = useStableCallback(() => {
+    const handleOpen = useStableCallback(() => {
         if (isNote) {
+            onOpenNote(item);
             return;
         }
-        favoriteRevealTimeout.start(FAVORITE_REVEAL_TIMEOUT_MS, () => {
-            setIsFavoriteRevealed(true);
-        });
+        onOpenInNewTab(item);
+        markVisited(item.id);
     });
 
-    const handleFavoriteRevealEnd = useStableCallback(() => {
-        favoriteRevealTimeout.clear();
-        setIsFavoriteRevealed(false);
+    const handleToggleFavorite = useStableCallback(() => {
+        onItemFavoriteToggle(item);
     });
 
-    const handleOpenClick = useStableCallback(
-        (event: React.MouseEvent<HTMLElement>) => {
-            event.preventDefault();
-            onOpen();
-        }
-    );
+    const handlePointerEnter = useStableCallback(() => {
+        hover.handlePointerEnter();
+        reveal.handleRevealStart();
+    });
+
+    const handlePointerLeave = useStableCallback(() => {
+        hover.handlePointerLeave();
+        reveal.handleRevealEnd();
+    });
 
     const handleOpenKeyDown = useStableCallback(
         (event: React.KeyboardEvent<HTMLElement>) => {
             if (event.key === "Enter") {
-                onOpen();
+                handleOpen();
             }
         }
     );
@@ -451,25 +1037,25 @@ export function MediaCardPreview({
     return (
         // biome-ignore lint/a11y/useSemanticElements: ControlledZoom conflicts with anchor elements
         <div
-            {...props}
             aria-label={
                 isNote
                     ? item.noteContentText?.trim() || "Note"
                     : getLibraryItemTitle(item)
             }
             className={cn(
-                "squircle relative flex flex-col overflow-clip rounded-xl focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "squircle group/preview relative flex flex-col overflow-clip rounded-xl focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 { "bg-muted/90": isNote }
             )}
-            onClick={handleOpenClick}
+            onClick={handleOpen}
             onKeyDown={handleOpenKeyDown}
-            onMouseEnter={handleFavoriteRevealStart}
-            onMouseLeave={handleFavoriteRevealEnd}
+            onPointerDown={hover.handlePointerDown}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
             role="link"
             tabIndex={0}
         >
             {isNote ? (
-                <NoteContentPreview
+                <ItemNotePreview
                     contentHtml={
                         hasNoteContent && item.noteContentHtml
                             ? item.noteContentHtml
@@ -482,103 +1068,944 @@ export function MediaCardPreview({
                         isZoomed={isZoomed}
                         onZoomChange={onZoomChange}
                     >
-                        <MediaPreview
+                        <ItemPreview
+                            hover={hover}
                             src={previewImageUrl}
                             videoSrc={previewVideoUrl}
                         />
                     </ControlledZoom>
-                    <MediaCardVisitedIndicator itemId={item.id} />
-                    <MediaCardFavoriteButton
+                    <ItemCardToolbar
                         isFavorite={isFavorite}
-                        isRevealed={isFavoriteRevealed}
-                        onToggle={onToggleFavorite}
+                        isRevealed={reveal.isRevealed}
+                        isSoundEnabled={hover.isSoundEnabled}
+                        isVideoLoading={hover.isVideoLoading}
+                        itemId={item.id}
+                        onOpen={handleOpen}
+                        onToggleFavorite={handleToggleFavorite}
+                        onToggleSound={hover.handleSoundToggle}
+                        shouldLoadVideo={hover.shouldLoadVideo}
                     />
                 </>
             )}
             <div
                 aria-hidden
-                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
+                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/5 ring-inset"
             />
         </div>
     );
 }
 
-interface MediaCardVisitedIndicatorProps {
-    itemId: string;
-}
+export function ItemCardFooter() {
+    const { item } = useItemCardDataContext();
+    const {
+        collections,
+        onUpdateItemCollections,
+        openPickerItemId,
+        setOpenPickerItemId,
+    } = useItemCardEnvironmentContext();
 
-function MediaCardVisitedIndicator({
-    itemId,
-}: MediaCardVisitedIndicatorProps): React.ReactElement {
-    const { isLastVisited } = useLastVisited();
+    const isPickerOpen = openPickerItemId === item.id;
 
-    const isItemLastVisited = isLastVisited(itemId);
+    const handlePickerOpenChange = useStableCallback((nextOpen: boolean) => {
+        setOpenPickerItemId(nextOpen ? item.id : null);
+    });
 
     return (
-        <span
-            className={cn(
-                "absolute right-2 bottom-2 rounded-xl px-1.5 py-px font-medium text-white text-xs leading-normal",
-                isItemLastVisited
-                    ? "inline-flex items-center gap-1 bg-black/45"
-                    : "bg-black/50 opacity-0 group-hover:opacity-100"
-            )}
-        >
-            {isItemLastVisited ? <T>Last visited</T> : null}
-            <ArrowUpRight
-                aria-hidden
-                className={cn(
-                    "size-4",
-                    isItemLastVisited && "hidden group-hover:inline-block"
-                )}
-                focusable="false"
+        <div className="flex items-center py-1.5">
+            <ItemCollectionsCombobox
+                collections={collections}
+                items={[item]}
+                onOpenChange={handlePickerOpenChange}
+                onUpdateItemCollections={onUpdateItemCollections}
+                open={isPickerOpen}
+                showSmartCollectionsIndicator={
+                    item.collections.length > 0 &&
+                    isRecentlySmartCollected(item.smartCollectedAt)
+                }
             />
-        </span>
+            <ItemCardTitleMenu />
+        </div>
     );
 }
 
-interface MediaCardFavoriteButtonProps {
-    isFavorite: boolean;
-    isRevealed: boolean;
-    onToggle: () => void;
+export function ItemCardSkeleton({
+    data,
+    index,
+}: {
+    data: ItemPeekPlaceholder;
+    index: number;
+}) {
+    const opacity = Math.max(0.25, 1 - index * 0.03);
+
+    return (
+        <div className="flex flex-col" style={{ opacity }}>
+            <Skeleton
+                className={cn(
+                    "squircle w-full rounded-xl [background:var(--color-muted)]",
+                    data.aspect
+                )}
+            />
+            <Skeleton className="mt-2 h-3 w-11/12 [background:var(--color-muted)]" />
+        </div>
+    );
 }
 
-function MediaCardFavoriteButton({
-    isFavorite,
-    isRevealed,
-    onToggle,
-}: MediaCardFavoriteButtonProps) {
-    const handleClick = useStableCallback((event: React.MouseEvent) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onToggle();
+interface ItemCollectionsComboboxProps
+    extends React.ComponentProps<typeof ComboboxTrigger> {
+    collections: LibraryCollectionSummary[];
+    items: LibraryItemWithCollections[];
+    onOpenChange?: (open: boolean) => void;
+    onUpdateItemCollections: (
+        itemId: string,
+        collectionIds: string[]
+    ) => Promise<LibraryItemCollectionsUpdateResult>;
+    onUpdateItemsCollections?: (input: {
+        itemIds: string[];
+        nextSharedCollectionIds: string[];
+        previousSharedCollectionIds: string[];
+    }) => Promise<LibraryItemsCollectionsUpdateResult>;
+    open?: boolean;
+    showSmartCollectionsIndicator?: boolean;
+}
+
+export function ItemCollectionsCombobox({
+    collections,
+    items,
+    onUpdateItemsCollections,
+    onUpdateItemCollections,
+    open: openProp,
+    onOpenChange,
+    children,
+    render,
+    showSmartCollectionsIndicator = false,
+    ...props
+}: ItemCollectionsComboboxProps) {
+    const [isOpenInternal, setIsOpenInternal] = React.useState(false);
+    const isOpen = openProp ?? isOpenInternal;
+    const setIsOpen = onOpenChange ?? setIsOpenInternal;
+    const sharedCollections = getSharedCollections(items);
+    const selectedCollectionIds = sharedCollections.map(
+        (collection) => collection.id
+    );
+    const selectedCount = selectedCollectionIds.length;
+    const archivedAssignedCollectionCount = sharedCollections.filter(
+        (collection) => collection.priority === "archive"
+    ).length;
+    const shouldShowSmartCollectionsIndicator =
+        showSmartCollectionsIndicator && selectedCount > 0;
+
+    const handleValueChange = useStableCallback((nextIds: string[]) => {
+        if (items.length === 1) {
+            const [item] = items;
+            if (!item) {
+                return;
+            }
+            onUpdateItemCollections(item.id, nextIds).catch(
+                (error: unknown) => {
+                    log.error("Failed to update item collections", error, {
+                        itemId: item.id,
+                    });
+                }
+            );
+            return;
+        }
+
+        if (!onUpdateItemsCollections) {
+            throw new Error(
+                "Bulk collection updates require onUpdateItemsCollections."
+            );
+        }
+
+        onUpdateItemsCollections({
+            itemIds: items.map((item) => item.id),
+            nextSharedCollectionIds: nextIds,
+            previousSharedCollectionIds: selectedCollectionIds,
+        }).catch((error: unknown) => {
+            log.error("Failed to update item collections", error, {
+                itemIds: items.map((item) => item.id),
+            });
+        });
     });
 
-    const handleKeyDown = useStableCallback((event: React.KeyboardEvent) => {
-        if (event.key === "Enter") {
-            event.stopPropagation();
+    let defaultTriggerAriaLabel = "Add to collections";
+    if (shouldShowSmartCollectionsIndicator) {
+        defaultTriggerAriaLabel = "Smart Collections just organized this";
+    } else if (selectedCount > 0) {
+        defaultTriggerAriaLabel = `Edit collections (${selectedCount} selected)`;
+    }
+
+    return (
+        <Combobox
+            autoHighlight
+            items={collections}
+            multiple
+            onOpenChange={setIsOpen}
+            onValueChange={handleValueChange}
+            open={isOpen}
+            value={selectedCollectionIds}
+        >
+            <ComboboxTrigger
+                {...props}
+                render={
+                    render ?? (
+                        <Button
+                            aria-label={defaultTriggerAriaLabel}
+                            size="icon-xs"
+                            variant="ghost"
+                        />
+                    )
+                }
+            >
+                {children ??
+                    getCollectionTriggerIcon(
+                        selectedCount,
+                        shouldShowSmartCollectionsIndicator
+                    )}
+            </ComboboxTrigger>
+            <ComboboxPopup>
+                <ComboboxInput
+                    endAddon={<Kbd>S</Kbd>}
+                    placeholder="Assign collections…"
+                />
+                <ComboboxStatus>
+                    {archivedAssignedCollectionCount > 0
+                        ? getArchivedCollectionsStatus(
+                              archivedAssignedCollectionCount
+                          )
+                        : null}
+                </ComboboxStatus>
+                <ComboboxEmpty>No matching collections</ComboboxEmpty>
+                <ComboboxList>
+                    <ComboboxCollection>
+                        {(collection) => (
+                            <ComboboxItem
+                                className="group/item"
+                                key={collection.id}
+                                value={collection.id}
+                            >
+                                <div className="flex max-w-56 items-center justify-between gap-3">
+                                    <span className="min-w-0 max-w-full flex-1 truncate text-foreground text-sm">
+                                        {collection.name}
+                                    </span>
+                                    <div className="relative flex w-fit items-center justify-end pl-4">
+                                        <span className="shrink-0 text-nowrap text-muted-foreground text-xs tabular-nums transition-opacity ease-out group-data-highlighted/item:opacity-0">
+                                            {collection.itemCount}
+                                        </span>
+                                        <span className="absolute right-0 shrink-0 text-nowrap text-muted-foreground text-xs opacity-0 transition-opacity ease-out group-data-highlighted/item:opacity-100">
+                                            Save
+                                        </span>
+                                    </div>
+                                </div>
+                            </ComboboxItem>
+                        )}
+                    </ComboboxCollection>
+                </ComboboxList>
+            </ComboboxPopup>
+        </Combobox>
+    );
+}
+
+interface ItemPreviewImageProps {
+    children?: React.ReactNode;
+    src: string | null;
+}
+
+function ItemPreviewImage({
+    children,
+    src,
+}: ItemPreviewImageProps): React.ReactElement {
+    const { displayDimensions, handleError, handleLoad, imgRef, isRenderable } =
+        useItemPreviewDimensions(src);
+
+    const aspectRatio = `${displayDimensions.w} / ${displayDimensions.h}`;
+
+    return (
+        <div
+            className="relative w-full break-inside-avoid"
+            style={{ aspectRatio }}
+        >
+            {isRenderable ? (
+                // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts img onError/onLoad
+                <img
+                    alt=""
+                    className="drag-none size-full object-cover"
+                    decoding="async"
+                    draggable="false"
+                    height={displayDimensions.h}
+                    // Remount on src change so aborted prior loads cannot
+                    // fire stale error/load events against the new URL.
+                    key={src}
+                    loading="eager"
+                    onError={handleError}
+                    onLoad={handleLoad}
+                    ref={imgRef}
+                    src={src ?? undefined}
+                    style={{ cursor: "pointer" }}
+                    width={displayDimensions.w}
+                />
+            ) : (
+                <Placeholder className="-z-1 size-full" />
+            )}
+            {children}
+        </div>
+    );
+}
+
+interface ItemCardToolbarProps {
+    isFavorite: boolean;
+    isRevealed: boolean;
+    isSoundEnabled: boolean;
+    isVideoLoading: boolean;
+    itemId: string;
+    onOpen: () => void;
+    onToggleFavorite: () => void;
+    onToggleSound: (event: React.MouseEvent) => void;
+    shouldLoadVideo: boolean;
+}
+
+function ItemCardToolbar({
+    isFavorite,
+    isRevealed,
+    isSoundEnabled,
+    isVideoLoading,
+    itemId,
+    onOpen,
+    onToggleFavorite,
+    onToggleSound,
+    shouldLoadVideo,
+}: ItemCardToolbarProps): React.ReactElement {
+    const { isLastVisited } = useLastVisited();
+    const shouldReduceMotion = useReducedMotion();
+
+    const shouldShowVisitedStatus = isLastVisited(itemId);
+    const shouldShowFavoriteControl = isFavorite || isRevealed;
+    const isPinned = isFavorite || shouldShowVisitedStatus;
+
+    const slotTransition: Transition = {
+        duration: shouldReduceMotion ? 0 : TOOLBAR_SLOT_DURATION_SECONDS,
+        ease: "easeOut",
+    };
+
+    const handleCardKeyDown = useStableCallback(
+        (event: React.KeyboardEvent) => {
+            if (event.key === "Enter") {
+                event.stopPropagation();
+            }
         }
+    );
+
+    const handleFavoriteClick = useStableCallback((event: React.MouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onToggleFavorite();
+    });
+
+    const handleOpenClick = useStableCallback((event: React.MouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onOpen();
+    });
+
+    const SoundIcon = isSoundEnabled ? Volume2Icon : VolumeXIcon;
+
+    return (
+        <Toolbar
+            aria-label="Preview actions"
+            className={cn(
+                "squircle absolute right-2 bottom-2 z-10 w-auto justify-end gap-px overflow-hidden rounded-lg bg-black/55 p-0.5 text-white shadow-lg transition-opacity duration-200",
+                !isPinned &&
+                    "opacity-0 focus-within:opacity-100 group-hover/preview:opacity-100"
+            )}
+        >
+            <AnimatePresence initial={false}>
+                {shouldShowVisitedStatus ? (
+                    <ItemCardToolbarSlot
+                        key="visited"
+                        transition={slotTransition}
+                    >
+                        <span className="whitespace-nowrap px-1 font-medium text-[11px]">
+                            <T>Last visited</T>
+                        </span>
+                    </ItemCardToolbarSlot>
+                ) : null}
+                {isVideoLoading ? (
+                    <ItemCardToolbarSlot
+                        key="loading"
+                        transition={slotTransition}
+                    >
+                        <Spinner
+                            aria-hidden
+                            className="m-1 size-3.5"
+                            focusable="false"
+                        />
+                    </ItemCardToolbarSlot>
+                ) : null}
+                {!isVideoLoading && shouldLoadVideo ? (
+                    <ItemCardToolbarSlot
+                        key="sound"
+                        transition={slotTransition}
+                    >
+                        <ToolbarButton
+                            aria-label={
+                                isSoundEnabled
+                                    ? "Mute video preview"
+                                    : "Enable video preview sound"
+                            }
+                            aria-pressed={isSoundEnabled}
+                            className="size-5 rounded-lg text-white transition-none hover:bg-white/15 focus-visible:ring-white/70"
+                            onClick={onToggleSound}
+                            onKeyDown={handleCardKeyDown}
+                        >
+                            <SoundIcon
+                                aria-hidden
+                                className="size-3.5"
+                                focusable="false"
+                            />
+                        </ToolbarButton>
+                    </ItemCardToolbarSlot>
+                ) : null}
+                {shouldShowFavoriteControl ? (
+                    <ItemCardToolbarSlot
+                        key="favorite"
+                        transition={slotTransition}
+                    >
+                        <ToolbarButton
+                            aria-label={
+                                isFavorite
+                                    ? "Remove from Favorites"
+                                    : "Add to Favorites"
+                            }
+                            aria-pressed={isFavorite}
+                            className="size-5 rounded-lg text-white transition-none hover:bg-white/15 focus-visible:ring-white/70"
+                            onClick={handleFavoriteClick}
+                            onKeyDown={handleCardKeyDown}
+                        >
+                            <Star
+                                aria-hidden
+                                className={cn(
+                                    "size-3.5",
+                                    isFavorite && "fill-current"
+                                )}
+                                focusable="false"
+                            />
+                        </ToolbarButton>
+                    </ItemCardToolbarSlot>
+                ) : null}
+            </AnimatePresence>
+            <ToolbarButton
+                aria-label="Open"
+                className="size-5 rounded-lg text-white transition-none hover:bg-white/15 focus-visible:ring-white/70"
+                onClick={handleOpenClick}
+                onKeyDown={handleCardKeyDown}
+            >
+                <ArrowUpRight
+                    aria-hidden
+                    className="size-3.5"
+                    focusable="false"
+                />
+            </ToolbarButton>
+        </Toolbar>
+    );
+}
+
+interface ItemCardToolbarSlotProps extends React.PropsWithChildren {
+    transition: Transition;
+}
+
+function ItemCardToolbarSlot({
+    children,
+    transition,
+}: ItemCardToolbarSlotProps): React.ReactElement {
+    return (
+        <motion.span
+            animate={{ opacity: 1, width: "auto" }}
+            className="flex items-center overflow-hidden"
+            exit={{ opacity: 0, width: 0 }}
+            initial={{ opacity: 0, width: 0 }}
+            transition={transition}
+        >
+            {children}
+        </motion.span>
+    );
+}
+
+function ItemCardSmartCollectionsIndicator() {
+    return (
+        <svg
+            aria-hidden="true"
+            className="size-4"
+            fill="none"
+            focusable="false"
+            role="img"
+            viewBox="0 0 24 24"
+        >
+            <path
+                d="M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9-9-1.8-9-9 1.8-9 9-9"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+            />
+            <path
+                className="animate-smart-collections-indicator"
+                d="M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9-9-1.8-9-9 1.8-9 9-9"
+                fill="none"
+                pathLength={1}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.25}
+            />
+        </svg>
+    );
+}
+
+interface ItemCardColorSwatchProps {
+    name: string;
+    value: string;
+}
+
+function ItemCardColorSwatch({ name, value }: ItemCardColorSwatchProps) {
+    const { copyToClipboard, isCopied } = useCopyToClipboard();
+
+    const handleCopy = useStableCallback(() => copyToClipboard(value));
+
+    return (
+        <button
+            aria-label={`Copy ${name}`}
+            className="relative flex size-4.5 cursor-pointer items-center justify-center rounded-full"
+            onClick={handleCopy}
+            style={{ backgroundColor: value }}
+            title={name}
+            type="button"
+        >
+            {isCopied ? (
+                <>
+                    <Check className="size-3 text-black invert" />
+                    <span className="absolute -bottom-4 text-nowrap rounded-xl bg-background text-[11px] text-success-foreground">
+                        Copied!
+                    </span>
+                </>
+            ) : null}
+        </button>
+    );
+}
+
+function ItemCardColorPalette({ src }: { src: string }) {
+    // src must serve same-origin image bytes (proxy delivery): a redirect
+    // URL taints the canvas on cross-origin upstreams and yields no colors.
+    const { data } = useSWR(src, getImageColors, {
+        keepPreviousData: true,
+    });
+
+    if (!data?.length) {
+        return null;
+    }
+
+    return (
+        <AvatarGroup className="justify-end -space-x-1">
+            {data.map(({ hex, name }) => (
+                <ItemCardColorSwatch key={name} name={name} value={hex} />
+            ))}
+        </AvatarGroup>
+    );
+}
+
+function ItemCardDetails() {
+    const { displayTitle, isNote, item } = useItemCardDataContext();
+
+    const addedLabel = formatItemDate(item.scrapedAt ?? item.createdAt);
+    const createdLabel = formatItemDate(item.createdAt);
+    const shouldShowFullTitle = !isNote && displayTitle !== item.url;
+    const paletteSrc = itemPreviewImageProxyUrl(item);
+
+    return (
+        <Collapsible className="group/collapsible">
+            <CollapsibleTrigger
+                render={
+                    <Button
+                        className="max-w-60 justify-between rounded-xl"
+                        variant="ghost"
+                    />
+                }
+            >
+                <span className="block min-w-0 truncate text-xs">
+                    {displayTitle}
+                </span>
+                <ChevronDown className="ml-auto inline-block size-4 -rotate-90 transition-transform group-data-open/collapsible:rotate-0" />
+            </CollapsibleTrigger>
+            <CollapsiblePanel className="px-2.5 text-[11px] text-muted-foreground">
+                {shouldShowFullTitle ? (
+                    <p className="wrap-break-words max-w-52 whitespace-normal py-0.5 text-foreground">
+                        {displayTitle}
+                    </p>
+                ) : null}
+                {isNote ? null : (
+                    <span className="inline-block min-w-0 max-w-52 truncate py-0.5 text-muted-foreground underline">
+                        {item.url}
+                    </span>
+                )}
+                <div className="flex items-center justify-between gap-3 py-0.5">
+                    <span>Created</span>
+                    <span className="text-foreground tabular-nums">
+                        {createdLabel}
+                    </span>
+                </div>
+                <div className="flex items-center justify-between gap-3 py-0.5">
+                    <span>Added</span>
+                    <span className="text-foreground tabular-nums">
+                        {addedLabel}
+                    </span>
+                </div>
+                {paletteSrc ? (
+                    <div className="flex items-center justify-between gap-3 py-0.5 pb-3">
+                        <span>Palette</span>
+                        <ItemCardColorPalette src={paletteSrc} />
+                    </div>
+                ) : null}
+            </CollapsiblePanel>
+        </Collapsible>
+    );
+}
+
+function ItemCardActions({ surface }: { surface: ItemCardActionVariant }) {
+    const data = useItemCardDataContext();
+
+    const Separator = surface === "menu" ? MenuSeparator : ContextMenuSeparator;
+
+    return (
+        <>
+            {ITEM_CARD_ACTIONS.filter(
+                (action) => action.isAvailable?.(data) ?? true
+            ).map((action) => (
+                <React.Fragment key={action.id}>
+                    {action.separatorBefore ? <Separator /> : null}
+                    <action.Component surface={surface} />
+                </React.Fragment>
+            ))}
+        </>
+    );
+}
+
+function ItemCardCommentComposer() {
+    const { item } = useItemCardDataContext();
+    const { isOverlayOpen } = useItemCardSurfaceContext();
+
+    return <CommentComposer isOpen={isOverlayOpen} itemId={item.id} />;
+}
+
+function ItemCardPopupContent({ surface }: { surface: ItemCardActionVariant }) {
+    const Separator = surface === "menu" ? MenuSeparator : ContextMenuSeparator;
+
+    return (
+        <>
+            <ItemCardDetails />
+            <ItemCardCommentComposer />
+            <Separator />
+            <ItemCardActions surface={surface} />
+        </>
+    );
+}
+
+function ItemCardActionItem({
+    surface,
+    ...props
+}: React.ComponentProps<typeof MenuItem> & {
+    surface: ItemCardActionVariant;
+}) {
+    return surface === "menu" ? (
+        <MenuItem {...props} />
+    ) : (
+        <ContextMenuItem {...props} />
+    );
+}
+
+function ItemCardTitleMenu() {
+    const { displayTitle } = useItemCardDataContext();
+    const { isMenuOpen, onMenuOpenChange } = useItemCardSurfaceContext();
+
+    return (
+        <Menu modal={false} onOpenChange={onMenuOpenChange} open={isMenuOpen}>
+            <MenuTrigger
+                render={
+                    <Button
+                        className="w-full min-w-0 flex-1 justify-start overflow-clip text-nowrap px-0 text-left text-xs!"
+                        size="xs"
+                        title={displayTitle}
+                        type="button"
+                        variant="ghost"
+                    />
+                }
+            >
+                <Ticker className="pt-px">{displayTitle}</Ticker>
+            </MenuTrigger>
+            <MenuPopup>
+                <ItemCardPopupContent surface="menu" />
+            </MenuPopup>
+        </Menu>
+    );
+}
+
+function ItemCardFavoriteAction({
+    surface,
+}: {
+    surface: ItemCardActionVariant;
+}) {
+    const { item } = useItemCardDataContext();
+    const { favoriteItemIdSet, onItemFavoriteToggle } =
+        useItemCardEnvironmentContext();
+
+    const isFavorite = favoriteItemIdSet.has(item.id);
+
+    const handleToggle = useStableCallback(() => onItemFavoriteToggle(item));
+
+    return (
+        <ItemCardActionItem onClick={handleToggle} surface={surface}>
+            <Star
+                className={cn(
+                    "size-4.5 text-muted-foreground",
+                    isFavorite && "fill-current"
+                )}
+            />
+            {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+            <Kbd className="ml-auto">
+                <AltKbd />F
+            </Kbd>
+        </ItemCardActionItem>
+    );
+}
+
+function ItemCardNoteAction({ surface }: { surface: ItemCardActionVariant }) {
+    const { item } = useItemCardDataContext();
+    const { onOpenNote } = useItemCardEnvironmentContext();
+
+    const handleOpenNote = useStableCallback(() => onOpenNote(item));
+
+    return (
+        <ItemCardActionItem onClick={handleOpenNote} surface={surface}>
+            <FilePenLineIcon className="size-4.5 text-muted-foreground" />
+            Edit note
+        </ItemCardActionItem>
+    );
+}
+
+function ItemCardQuickLookAction({
+    surface,
+}: {
+    surface: ItemCardActionVariant;
+}) {
+    const { displayTitle, item } = useItemCardDataContext();
+
+    const handleOpen = useStableCallback(() => {
+        openSide({
+            title: displayTitle,
+            url: item.url,
+        });
     });
 
     return (
-        <Button
-            aria-label={
-                isFavorite ? "Remove from Favorites" : "Add to Favorites"
-            }
-            aria-pressed={isFavorite}
-            className={cn(
-                "pointer-events-none absolute top-2 right-2 rounded-xl bg-black/50 text-white opacity-0 transition-opacity ease-out hover:bg-black/60 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:ring-ring/70",
-                { "pointer-events-auto opacity-100": isRevealed }
-            )}
-            onClick={handleClick}
-            onKeyDown={handleKeyDown}
-            size="icon-sm"
-            variant="ghost"
+        <ItemCardActionItem onClick={handleOpen} surface={surface}>
+            <EyeIcon className="size-4.5 text-muted-foreground" />
+            Quick look
+            <Kbd className="ml-auto">
+                <AltKbd />E
+            </Kbd>
+        </ItemCardActionItem>
+    );
+}
+
+function ItemCardZoomAction({ surface }: { surface: ItemCardActionVariant }) {
+    const { onZoomIn } = useItemCardZoomContext();
+
+    return (
+        <ItemCardActionItem onClick={onZoomIn} surface={surface}>
+            <ZoomIn className="size-4.5 text-muted-foreground" />
+            Zoom in
+        </ItemCardActionItem>
+    );
+}
+
+function ItemCardOpenLinkAction({
+    surface,
+}: {
+    surface: ItemCardActionVariant;
+}) {
+    const { SourceIcon, handleOpenInNewTab } = useItemCardLinkActions();
+
+    return (
+        <ItemCardActionItem
+            className="cursor-alias"
+            onClick={handleOpenInNewTab}
+            surface={surface}
         >
-            <Star
-                aria-hidden
-                className={cn("size-4", isFavorite && "fill-current")}
-                focusable="false"
-            />
-        </Button>
+            {SourceIcon ? (
+                <SourceIcon className="size-4 text-muted-foreground" />
+            ) : (
+                <ExternalLinkIcon className="size-4.5 text-muted-foreground" />
+            )}
+            Open in New Tab
+            <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
+        </ItemCardActionItem>
+    );
+}
+
+function ItemCardCopyLinkAction({
+    surface,
+}: {
+    surface: ItemCardActionVariant;
+}) {
+    const { handleCopyLink } = useItemCardLinkActions();
+
+    return (
+        <ItemCardActionItem onClick={handleCopyLink} surface={surface}>
+            <LinkIcon className="size-4.5 text-muted-foreground" />
+            Copy link URL
+        </ItemCardActionItem>
+    );
+}
+
+function ItemCardDownloadAction({
+    surface,
+}: {
+    surface: ItemCardActionVariant;
+}) {
+    const { isDownloading, onDownload } = useItemCardDownloadContext();
+
+    return (
+        <ItemCardActionItem
+            disabled={isDownloading}
+            onClick={onDownload}
+            surface={surface}
+        >
+            <DownloadIcon className="size-4.5 text-muted-foreground" />
+            {isDownloading ? "Downloading…" : "Download"}
+        </ItemCardActionItem>
+    );
+}
+
+function ItemCardFindSimilarAction({
+    surface,
+}: {
+    surface: ItemCardActionVariant;
+}) {
+    const { item } = useItemCardDataContext();
+    const { onFindSimilar } = useItemCardEnvironmentContext();
+
+    const handleFindSimilar = useStableCallback(() => onFindSimilar(item));
+
+    return (
+        <ItemCardActionItem onClick={handleFindSimilar} surface={surface}>
+            <SearchIcon className="size-4.5 text-muted-foreground" />
+            Find similar
+        </ItemCardActionItem>
+    );
+}
+
+const ITEM_WAYBACK_SNAPSHOT_OFFSETS: {
+    daysOffset: number | null;
+    label: string;
+}[] = [
+    { daysOffset: -30, label: "1 month ago" },
+    { daysOffset: -90, label: "3 months ago" },
+    { daysOffset: -180, label: "6 months ago" },
+    { daysOffset: -365, label: "1 year ago" },
+    { daysOffset: null, label: "View all snapshots" },
+];
+
+function ItemCardWaybackAction({
+    surface,
+}: {
+    surface: ItemCardActionVariant;
+}) {
+    const triggerContent = (
+        <>
+            <History className="size-4.5 text-muted-foreground" />
+            Previous versions
+        </>
+    );
+    const items = ITEM_WAYBACK_SNAPSHOT_OFFSETS.map((snapshot) => (
+        <ItemCardWaybackSnapshotItem
+            daysOffset={snapshot.daysOffset}
+            key={snapshot.label}
+            label={snapshot.label}
+            surface={surface}
+        />
+    ));
+
+    if (surface === "menu") {
+        return (
+            <MenuSub>
+                <MenuSubTrigger>{triggerContent}</MenuSubTrigger>
+                <MenuSubPopup>
+                    <MenuGroup>
+                        <MenuGroupLabel>Wayback Machine</MenuGroupLabel>
+                        {items}
+                    </MenuGroup>
+                </MenuSubPopup>
+            </MenuSub>
+        );
+    }
+    return (
+        <ContextMenuSub>
+            <ContextMenuSubTrigger>{triggerContent}</ContextMenuSubTrigger>
+            <ContextMenuSubPopup>
+                <ContextMenuGroup>
+                    <ContextMenuGroupLabel>
+                        Wayback Machine
+                    </ContextMenuGroupLabel>
+                    {items}
+                </ContextMenuGroup>
+            </ContextMenuSubPopup>
+        </ContextMenuSub>
+    );
+}
+
+function ItemCardWaybackSnapshotItem({
+    daysOffset,
+    label,
+    surface,
+}: {
+    daysOffset: number | null;
+    label: string;
+    surface: ItemCardActionVariant;
+}) {
+    const { item } = useItemCardDataContext();
+
+    const handleSnapshot = useStableCallback(() => {
+        if (daysOffset === null) {
+            openExternalUrl(`https://web.archive.org/web/*/${item.url}`);
+            return;
+        }
+        openExternalUrl(
+            `https://web.archive.org/web/${formatWaybackTimestamp(daysOffset)}/${item.url}`
+        );
+    });
+
+    return (
+        <ItemCardActionItem onClick={handleSnapshot} surface={surface}>
+            <History className="size-4 text-muted-foreground" />
+            {label}
+        </ItemCardActionItem>
+    );
+}
+
+function ItemCardDeleteAction({ surface }: { surface: ItemCardActionVariant }) {
+    const { item } = useItemCardDataContext();
+    const { onDelete, pendingDeleteItemId } = useItemCardEnvironmentContext();
+
+    const isDeletePending = pendingDeleteItemId === item.id;
+
+    const handleDelete = useStableCallback(() => onDelete(item));
+
+    return (
+        <ItemCardActionItem
+            disabled={isDeletePending}
+            onClick={handleDelete}
+            surface={surface}
+        >
+            {isDeletePending ? <T>Deleting…</T> : <T>Delete</T>}
+            <Kbd className="ml-auto">
+                <CmdKbd />⌫
+            </Kbd>
+        </ItemCardActionItem>
     );
 }

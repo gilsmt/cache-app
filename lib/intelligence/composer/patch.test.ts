@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import type { AskCacheComposerPatch, AskCacheRequest } from "./ask-cache";
+import type { AssistantComposerPatch, AssistantRequest } from "./assistant";
 import {
     isNoopComposerPatch,
     normalizeComposerPatchForContext,
     resolveComposerPatchContradictions,
 } from "./patch";
 
-function request(overrides: Partial<AskCacheRequest> = {}): AskCacheRequest {
+function request(overrides: Partial<AssistantRequest> = {}): AssistantRequest {
     return {
         composerState: {
             collectionMembershipFilter: "all",
@@ -37,8 +37,8 @@ function request(overrides: Partial<AskCacheRequest> = {}): AskCacheRequest {
 }
 
 function patch(
-    overrides: Partial<AskCacheComposerPatch> = {}
-): AskCacheComposerPatch {
+    overrides: Partial<AssistantComposerPatch> = {}
+): AssistantComposerPatch {
     return { ...overrides };
 }
 

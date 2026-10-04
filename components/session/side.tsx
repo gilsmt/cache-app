@@ -98,7 +98,7 @@ import {
 import { type SaveStatus, useAutosave } from "@/components/hooks/use-autosave";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
-import { useItemsContext } from "@/components/session/items";
+import { useItemsStateContext } from "@/components/session/items";
 import { Button } from "@/components/ui/button";
 import {
     ClaudeIcon,
@@ -163,8 +163,6 @@ const OEMBED_IFRAME_SANDBOX =
 const OEMBED_DIRECT_IFRAME_SANDBOX = `${OEMBED_IFRAME_SANDBOX} allow-same-origin allow-forms allow-modals allow-downloads`;
 const OEMBED_IFRAME_ALLOW =
     "accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share";
-const SIDE_IFRAME_SANDBOX =
-    "allow-scripts allow-popups allow-popups-to-escape-sandbox allow-presentation";
 const OEMBED_SRCDOC_CSP =
     "default-src 'none'; img-src https: data:; font-src https: data:; style-src 'unsafe-inline' https:; script-src 'unsafe-inline' https:; connect-src https:; media-src https: data: blob:; frame-src https:; object-src 'none'; form-action 'none';";
 
@@ -325,13 +323,12 @@ type OembedStatus = "blocked" | "loaded" | "loading" | "oembed";
 
 type Translate = ReturnType<typeof useGT>;
 
-export interface SideUrlInput {
-    description?: string;
+interface SideUrlInput {
     title?: string;
     url: string;
 }
 
-export interface SideNote {
+interface SideNote {
     id: string;
     noteContentHtml: string | null;
     noteContentState: unknown;
@@ -339,7 +336,6 @@ export interface SideNote {
 }
 
 interface SideUrlEntry {
-    description?: string;
     id: string;
     title: string;
     type: "url";
@@ -448,11 +444,6 @@ function useSideTabsContext(): SideTabsContext {
         throw new Error("Side tabs must be rendered inside <SideList>.");
     }
     return context;
-}
-
-export function useIsSideOpen(): boolean {
-    const { isOpen } = useSideStore();
-    return isOpen;
 }
 
 function useSideStatus(url: string | null, timeoutMs: number) {
@@ -621,11 +612,7 @@ function areSideEntriesEqual(left: SideEntry, right: SideEntry): boolean {
         return false;
     }
     if (left.type === "url" && right.type === "url") {
-        return (
-            left.title === right.title &&
-            left.description === right.description &&
-            left.url === right.url
-        );
+        return left.title === right.title && left.url === right.url;
     }
     if (left.type === "note" && right.type === "note") {
         return areSideNotesEqual(left.note, right.note);
@@ -652,7 +639,6 @@ function areSideNotesEqual(
 
 function createSideUrlEntry(input: SideUrlInput): SideUrlEntry {
     return {
-        description: input.description,
         id: `url:${input.url}`,
         title: input.title ?? DEFAULT_TITLE,
         type: "url",
@@ -704,10 +690,6 @@ function deserializeSideItems(value: string): SideEntry[] {
         if (typeof rawItem.url === "string") {
             return [
                 createSideUrlEntry({
-                    description:
-                        typeof rawItem.description === "string"
-                            ? rawItem.description
-                            : undefined,
                     title:
                         typeof rawItem.title === "string"
                             ? rawItem.title
@@ -1006,7 +988,7 @@ interface SideRootProps extends React.PropsWithChildren {
 }
 
 export function SideRoot({ children, onSaveNote, onUrlPaste }: SideRootProps) {
-    const contextValue = { onSaveNote, onUrlPaste };
+    const contextValue: SideContext = { onSaveNote, onUrlPaste };
 
     return <SideContext value={contextValue}>{children}</SideContext>;
 }
@@ -1334,7 +1316,7 @@ function SideUrlPanel({
                     onError={markAsBlocked}
                     onLoad={markAsLoaded}
                     referrerPolicy="strict-origin-when-cross-origin"
-                    sandbox={SIDE_IFRAME_SANDBOX}
+                    sandbox={OEMBED_IFRAME_SANDBOX}
                     src={entry.url}
                     title={gt("Preview of {title}", { title: entry.title })}
                 />
@@ -1344,7 +1326,7 @@ function SideUrlPanel({
 }
 
 function SidePanelEmpty() {
-    const { items } = useItemsContext();
+    const { items } = useItemsStateContext();
     const { lastVisitedItemIds } = useLastVisited();
 
     const recentItems = getRecentSideItems(items, lastVisitedItemIds);
@@ -1387,7 +1369,6 @@ function SideRecentItem({ item }: SideRecentItemProps) {
 
     const handleOpen = useStableCallback(() => {
         openSide({
-            description: parseDisplayUrl(item.url),
             title,
             url: item.url,
         });
@@ -1660,7 +1641,7 @@ function SideCopyLinkButton({ url }: SideCopyLinkButtonProps) {
 
 function SideNewTabMenu() {
     const gt = useGT();
-    const { items } = useItemsContext();
+    const { items } = useItemsStateContext();
     const { lastVisitedItemIds } = useLastVisited();
 
     const recentItems = getRecentSideItems(items, lastVisitedItemIds);
@@ -1723,7 +1704,6 @@ function SideNewTabMenuItem({ item }: SideNewTabMenuItemProps) {
 
     const handleOpen = useStableCallback(() => {
         openSide({
-            description: parseDisplayUrl(item.url),
             title,
             url: item.url,
         });

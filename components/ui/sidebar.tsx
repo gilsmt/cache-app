@@ -84,7 +84,35 @@ interface SidebarMenuPromotedLink {
     content: React.ReactNode;
     href: string;
     icon: React.ReactNode;
+    label: string;
     shortcutKeys?: string;
+}
+
+function useSidebarNavigationHotkey(
+    href: string,
+    label: string,
+    shortcutKeys?: string
+) {
+    const gt = useGT();
+    const m = useMessages();
+    const router = useRouter();
+
+    const pathname = usePathname();
+
+    const handleShortcut = useStableCallback(() => {
+        if (normalizePathname(pathname) === normalizePathname(href)) {
+            return;
+        }
+        router.push(href);
+    });
+
+    const translatedLabel = m(label);
+
+    useHotkeys(shortcutKeys ?? "", handleShortcut, {
+        description: gt("Navigate to {label}", { label: translatedLabel }),
+        enabled: Boolean(shortcutKeys),
+        preventDefault: true,
+    });
 }
 
 function getSidebarMenuLinkHref(child: React.ReactNode): string | null {
@@ -134,14 +162,18 @@ function findActiveSidebarMenuLink(
             !React.isValidElement<{
                 href?: unknown;
                 icon?: React.ReactNode;
+                label?: unknown;
                 shortcutKeys?: unknown;
                 children?: React.ReactNode;
             }>(element)
         ) {
             continue;
         }
-        const { href, icon, shortcutKeys, children } = element.props;
+        const { href, icon, label, shortcutKeys, children } = element.props;
         if (typeof href !== "string") {
+            continue;
+        }
+        if (typeof label !== "string") {
             continue;
         }
         if (!isPathnameActive(pathname, href, "exact")) {
@@ -151,6 +183,7 @@ function findActiveSidebarMenuLink(
             content: children,
             href,
             icon,
+            label,
             shortcutKeys:
                 typeof shortcutKeys === "string" ? shortcutKeys : undefined,
         };
@@ -267,7 +300,7 @@ export function SidebarContent({
         <section
             {...props}
             className={cn(
-                "no-scrollbar -mx-1 flex max-h-full min-h-0 w-full min-w-0 flex-col gap-6 overflow-auto p-1 lg:sticky lg:top-8 lg:max-h-[calc(100vh-(var(--spacing)*8))]",
+                "no-scrollbar -mx-1 flex max-h-full min-h-0 w-full min-w-0 select-none flex-col gap-6 overflow-auto p-1 lg:sticky lg:top-8 lg:max-h-[calc(100vh-(var(--spacing)*8))]",
                 className
             )}
             data-sidebar="content"
@@ -368,7 +401,7 @@ export function SidebarItem({
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
         className: cn(
-            "group relative flex h-8 max-h-8 min-h-8 min-w-0 flex-1 flex-1 cursor-default select-none items-center gap-1.5 truncate rounded-lg px-2.5 text-left font-medium text-[13px] text-foreground leading-[normal] opacity-70 before:absolute before:inset-0 before:-z-10 before:rounded-lg before:bg-muted before:opacity-0 before:transition-transform before:duration-100 before:will-change-transform hover:opacity-100 hover:before:opacity-100 focus-visible:opacity-100 active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80! data-[active=true]:before:opacity-100",
+            "group relative flex h-8 max-h-8 min-h-8 min-w-0 flex-1 cursor-default select-none items-center gap-1.5 truncate rounded-lg bg-clip-padding px-2.5 text-left font-medium text-[13px] text-foreground leading-[normal] opacity-70 before:absolute before:inset-0 before:-z-10 before:rounded-lg before:bg-muted before:opacity-0 before:transition-transform before:duration-100 before:will-change-transform hover:opacity-100 hover:before:opacity-100 focus-visible:opacity-100 active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80! data-[active=true]:before:opacity-100",
             className
         ),
         "data-sidebar": "item",
@@ -404,7 +437,7 @@ export function SidebarRail({
         <button
             {...props}
             className={cn(
-                "absolute inset-y-0 z-20 hidden w-2 ease-linear after:absolute after:inset-s-1/2 after:inset-y-0 after:w-px after:bg-muted/60 hover:after:w-0.5 group-data-[side=left]/sidebar:right-0 group-data-[side=right]/sidebar:left-0 lg:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
+                "absolute inset-y-0 z-20 hidden w-2 ease-linear after:absolute after:inset-s-1/2 after:inset-y-0 after:w-px after:bg-muted/70 hover:after:w-0.5 group-data-[side=left]/sidebar:right-0 group-data-[side=right]/sidebar:left-0 lg:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
                 "in-data-[side=left]:cursor-w-resize! in-data-[side=right]:cursor-e-resize!",
                 "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize! [[data-side=right][data-state=collapsed]_&]:cursor-w-resize!",
                 className
@@ -473,13 +506,14 @@ export function SidebarMenu({
 
     if (remainingPopupChildren.length === 0) {
         return (
-            <SidebarMenuPromotedItem
+            <SidebarNavigationItem
                 href={promoted.href}
                 icon={promoted.icon}
+                label={promoted.label}
                 shortcutKeys={promoted.shortcutKeys}
             >
                 {promoted.content}
-            </SidebarMenuPromotedItem>
+            </SidebarNavigationItem>
         );
     }
 
@@ -494,13 +528,14 @@ export function SidebarMenu({
 
     return (
         <>
-            <SidebarMenuPromotedItem
+            <SidebarNavigationItem
                 href={promoted.href}
                 icon={promoted.icon}
+                label={promoted.label}
                 shortcutKeys={promoted.shortcutKeys}
             >
                 {promoted.content}
-            </SidebarMenuPromotedItem>
+            </SidebarNavigationItem>
             <li
                 className="list-none"
                 data-sidebar="menu"
@@ -532,7 +567,7 @@ export function SidebarMenuTrigger({
             openOnHover={openOnHover}
             render={render}
         >
-            {icon}
+            <SidebarItemIcon>{icon}</SidebarItemIcon>
             <SidebarItemValue>{children}</SidebarItemValue>
             <ChevronRight
                 aria-hidden
@@ -566,6 +601,7 @@ interface SidebarMenuLinkItemProps
     extends React.ComponentProps<typeof MenuLinkItem> {
     href: string;
     icon: React.ReactNode;
+    label: string;
     shortcutKeys?: string;
 }
 
@@ -573,13 +609,29 @@ export function SidebarMenuLinkItem({
     className,
     href,
     icon,
+    label,
     shortcutKeys,
     children,
+    "aria-label": ariaLabelProp,
+    title: titleProp,
     ...props
 }: SidebarMenuLinkItemProps) {
+    const m = useMessages();
+
+    useSidebarNavigationHotkey(href, label, shortcutKeys);
+
+    const ariaLabel = ariaLabelProp ?? m(label);
+    const title = titleProp ?? ariaLabel;
+
     return (
-        <MenuLinkItem {...props} className={cn("group", className)} href={href}>
-            {icon}
+        <MenuLinkItem
+            {...props}
+            aria-label={ariaLabel}
+            className={cn("group", className)}
+            href={href}
+            title={title}
+        >
+            <SidebarItemIcon>{icon}</SidebarItemIcon>
             <span className="truncate">{children}</span>
             {shortcutKeys ? <SidebarMenuShortcut keys={shortcutKeys} /> : null}
         </MenuLinkItem>
@@ -609,45 +661,12 @@ export function SidebarMenuShortcut({
     );
 }
 
-interface SidebarNavigationShortcutProps {
-    href: string;
-    label: string;
-    shortcutKeys: string;
-}
-
-export function SidebarNavigationShortcut({
-    href,
-    label,
-    shortcutKeys,
-}: SidebarNavigationShortcutProps) {
-    const gt = useGT();
-    const m = useMessages();
-    const router = useRouter();
-
-    const pathname = usePathname();
-
-    const handleShortcut = useStableCallback(() => {
-        if (normalizePathname(pathname) === normalizePathname(href)) {
-            return;
-        }
-        router.push(href);
-    });
-
-    const translatedLabel = m(label);
-
-    useHotkeys(shortcutKeys, handleShortcut, {
-        description: gt("Navigate to {label}", { label: translatedLabel }),
-        preventDefault: true,
-    });
-
-    return null;
-}
-
 interface SidebarNavigationItemProps extends React.ComponentProps<typeof Link> {
     href: string;
     icon: React.ReactNode;
     label: string;
     shortcutKeys?: string;
+    trailing?: React.ReactNode;
 }
 
 export function SidebarNavigationItem({
@@ -655,6 +674,7 @@ export function SidebarNavigationItem({
     icon,
     label,
     shortcutKeys,
+    trailing,
     children,
     "aria-label": ariaLabelProp,
     title: titleProp,
@@ -662,8 +682,13 @@ export function SidebarNavigationItem({
 }: SidebarNavigationItemProps) {
     const m = useMessages();
 
+    useSidebarNavigationHotkey(href, label, shortcutKeys);
+
     const ariaLabel = ariaLabelProp ?? m(label);
     const title = titleProp ?? ariaLabel;
+    const shortcut = shortcutKeys ? (
+        <SidebarItemShortcut keys={shortcutKeys} />
+    ) : null;
 
     return (
         <li
@@ -671,13 +696,6 @@ export function SidebarNavigationItem({
             data-sidebar="navigation-item"
             data-slot="sidebar-navigation-item"
         >
-            {shortcutKeys ? (
-                <SidebarNavigationShortcut
-                    href={href}
-                    label={label}
-                    shortcutKeys={shortcutKeys}
-                />
-            ) : null}
             <ActivePathname
                 href={href}
                 render={
@@ -691,16 +709,27 @@ export function SidebarNavigationItem({
                             />
                         }
                     >
-                        {icon}
+                        <SidebarItemIcon>{icon}</SidebarItemIcon>
                         <SidebarItemValue>{children}</SidebarItemValue>
-                        {shortcutKeys ? (
-                            <Kbd
-                                className="invisible ml-auto bg-transparent opacity-80 group-hover:visible group-focus-visible:visible"
+                        {trailing ? (
+                            <span
+                                className="ml-auto grid shrink-0 items-center justify-items-end [>*]:col-start-1 [>*]:row-start-1"
                                 data-sidebar-label=""
                             >
-                                <KbdCombo keys={shortcutKeys} />
-                            </Kbd>
-                        ) : null}
+                                <span
+                                    className={cn(
+                                        "absolute min-w-0 shrink-0 [grid-area:1/1]",
+                                        shortcutKeys &&
+                                            "group-hover:hidden group-focus-visible:hidden"
+                                    )}
+                                >
+                                    {trailing}
+                                </span>
+                                {shortcut}
+                            </span>
+                        ) : (
+                            shortcut
+                        )}
                     </SidebarItem>
                 }
             />
@@ -708,42 +737,33 @@ export function SidebarNavigationItem({
     );
 }
 
-interface SidebarMenuPromotedItemProps {
+interface SidebarItemIconProps {
     children: React.ReactNode;
-    href: string;
-    icon: React.ReactNode;
-    shortcutKeys?: string;
 }
 
-function SidebarMenuPromotedItem({
-    href,
-    icon,
-    shortcutKeys,
-    children,
-}: SidebarMenuPromotedItemProps) {
+function SidebarItemIcon({ children }: SidebarItemIconProps) {
     return (
-        <li
-            className="list-none"
-            data-sidebar="navigation-item"
-            data-slot="sidebar-navigation-item"
+        <span
+            aria-hidden="true"
+            className="flex shrink-0 items-center justify-center [&_svg]:size-4 [&_svg]:shrink-0"
+            data-sidebar="item-icon"
         >
-            <ActivePathname
-                href={href}
-                render={
-                    <SidebarItem render={<Link href={href} />}>
-                        {icon}
-                        <SidebarItemValue>{children}</SidebarItemValue>
-                        {shortcutKeys ? (
-                            <Kbd
-                                className="invisible ml-auto bg-transparent opacity-80 group-hover:visible group-focus-visible:visible"
-                                data-sidebar-label=""
-                            >
-                                <KbdCombo keys={shortcutKeys} />
-                            </Kbd>
-                        ) : null}
-                    </SidebarItem>
-                }
-            />
-        </li>
+            {children}
+        </span>
+    );
+}
+
+interface SidebarItemShortcutProps {
+    keys: string;
+}
+
+function SidebarItemShortcut({ keys }: SidebarItemShortcutProps) {
+    return (
+        <Kbd
+            className="invisible ml-auto bg-transparent opacity-80 group-hover:visible group-focus-visible:visible"
+            data-sidebar-label=""
+        >
+            <KbdCombo keys={keys} />
+        </Kbd>
     );
 }

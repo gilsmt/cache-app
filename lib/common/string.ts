@@ -122,3 +122,9 @@ export function truncateText(value: string, maxLength: number): string {
 
     return `${value.slice(0, maxLength - 1).trimEnd()}…`;
 }
+
+export const NAME_COLLATOR = new Intl.Collator(undefined, {
+    ignorePunctuation: true,
+    numeric: true,
+    sensitivity: "base",
+});

@@ -21,6 +21,7 @@ export interface LibraryItemIndexes {
     favoriteItemIdSet: ReadonlySet<string>;
     favoriteItems: LibraryItemWithCollections[];
     itemsByCollectionId: Map<string, LibraryItemWithCollections[]>;
+    itemsById: ReadonlyMap<string, LibraryItemWithCollections>;
 }
 
 export function buildLibraryItemIndexes(
@@ -28,12 +29,15 @@ export function buildLibraryItemIndexes(
     previewUrlCache: LibraryItemPreviewUrlCache = new WeakMap()
 ): LibraryItemIndexes {
     const itemsByCollectionId = new Map<string, LibraryItemWithCollections[]>();
+    const itemsById = new Map<string, LibraryItemWithCollections>();
     const previewEntriesByCollectionId = new Map<string, PreviewEntry[]>();
     const favoriteItems: Array<
         LibraryItemWithCollections & { favoritedAt: Date }
     > = [];
 
     for (const item of items) {
+        itemsById.set(item.id, item);
+
         if (isFavoritedItem(item)) {
             favoriteItems.push(item);
         }
@@ -97,6 +101,7 @@ export function buildLibraryItemIndexes(
         favoriteItemIdSet,
         favoriteItems,
         itemsByCollectionId,
+        itemsById,
     };
 }
 

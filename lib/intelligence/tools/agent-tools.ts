@@ -10,14 +10,14 @@ import {
     EmptyAutomationToolInputSchema,
 } from "../automations/tool-inputs";
 import {
-    ASK_CACHE_DOMAIN_FILTER_MAX_LENGTH,
-    ASK_CACHE_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX,
-    ASK_CACHE_OPERATION_LIMIT,
-    ASK_CACHE_SOURCE_FILTER_VALUES,
-    type AskCacheComposerPatch,
-    type AskCacheRequest,
-    AskCacheToolUpdateInputSchema,
-} from "../composer/ask-cache";
+    ASSISTANT_DOMAIN_FILTER_MAX_LENGTH,
+    ASSISTANT_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX,
+    ASSISTANT_OPERATION_LIMIT,
+    ASSISTANT_SOURCE_FILTER_VALUES,
+    type AssistantComposerPatch,
+    type AssistantRequest,
+    AssistantToolUpdateInputSchema,
+} from "../composer/assistant";
 import {
     isNoopComposerPatch,
     normalizeComposerPatchForContext,
@@ -37,33 +37,33 @@ import { GitHubRepoInputSchema, WebSearchInputSchema } from "./tool-inputs";
 
 const AUTOMATION_AGENT_SOURCE_LIMIT = 100;
 
-const ASK_CACHE_LIBRARY_SEARCH_LIMIT_MAX = 50;
-const ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX = 10_000;
-const ASK_CACHE_LIBRARY_TEXT_PREVIEW_LENGTH_MAX = 1000;
+const ASSISTANT_LIBRARY_SEARCH_LIMIT_MAX = 50;
+const ASSISTANT_LIBRARY_SEARCH_OFFSET_MAX = 10_000;
+const ASSISTANT_LIBRARY_TEXT_PREVIEW_LENGTH_MAX = 1000;
 
 export type AutomationAgentSource =
     | { id: string; title: string; type: "library_item"; url: string }
     | { title?: string; type: "web"; url: string };
 
-export const AskCacheLibrarySearchInputSchema = z.strictObject({
+export const AssistantLibrarySearchInputSchema = z.strictObject({
     collectionIds: z
         .array(z.string().trim().min(1).max(128))
         .max(10)
         .optional(),
     domainFilters: z
-        .array(z.string().trim().min(1).max(ASK_CACHE_DOMAIN_FILTER_MAX_LENGTH))
-        .max(ASK_CACHE_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX)
+        .array(z.string().trim().min(1).max(ASSISTANT_DOMAIN_FILTER_MAX_LENGTH))
+        .max(ASSISTANT_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX)
         .describe(
             "Optional site domains to match. Each entry is a bare hostname such as example.com — no scheme, path, or www. prefix. Values with extra parts are reduced to the hostname."
         )
         .optional(),
-    limit: z.int().min(1).max(ASK_CACHE_LIBRARY_SEARCH_LIMIT_MAX).optional(),
+    limit: z.int().min(1).max(ASSISTANT_LIBRARY_SEARCH_LIMIT_MAX).optional(),
     offset: z
         .int()
         .min(0)
-        .max(ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX)
+        .max(ASSISTANT_LIBRARY_SEARCH_OFFSET_MAX)
         .describe(
-            `Skip this many matches before returning results. Continue with the previous result's nextOffset when it is not null. If truncated is true and nextOffset is null, the ${ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX} offset limit prevents another page.`
+            `Skip this many matches before returning results. Continue with the previous result's nextOffset when it is not null. If truncated is true and nextOffset is null, the ${ASSISTANT_LIBRARY_SEARCH_OFFSET_MAX} offset limit prevents another page.`
         )
         .optional(),
     query: z
@@ -75,8 +75,8 @@ export const AskCacheLibrarySearchInputSchema = z.strictObject({
         )
         .optional(),
     sourceFilters: z
-        .array(z.enum(ASK_CACHE_SOURCE_FILTER_VALUES))
-        .max(ASK_CACHE_SOURCE_FILTER_VALUES.length)
+        .array(z.enum(ASSISTANT_SOURCE_FILTER_VALUES))
+        .max(ASSISTANT_SOURCE_FILTER_VALUES.length)
         .optional(),
 });
 
@@ -187,11 +187,11 @@ export function createAutomationAgentTools(args: { runId: string }) {
     };
 }
 
-export function createAskCacheAgentTools(args: {
-    input: AskCacheRequest;
+export function createAssistantAgentTools(args: {
+    input: AssistantRequest;
     userId: string;
 }) {
-    const operations: AskCacheComposerPatch[] = [];
+    const operations: AssistantComposerPatch[] = [];
     const operationSummaries: string[] = [];
     let view: AgentViewPage | null = null;
 
@@ -250,17 +250,17 @@ export function createAskCacheAgentTools(args: {
             description:
                 "Search the user's saved Cache library. Query words are AND-matched across caption, note text, and URL within each item. Prefer concrete names, brands, domains, domainFilters, sourceFilters, or collectionIds over broad category labels. When truncated is true, continue with nextOffset while it is not null; if it is null, explain that the offset limit was reached and the result is partial.",
             execute: (toolInput) =>
-                searchAskCacheLibrary({
+                searchAssistantLibrary({
                     input: toolInput,
                     userId: args.userId,
                 }),
-            inputSchema: AskCacheLibrarySearchInputSchema,
+            inputSchema: AssistantLibrarySearchInputSchema,
         }),
         update_composer: tool({
             description:
                 "Apply a validated composer patch. Batch all state changes into one call. Only include fields that differ from the current composer state; noop patches are rejected. Prefer high-confidence concrete filters (domains, collections, sources, entity names) over generic category searchTerms.",
             execute: (toolInput) => {
-                if (operations.length >= ASK_CACHE_OPERATION_LIMIT) {
+                if (operations.length >= ASSISTANT_OPERATION_LIMIT) {
                     return {
                         ok: false,
                         reason: "operation_limit_reached",
@@ -293,7 +293,7 @@ export function createAskCacheAgentTools(args: {
                     summary: toolInput.summary,
                 };
             },
-            inputSchema: AskCacheToolUpdateInputSchema,
+            inputSchema: AssistantToolUpdateInputSchema,
         }),
         web_search: tool({
             description:
@@ -308,7 +308,7 @@ export function createAskCacheAgentTools(args: {
 
     return {
         getOperationSummaries: (): string[] => [...operationSummaries],
-        getOperations: (): AskCacheComposerPatch[] => [...operations],
+        getOperations: (): AssistantComposerPatch[] => [...operations],
         getView: (): AgentViewPage | null => view,
         tools,
     };
@@ -328,8 +328,8 @@ function uniqueSources(sources: AutomationAgentSource[]) {
     };
 }
 
-async function searchAskCacheLibrary(args: {
-    input: z.infer<typeof AskCacheLibrarySearchInputSchema>;
+async function searchAssistantLibrary(args: {
+    input: z.infer<typeof AssistantLibrarySearchInputSchema>;
     userId: string;
 }) {
     // Import the database client lazily so this module stays importable
@@ -338,11 +338,11 @@ async function searchAskCacheLibrary(args: {
 
     const limit = Math.min(
         args.input.limit ?? 20,
-        ASK_CACHE_LIBRARY_SEARCH_LIMIT_MAX
+        ASSISTANT_LIBRARY_SEARCH_LIMIT_MAX
     );
     const offset = Math.min(
         args.input.offset ?? 0,
-        ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX
+        ASSISTANT_LIBRARY_SEARCH_OFFSET_MAX
     );
     const search = args.input.query?.trim();
     const collectionIds = args.input.collectionIds ?? [];
@@ -403,7 +403,7 @@ async function searchAskCacheLibrary(args: {
             textPreview: item.noteContentText
                 ? truncateChars(
                       item.noteContentText,
-                      ASK_CACHE_LIBRARY_TEXT_PREVIEW_LENGTH_MAX,
+                      ASSISTANT_LIBRARY_TEXT_PREVIEW_LENGTH_MAX,
                       "…"
                   )
                 : null,
@@ -411,7 +411,7 @@ async function searchAskCacheLibrary(args: {
         })),
         limit,
         nextOffset:
-            truncated && nextOffset <= ASK_CACHE_LIBRARY_SEARCH_OFFSET_MAX
+            truncated && nextOffset <= ASSISTANT_LIBRARY_SEARCH_OFFSET_MAX
                 ? nextOffset
                 : null,
         offset,

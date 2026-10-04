@@ -17,7 +17,7 @@ import {
     useCollectionsContext,
     useCollectionsPendingActionsContext,
 } from "@/components/session/collections";
-import { useItemsContext } from "@/components/session/items";
+import { useItemsStateContext } from "@/components/session/items";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -208,7 +208,7 @@ export function OnboardingMenu({
     const gt = useGT();
     const { isCollectionActionPending } = useCollectionsPendingActionsContext();
     const { collections, syncCollectionShare } = useCollectionsContext();
-    const { items } = useItemsContext();
+    const { items } = useItemsStateContext();
     const { setOpen: setIsSidebarOpen } = useSidebarContext();
     const { copyToClipboard } = useCopyToClipboard();
     const ensureAccess = useCollectionAccessGate();

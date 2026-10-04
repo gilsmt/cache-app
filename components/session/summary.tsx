@@ -1,5 +1,6 @@
 "use client";
 
+import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { Calligraph } from "calligraph";
 import { cn } from "cn";
 import * as HeatGraph from "heat-graph";
@@ -80,11 +81,7 @@ interface SummaryDataListProps
     metrics: LibraryMetricsSnapshot;
 }
 
-export function SummaryDataList({
-    actions,
-    metrics,
-    ...props
-}: SummaryDataListProps) {
+function SummaryDataList({ actions, metrics, ...props }: SummaryDataListProps) {
     const {
         addedInLast30DaysCount,
         duplicateCount,
@@ -119,7 +116,7 @@ export function SummaryDataList({
     ].filter((row) => !row.isHiddenWhenEmpty || row.value > 0);
 
     return (
-        <DataList {...props} className="-my-2">
+        <DataList {...props} className={cn("-my-2", props.className)}>
             {actions ? (
                 <>
                     {actions}
@@ -281,6 +278,10 @@ interface ActivityHeatmapProps {
 function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
     const [activeLabel, setActiveLabel] = useState<string | null>(null);
 
+    const clearActiveLabel = useStableCallback(() => {
+        setActiveLabel(null);
+    });
+
     return (
         <div className="col-span-full grid min-w-0 gap-3">
             <HeatGraph.Root
@@ -319,6 +320,7 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                                 aria-hidden={!isActiveDay}
                                 aria-label={label}
                                 className="aspect-square min-w-0 rounded-[1px] focus-visible:ring-2 focus-visible:ring-ring"
+                                onBlur={clearActiveLabel}
                                 onFocus={
                                     label
                                         ? () => setActiveLabel(label)

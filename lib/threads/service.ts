@@ -273,6 +273,28 @@ export async function setThreadArchived(args: {
     });
 }
 
+export async function deleteThread(args: {
+    threadId: string;
+    userId: string;
+}): Promise<void> {
+    const result = await prisma.chat.deleteMany({
+        where: {
+            id: args.threadId,
+            userId: args.userId,
+        },
+    });
+
+    if (result.count === 1) {
+        return;
+    }
+
+    throw new ThreadError({
+        code: "not_found",
+        message: "That chat is no longer available.",
+        operation: "deleteThread",
+    });
+}
+
 export async function createThreadForAutomationRun(args: {
     runId: string;
     tx: Pick<Prisma.TransactionClient, "automationRun" | "chat">;

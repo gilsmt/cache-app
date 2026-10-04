@@ -7,12 +7,12 @@ import {
     buildLibraryTextSearchConditions,
 } from "../search";
 import {
-    ASK_CACHE_COLLECTION_MEMBERSHIP_FILTER_VALUES,
-    ASK_CACHE_DOMAIN_FILTER_MAX_LENGTH,
-    ASK_CACHE_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX,
-    ASK_CACHE_SEARCH_TERM_MAX_LENGTH,
-    ASK_CACHE_SOURCE_FILTER_VALUES,
-} from "./ask-cache";
+    ASSISTANT_COLLECTION_MEMBERSHIP_FILTER_VALUES,
+    ASSISTANT_DOMAIN_FILTER_MAX_LENGTH,
+    ASSISTANT_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX,
+    ASSISTANT_SEARCH_TERM_MAX_LENGTH,
+    ASSISTANT_SOURCE_FILTER_VALUES,
+} from "./assistant";
 
 export const AGENT_VIEW_PAGE_ITEM_LIMIT = 100;
 export const AGENT_VIEW_OFFSET_MAX = 10_000;
@@ -34,17 +34,17 @@ export const AgentViewQuerySchema = z.strictObject({
         .max(AGENT_VIEW_COLLECTION_ID_MAX)
         .optional(),
     domainFilters: z
-        .array(z.string().trim().min(1).max(ASK_CACHE_DOMAIN_FILTER_MAX_LENGTH))
-        .max(ASK_CACHE_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX)
+        .array(z.string().trim().min(1).max(ASSISTANT_DOMAIN_FILTER_MAX_LENGTH))
+        .max(ASSISTANT_LIBRARY_SEARCH_DOMAIN_FILTER_COUNT_MAX)
         .optional(),
     favoritedOnly: z.boolean().optional(),
     kind: z.enum(["bookmark", "note"]).optional(),
     membership: z
-        .enum(ASK_CACHE_COLLECTION_MEMBERSHIP_FILTER_VALUES)
+        .enum(ASSISTANT_COLLECTION_MEMBERSHIP_FILTER_VALUES)
         .optional(),
     sourceFilters: z
-        .array(z.enum(ASK_CACHE_SOURCE_FILTER_VALUES))
-        .max(ASK_CACHE_SOURCE_FILTER_VALUES.length)
+        .array(z.enum(ASSISTANT_SOURCE_FILTER_VALUES))
+        .max(ASSISTANT_SOURCE_FILTER_VALUES.length)
         .optional(),
     text: z.string().trim().min(1).max(AGENT_VIEW_TEXT_MAX_LENGTH).optional(),
 });
@@ -199,7 +199,7 @@ export function compileAgentViewQueryToWhere(
         conditions.push(
             ...buildLibraryTextSearchConditions(
                 text,
-                ASK_CACHE_SEARCH_TERM_MAX_LENGTH
+                ASSISTANT_SEARCH_TERM_MAX_LENGTH
             )
         );
     }

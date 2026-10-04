@@ -636,7 +636,7 @@ const INTEGRATION_ID_SET: ReadonlySet<string> = new Set(
     INTEGRATIONS.map((item) => item.id)
 );
 
-const SOURCE_TO_LABEL = new Map<LibraryItemSource, string>(
+const SOURCE_TO_LABEL = new Map<string, string>(
     INTEGRATIONS.flatMap((integration) =>
         (integration.source?.libraryItemSources ?? []).map((source) => [
             source,
@@ -854,7 +854,7 @@ export function recordHasIntegrationId<K extends string>(
     return isIntegrationId(record[key]);
 }
 
-export function getSourceLabel(source: LibraryItemSource): string {
+export function getSourceLabel(source: string): string {
     return SOURCE_TO_LABEL.get(source) ?? "Other";
 }
 

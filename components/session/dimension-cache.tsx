@@ -7,14 +7,15 @@ import {
     type DimensionsCache,
 } from "@/lib/common/dimension";
 
-export const DimensionsCacheContext =
-    React.createContext<DimensionsCache | null>(null);
+const DimensionsCacheContext = React.createContext<DimensionsCache | null>(
+    null
+);
 
 export function useDimensionCacheContext(): DimensionsCache {
     const context = React.use(DimensionsCacheContext);
     if (!context) {
         throw new Error(
-            "Media previews must be used inside <DimensionsCacheContext>."
+            "useDimensionCacheContext must be used within a <DimensionCacheProvider>."
         );
     }
     return context;

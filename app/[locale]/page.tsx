@@ -127,26 +127,26 @@ const HOME_JSON_LD: Record<string, unknown> = {
 
 const HERO_IMAGE_SIZES = "(max-width: 1024px) 100vw, 1024px";
 const SECTION_IMAGE_SIZES = "(max-width: 768px) 100vw, 512px";
-const ASK_CACHE_QUERY =
+const ASSISTANT_QUERY =
     "What does Cache, the app at https://www.cachd.app, do?";
-const ASK_CACHE_CHATGPT_URL = `https://chatgpt.com/?${new URLSearchParams({
-    q: ASK_CACHE_QUERY,
+const ASSISTANT_CHATGPT_URL = `https://chatgpt.com/?${new URLSearchParams({
+    q: ASSISTANT_QUERY,
 })}`;
-const ASK_CACHE_CLAUDE_URL = `https://claude.ai/new?${new URLSearchParams({
-    q: ASK_CACHE_QUERY,
+const ASSISTANT_CLAUDE_URL = `https://claude.ai/new?${new URLSearchParams({
+    q: ASSISTANT_QUERY,
 })}`;
-const ASK_CACHE_PERPLEXITY_URL = `https://www.perplexity.ai/search?${new URLSearchParams(
+const ASSISTANT_PERPLEXITY_URL = `https://www.perplexity.ai/search?${new URLSearchParams(
     {
-        q: ASK_CACHE_QUERY,
+        q: ASSISTANT_QUERY,
     }
 )}`;
-const ASK_CACHE_GEMINI_URL = `https://gemini.google.com/app?${new URLSearchParams(
+const ASSISTANT_GEMINI_URL = `https://gemini.google.com/app?${new URLSearchParams(
     {
-        q: ASK_CACHE_QUERY,
+        q: ASSISTANT_QUERY,
     }
 )}`;
-const ASK_CACHE_GROK_URL = `https://grok.com/?${new URLSearchParams({
-    q: ASK_CACHE_QUERY,
+const ASSISTANT_GROK_URL = `https://grok.com/?${new URLSearchParams({
+    q: ASSISTANT_QUERY,
 })}`;
 
 export async function generateMetadata({
@@ -921,7 +921,7 @@ export default async function Home() {
                                 nativeButton={false}
                                 render={
                                     <a
-                                        href={ASK_CACHE_CHATGPT_URL}
+                                        href={ASSISTANT_CHATGPT_URL}
                                         rel="noopener noreferrer"
                                         target="_blank"
                                     />
@@ -938,7 +938,7 @@ export default async function Home() {
                                 nativeButton={false}
                                 render={
                                     <a
-                                        href={ASK_CACHE_CLAUDE_URL}
+                                        href={ASSISTANT_CLAUDE_URL}
                                         rel="noopener noreferrer"
                                         target="_blank"
                                     />
@@ -955,7 +955,7 @@ export default async function Home() {
                                 nativeButton={false}
                                 render={
                                     <a
-                                        href={ASK_CACHE_PERPLEXITY_URL}
+                                        href={ASSISTANT_PERPLEXITY_URL}
                                         rel="noopener noreferrer"
                                         target="_blank"
                                     />
@@ -972,7 +972,7 @@ export default async function Home() {
                                 nativeButton={false}
                                 render={
                                     <a
-                                        href={ASK_CACHE_GEMINI_URL}
+                                        href={ASSISTANT_GEMINI_URL}
                                         rel="noopener noreferrer"
                                         target="_blank"
                                     />
@@ -989,7 +989,7 @@ export default async function Home() {
                                 nativeButton={false}
                                 render={
                                     <a
-                                        href={ASK_CACHE_GROK_URL}
+                                        href={ASSISTANT_GROK_URL}
                                         rel="noopener noreferrer"
                                         target="_blank"
                                     />

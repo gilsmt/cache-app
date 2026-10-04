@@ -10,7 +10,7 @@ import {
 } from "@/components/session/collections";
 import { DimensionCacheProvider } from "@/components/session/dimension-cache";
 import { ItemsStateProvider } from "@/components/session/items";
-import { BrowserContent } from "@/components/session/list";
+import { ItemsList } from "@/components/session/list";
 import { SidebarPanel } from "@/components/session/sidebar";
 import { getSessionUserId } from "@/lib/auth/session";
 import { userHasActiveSubscription } from "@/lib/billing/service";
@@ -85,7 +85,7 @@ export default async function LibraryPage() {
         <DimensionCacheProvider>
             <ItemsStateProvider initialItems={items} key={userId}>
                 <CollectionsProvider initialCollections={collections}>
-                    <BrowserContent
+                    <ItemsList
                         connectedIntegrationCount={connectedIntegrations.size}
                         lockedItemCount={lockedItemCount}
                         totalItemCount={totalItemCount}
@@ -96,7 +96,7 @@ export default async function LibraryPage() {
                             />
                             <Collections />
                         </SidebarPanel>
-                    </BrowserContent>
+                    </ItemsList>
                 </CollectionsProvider>
             </ItemsStateProvider>
         </DimensionCacheProvider>

@@ -56,7 +56,7 @@ export interface ComposerAttachment extends FileAttachment {
 
 const ComposerContext = React.createContext<ComposerContext | null>(null);
 
-export function useComposerContext(): ComposerContext {
+function useComposerContext(): ComposerContext {
     const context = React.use(ComposerContext);
     if (!context) {
         throw new Error(
@@ -86,7 +86,7 @@ export function isSubmitKey(event: SubmitKeyEvent): boolean {
     );
 }
 
-export function toSpeakableText(markdown: string): string {
+function toSpeakableText(markdown: string): string {
     // Code blocks and URLs carry no spoken meaning. The clipboard copy keeps
     // the raw markdown, so speech drops them instead of spelling them out.
     let text = markdown.replace(MARKDOWN_CODE_FENCE_PATTERN, " ");
@@ -253,7 +253,7 @@ export function ComposerInput({
             </Command>
             <div
                 aria-hidden
-                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/10 ring-inset dark:ring-white/5"
+                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/10 ring-inset"
             />
         </div>
     );
@@ -438,7 +438,7 @@ export function ReadAloudResponseButton({
 
     const label = isSpeaking
         ? gt("Stop reading response")
-        : gt("Read aloud response ");
+        : gt("Read aloud response");
 
     if (!isSupported) {
         return null;

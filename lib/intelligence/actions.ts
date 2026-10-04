@@ -6,11 +6,11 @@ import type { CollectionTemplateOption } from "@/lib/collections/templates";
 import { getValidationErrorMessage } from "@/lib/common/action";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
-    type AskCacheRequest,
-    AskCacheRequestSchema,
-    type AskCacheResult,
-} from "./composer/ask-cache";
-import { runAskCacheAgent } from "./composer/service";
+    type AssistantRequest,
+    AssistantRequestSchema,
+    type AssistantResult,
+} from "./composer/assistant";
+import { runAssistantAgent } from "./composer/service";
 import {
     type AgentViewPageRequest,
     AgentViewPageRequestSchema,
@@ -156,10 +156,10 @@ export async function getCollectionDescription(
     }
 }
 
-export async function askCache(
-    input: AskCacheRequest
-): Promise<AskCacheResult> {
-    const parsed = AskCacheRequestSchema.safeParse(input);
+export async function runAssistant(
+    input: AssistantRequest
+): Promise<AssistantResult> {
+    const parsed = AssistantRequestSchema.safeParse(input);
     if (!parsed.success) {
         return {
             message: getValidationErrorMessage(
@@ -176,7 +176,7 @@ export async function askCache(
     }
 
     try {
-        const result = await runAskCacheAgent({
+        const result = await runAssistantAgent({
             input: parsed.data,
             request: await getArcjetRequest(),
             userId: auth.userId,

@@ -24,22 +24,27 @@ const LAST_7_DAYS_MAX_AGE_MS = 7 * MS_PER_DAY;
 const LAST_30_DAYS_MAX_AGE_MS = 30 * MS_PER_DAY;
 
 export type RelativeDateGroupId =
+    | "today"
     | "last-3-days"
     | "last-7-days"
     | "last-30-days"
     | "older";
 
-const RELATIVE_DATE_GROUP_IDS: readonly RelativeDateGroupId[] = [
+export const RELATIVE_DATE_GROUP_IDS: readonly RelativeDateGroupId[] = [
+    "today",
     "last-3-days",
     "last-7-days",
     "last-30-days",
     "older",
 ];
 
-function resolveRelativeDateGroupId(
+export function resolveRelativeDateGroupId(
     timestamp: Date,
     now: Dayjs
 ): RelativeDateGroupId {
+    if (now.isSame(timestamp, "day")) {
+        return "today";
+    }
     const ageMs = now.valueOf() - timestamp.valueOf();
     if (ageMs < 0) {
         return "last-3-days";
@@ -73,10 +78,9 @@ const GROUPING_BY_SORT_FIELD: Partial<
     updated: createRelativeDateGrouping((collection) => collection.updatedAt),
 };
 
-function bucketSortedCollections(
+function groupCollectionsByGrouping(
     collections: readonly LibraryCollectionSummary[],
     grouping: CollectionGrouping,
-    sortField: CollectionSortField,
     now: Dayjs
 ): CollectionSection[] {
     const sections = grouping.groupIds.map((groupId) => ({
@@ -95,7 +99,7 @@ function bucketSortedCollections(
         const section = sectionByGroupId.get(groupId);
         if (section === undefined) {
             throw new Error(
-                `Grouping for "${sortField}" resolved "${groupId}", which is not a declared group.`
+                `Grouping resolved "${groupId}", which is not one of its declared groups: ${grouping.groupIds.join(", ")}.`
             );
         }
         section.collections.push(collection);
@@ -114,10 +118,7 @@ export function groupCollectionsBySortField(
         return null;
     }
 
-    return bucketSortedCollections(
-        collections,
-        grouping,
-        sortField,
-        now
-    ).filter((section) => section.collections.length > 0);
+    return groupCollectionsByGrouping(collections, grouping, now).filter(
+        (section) => section.collections.length > 0
+    );
 }

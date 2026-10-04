@@ -11,7 +11,6 @@ export interface ItemsContext {
     collectionPreviewThumbnailUrlsById: Map<string, string[]>;
     favoriteItemIdSet: ReadonlySet<string>;
     favoriteItems: LibraryItemWithCollections[];
-    items: LibraryItemWithCollections[];
     itemsByCollectionId: Map<string, LibraryItemWithCollections[]>;
     mergeImportedItems: (items: LibraryItemWithCollections[]) => void;
     onCopyLink: (item: LibraryItemWithCollections) => void;
@@ -28,9 +27,6 @@ export interface ItemsContext {
         collectionIds: string[]
     ) => Promise<LibraryItemCollectionsUpdateResult>;
     pendingDeleteItemId: string | null;
-    setItems: React.Dispatch<
-        React.SetStateAction<LibraryItemWithCollections[]>
-    >;
 }
 
 export interface ItemsStateContext {

@@ -203,7 +203,11 @@ import { getOwnerDocument, getOwnerWindow } from "@/lib/common/dom";
 import { saveFile } from "@/lib/common/file";
 import { getSystemControlKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { normalizeWhitespace, slugify } from "@/lib/common/string";
+import {
+    NAME_COLLATOR,
+    normalizeWhitespace,
+    slugify,
+} from "@/lib/common/string";
 import {
     isHttpUrl,
     normalizeURL,
@@ -291,6 +295,7 @@ const COLLECTIONS_LIST_GROUP_LABELS: Record<string, React.ReactNode> = {
     "last-7-days": <T>Last 7 days</T>,
     "last-30-days": <T>Last 30 days</T>,
     older: <T>Older</T>,
+    today: <T>Today</T>,
 } satisfies Record<RelativeDateGroupId, React.ReactNode>;
 
 const DEFAULT_PRIORITY: PriorityOption = {
@@ -369,12 +374,6 @@ const VIEW_OPTIONS = [
     { icon: ArchiveX, label: "Exclude archives", value: "exclude-archives" },
     { icon: GlobeCheck, label: "Show shared only", value: "show-shared-only" },
 ] as const;
-
-const NAME_COLLATOR = new Intl.Collator(undefined, {
-    ignorePunctuation: true,
-    numeric: true,
-    sensitivity: "base",
-});
 
 const LIST_FORMATTER = new Intl.ListFormat(undefined, {
     style: "long",
@@ -473,6 +472,22 @@ type CollectionAccessAction =
     | "send to Notion"
     | "share";
 
+const COLLECTION_ACCESS_UPGRADE_MESSAGE: Record<
+    CollectionAccessAction,
+    (collectionName: string) => string
+> = {
+    copy: (collectionName) =>
+        `Upgrade to copy every item in ${collectionName}.`,
+    export: (collectionName) =>
+        `Upgrade to export every item in ${collectionName}.`,
+    open: (collectionName) =>
+        `Upgrade to open every item in ${collectionName}.`,
+    "send to Notion": (collectionName) =>
+        `Upgrade to send every item in ${collectionName} to Notion.`,
+    share: (collectionName) =>
+        `Upgrade to share every item in ${collectionName}.`,
+};
+
 type PriorityBreakdownEntry = PriorityOption & { count: number };
 
 type SummarySorter = Record<
@@ -511,7 +526,6 @@ interface CollectionsRootPendingActionsContext {
 
 interface CollectionsListHoverContext {
     hoveredCollectionIdRef: React.RefObject<string | null>;
-    hoveredCollectionSourceRef: React.RefObject<CollectionListSource | null>;
     setHoveredCollectionSource: (source: CollectionListSource | null) => void;
 }
 
@@ -803,8 +817,21 @@ function useSubmissionDialog({
 
 function useSmartCollectionsToggle() {
     const { showError } = useCollectionStatus();
-    const { disabled, isLoading, mutate } = useSmartCollectionsPreference();
+    const {
+        disabled,
+        error: preferenceError,
+        isLoading,
+        mutate,
+    } = useSmartCollectionsPreference();
     const isEnabled = typeof disabled === "undefined" ? undefined : !disabled;
+
+    React.useEffect(() => {
+        if (preferenceError) {
+            log.error("Failed to load smart collections preference", {
+                error: preferenceError,
+            });
+        }
+    }, [preferenceError]);
 
     const setEnabled = useStableCallback(async (enabled: boolean) => {
         try {
@@ -856,7 +883,7 @@ export function useCollectionAccessGate() {
 
             if (isHidden) {
                 showError(
-                    `Upgrade to ${action} every item in ${collection.name}.`
+                    COLLECTION_ACCESS_UPGRADE_MESSAGE[action](collection.name)
                 );
                 return false;
             }
@@ -2096,7 +2123,7 @@ export function Collections() {
                     <CollectionsListFavoritesTrigger>
                         <T>Favorites</T>
                     </CollectionsListFavoritesTrigger>
-                    <ToolbarGroup>
+                    <ToolbarGroup className="pointer-events-none absolute right-1 justify-end">
                         <Kbd className="invisible bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
                             <ShiftKbd />
                             <CmdKbd />F
@@ -2139,18 +2166,21 @@ export function Collections() {
                     <CollectionsListTrigger>
                         <T>Collections</T>
                     </CollectionsListTrigger>
-                    <ToolbarGroup>
+                    <ToolbarGroup className="pointer-events-none absolute right-1 justify-end">
                         <Kbd className="invisible bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
                             <ShiftKbd />
                             <CmdKbd />C
                         </Kbd>
                         <ToolbarButton
+                            className="pointer-events-auto"
                             render={<CollectionsListClearButton />}
                         />
                         <ToolbarButton
+                            className="pointer-events-auto"
                             render={<CollectionsListSortingCombobox />}
                         />
                         <ToolbarButton
+                            className="pointer-events-auto"
                             render={<CollectionsListCreateButton />}
                         />
                     </ToolbarGroup>
@@ -2385,7 +2415,6 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
 
     const hoverContextValue: CollectionsListHoverContext = {
         hoveredCollectionIdRef,
-        hoveredCollectionSourceRef,
         setHoveredCollectionSource,
     };
 
@@ -2755,7 +2784,7 @@ function CollectionsListFavoritesItem({
                         />
                         <div
                             aria-hidden
-                            className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
+                            className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/5 ring-inset"
                         />
                     </>
                 )}
@@ -2794,7 +2823,7 @@ function CollectionsListFavoritesItem({
                     )}
                     <div
                         aria-hidden
-                        className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
+                        className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/5 ring-inset"
                     />
                 </PreviewCardPopup>
             </PreviewCard>
@@ -3211,15 +3240,19 @@ function CollectionsListCreateButton({
 
 function CollectionsListSmartCollectionsPopover() {
     const { isEnabled, isLoading, setEnabled } = useSmartCollectionsToggle();
+    // On fetch failure isEnabled stays undefined; fall back to off so the
+    // row resolves instead of holding the skeleton. The failure is logged
+    // in useSmartCollectionsToggle and a retry happens on toggle.
+    const isActive = isEnabled ?? false;
 
     const handleToggle = useStableCallback(async () => {
-        if (typeof isEnabled === "undefined") {
+        if (isLoading) {
             return;
         }
-        await setEnabled(!isEnabled);
+        await setEnabled(!isActive);
     });
 
-    if (isLoading || typeof isEnabled === "undefined") {
+    if (isLoading) {
         return (
             <div className="flex items-center gap-0.5 text-nowrap font-medium text-[11px] opacity-40">
                 Smart Collections
@@ -3237,12 +3270,12 @@ function CollectionsListSmartCollectionsPopover() {
                 className="sr-only"
                 role="status"
             >
-                Smart Collections is {isEnabled ? "active" : "off"}
+                Smart Collections is {isActive ? "active" : "off"}
             </span>
             <PopoverTrigger
                 className={cn(
                     "group not-sr-only flex items-center text-nowrap font-medium text-[11px]",
-                    isEnabled
+                    isActive
                         ? "opacity-70 data-popup-open:opacity-100"
                         : "opacity-50"
                 )}
@@ -3254,7 +3287,7 @@ function CollectionsListSmartCollectionsPopover() {
                 >
                     Smart Collections
                 </GradientWaveText>
-                &nbsp;is {isEnabled ? "active" : "off"}
+                &nbsp;is {isActive ? "active" : "off"}
             </PopoverTrigger>
             <PopoverPopup align="start" positionMethod="fixed">
                 <Image
@@ -3278,7 +3311,7 @@ function CollectionsListSmartCollectionsPopover() {
                         size="xs"
                         variant="link"
                     >
-                        {isEnabled
+                        {isActive
                             ? "Turn off Smart Collections"
                             : "Turn on Smart Collections"}
                     </Button>
@@ -3633,7 +3666,7 @@ function CollectionsListItemPreviewImage({
             </AnimatePresence>
             <div
                 aria-hidden
-                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
+                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/5 ring-inset"
             />
         </div>
     );
