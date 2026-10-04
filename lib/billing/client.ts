@@ -34,7 +34,7 @@ export const getStripeClient = (): Stripe => {
     }
 
     stripeInstance = new Stripe(key, {
-        apiVersion: "2026-08-26.dahlia",
+        apiVersion: "2026-09-30.endive",
         typescript: true,
     });
 
