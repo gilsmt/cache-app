@@ -1,7 +1,5 @@
 import "server-only";
 
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionUserId } from "@/lib/auth/session";
 import { countEnabledAutomations } from "@/lib/intelligence/automations/service";
 
@@ -18,9 +16,5 @@ export async function AutomationsCount() {
         return null;
     }
 
-    return <Badge variant="secondary">{count}</Badge>;
-}
-
-export function AutomationsCountSkeleton() {
-    return <Skeleton className="size-5.5 rounded-full sm:size-4.5" />;
+    return <span className="text-[11px] opacity-80">{count}</span>;
 }

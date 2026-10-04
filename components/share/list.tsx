@@ -4,7 +4,7 @@ import { cn } from "cn";
 import { T } from "gt-next";
 import type * as React from "react";
 import { DimensionCacheProvider } from "@/components/session/dimension-cache";
-import { MediaPreview, NoteContentPreview } from "@/components/session/item";
+import { ItemNotePreview, ItemPreview } from "@/components/session/item";
 import { MasonryItem, MasonryRoot } from "@/components/ui/masonry";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Ticker } from "@/components/ui/ticker";
@@ -115,13 +115,13 @@ function PublicShareGridCard({
             )}
         >
             {isNote ? (
-                <NoteContentPreview contentHtml={noteContent} />
+                <ItemNotePreview contentHtml={noteContent} />
             ) : (
-                <MediaPreview src={data.previewImageUrl} />
+                <ItemPreview src={data.previewImageUrl} />
             )}
             <div
                 aria-hidden
-                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-black/5 ring-inset dark:ring-white/5"
+                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/5 ring-inset"
             />
         </div>
     );

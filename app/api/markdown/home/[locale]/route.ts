@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import {
     BASE_URL,
     CACHE_EXTENSION_DOWNLOAD_URL,

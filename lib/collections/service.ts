@@ -1230,10 +1230,6 @@ interface ListRecentlyDeletedItemsArgs {
     userId: string;
 }
 
-interface CountRecentlyDeletedItemsArgs {
-    userId: string;
-}
-
 interface RecentlyDeletedItem {
     collections: LibraryCollectionTag[];
     deletedAt: Date;
@@ -1276,20 +1272,6 @@ export async function listRecentlyDeletedItems({
         deletedAt: item.deletedAt ?? now,
         item,
     }));
-}
-
-export function countRecentlyDeletedItems({
-    userId,
-}: CountRecentlyDeletedItemsArgs): Promise<number> {
-    const cutoff = new Date(Date.now() - LIBRARY_ITEM_TRASH_WINDOW_MS);
-
-    return prisma.libraryItem.count({
-        where: {
-            deletedAt: { gte: cutoff },
-            kind: { not: ITEM_KIND_FOLDER },
-            userId,
-        },
-    });
 }
 
 export async function toggleLibraryItemFavorite({

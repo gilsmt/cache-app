@@ -38,6 +38,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { ErrorMessage } from "@/components/ui/error-message";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getMonthDayLabel } from "@/lib/common/date";
@@ -544,7 +545,7 @@ export function AutomationComposerDialog({
                                 id={promptId}
                                 isUnstyled
                                 onChange={handlePromptChange}
-                                placeholder="Describe what Cache should do"
+                                placeholder="Describe what Cache should do…"
                                 required
                                 rows={5}
                                 size="lg"
@@ -628,15 +629,12 @@ export function AutomationComposerDialog({
                                 </>
                             ) : null}
                         </div>
-                        {formState.errorMessage ? (
-                            <p
-                                className="text-destructive text-sm leading-6"
-                                id={errorId}
-                                role="alert"
-                            >
-                                {formState.errorMessage}
-                            </p>
-                        ) : null}
+                        <ErrorMessage
+                            className="text-sm leading-relaxed"
+                            id={errorId}
+                        >
+                            {formState.errorMessage}
+                        </ErrorMessage>
                     </DialogPanel>
                     <DialogFooter>
                         <Button isLoading={isPending} size="sm" type="submit">

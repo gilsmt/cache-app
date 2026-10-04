@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 
 export function OfflineBadge() {
     const gt = useGT();
+
     const label = gt(
         "You are offline. Any changes you make may be lost until you regain connectivity. Please check your connection and try again."
     );

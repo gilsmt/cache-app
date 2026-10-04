@@ -22,7 +22,7 @@ import {
     openRssManageDialog,
     RssManageDialog,
 } from "@/components/integrations/rss";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
     Collapsible,
@@ -66,6 +66,7 @@ const INTEGRATIONS_DISCLAIMER_VISIBLE_STORAGE_KEY =
 const ACTION_STATUS_DISMISS_MS = 6000;
 
 const INTEGRATIONS_LIST_MAX_VISIBLE = 6;
+const INTEGRATIONS_LIST_OVERFLOW_PREVIEW_COUNT = 3;
 
 const NO_ACTION_FEEDBACK: IntegrationActionResult = {
     refresh: false,
@@ -508,10 +509,13 @@ function IntegrationsListTrigger({
                 />
                 <div className="m-3 flex max-w-64 flex-col gap-2">
                     <h2 className="font-medium text-sm">
-                        <T>Import from other apps</T>
+                        <T>Integrations</T>
                     </h2>
                     <p className="text-foreground text-xs">
-                        <T>Sync content from other apps into your library.</T>
+                        <T>
+                            Enable Cache to sync content from other platforms
+                            into your library.
+                        </T>
                     </p>
                 </div>
             </PreviewCardPopup>
@@ -531,9 +535,41 @@ function IntegrationsListContent({
     return (
         <CollapsibleListVertical
             {...props}
+            collapsedPreview={<IntegrationsListOverflowPreview />}
             maxVisible={INTEGRATIONS_LIST_MAX_VISIBLE}
             triggerProps={{ className: "ml-1.25" }}
         />
+    );
+}
+
+function IntegrationsListOverflowPreview() {
+    const previewIntegrations = INTEGRATIONS.slice(
+        INTEGRATIONS_LIST_MAX_VISIBLE,
+        INTEGRATIONS_LIST_MAX_VISIBLE + INTEGRATIONS_LIST_OVERFLOW_PREVIEW_COUNT
+    );
+
+    if (previewIntegrations.length === 0) {
+        return null;
+    }
+
+    return (
+        <AvatarGroup aria-hidden="true" className="-space-x-1.5">
+            {previewIntegrations.map((integration) => {
+                const PreviewIcon = integration.Icon;
+
+                return (
+                    <Avatar className="size-5 rounded-md" key={integration.id}>
+                        <AvatarFallback className="rounded-md bg-background ring-1 ring-border ring-inset">
+                            <PreviewIcon
+                                aria-hidden
+                                className="size-3.5"
+                                focusable="false"
+                            />
+                        </AvatarFallback>
+                    </Avatar>
+                );
+            })}
+        </AvatarGroup>
     );
 }
 

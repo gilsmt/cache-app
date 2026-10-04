@@ -4,6 +4,7 @@ import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
 import { T, Var } from "gt-next";
 import { RotateCcw, Trash } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +49,7 @@ interface PendingAction {
 }
 
 interface RecentlyDeletedListContext {
+    isActionPending: boolean;
     items: LibraryItemWithCollections[];
     onRequestAction: (
         item: LibraryItemWithCollections,
@@ -73,7 +75,11 @@ function displayTitle(item: LibraryItemWithCollections): string {
     if (item.kind === ITEM_KIND_NOTE) {
         return item.noteContentText?.trim() || "Untitled note";
     }
-    return item.caption?.trim() || parseDisplayUrl(item.url);
+    const caption = item.caption?.trim();
+    if (caption) {
+        return caption;
+    }
+    return parseDisplayUrl(item.url) || item.url.trim() || "Untitled";
 }
 
 function formatCountdownCopy(daysRemaining: number): React.ReactNode {
@@ -95,11 +101,18 @@ interface RecentlyDeletedListProps {
 }
 
 export function RecentlyDeletedList({ items }: RecentlyDeletedListProps) {
-    const [isPending, startTransition] = React.useTransition();
+    const router = useRouter();
+    const [isConfirmPending, startConfirmTransition] = React.useTransition();
+    const [isDeleteAllPending, startDeleteAllTransition] =
+        React.useTransition();
+    const isActionPending = isConfirmPending || isDeleteAllPending;
     const [activeAction, setActiveAction] =
         React.useState<PendingAction | null>(null);
     const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
-    const [failure, setFailure] = React.useState<ActionFailure | null>(null);
+    const [confirmFailure, setConfirmFailure] =
+        React.useState<ActionFailure | null>(null);
+    const [deleteAllFailure, setDeleteAllFailure] =
+        React.useState<ActionFailure | null>(null);
     const [hiddenItemIds, setHiddenItemIds] = React.useState<Set<string>>(
         () => new Set()
     );
@@ -107,16 +120,30 @@ export function RecentlyDeletedList({ items }: RecentlyDeletedListProps) {
 
     const visibleItems = items.filter((item) => !hiddenItemIds.has(item.id));
 
+    React.useEffect(() => {
+        setHiddenItemIds((current) => {
+            if (current.size === 0) {
+                return current;
+            }
+            const liveIds = new Set(items.map((item) => item.id));
+            const next = new Set([...current].filter((id) => liveIds.has(id)));
+            return next.size === current.size ? current : next;
+        });
+    }, [items]);
+
     const handleRequestAction = useStableCallback(
         (item: LibraryItemWithCollections, kind: PendingAction["kind"]) => {
-            setFailure(null);
+            if (isActionPending) {
+                return;
+            }
+            setConfirmFailure(null);
             setActiveAction({ item, kind });
             setIsConfirmOpen(true);
         }
     );
 
     const handleConfirmOpenChange = useStableCallback((open: boolean) => {
-        if (open || isPending) {
+        if (open || isConfirmPending) {
             return;
         }
         setIsConfirmOpen(false);
@@ -128,17 +155,19 @@ export function RecentlyDeletedList({ items }: RecentlyDeletedListProps) {
                 return;
             }
             setActiveAction(null);
-            setFailure(null);
+            setConfirmFailure(null);
         }
     );
 
     const handleConfirmAction = useStableCallback(() => {
         const target = activeAction;
-        if (!target) {
+
+        if (!target || isActionPending) {
             return;
         }
 
-        startTransition(async () => {
+        setConfirmFailure(null);
+        startConfirmTransition(async () => {
             try {
                 const response =
                     target.kind === "restore"
@@ -153,9 +182,10 @@ export function RecentlyDeletedList({ items }: RecentlyDeletedListProps) {
                         new Set(current).add(target.item.id)
                     );
                     setIsConfirmOpen(false);
+                    router.refresh();
                     return;
                 }
-                setFailure({
+                setConfirmFailure({
                     kind: target.kind,
                     serverMessage: response.message,
                 });
@@ -164,14 +194,18 @@ export function RecentlyDeletedList({ items }: RecentlyDeletedListProps) {
                     error,
                     itemId: target.item.id,
                 });
-                setFailure({ kind: target.kind });
+                setConfirmFailure({ kind: target.kind });
             }
         });
     });
 
     const handleDeleteAll = useStableCallback(() => {
-        startTransition(async () => {
-            setFailure(null);
+        if (isActionPending) {
+            return;
+        }
+
+        setDeleteAllFailure(null);
+        startDeleteAllTransition(async () => {
             try {
                 const response = await purgeAllRecentlyDeletedItems();
                 if (response.status === ACTION_STATUS.DELETED) {
@@ -180,9 +214,10 @@ export function RecentlyDeletedList({ items }: RecentlyDeletedListProps) {
                             new Set([...current, ...response.purgedItemIds])
                     );
                     setShowDeleteAllDialog(false);
+                    router.refresh();
                     return;
                 }
-                setFailure({
+                setDeleteAllFailure({
                     kind: "purge-all",
                     serverMessage: response.message,
                 });
@@ -190,19 +225,22 @@ export function RecentlyDeletedList({ items }: RecentlyDeletedListProps) {
                 log.error("Failed to purge all recently deleted items", {
                     error,
                 });
-                setFailure({ kind: "purge-all" });
+                setDeleteAllFailure({ kind: "purge-all" });
             }
         });
     });
 
     const handleRequestDeleteAll = useStableCallback(() => {
-        setFailure(null);
+        if (isActionPending) {
+            return;
+        }
+        setDeleteAllFailure(null);
         setShowDeleteAllDialog(true);
     });
 
     const handleDeleteAllDialogOpenChange = useStableCallback(
         (isOpen: boolean) => {
-            if (isOpen || isPending) {
+            if (isOpen || isDeleteAllPending) {
                 return;
             }
             setShowDeleteAllDialog(false);
@@ -214,11 +252,12 @@ export function RecentlyDeletedList({ items }: RecentlyDeletedListProps) {
             if (isOpen) {
                 return;
             }
-            setFailure(null);
+            setDeleteAllFailure(null);
         }
     );
 
     const contextValue = {
+        isActionPending,
         items: visibleItems,
         onRequestAction: handleRequestAction,
         onRequestDeleteAll: handleRequestDeleteAll,
@@ -237,16 +276,16 @@ export function RecentlyDeletedList({ items }: RecentlyDeletedListProps) {
             </div>
             <RecentlyDeletedConfirmDialog
                 activeAction={activeAction}
-                failure={failure}
-                isPending={isPending}
+                failure={confirmFailure}
+                isPending={isConfirmPending}
                 onConfirm={handleConfirmAction}
                 onOpenChange={handleConfirmOpenChange}
                 onOpenChangeComplete={handleConfirmOpenChangeComplete}
                 open={isConfirmOpen}
             />
             <RecentlyDeletedDeleteAllDialog
-                failure={failure}
-                isPending={isPending}
+                failure={deleteAllFailure}
+                isPending={isDeleteAllPending}
                 onDeleteAll={handleDeleteAll}
                 onOpenChange={handleDeleteAllDialogOpenChange}
                 onOpenChangeComplete={handleDeleteAllDialogOpenChangeComplete}
@@ -278,7 +317,8 @@ function RecentlyDeletedListContent({
 }
 
 function RecentlyDeletedListToolbar() {
-    const { items, onRequestDeleteAll } = useRecentlyDeletedListContext();
+    const { isActionPending, items, onRequestDeleteAll } =
+        useRecentlyDeletedListContext();
 
     if (items.length === 0) {
         return null;
@@ -287,6 +327,7 @@ function RecentlyDeletedListToolbar() {
     return (
         <Button
             className="self-end"
+            disabled={isActionPending}
             onClick={onRequestDeleteAll}
             size="sm"
             variant="destructive-outline"
@@ -329,10 +370,13 @@ interface RecentlyDeletedListItemProps {
 }
 
 function RecentlyDeletedListItem({ item }: RecentlyDeletedListItemProps) {
-    const { onRequestAction } = useRecentlyDeletedListContext();
+    const { isActionPending, onRequestAction } =
+        useRecentlyDeletedListContext();
 
     const SourceIcon = getSourceIcon(item.source) ?? Trash;
+    const title = displayTitle(item);
     const displayUrl = parseDisplayUrl(item.url);
+    const shouldShowDisplayUrl = displayUrl !== "" && displayUrl !== title;
 
     const handleRestore = useStableCallback(() => {
         onRequestAction(item, "restore");
@@ -351,9 +395,9 @@ function RecentlyDeletedListItem({ item }: RecentlyDeletedListItemProps) {
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <p className="truncate font-medium text-foreground text-sm">
-                    {displayTitle(item)}
+                    {title}
                 </p>
-                {displayUrl ? (
+                {shouldShowDisplayUrl ? (
                     <p className="truncate text-muted-foreground text-xs">
                         {displayUrl}
                     </p>
@@ -372,7 +416,9 @@ function RecentlyDeletedListItem({ item }: RecentlyDeletedListItemProps) {
                     {item.collections.length === 0 ? null : (
                         <span className="truncate text-muted-foreground text-xs">
                             {item.collections.length === 1 ? (
-                                <T>1 collection</T>
+                                <T>
+                                    <Var>{1}</Var> collection
+                                </T>
                             ) : (
                                 <T>
                                     <Var>{item.collections.length}</Var>{" "}
@@ -384,6 +430,7 @@ function RecentlyDeletedListItem({ item }: RecentlyDeletedListItemProps) {
                 </div>
             </div>
             <RecentlyDeletedListItemControls
+                disabled={isActionPending}
                 onPurge={handlePurge}
                 onRestore={handleRestore}
             />
@@ -392,21 +439,33 @@ function RecentlyDeletedListItem({ item }: RecentlyDeletedListItemProps) {
 }
 
 interface RecentlyDeletedListItemControlsProps {
+    disabled?: boolean;
     onPurge: () => void;
     onRestore: () => void;
 }
 
 function RecentlyDeletedListItemControls({
+    disabled,
     onPurge,
     onRestore,
 }: RecentlyDeletedListItemControlsProps) {
     return (
         <div className="flex shrink-0 items-center gap-2">
-            <Button onClick={onRestore} size="sm" variant="outline">
+            <Button
+                disabled={disabled}
+                onClick={onRestore}
+                size="sm"
+                variant="outline"
+            >
                 <RotateCcw aria-hidden className="size-4" focusable="false" />
                 <T>Restore</T>
             </Button>
-            <Button onClick={onPurge} size="sm" variant="destructive">
+            <Button
+                disabled={disabled}
+                onClick={onPurge}
+                size="sm"
+                variant="destructive"
+            >
                 <Trash aria-hidden className="size-4" focusable="false" />
                 <T>Delete forever</T>
             </Button>
@@ -534,13 +593,25 @@ function RecentlyDeletedDeleteAllDialog({
             <DialogPopup>
                 <DialogHeader>
                     <DialogTitle>
-                        <T>Delete all items forever?</T>
+                        {items.length === 1 ? (
+                            <T>Delete this item forever?</T>
+                        ) : (
+                            <T>Delete all items forever?</T>
+                        )}
                     </DialogTitle>
                     <DialogDescription>
-                        <T>
-                            Permanently delete all <Var>{items.length}</Var>{" "}
-                            items from Recently deleted. This cannot be undone.
-                        </T>
+                        {items.length === 1 ? (
+                            <T>
+                                Permanently delete the item in Recently deleted.
+                                This cannot be undone.
+                            </T>
+                        ) : (
+                            <T>
+                                Permanently delete all <Var>{items.length}</Var>{" "}
+                                items from Recently deleted. This cannot be
+                                undone.
+                            </T>
+                        )}
                     </DialogDescription>
                 </DialogHeader>
                 {failure ? (
