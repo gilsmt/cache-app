@@ -59,7 +59,7 @@ The goal is NOT to rubber-stamp what you did. The goal is to catch the shortcuts
     - **Performance**: Unbounded O(n²) operations, N+1 queries, unnecessary allocations
     - **Side effects**: Unintended behavioral changes affecting other components
     - **Backwards compatibility**: Breaking API changes without migration path
-    - **ORM queries**: Complex Django ORM with unexpected query performance
+    - **ORM queries**: Complex ORM with unexpected query performance
     - **Security vulnerabilities**: Injection, XSS, access control gaps, secrets exposure
 
 10. **Report.** After fixing everything, give a brief summary of what you changed and what you flagged.

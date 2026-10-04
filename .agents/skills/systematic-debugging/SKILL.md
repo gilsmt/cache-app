@@ -3,6 +3,8 @@ name: systematic-debugging
 description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes.
 ---
 
+<!-- Based on https://github.com/obra/superpowers/blob/main/skills/systematic-debugging/SKILL.md -->
+
 # Systematic Debugging
 
 ## Overview
