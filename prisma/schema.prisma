@@ -283,7 +283,7 @@ model LibraryItem {
 }
 
 /// User-authored single comment attached to an item. One row per item; clearing
-/// the comment deletes the row. Notes cannot carry comments.
+/// the comment deletes the row.
 model Comment {
     id            String      @id @default(cuid())
     userId        String

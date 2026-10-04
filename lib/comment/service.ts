@@ -5,7 +5,7 @@ import {
     LIBRARY_ITEM_COLLECTIONS_INCLUDE,
     toLibraryItemWithCollections,
 } from "@/lib/collections/utils";
-import { ITEM_KIND_NOTE, SORT_DESC } from "@/lib/common/constants";
+import { SORT_DESC } from "@/lib/common/constants";
 import { prisma } from "@/prisma";
 import { CommentError } from "./error";
 import { COMMENT_TEXT_MAX_LENGTH, normalizeCommentText } from "./utils";
@@ -84,7 +84,6 @@ export async function listCommentsForUser({
 /**
  * Create, update, or delete the single comment on an item. Empty (or
  * whitespace-only) drafts delete the row so "no comment" has one legal state.
- * Notes cannot carry comments.
  */
 export async function saveCommentForItem({
     contentText,
@@ -107,7 +106,7 @@ export async function saveCommentForItem({
 
     await prisma.$transaction(async (tx) => {
         const item = await tx.libraryItem.findFirst({
-            select: { kind: true },
+            select: { id: true },
             where: { deletedAt: null, id: itemId, userId },
         });
 
@@ -115,14 +114,6 @@ export async function saveCommentForItem({
             throw new CommentError({
                 code: "not_found",
                 message: "We couldn't find that saved item.",
-                operation: "saveCommentForItem",
-            });
-        }
-
-        if (item.kind === ITEM_KIND_NOTE) {
-            throw new CommentError({
-                code: "invalid_kind",
-                message: "Comments are not available for notes.",
                 operation: "saveCommentForItem",
             });
         }

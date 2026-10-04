@@ -69,7 +69,6 @@ export async function getLibraryItemComment(
     } catch (error) {
         return handleActionError({
             codeToStatus: {
-                invalid_kind: ACTION_STATUS.INVALID,
                 not_found: ACTION_STATUS.NOT_FOUND,
             },
             error,
@@ -114,7 +113,6 @@ export async function updateLibraryItemComment(input: {
     } catch (error) {
         return handleActionError({
             codeToStatus: {
-                invalid_kind: ACTION_STATUS.INVALID,
                 not_found: ACTION_STATUS.NOT_FOUND,
                 too_long: ACTION_STATUS.INVALID,
             },
