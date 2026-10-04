@@ -15,8 +15,8 @@ import {
 } from "@/components/session/composer";
 import { ThreadMessage } from "@/components/session/message";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ScrollToBottomButton } from "@/components/ui/scroll-to-bottom-button";
 import { Textarea } from "@/components/ui/textarea";
+import { ToBottomButton } from "@/components/ui/to-bottom-button";
 import { getErrorMessage } from "@/lib/common/error";
 import { getMessageText } from "@/lib/threads/messages";
 import type { ThreadSource } from "@/lib/threads/sources";
@@ -109,13 +109,13 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
                         ) : null}
                     </div>
                 </div>
-                <ScrollToBottomButton
+                <ToBottomButton
                     aria-label={gt("Scroll to bottom")}
                     onStickChange={handleStickChange}
                     viewportRef={scrollViewportRef}
                 >
                     <ArrowDown aria-hidden focusable="false" />
-                </ScrollToBottomButton>
+                </ToBottomButton>
             </div>
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-6 pb-6">
                 {error ? (

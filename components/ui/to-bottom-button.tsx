@@ -16,14 +16,13 @@ function isScrolledAway(viewport: HTMLElement, distancePx: number): boolean {
     );
 }
 
-interface ScrollToBottomButtonProps
-    extends React.ComponentProps<typeof Button> {
+interface ToBottomButtonProps extends React.ComponentProps<typeof Button> {
     onStickChange?: (shouldStick: boolean) => void;
     stickDistancePx?: number;
     viewportRef: React.RefObject<HTMLElement | null>;
 }
 
-export function ScrollToBottomButton({
+export function ToBottomButton({
     className,
     onClick,
     size = "icon-sm",
@@ -32,7 +31,7 @@ export function ScrollToBottomButton({
     stickDistancePx = SCROLL_STICK_DISTANCE_PX,
     onStickChange,
     ...props
-}: ScrollToBottomButtonProps) {
+}: ToBottomButtonProps) {
     const prefersReducedMotion = useReducedMotion();
     const [isVisible, setIsVisible] = React.useState(false);
     const onStickChangeRef = React.useRef(onStickChange);

@@ -24,7 +24,7 @@ function getServerSnapshot() {
     return false;
 }
 
-export function BackToTopButton({
+export function ToTopButton({
     className,
     onClick,
     size = "sm",
