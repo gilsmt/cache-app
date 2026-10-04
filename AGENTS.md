@@ -67,9 +67,13 @@ When refactoring or moving code, preserve existing comments unless they are expl
 
 ## React
 
+Follow [BaseUI conventions](https://base-ui.com/react/handbook/composition).
+
 Every component should be co-located into a single file with its parts, and should use a common, composable interface, making them predictable.
 
-Avoid duplicating logic where necessary: If two components can share logic (such as event handlers), define the logic/handlers in the parent and share it through a context to the child; use the existing context if it exists. Before building any new UI element, search for an existing one to reuse. The same goes for patterns, not just components: before building a new scene or view, read 2–3 comparable ones and model yours on those that follow these rules or best practices.
+Avoid duplicating logic where necessary: If two components can share logic (such as event handlers), define the logic/handlers in the parent and share it through a context to the child; use the existing context if it exists.
+
+Before building any new UI element, search for an existing one to reuse. The same goes for patterns, not just components: before building a new scene or view, read 2–3 comparable ones and model yours on those that follow these rules or best practices.
 
 "Loading", "empty", and "error" are three different views. Never show an empty state during the loading state. Loading indicators (skeletons, spinners) and empty states are mutually exclusive — guard empty state checks with `isLoading` or similar so the loading UI renders first, and the empty state only appears once loading completes with zero results.
 
