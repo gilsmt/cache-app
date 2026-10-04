@@ -67,8 +67,6 @@ When refactoring or moving code, preserve existing comments unless they are expl
 
 ## React
 
-Build components following `vercel-composition-patterns` and `vercel-react-best-practices` rules.
-
 Every component should be co-located into a single file with its parts, and should use a common, composable interface, making them predictable.
 
 Avoid duplicating logic where necessary: If two components can share logic (such as event handlers), define the logic/handlers in the parent and share it through a context to the child; use the existing context if it exists. Before building any new UI element, search for an existing one to reuse. The same goes for patterns, not just components: before building a new scene or view, read 2–3 comparable ones and model yours on those that follow these rules or best practices.

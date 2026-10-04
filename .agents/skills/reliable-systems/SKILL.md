@@ -1,6 +1,6 @@
 ---
 name: reliable-systems
-description: How to think about reliable systems in domain models. Use when designing state management, type systems, domain boundaries, error handling, or service contracts. Triggers on discussions of React state, backend data flow, database design, making illegal states unrepresentable, deriving values instead of storing them, or preventing bugs through types.
+description: How to think about reliable systems in domain models. Use when designing state management, type systems, domain boundaries, error handling, or service contracts. Triggers on discussions of React state, backend data flow, database design, making illegal states unrepresentable, deriving values instead of storing them, preventing bugs through types, diagnosing why a retry or timeout or threshold change did not fix a production problem, or diagnosing oscillation, runaway growth, and cascading failure.
 ---
 
 # How to think about reliability
@@ -75,6 +75,10 @@ CREATE VIEW order_totals AS
 
 Use materialized views when read performance justifies refresh cost.
 
+### Buffers are state you chose on purpose
+
+Not every stored value is an accident. A queue, a connection pool, a retry chain, an in-flight request budget, and a cache are deliberate stocks: they buy stability in exchange for memory, latency, and staleness. The question is not whether they exist, but whether their size was chosen against the flow that will pass through them. See [Intervene on Structure, Not Parameters](#intervene-on-structure-not-parameters).
+
 ### Checklist for new state
 
 Before adding state, ask:
@@ -130,6 +134,8 @@ Now the incantation is the only door in the room. You cannot forget it because t
 That distinction matters. In production, there are plenty of places where we do not need a theorem. We need a design that makes it difficult for an ordinary busy engineer to accidentally do the wrong thing while trying to do a dozen other perfectly reasonable things. The compiler is not merely checking logic here; it is preserving institutional memory and turning it into a hard-edged interface.
 
 When a new engineer joins and asks "how do I write a transaction?", the type system answers them. When a senior engineer leaves, the answer remains. The institutional knowledge survived not because someone documented it beautifully, though documentation is pleasant when available, but because someone encoded it in a form the compiler enforces. The compiler is a better custodian of operational lore than the average wiki — provided the types themselves are maintained and not bypassed with casts or ignore directives, which can leave a codebase in a worse state than a neglected wiki page. It is a tool among many, not a replacement for thoughtful design reviews and clear written guidance.
+
+Types are rules, and rules have a power structure. Every guardrail has a bypass path: a cast, an ignore directive, an env var, a permission someone can grant, a check someone can skip under deadline. The bypass is where the invariant actually dies, so make it loud, and watch the rate. A guardrail that gets routinely bypassed is not a discipline problem; it is telling you the invariant sits in the wrong place. Move it down into a type or a schema where the bypass does not exist.
 
 ## 3. Make Invalid States Unrepresentable
 
@@ -208,6 +214,8 @@ The pattern above—structuring types so that the correct operational procedure 
 They are full of processes that span multiple steps, multiple services, and multiple failure modes. Send a payment, wait for a partner to acknowledge it, update the ledger, notify the customer, handle cancellation, handle timeout, handle the case where the partner said yes but your worker died before recording the answer, handle the case where the partner said nothing because the network briefly entered a higher plane of existence and declined to tell you about it. If any step fails, you need to know where you were, what has already happened, and what still needs to happen. You need state. You need retries. You need timeouts. You need idempotence. You need all of these things to keep working across process crashes and deployments. Very quickly, what began as "just some business logic" amasses a remarkable amount of one-off repeats of common operational concerns.
 
 In practice, resist rebuilding these primitives ad-hoc. Use a durable execution framework, saga orchestration, or an event-sourced workflow engine (e.g., Temporal, Cadence) so that retries, state persistence, and failure handling are first-class rather than scattered across your service code.
+
+Durable execution buys you the one thing that makes multi-step processes tractable: the ability to wait without holding a process. It does not buy immunity to mis-sized waits. Every timeout you write is a delay, and a delay only means something relative to how fast the thing it observes is moving. See [Intervene on Structure, Not Parameters](#intervene-on-structure-not-parameters).
 
 ## 5. Design for Your Domain, Not Your Transport
 
@@ -415,6 +423,56 @@ function withMetrics(client: HttpClient): HttpClient {
 
 With the record, you can wrap sendRequest with timing instrumentation and return a new HttpClient. You can inject faults for testing. You can swap the implementation for a mock. You can add retries, tracing, request rewriting, tenant-specific behavior, or whatever other cross-cutting concern production has discovered for you this quarter. All at runtime, without touching the library's source code. The concrete function is a dead end. The record is a seam, and the code that depends on it never needs to know.
 
+## Intervene on Structure, Not Parameters
+
+Donella Meadows's *Leverage Points* orders interventions by strength. The sections below follow that order, strongest first. The transferable idea is not her list, which is social, but its shape: effort is not proportional to leverage. Almost all of it lands on the last entry, where leverage is smallest. Enter at the top, not the bottom.
+
+### Goals bend everything below them
+
+Below the goal sit the local rules and local optimizations. Each is locally rational; together they produce global behavior that nobody chose. So ask what the code is rewarded for: throughput gets you skipped validation, velocity gets you the hard parts deferred to whoever is not measured, line count gets you line count. Local optimization against the wrong goal is not a bug in the local code. In an incident where every patch passes review and the system still gets worse, the problem is above the code that broke.
+
+### Self-organization: the power to add structure
+
+The strongest resilience a system can have is the power to create structure it did not have, and it needs both an inventory of variations and a cheap way to try one. Both get removed by accident: deleting the second implementation of an interface, letting the test suite rot until nobody can add a variant safely, fixing a flaky test by deleting the case. One provider, one code path, one of everything, is a monoculture that survives exactly one kind of failure.
+
+This is the honest counterweight to YAGNI, and the two agree. Do not build a plugin boundary for an implementation that does not exist. Do keep the second instance cheap where one is genuinely plausible: an interface with one implementation is fine, an interface with a hardcoded client welded into the call path is not.
+
+### Information flows: restore the missing feedback
+
+Missing feedback is a cause of malfunction, not an observability gap, and adding it is almost always cheaper than any structural change. The story: identical houses, identical prices, one electric meter in the basement and one in the front hall. Consumption fell thirty percent. Nothing changed but the feedback reaching the person able to act on it.
+
+Three properties decide whether a signal corrects anything. It must arrive where the decision is made — a dashboard nobody owns, an error in a sink nobody opens, corrects nothing. It must be in a form that moves the party whose action caused the consequence; a number no one acts on does not steer. And it must not flatter its own source. Start with the error path: the swallowed exception, the `catch` that returns an empty array, the failure that degrades so the page still renders. See [Designing for Introspection](#designing-for-introspection).
+
+### Rules: leverage lives in who can bypass them
+
+Types, schemas, lint rules, CI gates, permission boundaries. The leverage is not in the rule itself but in who can weaken or bypass it, and a guardrail everyone can turn off is a suggestion. See [Make the Right Thing Easy](#2-make-the-right-thing-easy).
+
+### Positive feedback: cut the gain before adding a brake
+
+A reinforcing loop multiplies, and left alone it ends in exhaustion: the queue backs up into the request path and the service blocks. It always ends; the only question is whether you choose where. Cutting the gain is almost always cheaper and more effective than strengthening the negative loops that fight it. In software these are retry storms, cache stampedes, thundering herds on fanout, hot keys, pool pileups — anything where holding more of a thing buys more of it. Interventions: backoff with jitter, a hard ceiling on total attempts, a cap on concurrent in-flight work, a negative cache for misses, a breaker on the amplification rather than the symptom.
+
+### Negative feedback: strength must track impact
+
+A correcting loop holds only while its strength is proportionate to the disturbance it absorbs. Impact grows, so feedback has to grow with it, or the system lives at saturation, permanently reporting problems it cannot correct. The expensive mistake is stripping the rarely-used responder because it costs maintenance and fires rarely: in the short term nothing looks different, and in the long term the range of failures the system survives is narrower than anyone remembers. Unused is not dead. "This never runs" is a reason to add a test, not to delete the branch.
+
+### Delays only mean something relative to the rate of change
+
+Shorter than the interval between changes, a delay produces jitter and chasing-your-own-tail; longer produces oscillation, damped or sustained or explosive depending on how much longer. So a backoff ceiling shorter than the upstream's recovery time does not add reliability, it synchronizes every client into one second wave. A cache TTL shorter than the propagation time of the change it caches guarantees a stale entry under load. You rarely control the delay itself; you control the rate of change. Slow the rate below the delay, which is cheaper than pretending to remove it.
+
+### Structure: the shape of the graph decides the behavior
+
+Where the dependencies sit is a decision made once and paid for forever. A node every request traverses sets the latency floor, the blast radius, and the queueing behind it, and no tuning inside it repairs the shape. You cannot reflow a badly shaped system cheaply. The leverage is in the shape you pick at design time, then in knowing its bottlenecks and refusing to push past its capacity.
+
+### Buffers: stock size against flow rate
+
+Stability comes from the size of a stock measured against the flow through it: a small stock with fast flows is a river, a large one is a lake. Queues, pools, in-flight budgets, memory headroom, retry-chain length, cache size. Too small and a transient burst becomes permanent overload. Too large and the buffer absorbs the signal, hiding stale data while the system reports health and slowing recovery, because the drain is slow too. Buffers cost money and they hide information. Size them deliberately and know which of the two you are buying.
+
+### Parameters: the bottom rung, where the effort goes
+
+Retry counts, timeouts, batch sizes, pool sizes, flag thresholds, precision cutoffs, cache TTLs. Everyone tunes these first because they are visible, cheap, and reversible, and they rarely change behavior. A chronically stuck system does not get unstuck, a wildly oscillating one does not settle, a runaway one does not brake. Adding retries to an overloaded dependency is not a fix; it is more load on the loop you were trying to stop. Change a parameter only when it is a threshold, or when crossing it flips you onto a higher rung: a rate limit that arms a circuit breaker is a rule, not a number.
+
+Leverage points are counterintuitive. Handed a system and a list of levers, the intuitive move is reliably to push the wrong one harder, and to be confident while doing it. The order is approximate, exceptions move items up and down, and the higher the lever the harder the system pushes back. When a knob keeps failing, that is not the signal to try the next knob down; it is the signal that you are on the wrong rung.
+
 ## Other applicable patterns
 
 - Explicit reasonable service timeouts.
@@ -422,3 +480,4 @@ With the record, you can wrap sendRequest with timing instrumentation and return
 - Minimize. Don't collect or return what you don't need. Every field you ask for is a liability.
 - Circuit breaker for chronic failures. When an upstream is failing for many requests in a row, stop calling it for a window—let it recover instead of piling on.
 - Concurrency limits on outbound. A sudden burst of requests could fan out unbounded outbound calls—overwhelms upstream, gets you rate-limited, takes your app down with it.
+- Stagger whatever must start together. Deploys, cache warmups, and scheduled jobs that every replica fires on the same second are stampedes with a countdown.

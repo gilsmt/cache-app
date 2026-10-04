@@ -33,7 +33,4 @@ Use when the user is:
 - [data-attributes.mdx](./references/data-attributes.mdx) - Using data attributes for styling and state
 - [design-tokens.mdx](./references/design-tokens.mdx) - Design token systems and theming
 - [styling.mdx](./references/styling.mdx) - Component styling approaches
-- [registry.mdx](./references/registry.mdx) - shadcn-style registry distribution
-- [npm.mdx](./references/npm.mdx) - Publishing components to npm
-- [marketplaces.mdx](./references/marketplaces.mdx) - Component marketplace distribution
 - [docs.mdx](./references/docs.mdx) - Writing component documentation
