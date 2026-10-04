@@ -713,7 +713,7 @@ export function SidebarNavigationItem({
                         <SidebarItemValue>{children}</SidebarItemValue>
                         {trailing ? (
                             <span
-                                className="ml-auto grid shrink-0 items-center justify-items-end [>*]:col-start-1 [>*]:row-start-1"
+                                className="ml-auto grid shrink-0 items-center justify-items-end *:col-start-1 *:row-start-1"
                                 data-sidebar-label=""
                             >
                                 <span
