@@ -4459,9 +4459,7 @@ export function ItemsList({
         (event: BaseUIEvent<React.KeyboardEvent<HTMLInputElement>>) => {
             if (
                 event.key === "Escape" ||
-                (event.key === "Tab" &&
-                    paletteSection === "search" &&
-                    query.trim() !== "")
+                (event.key === "Tab" && query.trim() !== "")
             ) {
                 event.preventDefault();
                 event.stopPropagation();

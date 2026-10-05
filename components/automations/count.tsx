@@ -16,5 +16,5 @@ export async function AutomationsCount() {
         return null;
     }
 
-    return <span className="text-[11px] opacity-80">{count}</span>;
+    return <span className="text-xs opacity-80">{count}</span>;
 }
