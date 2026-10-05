@@ -1,7 +1,11 @@
 "use client";
 
 import type { BaseUIEvent } from "@base-ui/react";
-import { getTarget } from "@base-ui/utils/shadowDom";
+import {
+    contains,
+    activeElement as getActiveElement,
+    getTarget,
+} from "@base-ui/utils/shadowDom";
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
@@ -1064,12 +1068,12 @@ export function SideContent() {
         const trackInvoker = (target: EventTarget | null) => {
             if (
                 target instanceof ownerWindow.HTMLElement &&
-                !aside?.contains(target)
+                !contains(aside, target)
             ) {
                 invokerRef.current = target;
             }
         };
-        trackInvoker(doc.activeElement);
+        trackInvoker(getActiveElement(doc));
         const handleFocusIn = (event: FocusEvent) => {
             trackInvoker(getTarget(event));
         };
@@ -1108,8 +1112,8 @@ export function SideContent() {
         }
         const invoker = invokerRef.current;
         invokerRef.current = null;
-        const activeElement = doc.activeElement;
-        if (activeElement && aside.contains(activeElement)) {
+        const activeElement = getActiveElement(doc);
+        if (contains(aside, activeElement)) {
             if (
                 invoker?.isConnected &&
                 invoker !== doc.body &&

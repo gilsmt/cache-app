@@ -2393,6 +2393,8 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
     );
 
     React.useEffect(() => {
+        const win = getOwnerWindow();
+        const doc = getOwnerDocument();
         const clearStaleCollectionHover = () => {
             hoveredCollectionIdRef.current = null;
             hoveredCollectionSourceRef.current = null;
@@ -2403,8 +2405,6 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
                 clearStaleCollectionHover();
             }
         };
-        const win = getOwnerWindow();
-        const doc = getOwnerDocument();
         win.addEventListener("blur", clearStaleCollectionHover);
         doc.addEventListener("visibilitychange", handleVisibilityChange);
         return () => {
