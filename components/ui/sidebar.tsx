@@ -110,7 +110,7 @@ function useSidebarNavigationHotkey(
 
     useHotkeys(shortcutKeys ?? "", handleShortcut, {
         description: gt("Navigate to {label}", { label: translatedLabel }),
-        enabled: Boolean(shortcutKeys),
+        enabled: !!shortcutKeys,
         preventDefault: true,
     });
 }
