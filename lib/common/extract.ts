@@ -67,7 +67,7 @@ export function extractPreviewMetadata(
                 // document, including the image_src/img fallbacks.
                 if (
                     headResult.images.length > 0 &&
-                    lowerHtml.indexOf("og:image", headEndIdx) === -1
+                    !lowerHtml.includes("og:image", headEndIdx)
                 ) {
                     return headResult;
                 }
