@@ -4534,14 +4534,7 @@ export function ItemsList({
             try {
                 await saveFile(
                     new Blob(
-                        [
-                            buildItemsCsv(
-                                "Section",
-                                sectionTitle,
-                                sectionItems,
-                                "\n"
-                            ),
-                        ],
+                        [buildItemsCsv("Section", sectionTitle, sectionItems)],
                         { type: MIME_TYPES.csv }
                     ),
                     {

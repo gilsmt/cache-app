@@ -90,24 +90,6 @@ export function escapeLikePattern(value: string): string {
     return value.replace(LIKE_ESCAPE_PATTERN, "\\$&");
 }
 
-export function escapeCsv(value: string): string {
-    return `"${value.replaceAll('"', '""')}"`;
-}
-
-const CSV_FORMULA_PREFIX_PATTERN = /^[=+\-@]/;
-
-/**
- * Neutralizes CSV formula injection. Spreadsheet applications evaluate cells
- * that begin with =, +, -, or @ (after leading whitespace) as formulas, so
- * prefix a literal apostrophe to force text interpretation. Apply before
- * `escapeCsv`.
- */
-export function neutralizeCsvFormula(value: string): string {
-    return CSV_FORMULA_PREFIX_PATTERN.test(value.trimStart())
-        ? `'${value}`
-        : value;
-}
-
 /**
  * Truncates to maxLength. When truncated, the ellipsis is included in the
  * budget so the result length is at most maxLength.

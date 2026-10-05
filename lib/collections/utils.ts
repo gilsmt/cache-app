@@ -8,13 +8,9 @@ import {
     LIBRARY_ITEM_TRASH_WINDOW_DAYS,
     SORT_ASC,
 } from "@/lib/common/constants";
+import { toCsv } from "@/lib/common/csv";
 import { parseDate } from "@/lib/common/date";
-import {
-    escapeCsv,
-    neutralizeCsvFormula,
-    normalizeWhitespace,
-    truncateText,
-} from "@/lib/common/string";
+import { normalizeWhitespace, truncateText } from "@/lib/common/string";
 import { normalizeURL, toValidUrl } from "@/lib/common/url";
 import { isCobaltHost } from "@/lib/integrations/cobalt/utils";
 import type { LibraryItem, Prisma } from "@/prisma/client/client";
@@ -56,10 +52,6 @@ export function getRecentlyDeletedDaysRemaining(
         deletedAtMs + LIBRARY_ITEM_TRASH_WINDOW_DAYS * DAY_IN_MS;
     return Math.max(0, Math.round((expiresAtMs - nowMs) / DAY_IN_MS));
 }
-
-// ---------------------------------------------------------------------------
-// Domain types
-// ---------------------------------------------------------------------------
 
 export interface LibraryCollectionTag {
     createdAt: Date;
@@ -111,10 +103,6 @@ export interface LibraryCollectionSummaryRecord
     }>;
 }
 
-// ---------------------------------------------------------------------------
-// Shared action error shapes
-// ---------------------------------------------------------------------------
-
 export interface ActionError {
     message: string;
     status:
@@ -141,10 +129,6 @@ export interface ActionErrorWithoutNotFound {
         | typeof ACTION_STATUS.INVALID
         | typeof ACTION_STATUS.UNAUTHORIZED;
 }
-
-// ---------------------------------------------------------------------------
-// Validation
-// ---------------------------------------------------------------------------
 
 export const COLLECTION_NAME_LENGTH_MAX = 64;
 
@@ -180,10 +164,6 @@ export const collectionNameSchema = z
         `Collection names can be up to ${COLLECTION_NAME_LENGTH_MAX} characters.`
     );
 
-// ---------------------------------------------------------------------------
-// Prisma selections
-// ---------------------------------------------------------------------------
-
 export const LIBRARY_COLLECTION_TAG_SELECT = {
     createdAt: true,
     description: true,
@@ -214,10 +194,6 @@ export const LIBRARY_ITEM_COLLECTIONS_SELECT = {
     id: true,
 } as const satisfies Prisma.LibraryItemSelect;
 
-// ---------------------------------------------------------------------------
-// Shared status maps
-// ---------------------------------------------------------------------------
-
 export const STATUS_MAP_NOT_FOUND = {
     not_found: ACTION_STATUS.NOT_FOUND,
 } as const;
@@ -231,10 +207,6 @@ export const STATUS_MAP_TRASHED_ITEM = {
     not_found: ACTION_STATUS.NOT_FOUND,
     not_trashed: ACTION_STATUS.NOT_FOUND,
 } as const;
-
-// ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
 
 export function uniqueLibraryItemSources(
     items: readonly { source: LibraryItemSource }[]
@@ -252,10 +224,6 @@ export function getNoteExcerpt(
 ): string {
     return truncateText(normalizeWhitespace(text ?? ""), maxLength);
 }
-
-// ---------------------------------------------------------------------------
-// Mappers
-// ---------------------------------------------------------------------------
 
 export function toLibraryCollectionTag(
     collection: LibraryCollectionTagRecord
@@ -484,34 +452,30 @@ export function getLibraryItemPrimaryText(
 /**
  * Builds a CSV export of library items prefixed with a leading grouping
  * column whose header cell is `headerLabel` and whose data cells are `label`.
- * Defaults to the RFC 4180 CRLF record separator.
  */
 export function buildItemsCsv(
     headerLabel: string,
     label: string,
-    items: LibraryItemWithCollections[],
-    recordSeparator = "\r\n"
+    items: LibraryItemWithCollections[]
 ): string {
-    const headers = [
-        neutralizeCsvFormula(headerLabel),
-        "Caption",
-        "URL",
-        "Source",
-        "Kind",
-        "Saved At",
-        "Posted At",
-    ];
-    const rows = items.map((item) => [
-        neutralizeCsvFormula(label),
-        neutralizeCsvFormula(item.caption ?? ""),
-        neutralizeCsvFormula(normalizeURL(item.url)),
-        item.source,
-        item.kind,
-        item.createdAt.toISOString(),
-        item.postedAt?.toISOString() ?? "",
+    return toCsv([
+        [
+            headerLabel,
+            "Caption",
+            "URL",
+            "Source",
+            "Kind",
+            "Saved At",
+            "Posted At",
+        ],
+        ...items.map((item) => [
+            label,
+            item.caption ?? "",
+            normalizeURL(item.url),
+            item.source,
+            item.kind,
+            item.createdAt.toISOString(),
+            item.postedAt?.toISOString() ?? "",
+        ]),
     ]);
-
-    return [headers, ...rows]
-        .map((row) => row.map(escapeCsv).join(","))
-        .join(recordSeparator);
 }
