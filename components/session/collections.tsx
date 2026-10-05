@@ -2399,7 +2399,7 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
             hoverHotkeySurface.clear();
         };
         const handleVisibilityChange = () => {
-            if (document.visibilityState === "hidden") {
+            if (doc.visibilityState === "hidden") {
                 clearStaleCollectionHover();
             }
         };

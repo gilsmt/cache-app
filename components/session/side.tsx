@@ -1,6 +1,7 @@
 "use client";
 
 import type { BaseUIEvent } from "@base-ui/react";
+import { getTarget } from "@base-ui/utils/shadowDom";
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
@@ -125,7 +126,11 @@ import {
     truncateLabel,
 } from "@/lib/collections/utils";
 import { ITEM_KIND_BOOKMARK } from "@/lib/common/constants";
-import { getOwnerDocument, isTextEntryTarget } from "@/lib/common/dom";
+import {
+    getOwnerDocument,
+    getOwnerWindow,
+    isTextEntryTarget,
+} from "@/lib/common/dom";
 import { saveFile } from "@/lib/common/file";
 import { getSystemControlKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
@@ -1029,7 +1034,7 @@ export function SideContent() {
         if (
             event.isComposing ||
             !isSideKeyboardShortcut(event) ||
-            isTextEntryTarget(event.target)
+            isTextEntryTarget(getTarget(event))
         ) {
             return;
         }
@@ -1054,15 +1059,19 @@ export function SideContent() {
             return;
         }
         const aside = asideRef.current;
-        const doc = aside?.ownerDocument ?? document;
+        const doc = getOwnerDocument(aside);
+        const ownerWindow = getOwnerWindow(aside);
         const trackInvoker = (target: EventTarget | null) => {
-            if (target instanceof HTMLElement && !aside?.contains(target)) {
+            if (
+                target instanceof ownerWindow.HTMLElement &&
+                !aside?.contains(target)
+            ) {
                 invokerRef.current = target;
             }
         };
         trackInvoker(doc.activeElement);
         const handleFocusIn = (event: FocusEvent) => {
-            trackInvoker(event.target);
+            trackInvoker(getTarget(event));
         };
         doc.addEventListener("focusin", handleFocusIn);
         return () => {
@@ -1080,7 +1089,7 @@ export function SideContent() {
         if (!aside) {
             return;
         }
-        const doc = aside.ownerDocument;
+        const doc = getOwnerDocument(aside);
         if (isOpen) {
             // Notes move focus to the editor in SideNotePanel. Only move
             // focus here for URL tabs so Escape on the aside stays reachable
