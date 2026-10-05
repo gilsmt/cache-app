@@ -83,6 +83,7 @@ interface SummaryDataListProps
 
 function SummaryDataList({ actions, metrics, ...props }: SummaryDataListProps) {
     const {
+        addedActivity,
         addedInLast30DaysCount,
         duplicateCount,
         favoriteCount,
@@ -182,7 +183,7 @@ function SummaryDataList({ actions, metrics, ...props }: SummaryDataListProps) {
             <DataListSection>
                 <DataListSectionTrigger>Activity</DataListSectionTrigger>
                 <DataListSectionContent>
-                    <ActivityHeatmap activity={metrics.addedActivity} />
+                    <ActivityHeatmap activity={addedActivity} />
                 </DataListSectionContent>
             </DataListSection>
         </DataList>
@@ -328,17 +329,16 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                                 }
                                 role={isActiveDay ? "img" : undefined}
                                 tabIndex={isActiveDay ? 0 : undefined}
-                                title={label}
                             />
                         );
                     }}
                 </HeatGraph.Grid>
                 <HeatGraph.Tooltip className="z-50 rounded-md border bg-popover px-2 py-1 text-popover-foreground text-xs shadow-md">
                     {({ cell }) => (
-                        <div>
+                        <>
                             {cell.count} item{cell.count === 1 ? "" : "s"} added{" "}
                             {ACTIVITY_DATE_FORMATTER.format(cell.date)}
-                        </div>
+                        </>
                     )}
                 </HeatGraph.Tooltip>
                 {activeLabel ? (
