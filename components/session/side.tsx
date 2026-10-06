@@ -125,6 +125,7 @@ import {
 import { Placeholder } from "@/components/ui/placeholder";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
+import { useSession } from "@/lib/auth/client";
 import {
     type LibraryItemWithCollections,
     truncateLabel,
@@ -391,13 +392,6 @@ interface SideStore {
     activeIndex: number;
     isOpen: boolean;
     items: SideEntry[];
-}
-
-interface SideStorage<T> {
-    getSnapshot: (key: string) => T | Promise<T>;
-    subscribe?: (update: (value: T) => void, key: string) => void;
-    update: (value: T, key: string) => void;
-    value: T;
 }
 
 interface SideActions {
@@ -755,32 +749,119 @@ function isStorageQuotaExceededError(error: unknown): boolean {
     );
 }
 
-function createSideItemsStorage() {
-    // stan-js's browser runtime returns a synchronizer object here, although
-    // its published Storage type describes the callable factory result as T.
-    const persistedStorage = storage<SideEntry[]>([], {
-        deserialize: deserializeSideItems,
-        serialize: serializeSideItems,
-        storageKey: ITEMS_STORAGE_KEY,
-    }) as unknown as SideStorage<SideEntry[]>;
+function getSideScopedStorageKey(baseKey: string, userId: string): string {
+    return `${baseKey}:user:${encodeURIComponent(userId)}`;
+}
 
-    return {
-        ...persistedStorage,
-        update(value: SideEntry[], key: string) {
-            try {
-                persistedStorage.update(value, key);
-            } catch (error) {
-                if (!isStorageQuotaExceededError(error)) {
-                    throw error;
-                }
+function readSideItemsFromKey(storageKey: string): SideEntry[] | null {
+    try {
+        const raw = localStorage.getItem(storageKey);
+        if (raw === null) {
+            return null;
+        }
+        return deserializeSideItems(raw);
+    } catch (error) {
+        log.warn("Failed to read side tabs from storage.", error);
+        return null;
+    }
+}
 
-                log.warn(
-                    "Side tabs exceeded local storage quota; keeping the current tabs in memory.",
-                    error
-                );
-            }
-        },
-    } as unknown as SideEntry[];
+function readSideActiveIndexFromKey(storageKey: string): number | null {
+    try {
+        const raw = localStorage.getItem(storageKey);
+        if (raw === null) {
+            return null;
+        }
+        const parsed: unknown = JSON.parse(raw);
+        if (typeof parsed !== "number" || Number.isNaN(parsed)) {
+            return null;
+        }
+        return parsed;
+    } catch (error) {
+        log.warn("Failed to read side tab index from storage.", error);
+        return null;
+    }
+}
+
+function writeSideStorageValue(storageKey: string, value: string): void {
+    try {
+        localStorage.setItem(storageKey, value);
+    } catch (error) {
+        if (!isStorageQuotaExceededError(error)) {
+            throw error;
+        }
+
+        log.warn(
+            "Side tabs exceeded local storage quota; keeping the current tabs in memory.",
+            error
+        );
+    }
+}
+
+function removeSideStorageKey(storageKey: string): void {
+    // Best-effort cleanup. A failed removal only leaves the legacy key
+    // behind for the next login to retry.
+    try {
+        localStorage.removeItem(storageKey);
+    } catch {
+        // Ignore removal failures and retry on the next login.
+    }
+}
+
+function writeSideItemsForUser(userId: string, items: SideEntry[]): void {
+    writeSideStorageValue(
+        getSideScopedStorageKey(ITEMS_STORAGE_KEY, userId),
+        serializeSideItems(items)
+    );
+}
+
+function writeSideActiveIndexForUser(userId: string, index: number): void {
+    writeSideStorageValue(
+        getSideScopedStorageKey(ACTIVE_INDEX_STORAGE_KEY, userId),
+        JSON.stringify(index)
+    );
+}
+
+function loadSideItemsForUser(userId: string): SideEntry[] {
+    const scoped = readSideItemsFromKey(
+        getSideScopedStorageKey(ITEMS_STORAGE_KEY, userId)
+    );
+    if (scoped !== null) {
+        removeSideStorageKey(ITEMS_STORAGE_KEY);
+        return scoped;
+    }
+
+    const legacy = readSideItemsFromKey(ITEMS_STORAGE_KEY);
+    if (legacy !== null) {
+        writeSideItemsForUser(userId, legacy);
+        removeSideStorageKey(ITEMS_STORAGE_KEY);
+        return legacy;
+    }
+
+    return [];
+}
+
+function loadSideActiveIndexForUser(
+    userId: string,
+    itemsLength: number
+): number {
+    const scoped = readSideActiveIndexFromKey(
+        getSideScopedStorageKey(ACTIVE_INDEX_STORAGE_KEY, userId)
+    );
+    if (scoped !== null) {
+        removeSideStorageKey(ACTIVE_INDEX_STORAGE_KEY);
+        return clampActiveIndex(scoped, itemsLength);
+    }
+
+    const legacy = readSideActiveIndexFromKey(ACTIVE_INDEX_STORAGE_KEY);
+    if (legacy !== null) {
+        const clamped = clampActiveIndex(legacy, itemsLength);
+        writeSideActiveIndexForUser(userId, clamped);
+        removeSideStorageKey(ACTIVE_INDEX_STORAGE_KEY);
+        return clamped;
+    }
+
+    return clampActiveIndex(0, itemsLength);
 }
 
 function getSideEntryTitle(entry: SideEntry): string | null {
@@ -906,20 +987,17 @@ function clampActiveIndex(index: number, itemsLength: number): number {
     return clamp(index, 0, itemsLength - 1);
 }
 
-const SIDE_ITEMS_STORAGE = createSideItemsStorage();
-
-const { actions: sideStoreActions, useStore: useSideStore } = createStore<
-    SideStore,
-    SideStoreActions
->(
+const {
+    actions: sideStoreActions,
+    getState: getSideStoreState,
+    useStore: useSideStore,
+} = createStore<SideStore, SideStoreActions>(
     {
-        activeIndex: storage(0, {
-            storageKey: ACTIVE_INDEX_STORAGE_KEY,
-        }),
+        activeIndex: 0,
         isOpen: storage(false, {
             storageKey: OPEN_STORAGE_KEY,
         }),
-        items: SIDE_ITEMS_STORAGE,
+        items: [] as SideEntry[],
     },
     ({ actions, getState }) => ({
         openWithEntry(entry: SideEntry) {
@@ -981,6 +1059,122 @@ const { actions: sideStoreActions, useStore: useSideStore } = createStore<
     })
 );
 
+function useSideUserScopeSync(): void {
+    const { data: session, isPending } = useSession();
+    const userId = session?.user?.id ?? null;
+    const { activeIndex, items } = useSideStore();
+    const hydratedUserIdRef = useRef<string | null | undefined>(undefined);
+
+    // Persist after hydration. This effect runs before the hydration effect
+    // below so a user switch never writes the previous user's tabs into the
+    // next user's storage slot on the switching commit.
+    useEffect(() => {
+        if (isPending || userId === null) {
+            return;
+        }
+        if (hydratedUserIdRef.current !== userId) {
+            return;
+        }
+        writeSideItemsForUser(userId, items);
+        writeSideActiveIndexForUser(userId, activeIndex);
+    }, [isPending, userId, items, activeIndex]);
+
+    useEffect(() => {
+        if (isPending) {
+            return;
+        }
+        if (hydratedUserIdRef.current === userId) {
+            return;
+        }
+        const previousUserId = hydratedUserIdRef.current;
+        hydratedUserIdRef.current = userId;
+
+        if (userId === null) {
+            sideStoreActions.setItems([]);
+            sideStoreActions.setActiveIndex(0);
+            return;
+        }
+
+        const persistedItems = loadSideItemsForUser(userId);
+        const persistedIndex = loadSideActiveIndexForUser(
+            userId,
+            persistedItems.length
+        );
+
+        // A previous null means the user was logged out, so merge any
+        // in-memory tabs like a first hydration. Only a previous user id
+        // is a true account switch that must discard in-memory tabs.
+        if (previousUserId !== undefined && previousUserId !== null) {
+            sideStoreActions.setItems(persistedItems);
+            sideStoreActions.setActiveIndex(persistedIndex);
+            return;
+        }
+
+        const current = getSideStoreState();
+        if (current.items.length === 0) {
+            sideStoreActions.setItems(persistedItems);
+            sideStoreActions.setActiveIndex(persistedIndex);
+            return;
+        }
+
+        if (persistedItems.length === 0) {
+            writeSideItemsForUser(userId, current.items);
+            writeSideActiveIndexForUser(userId, current.activeIndex);
+            return;
+        }
+
+        let mergedItems = persistedItems;
+        let mergedIndex = persistedIndex;
+        for (const entry of current.items) {
+            const queue = addSideQueueEntry(mergedItems, entry);
+            mergedItems = queue.items;
+            mergedIndex = queue.activeIndex;
+        }
+        sideStoreActions.setItems(mergedItems);
+        sideStoreActions.setActiveIndex(mergedIndex);
+    }, [isPending, userId]);
+
+    useEffect(() => {
+        if (isPending || userId === null) {
+            return;
+        }
+        const itemsKey = getSideScopedStorageKey(ITEMS_STORAGE_KEY, userId);
+        const indexKey = getSideScopedStorageKey(
+            ACTIVE_INDEX_STORAGE_KEY,
+            userId
+        );
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key !== itemsKey && event.key !== indexKey) {
+                return;
+            }
+            if (hydratedUserIdRef.current !== userId) {
+                return;
+            }
+            const current = getSideStoreState();
+            const nextItems = loadSideItemsForUser(userId);
+            const nextIndex = loadSideActiveIndexForUser(
+                userId,
+                nextItems.length
+            );
+            const haveItemsChanged =
+                current.items.length !== nextItems.length ||
+                current.items.some((item, itemIndex) => {
+                    const nextItem = nextItems[itemIndex];
+                    return !(nextItem && areSideEntriesEqual(item, nextItem));
+                });
+            if (!haveItemsChanged && current.activeIndex === nextIndex) {
+                return;
+            }
+            sideStoreActions.setItems(nextItems);
+            sideStoreActions.setActiveIndex(nextIndex);
+        };
+        window.addEventListener("storage", handleStorage);
+        return () => {
+            window.removeEventListener("storage", handleStorage);
+        };
+    }, [isPending, userId]);
+}
+
 export function openSide(input: SideUrlInput) {
     sideStoreActions.openWithEntry(createSideUrlEntry(input));
 }
@@ -1013,6 +1207,8 @@ export function SideContent() {
         selectQueueIndex,
         setIsOpen,
     } = useSideStore();
+
+    useSideUserScopeSync();
 
     const safeActiveIndex = clampActiveIndex(activeIndex, items.length);
     const activeEntry = items[safeActiveIndex] ?? null;
@@ -1519,7 +1715,7 @@ function SideList({
                     {...props}
                     aria-label={gt("Open side tabs")}
                     className={cn(
-                        "flex w-max min-w-full items-center gap-1.5",
+                        "flex min-w-full items-center gap-1",
                         className
                     )}
                     role="tablist"
@@ -1586,13 +1782,14 @@ function SideListItem({
     return (
         <div
             className={cn(
-                "relative inline-flex min-w-0 shrink-0 items-center rounded-lg",
+                "relative flex min-w-24 max-w-48 flex-1 basis-0 items-center rounded-lg",
                 isActive ? "bg-secondary" : "hover:bg-accent"
             )}
         >
             <Button
                 aria-controls={getSidePanelId(item)}
                 aria-selected={isActive}
+                className="min-w-0 flex-1 justify-start overflow-hidden px-2"
                 id={getSideTabId(item)}
                 onClick={handleClick}
                 onKeyDown={handleKeyDown}
@@ -1606,12 +1803,13 @@ function SideListItem({
                 {item.type === "note" ? null : (
                     <Globe aria-hidden className="size-3.5" focusable="false" />
                 )}
-                <Calligraph className="min-w-0 truncate font-medium">
+                <Calligraph className="min-w-0 flex-1 truncate text-left font-medium">
                     {title}
                 </Calligraph>
             </Button>
             <Button
                 aria-label={closeLabel}
+                className="shrink-0"
                 onClick={handleRemove}
                 size="icon-sm"
                 title={closeLabel}
