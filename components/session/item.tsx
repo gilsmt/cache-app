@@ -1211,7 +1211,7 @@ function ItemCardToolbar({
                     >
                         <Spinner
                             aria-hidden
-                            className="m-1 size-3.5"
+                            className="size-3.5"
                             focusable="false"
                         />
                     </ItemCardToolbarSlot>
