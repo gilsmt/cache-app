@@ -133,12 +133,193 @@ export function RedditIcon({
             aria-hidden="true"
             className={cn("size-6 shrink-0", className)}
             focusable="false"
-            viewBox="0 0 24 24"
+            viewBox="0 0 256 256"
+            x="0px"
+            xmlSpace="preserve"
+            y="0px"
         >
-            <path
-                d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0Zm4.388 3.199a1.995 1.995 0 1 1-3.99.002 1.995 1.995 0 0 1 3.99-.002Zm2.5 4.802c1.776.07 3.4.567 4.686 1.363.473-.363 1.064-.58 1.707-.58 1.547 0 2.802 1.254 2.802 2.802 0 .716-.435 1.333-1.601 2.53-.088 3.256-3.637 5.876-7.997 5.876-4.36 0-7.905-2.617-7.998-5.87-.954-.447-1.614-1.415-1.614-2.538 0-1.548 1.255-2.802 2.803-2.802.645 0 1.239.218 1.712.585 1.275-.79 2.881-1.291 4.64-1.365v-.01c0-1.663 1.263-3.034 2.88-3.207.188-.911.993-1.595 1.959-1.595Zm-8.085 8.376c-.784 0-1.459.78-1.506 1.797-.047 1.016.64 1.429 1.426 1.429.786 0 1.371-.369 1.418-1.385.047-1.017-.553-1.841-1.338-1.841Zm7.406 0c-.786 0-1.385.824-1.338 1.841.047 1.017.634 1.385 1.418 1.385.785 0 1.473-.413 1.426-1.429-.046-1.017-.721-1.797-1.506-1.797Zm-3.703 4.013c-.974 0-1.907.048-2.77.135-.147.015-.241.168-.183.305.483 1.154 1.622 1.964 2.953 1.964 1.33 0 2.47-.81 2.953-1.964.057-.137-.037-.29-.184-.305-.863-.087-1.795-.135-2.769-.135Z"
-                fill="currentColor"
-            />
+            <path d="M128,0L128,0C57.3,0,0,57.3,0,128l0,0c0,35.4,14.3,67.4,37.5,90.5l-24.4,24.4c-4.8,4.8-1.4,13.1,5.4,13.1H128	l0,0c70.7,0,128-57.3,128-128l0,0C256,57.3,198.7,0,128,0z" />
+            <g>
+                <circle cx="200.6" cy="123.7" r="29.9" />
+                <radialGradient
+                    cx="672.2592"
+                    cy="1.811"
+                    fx="672.2592"
+                    fy="-7.319"
+                    gradientTransform="matrix(0.47 0 0 -0.41 -260.07 108.3)"
+                    gradientUnits="userSpaceOnUse"
+                    id="reddit-SVGID_00000036246770641878814990000005919777119678409602_"
+                    r="127.45"
+                >
+                    <stop offset="0" style={{ stopColor: "#feffff" }} />
+                    <stop offset="0.4" style={{ stopColor: "#feffff" }} />
+                    <stop offset="0.51" style={{ stopColor: "#f9fcfc" }} />
+                    <stop offset="0.62" style={{ stopColor: "#edf3f5" }} />
+                    <stop offset="0.7" style={{ stopColor: "#dee9ec" }} />
+                    <stop offset="0.72" style={{ stopColor: "#d8e4e8" }} />
+                    <stop offset="0.76" style={{ stopColor: "#ccd8df" }} />
+                    <stop offset="0.8" style={{ stopColor: "#c8d5dd" }} />
+                    <stop offset="0.83" style={{ stopColor: "#ccd6de" }} />
+                    <stop offset="0.85" style={{ stopColor: "#d8dbe2" }} />
+                    <stop offset="0.88" style={{ stopColor: "#ede3e9" }} />
+                    <stop offset="0.9" style={{ stopColor: "#ffebef" }} />
+                </radialGradient>
+                <circle
+                    cx="55.4"
+                    cy="123.7"
+                    r="29.9"
+                    style={{
+                        fill: "url(#reddit-SVGID_00000036246770641878814990000005919777119678409602_)",
+                    }}
+                />
+                <radialGradient
+                    cx="830.6751"
+                    cy="-224.6845"
+                    gradientTransform="matrix(0.47 0 0 -0.33 -260.07 25.03)"
+                    gradientUnits="userSpaceOnUse"
+                    id="reddit-SVGID_00000018938084004212545110000003812637463316940965_"
+                    r="384.44"
+                >
+                    <stop offset="0" style={{ stopColor: "#feffff" }} />
+                    <stop offset="0.4" style={{ stopColor: "#feffff" }} />
+                    <stop offset="0.51" style={{ stopColor: "#f9fcfc" }} />
+                    <stop offset="0.62" style={{ stopColor: "#edf3f5" }} />
+                    <stop offset="0.7" style={{ stopColor: "#dee9ec" }} />
+                    <stop offset="0.72" style={{ stopColor: "#d8e4e8" }} />
+                    <stop offset="0.76" style={{ stopColor: "#ccd8df" }} />
+                    <stop offset="0.8" style={{ stopColor: "#c8d5dd" }} />
+                    <stop offset="0.83" style={{ stopColor: "#ccd6de" }} />
+                    <stop offset="0.85" style={{ stopColor: "#d8dbe2" }} />
+                    <stop offset="0.88" style={{ stopColor: "#ede3e9" }} />
+                    <stop offset="0.9" style={{ stopColor: "#ffebef" }} />
+                </radialGradient>
+                <ellipse
+                    cx="128.1"
+                    cy="149.3"
+                    rx="85.3"
+                    ry="64"
+                    style={{
+                        fill: "url(#reddit-SVGID_00000018938084004212545110000003812637463316940965_)",
+                    }}
+                />
+                <path d="M102.8,143.1c-0.5,10.8-7.7,14.8-16.1,14.8s-14.8-5.6-14.3-16.4s7.7-18,16.1-18S103.3,132.3,102.8,143.1z" />
+                <path d="M183.6,141.5c0.5,10.8-5.9,16.4-14.3,16.4s-15.6-3.9-16.1-14.8c-0.5-10.8,5.9-19.6,14.3-19.6 S183.1,130.6,183.6,141.5L183.6,141.5z" />
+                <radialGradient
+                    cx="-2957.2551"
+                    cy="173.4222"
+                    gradientTransform="matrix(-0.47 0 0 0.69 -1224.63 31.31)"
+                    gradientUnits="userSpaceOnUse"
+                    id="reddit-SVGID_00000100358442326342623590000001008359023910400391_"
+                    r="32.12"
+                >
+                    <stop offset="0" style={{ stopColor: "#f60" }} />
+                    <stop offset="0.5" style={{ stopColor: "#ff4500" }} />
+                    <stop offset="0.7" style={{ stopColor: "#fc4301" }} />
+                    <stop offset="0.82" style={{ stopColor: "#f43f07" }} />
+                    <stop offset="0.92" style={{ stopColor: "#e53812" }} />
+                    <stop offset="1" style={{ stopColor: "#d4301f" }} />
+                </radialGradient>
+                <path
+                    d="M153.3,144.1c0.5,10.1,7.2,13.8,15,13.8 s13.8-5.5,13.4-15.7c-0.5-10.1-7.2-16.8-15-16.8S152.8,133.9,153.3,144.1z"
+                    style={{
+                        fill: "url(#reddit-SVGID_00000100358442326342623590000001008359023910400391_)",
+                    }}
+                />
+                <radialGradient
+                    cx="745.2351"
+                    cy="173.4222"
+                    gradientTransform="matrix(0.47 0 0 0.69 -260.07 31.31)"
+                    gradientUnits="userSpaceOnUse"
+                    id="reddit-SVGID_00000101795553196247918750000016558665307898727865_"
+                    r="32.12"
+                >
+                    <stop offset="0" style={{ stopColor: "#f60" }} />
+                    <stop offset="0.5" style={{ stopColor: "#ff4500" }} />
+                    <stop offset="0.7" style={{ stopColor: "#fc4301" }} />
+                    <stop offset="0.82" style={{ stopColor: "#f43f07" }} />
+                    <stop offset="0.92" style={{ stopColor: "#e53812" }} />
+                    <stop offset="1" style={{ stopColor: "#d4301f" }} />
+                </radialGradient>
+                <path
+                    d="M102.8,144.1c-0.5,10.1-7.2,13.8-15,13.8 s-13.8-5.5-13.3-15.7c0.5-10.1,7.2-16.8,15-16.8S103.3,133.9,102.8,144.1z"
+                    style={{
+                        fill: "url(#reddit-SVGID_00000101795553196247918750000016558665307898727865_)",
+                    }}
+                />
+                <path d="M128.1,165.1c-10.6,0-20.7,0.5-30.1,1.4c-1.6,0.2-2.6,1.8-2,3.2c5.2,12.3,17.6,21,32.1,21s26.8-8.6,32.1-21 c0.6-1.5-0.4-3.1-2-3.2C148.8,165.6,138.7,165.1,128.1,165.1z" />
+                <path d="M128.1,167.5c-10.6,0-20.7,0.5-30,1.5c-1.6,0.2-2.6,1.8-2,3.3c5.2,12.5,17.6,21.3,32,21.3s26.8-8.8,32-21.3 c0.6-1.5-0.4-3.1-2-3.3C148.7,168,138.6,167.5,128.1,167.5L128.1,167.5z" />
+                <radialGradient
+                    cx="826.4651"
+                    cy="-508.4764"
+                    gradientTransform="matrix(0.47 0 0 -0.31 -260.07 37.28)"
+                    gradientUnits="userSpaceOnUse"
+                    id="reddit-SVGID_00000129915728043071345700000001618660102739666578_"
+                    r="113.26"
+                >
+                    <stop offset="0" style={{ stopColor: "#172e35" }} />
+                    <stop offset="0.29" style={{ stopColor: "#0e1c21" }} />
+                    <stop offset="0.73" style={{ stopColor: "#030708" }} />
+                    <stop offset="1" style={{ stopColor: "#000" }} />
+                </radialGradient>
+                <path
+                    d="M128.1,166.2c-10.4,0-20.3,0.5-29.5,1.4 c-1.6,0.2-2.6,1.8-2,3.2c5.2,12.3,17.3,21,31.5,21s26.3-8.6,31.5-21c0.6-1.5-0.4-3.1-2-3.2C148.4,166.8,138.5,166.2,128.1,166.2z"
+                    style={{
+                        fill: "url(#reddit-SVGID_00000129915728043071345700000001618660102739666578_)",
+                    }}
+                />
+                <radialGradient
+                    cx="926.3451"
+                    cy="277.9019"
+                    gradientTransform="matrix(0.47 0 0 -0.47 -260.07 164.72)"
+                    gradientUnits="userSpaceOnUse"
+                    id="reddit-SVGID_00000132773094689987568360000004811110407827195799_"
+                    r="99.42"
+                >
+                    <stop offset="0" style={{ stopColor: "#feffff" }} />
+                    <stop offset="0.4" style={{ stopColor: "#feffff" }} />
+                    <stop offset="0.51" style={{ stopColor: "#f9fcfc" }} />
+                    <stop offset="0.62" style={{ stopColor: "#edf3f5" }} />
+                    <stop offset="0.7" style={{ stopColor: "#dee9ec" }} />
+                    <stop offset="0.72" style={{ stopColor: "#d8e4e8" }} />
+                    <stop offset="0.76" style={{ stopColor: "#ccd8df" }} />
+                    <stop offset="0.8" style={{ stopColor: "#c8d5dd" }} />
+                    <stop offset="0.83" style={{ stopColor: "#ccd6de" }} />
+                    <stop offset="0.85" style={{ stopColor: "#d8dbe2" }} />
+                    <stop offset="0.88" style={{ stopColor: "#ede3e9" }} />
+                    <stop offset="0.9" style={{ stopColor: "#ffebef" }} />
+                </radialGradient>
+                <circle
+                    cx="174.8"
+                    cy="55.5"
+                    r="21.2"
+                    style={{
+                        fill: "url(#reddit-SVGID_00000132773094689987568360000004811110407827195799_)",
+                    }}
+                />
+                <radialGradient
+                    cx="884.9151"
+                    cy="177.5619"
+                    gradientTransform="matrix(0.47 0 0 -0.47 -260.07 168.5)"
+                    gradientUnits="userSpaceOnUse"
+                    id="reddit-SVGID_00000093173154653334829310000007940785063173693333_"
+                    r="81.49"
+                >
+                    <stop offset="0.48" style={{ stopColor: "#7a9299" }} />
+                    <stop offset="0.67" style={{ stopColor: "#172e35" }} />
+                    <stop offset="0.75" style={{ stopColor: "#000" }} />
+                    <stop offset="0.82" style={{ stopColor: "#172e35" }} />
+                </radialGradient>
+                <path
+                    d="M127.8,88c-2.5,0-4.6-1.1-4.6-2.7 c0-19,15.4-34.4,34.4-34.4c2.5,0,4.6,2.1,4.6,4.6s-2.1,4.6-4.6,4.6c-13.9,0-25.2,11.3-25.2,25.2C132.4,87,130.3,88,127.8,88z"
+                    style={{
+                        fill: "url(#reddit-SVGID_00000093173154653334829310000007940785063173693333_)",
+                    }}
+                />
+                <path d="M97.3,149.1c0,3.9-4.2,5.7-9.3,5.7s-9.3-1.8-9.3-5.7s4.2-7.1,9.3-7.1S97.3,145.1,97.3,149.1z" />
+                <path d="M177.5,149.1c0,3.9-4.2,5.7-9.3,5.7s-9.3-1.8-9.3-5.7s4.2-7.1,9.3-7.1S177.5,145.1,177.5,149.1z" />
+                <ellipse cx="94.4" cy="134.8" rx="3.3" ry="3.6" />
+                <ellipse cx="173.3" cy="134.8" rx="3.3" ry="3.6" />
+            </g>
         </svg>
     );
 }
@@ -692,11 +873,17 @@ export function MarkdownIcon({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="2"
-            viewBox="0 0 24 24"
+            viewBox="0 0 208 128"
+            xmlSpace="preserve"
         >
-            <path d="M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />
-            <path d="M6 16V8l3 4 3-4v8" />
-            <path d="M15 16V8l2 2 2-2v8" />
+            <g fill="currentColor">
+                <path
+                    clipRule="evenodd"
+                    d="M15 10a5 5 0 0 0-5 5v98a5 5 0 0 0 5 5h178a5 5 0 0 0 5-5V15a5 5 0 0 0-5-5zM0 15A15 15 0 0 1 15 0h178a15 15 0 0 1 15 15v98a15 15 0 0 1-15 15H15a15 15 0 0 1-15-15z"
+                    fillRule="evenodd"
+                />
+                <path d="M30 98V30h20l20 25 20-25h20v68H90V59L70 84 50 59v39zm125 0-30-33h20V30h20v35h20z" />
+            </g>
         </svg>
     );
 }
