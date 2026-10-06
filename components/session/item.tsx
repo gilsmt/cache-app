@@ -16,8 +16,6 @@ import {
     History,
     LinkIcon,
     SearchIcon,
-    Squircle,
-    SquircleDashed,
     Star,
     Volume2Icon,
     VolumeXIcon,
@@ -36,6 +34,7 @@ import useSWR from "swr";
 import { CommentComposer } from "@/components/comments/composer";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
+import { ItemCollectionsCombobox } from "@/components/session/collections";
 import { openSide } from "@/components/session/side";
 import { AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -44,17 +43,6 @@ import {
     CollapsiblePanel,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-    Combobox,
-    ComboboxCollection,
-    ComboboxEmpty,
-    ComboboxInput,
-    ComboboxItem,
-    ComboboxList,
-    ComboboxPopup,
-    ComboboxStatus,
-    ComboboxTrigger,
-} from "@/components/ui/combobox";
 import {
     ContextMenu,
     ContextMenuGroup,
@@ -86,10 +74,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Ticker } from "@/components/ui/ticker";
 import { Toolbar, ToolbarButton } from "@/components/ui/toolbar";
 import { downloadMedia } from "@/lib/collections/actions";
-import type {
-    LibraryItemCollectionsUpdateResult,
-    LibraryItemsCollectionsUpdateResult,
-} from "@/lib/collections/items";
 import {
     getLibraryItemPrimaryText,
     getLibraryItemTitle,
@@ -97,8 +81,6 @@ import {
     itemPreviewImageProxyUrl,
     itemPreviewImageUrl,
     itemPreviewVideoUrl,
-    type LibraryCollectionSummary,
-    type LibraryCollectionTag,
     type LibraryItemWithCollections,
 } from "@/lib/collections/utils";
 import {
@@ -240,7 +222,6 @@ export interface ItemPeekPlaceholder {
 }
 
 export interface ItemCardEnvironmentContext {
-    collections: LibraryCollectionSummary[];
     favoriteItemIdSet: ReadonlySet<string>;
     hoveredItemIdRef: React.RefObject<string | null>;
     hoverPinnedItemIdRef: React.RefObject<string | null>;
@@ -251,10 +232,6 @@ export interface ItemCardEnvironmentContext {
     onItemFavoriteToggle: (item: LibraryItemWithCollections) => void;
     onOpenInNewTab: (item: LibraryItemWithCollections) => void;
     onOpenNote: (item: LibraryItemWithCollections) => void;
-    onUpdateItemCollections: (
-        itemId: string,
-        collectionIds: string[]
-    ) => Promise<LibraryItemCollectionsUpdateResult>;
     openPickerItemId: string | null;
     pendingDeleteItemId: string | null;
     setOpenPickerItemId: (id: string | null) => void;
@@ -718,51 +695,6 @@ async function saveItemMedia(item: LibraryItemWithCollections): Promise<void> {
     });
 }
 
-function getSharedCollections(
-    items: LibraryItemWithCollections[]
-): LibraryCollectionTag[] {
-    const [firstItem, ...remainingItems] = items;
-    if (!firstItem) {
-        return [];
-    }
-
-    const sharedCollections = new Map(
-        firstItem.collections.map((collection) => [collection.id, collection])
-    );
-
-    for (const item of remainingItems) {
-        const itemCollectionIds = new Set(
-            item.collections.map((collection) => collection.id)
-        );
-        for (const collectionId of sharedCollections.keys()) {
-            if (!itemCollectionIds.has(collectionId)) {
-                sharedCollections.delete(collectionId);
-            }
-        }
-    }
-
-    return [...sharedCollections.values()];
-}
-
-function getCollectionTriggerIcon(
-    selectedCount: number,
-    shouldShowSmartCollectionsIndicator: boolean
-) {
-    if (selectedCount === 0) {
-        return <SquircleDashed aria-hidden className="size-4" />;
-    }
-    if (shouldShowSmartCollectionsIndicator) {
-        return <ItemCardSmartCollectionsIndicator />;
-    }
-    return <Squircle aria-hidden className="size-4" />;
-}
-
-function getArchivedCollectionsStatus(count: number): string {
-    return count === 1
-        ? "1 assigned collection is archived"
-        : `${count} assigned collections are archived`;
-}
-
 interface ItemPreviewProps {
     hover?: ItemHoverVideo | null;
     src: string | null;
@@ -1097,14 +1029,13 @@ export function ItemCardTarget() {
 
 export function ItemCardFooter() {
     const { item } = useItemCardDataContext();
-    const {
-        collections,
-        onUpdateItemCollections,
-        openPickerItemId,
-        setOpenPickerItemId,
-    } = useItemCardEnvironmentContext();
+    const { openPickerItemId, setOpenPickerItemId } =
+        useItemCardEnvironmentContext();
 
     const isPickerOpen = openPickerItemId === item.id;
+    const showSmartCollectionsIndicator =
+        item.collections.length > 0 &&
+        isRecentlySmartCollected(item.smartCollectedAt);
 
     const handlePickerOpenChange = useStableCallback((nextOpen: boolean) => {
         setOpenPickerItemId(nextOpen ? item.id : null);
@@ -1113,16 +1044,19 @@ export function ItemCardFooter() {
     return (
         <div className="flex items-center py-1.5">
             <ItemCollectionsCombobox
-                collections={collections}
                 items={[item]}
                 onOpenChange={handlePickerOpenChange}
-                onUpdateItemCollections={onUpdateItemCollections}
                 open={isPickerOpen}
-                showSmartCollectionsIndicator={
-                    item.collections.length > 0 &&
-                    isRecentlySmartCollected(item.smartCollectedAt)
+                triggerAriaLabel={
+                    showSmartCollectionsIndicator
+                        ? "Smart Collections just organized this"
+                        : undefined
                 }
-            />
+            >
+                {showSmartCollectionsIndicator ? (
+                    <ItemCardSmartCollectionsIndicator />
+                ) : null}
+            </ItemCollectionsCombobox>
             <ItemCardTitleMenu />
         </div>
     );
@@ -1147,161 +1081,6 @@ export function ItemCardSkeleton({
             />
             <Skeleton className="mt-2 h-3 w-11/12 [background:var(--color-muted)]" />
         </div>
-    );
-}
-
-interface ItemCollectionsComboboxProps
-    extends React.ComponentProps<typeof ComboboxTrigger> {
-    collections: LibraryCollectionSummary[];
-    items: LibraryItemWithCollections[];
-    onOpenChange?: (open: boolean) => void;
-    onUpdateItemCollections: (
-        itemId: string,
-        collectionIds: string[]
-    ) => Promise<LibraryItemCollectionsUpdateResult>;
-    onUpdateItemsCollections?: (input: {
-        itemIds: string[];
-        nextSharedCollectionIds: string[];
-        previousSharedCollectionIds: string[];
-    }) => Promise<LibraryItemsCollectionsUpdateResult>;
-    open?: boolean;
-    showSmartCollectionsIndicator?: boolean;
-}
-
-export function ItemCollectionsCombobox({
-    collections,
-    items,
-    onUpdateItemsCollections,
-    onUpdateItemCollections,
-    open: openProp,
-    onOpenChange,
-    children,
-    render,
-    showSmartCollectionsIndicator = false,
-    ...props
-}: ItemCollectionsComboboxProps) {
-    const [isOpenInternal, setIsOpenInternal] = React.useState(false);
-    const isOpen = openProp ?? isOpenInternal;
-    const setIsOpen = onOpenChange ?? setIsOpenInternal;
-    const sharedCollections = getSharedCollections(items);
-    const selectedCollectionIds = sharedCollections.map(
-        (collection) => collection.id
-    );
-    const selectedCount = selectedCollectionIds.length;
-    const archivedAssignedCollectionCount = sharedCollections.filter(
-        (collection) => collection.priority === "archive"
-    ).length;
-    const shouldShowSmartCollectionsIndicator =
-        showSmartCollectionsIndicator && selectedCount > 0;
-
-    const handleValueChange = useStableCallback((nextIds: string[]) => {
-        if (items.length === 1) {
-            const [item] = items;
-            if (!item) {
-                return;
-            }
-            onUpdateItemCollections(item.id, nextIds).catch(
-                (error: unknown) => {
-                    log.error("Failed to update item collections", error, {
-                        itemId: item.id,
-                    });
-                }
-            );
-            return;
-        }
-
-        if (!onUpdateItemsCollections) {
-            throw new Error(
-                "Bulk collection updates require onUpdateItemsCollections."
-            );
-        }
-
-        onUpdateItemsCollections({
-            itemIds: items.map((item) => item.id),
-            nextSharedCollectionIds: nextIds,
-            previousSharedCollectionIds: selectedCollectionIds,
-        }).catch((error: unknown) => {
-            log.error("Failed to update item collections", error, {
-                itemIds: items.map((item) => item.id),
-            });
-        });
-    });
-
-    let defaultTriggerAriaLabel = "Add to collections";
-    if (shouldShowSmartCollectionsIndicator) {
-        defaultTriggerAriaLabel = "Smart Collections just organized this";
-    } else if (selectedCount > 0) {
-        defaultTriggerAriaLabel = `Edit collections (${selectedCount} selected)`;
-    }
-
-    return (
-        <Combobox
-            autoHighlight
-            items={collections}
-            multiple
-            onOpenChange={setIsOpen}
-            onValueChange={handleValueChange}
-            open={isOpen}
-            value={selectedCollectionIds}
-        >
-            <ComboboxTrigger
-                {...props}
-                render={
-                    render ?? (
-                        <Button
-                            aria-label={defaultTriggerAriaLabel}
-                            size="icon-xs"
-                            variant="ghost"
-                        />
-                    )
-                }
-            >
-                {children ??
-                    getCollectionTriggerIcon(
-                        selectedCount,
-                        shouldShowSmartCollectionsIndicator
-                    )}
-            </ComboboxTrigger>
-            <ComboboxPopup>
-                <ComboboxInput
-                    endAddon={<Kbd>S</Kbd>}
-                    placeholder="Assign collections…"
-                />
-                <ComboboxStatus>
-                    {archivedAssignedCollectionCount > 0
-                        ? getArchivedCollectionsStatus(
-                              archivedAssignedCollectionCount
-                          )
-                        : null}
-                </ComboboxStatus>
-                <ComboboxEmpty>No matching collections</ComboboxEmpty>
-                <ComboboxList>
-                    <ComboboxCollection>
-                        {(collection) => (
-                            <ComboboxItem
-                                className="group/item"
-                                key={collection.id}
-                                value={collection.id}
-                            >
-                                <div className="flex max-w-56 items-center justify-between gap-3">
-                                    <span className="min-w-0 max-w-full flex-1 truncate text-foreground text-sm">
-                                        {collection.name}
-                                    </span>
-                                    <div className="relative flex w-fit items-center justify-end pl-4">
-                                        <span className="shrink-0 text-nowrap text-muted-foreground text-xs tabular-nums transition-opacity ease-out group-data-highlighted/item:opacity-0">
-                                            {collection.itemCount}
-                                        </span>
-                                        <span className="absolute right-0 shrink-0 text-nowrap text-muted-foreground text-xs opacity-0 transition-opacity ease-out group-data-highlighted/item:opacity-100">
-                                            Save
-                                        </span>
-                                    </div>
-                                </div>
-                            </ComboboxItem>
-                        )}
-                    </ComboboxCollection>
-                </ComboboxList>
-            </ComboboxPopup>
-        </Combobox>
     );
 }
 

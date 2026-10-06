@@ -39,6 +39,8 @@ import {
     SignalHigh,
     SignalMedium,
     Sparkle,
+    Squircle,
+    SquircleDashed,
     Star,
     Trash2Icon,
     UserRoundPlus,
@@ -79,6 +81,7 @@ import {
     ComboboxList,
     ComboboxPopup,
     ComboboxSeparator,
+    ComboboxStatus,
     ComboboxTrigger,
 } from "@/components/ui/combobox";
 import {
@@ -158,6 +161,10 @@ import {
     groupCollectionsBySortField,
     type RelativeDateGroupId,
 } from "@/lib/collections/grouping";
+import type {
+    LibraryItemCollectionsUpdateResult,
+    LibraryItemsCollectionsUpdateResult,
+} from "@/lib/collections/items";
 import {
     disableCollectionSharing,
     shareCollectionPublicly,
@@ -253,6 +260,10 @@ const ENABLE_SMART_COLLECTIONS_ERROR_MESSAGE =
     "We couldn't turn on smart collections right now.";
 const SHARE_COLLECTION_ERROR_MESSAGE =
     "We couldn't create a public link right now.";
+const UPDATE_ITEM_COLLECTIONS_ERROR_MESSAGE =
+    "We couldn't update collections for this item right now.";
+const UPDATE_ITEMS_COLLECTIONS_ERROR_MESSAGE =
+    "We couldn't update collections for those items right now.";
 
 const PREVIEW_SLIDE_INTERVAL_MS = 1400;
 const PREVIEW_CROSSFADE_MS = 200;
@@ -2110,6 +2121,38 @@ function getCollectionActionKey(
     collectionId: string
 ): string {
     return `${action}:${collectionId}`;
+}
+
+function getSharedCollections(
+    items: LibraryItemWithCollections[]
+): LibraryCollectionTag[] {
+    const [firstItem, ...remainingItems] = items;
+    if (!firstItem) {
+        return [];
+    }
+
+    const sharedCollections = new Map(
+        firstItem.collections.map((collection) => [collection.id, collection])
+    );
+
+    for (const item of remainingItems) {
+        const itemCollectionIds = new Set(
+            item.collections.map((collection) => collection.id)
+        );
+        for (const collectionId of sharedCollections.keys()) {
+            if (!itemCollectionIds.has(collectionId)) {
+                sharedCollections.delete(collectionId);
+            }
+        }
+    }
+
+    return [...sharedCollections.values()];
+}
+
+function getArchivedCollectionsStatus(count: number): string {
+    return count === 1
+        ? "1 assigned collection is archived"
+        : `${count} assigned collections are archived`;
 }
 
 export function Collections() {
@@ -4194,6 +4237,188 @@ function CollectionsListItemExportSubmenu() {
                 </MenuItem>
             </MenuSubPopup>
         </MenuSub>
+    );
+}
+
+interface ItemCollectionsComboboxProps
+    extends React.ComponentProps<typeof ComboboxTrigger> {
+    items: LibraryItemWithCollections[];
+    onOpenChange?: (open: boolean) => void;
+    onUpdateItemsCollections?: (input: {
+        itemIds: string[];
+        nextSharedCollectionIds: string[];
+        previousSharedCollectionIds: string[];
+    }) => Promise<LibraryItemsCollectionsUpdateResult>;
+    open?: boolean;
+    triggerAriaLabel?: string;
+}
+
+export function ItemCollectionsCombobox({
+    items,
+    onUpdateItemsCollections,
+    open: openProp,
+    onOpenChange,
+    children,
+    render,
+    triggerAriaLabel,
+    ...props
+}: ItemCollectionsComboboxProps) {
+    const { collections } = useCollectionsContext();
+    const { onUpdateItemCollections } = useItemsContext();
+    const { showError } = useCollectionStatus();
+    const [, startTransition] = React.useTransition();
+
+    const [isOpenInternal, setIsOpenInternal] = React.useState(false);
+    const isOpen = openProp ?? isOpenInternal;
+    const setIsOpen = onOpenChange ?? setIsOpenInternal;
+
+    const sortedCollections = sortCollections(collections);
+    const sharedCollections = getSharedCollections(items);
+    const selectedCollectionIds = sharedCollections.map(
+        (collection) => collection.id
+    );
+    const selectedCount = selectedCollectionIds.length;
+    const archivedAssignedCollectionCount = sharedCollections.filter(
+        (collection) => collection.priority === "archive"
+    ).length;
+
+    const updateSingleItemCollections = useStableCallback(
+        async (itemId: string, nextIds: string[]) => {
+            let result: LibraryItemCollectionsUpdateResult;
+            try {
+                result = await onUpdateItemCollections(itemId, nextIds);
+            } catch (error) {
+                log.error("Failed to update item collections", {
+                    error,
+                    itemId,
+                });
+                showError(UPDATE_ITEM_COLLECTIONS_ERROR_MESSAGE);
+                return;
+            }
+            if (result.status !== ACTION_STATUS.UPDATED) {
+                showError(result.message);
+            }
+        }
+    );
+
+    const updateSharedItemCollections = useStableCallback(
+        async (nextIds: string[]) => {
+            if (!onUpdateItemsCollections) {
+                log.error(
+                    "Bulk collection updates require onUpdateItemsCollections.",
+                    { itemCount: items.length }
+                );
+                showError(UPDATE_ITEMS_COLLECTIONS_ERROR_MESSAGE);
+                return;
+            }
+            const itemIds = items.map((item) => item.id);
+            let result: LibraryItemsCollectionsUpdateResult;
+            try {
+                result = await onUpdateItemsCollections({
+                    itemIds,
+                    nextSharedCollectionIds: nextIds,
+                    previousSharedCollectionIds: selectedCollectionIds,
+                });
+            } catch (error) {
+                log.error("Failed to update items collections", {
+                    error,
+                    itemIds,
+                });
+                showError(UPDATE_ITEMS_COLLECTIONS_ERROR_MESSAGE);
+                return;
+            }
+            if (result.status !== ACTION_STATUS.UPDATED) {
+                showError(result.message);
+            }
+        }
+    );
+
+    const handleValueChange = useStableCallback((nextIds: string[]) => {
+        startTransition(async () => {
+            const [onlyItem] = items;
+            if (items.length === 1 && onlyItem) {
+                await updateSingleItemCollections(onlyItem.id, nextIds);
+                return;
+            }
+            await updateSharedItemCollections(nextIds);
+        });
+    });
+
+    const defaultTriggerAriaLabel =
+        selectedCount === 0
+            ? "Add to collections"
+            : `Edit collections (${selectedCount} selected)`;
+    const triggerLabel = triggerAriaLabel ?? defaultTriggerAriaLabel;
+
+    return (
+        <Combobox
+            autoHighlight
+            items={sortedCollections}
+            multiple
+            onOpenChange={setIsOpen}
+            onValueChange={handleValueChange}
+            open={isOpen}
+            value={selectedCollectionIds}
+        >
+            <ComboboxTrigger
+                {...props}
+                render={
+                    render ?? (
+                        <Button
+                            aria-label={triggerLabel}
+                            size="icon-xs"
+                            variant="ghost"
+                        />
+                    )
+                }
+            >
+                {children ??
+                    (selectedCount === 0 ? (
+                        <SquircleDashed aria-hidden className="size-4" />
+                    ) : (
+                        <Squircle aria-hidden className="size-4" />
+                    ))}
+            </ComboboxTrigger>
+            <ComboboxPopup>
+                <ComboboxInput
+                    endAddon={<Kbd>S</Kbd>}
+                    placeholder="Assign collections…"
+                />
+                <ComboboxStatus>
+                    {archivedAssignedCollectionCount > 0
+                        ? getArchivedCollectionsStatus(
+                              archivedAssignedCollectionCount
+                          )
+                        : null}
+                </ComboboxStatus>
+                <ComboboxEmpty>No matching collections</ComboboxEmpty>
+                <ComboboxList>
+                    <ComboboxCollection>
+                        {(collection) => (
+                            <ComboboxItem
+                                className="group/item"
+                                key={collection.id}
+                                value={collection.id}
+                            >
+                                <div className="flex max-w-56 items-center justify-between gap-3">
+                                    <span className="min-w-0 max-w-full flex-1 truncate text-foreground text-sm">
+                                        {collection.name}
+                                    </span>
+                                    <div className="relative flex w-fit items-center justify-end pl-4">
+                                        <span className="shrink-0 text-nowrap text-muted-foreground text-xs tabular-nums transition-opacity ease-out group-data-highlighted/item:opacity-0">
+                                            {collection.itemCount}
+                                        </span>
+                                        <span className="absolute right-0 shrink-0 text-nowrap text-muted-foreground text-xs opacity-0 transition-opacity ease-out group-data-highlighted/item:opacity-100">
+                                            Save
+                                        </span>
+                                    </div>
+                                </div>
+                            </ComboboxItem>
+                        )}
+                    </ComboboxCollection>
+                </ComboboxList>
+            </ComboboxPopup>
+        </Combobox>
     );
 }
 

@@ -67,6 +67,7 @@ import { useIsExtensionInstalled } from "@/components/hooks/use-extension-instal
 import { useLastVisited } from "@/components/hooks/use-last-visited";
 import { useSearchHistory } from "@/components/hooks/use-search-history";
 import {
+    ItemCollectionsCombobox,
     reconcileCollectionTags,
     replaceMultipleItemCollections,
     sortCollections,
@@ -91,7 +92,6 @@ import {
     ItemCardSurface,
     ItemCardTarget,
     ItemCardZoomProvider,
-    ItemCollectionsCombobox,
     type ItemPeekPlaceholder,
 } from "@/components/session/item";
 import {
@@ -4986,14 +4986,12 @@ export function ItemsList({
                         open={isRemoveDuplicatesDialogOpen}
                     />
                     <CreateFromResultsCollectionDialog
-                        collections={collections}
                         initialName={getAgentViewCollectionDialogName(
                             agentView,
                             searchTerms
                         )}
                         onCreateCollection={handleCreateCollectionFromResults}
                         onOpenChange={setIsCreateResultsDialogOpen}
-                        onUpdateItemCollections={handleUpdateItemCollections}
                         onUpdateItemsCollections={handleUpdateItemsCollections}
                         open={isCreateResultsDialogOpen}
                         resultItems={sortedItems}
@@ -5620,7 +5618,6 @@ interface ItemsMasonryProps {
 function ItemsMasonry({ children }: ItemsMasonryProps) {
     const { collapsed, items } = useItemsGroupContext();
     const {
-        collections,
         columnCount,
         hoveredItemIdRef,
         hoverPinnedItemIdRef,
@@ -5636,12 +5633,10 @@ function ItemsMasonry({ children }: ItemsMasonryProps) {
         onOpenInNewTab,
         onOpenNote,
         onItemFavoriteToggle,
-        onUpdateItemCollections,
         pendingDeleteItemId,
     } = useItemsContext();
 
     const contextValue: ItemCardEnvironmentContext = {
-        collections,
         favoriteItemIdSet,
         hoveredItemIdRef,
         hoverPinnedItemIdRef,
@@ -5652,7 +5647,6 @@ function ItemsMasonry({ children }: ItemsMasonryProps) {
         onItemFavoriteToggle,
         onOpenInNewTab,
         onOpenNote,
-        onUpdateItemCollections,
         openPickerItemId,
         pendingDeleteItemId,
         setOpenPickerItemId,
@@ -5788,16 +5782,11 @@ function RemoveDuplicatesDialog({
 }
 
 interface CreateFromResultsCollectionDialogProps {
-    collections: LibraryCollectionSummary[];
     initialName: string;
     onCreateCollection: (
         input: CreateItemsCollectionInput
     ) => Promise<CollectionCreateFromItemsResult>;
     onOpenChange: (open: boolean) => void;
-    onUpdateItemCollections: (
-        itemId: string,
-        collectionIds: string[]
-    ) => Promise<LibraryItemCollectionsUpdateResult>;
     onUpdateItemsCollections: (input: {
         itemIds: string[];
         nextSharedCollectionIds: string[];
@@ -5808,11 +5797,9 @@ interface CreateFromResultsCollectionDialogProps {
 }
 
 function CreateFromResultsCollectionDialog({
-    collections,
     initialName,
     onCreateCollection,
     onOpenChange,
-    onUpdateItemCollections,
     onUpdateItemsCollections,
     open,
     resultItems,
@@ -5970,9 +5957,7 @@ function CreateFromResultsCollectionDialog({
                     </DialogPanel>
                     <DialogFooter>
                         <ItemCollectionsCombobox
-                            collections={collections}
                             items={resultItems}
-                            onUpdateItemCollections={onUpdateItemCollections}
                             onUpdateItemsCollections={onUpdateItemsCollections}
                             render={
                                 <Button
