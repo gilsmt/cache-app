@@ -571,6 +571,28 @@ async function importSnapshotProfileRows(args: {
         }
     }
 
+    // An empty "complete" snapshot is far more likely an upstream anomaly than
+    // a user deleting their entire upstream collection, and pruning on it is
+    // unrecoverable: with no retained ids the deleteMany filter omits its
+    // `notIn` clause and removes every live row. The ratio guard below cannot
+    // catch this, because it exempts libraries under
+    // SNAPSHOT_PRUNE_GUARD_MIN_LIVE_ROWS.
+    if (retainedExternalIds.length === 0 && liveRowCount > 0) {
+        log.warn("Snapshot prune skipped: complete fetch returned no rows", {
+            liveRowCount,
+            source: args.source,
+            userId: args.userId,
+        });
+        return {
+            importedCount: accumulated.importedCount,
+            pruneAborted: true,
+            prunedCount: 0,
+            smartCollectionItemIds: [...accumulated.smartCollectionItemIds],
+            unchangedCount: accumulated.unchangedCount,
+            updatedCount: accumulated.updatedCount,
+        };
+    }
+
     if (shouldAbortPrune({ liveRowCount, removableCount })) {
         log.warn("Snapshot prune aborted by guard", {
             liveRowCount,

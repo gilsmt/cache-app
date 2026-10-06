@@ -87,6 +87,8 @@ export function sourceLabel(source: LibraryItemSource): string {
             return "Saved item";
         case LibraryItemSource.pinterest:
             return "Pinterest pin";
+        case LibraryItemSource.reddit_saved:
+            return "Reddit save";
         case LibraryItemSource.tiktok:
             return "TikTok favorite";
         case LibraryItemSource.x_bookmarks:

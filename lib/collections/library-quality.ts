@@ -5,6 +5,7 @@ import { LibraryItemSource } from "@/prisma/client/enums";
 /** Platform sources that routinely block automated checks. */
 export const LINK_PROBE_SKIP_SOURCES = new Set<LibraryItemSource>([
     LibraryItemSource.instagram,
+    LibraryItemSource.reddit_saved,
     LibraryItemSource.tiktok,
     LibraryItemSource.x_bookmarks,
 ]);

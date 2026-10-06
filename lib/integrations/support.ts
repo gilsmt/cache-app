@@ -8,6 +8,7 @@ import {
     NotionIcon,
     PhotosIcon,
     PinterestIcon,
+    RedditIcon,
     TikTokIcon,
     XSocialIcon,
     YouTubeIcon,
@@ -30,6 +31,7 @@ export type IntegrationId =
     | "mcp"
     | "notion"
     | "pinterest"
+    | "reddit"
     | "rss"
     | "tiktok"
     | "x"
@@ -439,6 +441,52 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 },
             ],
             libraryItemSources: [LibraryItemSource.pinterest],
+            syncable: true,
+        },
+    },
+    {
+        actions: [
+            {
+                for: "source",
+                role: "connect",
+            },
+            {
+                for: "source",
+                role: "sync",
+                visibleWhen: "connected",
+            },
+        ],
+        behaviors: {
+            connect: {
+                callbackURL: LIBRARY_CALLBACK_URL,
+                errorCallbackURL: LIBRARY_CALLBACK_URL,
+                kind: "oauth-link",
+                providerId: "reddit",
+            },
+            sync: {
+                errorMessage: "Could not import saved posts from Reddit.",
+                kind: "route",
+                method: "POST",
+                path: "/api/integrations/reddit/import",
+                successKey: "importedCount",
+                successMessage: (payload) =>
+                    formatImportedCountMessage(payload, "saved item"),
+            },
+        },
+        category: "social",
+        description: "Posts and comments you save",
+        hint: "Import posts and comments you saved on Reddit. Reddit only serves about the 1,000 most recent saves, so older ones are never fetched.",
+        Icon: RedditIcon,
+        id: "reddit",
+        label: "Reddit",
+        source: {
+            connectedWhen: [
+                {
+                    kind: "linked-provider",
+                    providerId: "reddit",
+                },
+            ],
+            libraryItemSources: [LibraryItemSource.reddit_saved],
             syncable: true,
         },
     },

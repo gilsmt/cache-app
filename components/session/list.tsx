@@ -405,6 +405,7 @@ const FILTERABLE_LIBRARY_SOURCES = [
     LibraryItemSource.instagram,
     LibraryItemSource.markdown_import,
     LibraryItemSource.pinterest,
+    LibraryItemSource.reddit_saved,
     LibraryItemSource.rss_feed,
     LibraryItemSource.tiktok,
     LibraryItemSource.x_bookmarks,

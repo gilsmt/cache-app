@@ -51,9 +51,9 @@ Cache exposes a Model Context Protocol (MCP) server so AI agents can read and wr
 
 ## Data model
 
-- **LibraryItem** — A saved bookmark, folder, or note. Has a \`kind\` (bookmark, folder, note) and \`source\` (cache_note, chrome_bookmarks, github_starred_repositories, instagram, pinterest, tiktok, x_bookmarks, youtube_watch_later, etc.). Can belong to multiple collections.
+- **LibraryItem** — A saved bookmark, folder, or note. Has a \`kind\` (bookmark, folder, note) and \`source\` (cache_note, chrome_bookmarks, github_starred_repositories, instagram, pinterest, reddit_saved, tiktok, x_bookmarks, youtube_watch_later, etc.). Can belong to multiple collections.
 - **Collection** — A named group of library items with optional description, priority, and public sharing.
-- **User** — Account with OAuth (Google) or email/password authentication.
+- **User** — Account with OAuth (Google, Reddit, GitHub, X, Pinterest, Notion) or email/password authentication.
 
 ## Key constants
 

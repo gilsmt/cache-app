@@ -300,6 +300,17 @@ const NotionUserSchema = z.object({
     }),
 });
 
+/**
+ * `/api/v1/me` returns the authorizing Reddit account. `has_verified_email`
+ * is ignored: linking uses the account id as the subject, and better-auth
+ * mints a placeholder email so account linking stays keyed on that id.
+ */
+const RedditUserAccountSchema = z.object({
+    icon_img: z.string().nullable().optional(),
+    id: z.string(),
+    name: z.string(),
+});
+
 const genericOAuthConfig = [
     buildIntegrationOAuthConfig({
         authentication: "basic",
@@ -321,6 +332,38 @@ const genericOAuthConfig = [
         scopes: ["user_accounts:read", "boards:read", "pins:read"],
         tokenUrl: "https://api.pinterest.com/v5/oauth/token",
         userInfoUrl: "https://api.pinterest.com/v5/user_account",
+    }),
+    buildIntegrationOAuthConfig({
+        // Reddit requires a descriptive User-Agent on both the token and the
+        // userinfo endpoints, so the built-in provider (which hardcodes
+        // "better-auth") is not used.
+        authentication: "basic",
+        authorizationHeaders: {
+            "User-Agent": APP_NAME,
+        },
+        authorizationUrl: "https://www.reddit.com/api/v1/authorize",
+        // A permanent duration makes Reddit issue a refresh token, without
+        // which saved items stop being readable after the hour-long access
+        // token expires.
+        authorizationUrlParams: {
+            duration: "permanent",
+        },
+        envPrefix: "REDDIT",
+        extraHeaders: {
+            "User-Agent": APP_NAME,
+        },
+        mapUser: (data) => ({
+            id: data.id,
+            image: data.icon_img?.split("?")[0],
+            name: data.name,
+        }),
+        providerId: "reddit",
+        schema: RedditUserAccountSchema,
+        // `history` governs /user/{username}/saved. It cannot be isolated
+        // from the rest of Reddit's history listings.
+        scopes: ["identity", "history"],
+        tokenUrl: "https://www.reddit.com/api/v1/access_token",
+        userInfoUrl: "https://oauth.reddit.com/api/v1/me",
     }),
     buildIntegrationOAuthConfig({
         authentication: "basic",

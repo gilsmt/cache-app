@@ -46,6 +46,8 @@ export const serverEnv = createEnv({
         NOTION_CLIENT_SECRET: z.string().optional(),
         PINTEREST_CLIENT_ID: z.string().optional(),
         PINTEREST_CLIENT_SECRET: z.string().optional(),
+        REDDIT_CLIENT_ID: z.string().optional(),
+        REDDIT_CLIENT_SECRET: z.string().optional(),
         RESEND_API_KEY: z.string().optional(),
         STRIPE_PRICE_ID_MONTHLY: z.string().startsWith("price_").optional(),
         STRIPE_PRICE_ID_YEARLY: z.string().startsWith("price_").optional(),

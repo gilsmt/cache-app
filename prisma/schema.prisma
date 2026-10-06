@@ -21,6 +21,7 @@ enum LibraryItemSource {
     markdown_import
     other
     pinterest
+    reddit_saved
     rss_feed
     tiktok
     x_bookmarks

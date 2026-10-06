@@ -28,6 +28,7 @@ export const ASSISTANT_SOURCE_FILTER_VALUES = [
     LibraryItemSource.markdown_import,
     LibraryItemSource.other,
     LibraryItemSource.pinterest,
+    LibraryItemSource.reddit_saved,
     LibraryItemSource.rss_feed,
     LibraryItemSource.tiktok,
     LibraryItemSource.x_bookmarks,
