@@ -1,6 +1,7 @@
 "use client";
 
 import type { BaseUIEvent } from "@base-ui/react";
+import { Tabs } from "@base-ui/react/tabs";
 import {
     contains,
     activeElement as getActiveElement,
@@ -380,14 +381,6 @@ interface SideContext {
     onUrlPaste: (url: string) => Promise<void> | void;
 }
 
-interface SideTabsContext {
-    onKeyDown: (
-        index: number,
-        event: React.KeyboardEvent<HTMLButtonElement>
-    ) => void;
-    registerTab: (itemId: string, element: HTMLButtonElement | null) => void;
-}
-
 interface SideStore {
     activeIndex: number;
     isOpen: boolean;
@@ -431,20 +424,10 @@ const NOTE_EDITOR_EXTENSION = defineExtension({
 
 const SideContext = createContext<SideContext | null>(null);
 
-const SideTabsContext = createContext<SideTabsContext | null>(null);
-
 function useSideContext(): SideContext {
     const context = use(SideContext);
     if (!context) {
         throw new Error("Side components must be used inside <SideRoot>.");
-    }
-    return context;
-}
-
-function useSideTabsContext(): SideTabsContext {
-    const context = use(SideTabsContext);
-    if (!context) {
-        throw new Error("Side tabs must be rendered inside <SideList>.");
     }
     return context;
 }
@@ -801,12 +784,16 @@ function writeSideStorageValue(storageKey: string, value: string): void {
     try {
         localStorage.setItem(storageKey, value);
     } catch (error) {
-        if (!isStorageQuotaExceededError(error)) {
-            throw error;
+        if (isStorageQuotaExceededError(error)) {
+            log.warn(
+                "Side tabs exceeded local storage quota; keeping the current tabs in memory.",
+                error
+            );
+            return;
         }
 
         log.warn(
-            "Side tabs exceeded local storage quota; keeping the current tabs in memory.",
+            "Failed to persist side tabs; keeping the current tabs in memory.",
             error
         );
     }
@@ -893,10 +880,6 @@ function getSideEntryTitle(entry: SideEntry): string | null {
 
 function getSideTabId(entry: SideEntry): string {
     return `side-tab-${entry.type}-${encodeURIComponent(entry.id)}`;
-}
-
-function getSidePanelId(entry: SideEntry): string {
-    return `side-panel-${entry.type}-${encodeURIComponent(entry.id)}`;
 }
 
 function isSideBlockedUrl(url: string | null): boolean {
@@ -1335,9 +1318,11 @@ export function SideContent() {
                 if (tab) {
                     tab.focus({ preventScroll: true });
                 } else {
-                    doc.getElementById(getSidePanelId(activeEntry))?.focus({
-                        preventScroll: true,
-                    });
+                    aside
+                        .querySelector<HTMLElement>(
+                            '[role="tabpanel"][tabindex="0"]'
+                        )
+                        ?.focus({ preventScroll: true });
                 }
             }
             return;
@@ -1379,6 +1364,16 @@ export function SideContent() {
         }
     });
 
+    const handleTabValueChange = useStableCallback((value: unknown) => {
+        if (typeof value !== "string") {
+            return;
+        }
+        const index = items.findIndex((item) => getSideTabId(item) === value);
+        if (index !== -1) {
+            selectQueueIndex(index);
+        }
+    });
+
     return (
         <>
             <SideToggle />
@@ -1398,7 +1393,13 @@ export function SideContent() {
                 onKeyDown={handleAsideKeyDown}
                 ref={asideRef}
             >
-                <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+                <Tabs.Root
+                    className="flex h-full min-h-0 min-w-0 flex-1 flex-col"
+                    onValueChange={handleTabValueChange}
+                    value={
+                        isOpen && activeEntry ? getSideTabId(activeEntry) : null
+                    }
+                >
                     <div
                         className={cn(
                             "flex min-w-0 shrink-0 flex-col gap-2 p-2 pr-10",
@@ -1406,10 +1407,7 @@ export function SideContent() {
                         )}
                     >
                         <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-1">
-                            <SideList
-                                items={items}
-                                onTabSelect={selectQueueIndex}
-                            >
+                            <SideList items={items}>
                                 {(item, index) => (
                                     <SideListItem
                                         index={index}
@@ -1417,7 +1415,6 @@ export function SideContent() {
                                         item={item}
                                         key={item.id}
                                         onRemove={handleRemoveItem}
-                                        onSelect={selectQueueIndex}
                                     />
                                 )}
                             </SideList>
@@ -1439,7 +1436,7 @@ export function SideContent() {
                         onSaveNote={onSaveNote}
                         onUrlPaste={onUrlPaste}
                     />
-                </div>
+                </Tabs.Root>
             </aside>
         </>
     );
@@ -1474,37 +1471,58 @@ function SidePanel({
             DEFAULT_TIMEOUT_MS
         );
 
+    const isLoading = status === "loading";
+
     return (
         <>
-            {visibleActiveEntry?.type === "url" ? (
-                <SideUrlPanel
-                    attempt={attempt}
-                    entry={visibleActiveEntry}
-                    markAsBlocked={markAsBlocked}
-                    markAsLoaded={markAsLoaded}
-                    oembed={oembed}
-                    onRetry={retry}
-                    status={status}
-                />
-            ) : null}
             {/* Keep every note session mounted so tab switches preserve editor history. */}
-            {items.map((item) =>
-                item.type === "note" ? (
-                    <SideNotePanel
-                        entry={item}
-                        isActive={
-                            isOpen &&
-                            activeEntry?.type === "note" &&
-                            activeEntry.id === item.id
-                        }
+            {items.map((item) => {
+                if (item.type === "note") {
+                    return (
+                        <SideNotePanel
+                            entry={item}
+                            isActive={
+                                isOpen &&
+                                activeEntry?.type === "note" &&
+                                activeEntry.id === item.id
+                            }
+                            key={item.id}
+                            onClose={onCloseNote}
+                            onRegisterClose={onRegisterNoteClose}
+                            onSave={onSaveNote}
+                            onUrlPaste={onUrlPaste}
+                        />
+                    );
+                }
+
+                const activeUrl =
+                    visibleActiveEntry?.type === "url" &&
+                    visibleActiveEntry.id === item.id
+                        ? visibleActiveEntry
+                        : null;
+
+                return (
+                    <Tabs.Panel
+                        aria-busy={activeUrl !== null && isLoading}
+                        className="relative min-h-0 min-w-0 flex-1"
+                        keepMounted
                         key={item.id}
-                        onClose={onCloseNote}
-                        onRegisterClose={onRegisterNoteClose}
-                        onSave={onSaveNote}
-                        onUrlPaste={onUrlPaste}
-                    />
-                ) : null
-            )}
+                        value={getSideTabId(item)}
+                    >
+                        {activeUrl ? (
+                            <SideUrlPanel
+                                attempt={attempt}
+                                entry={activeUrl}
+                                markAsBlocked={markAsBlocked}
+                                markAsLoaded={markAsLoaded}
+                                oembed={oembed}
+                                onRetry={retry}
+                                status={status}
+                            />
+                        ) : null}
+                    </Tabs.Panel>
+                );
+            })}
             {visibleActiveEntry === null && isOpen ? <SidePanelEmpty /> : null}
         </>
     );
@@ -1536,15 +1554,7 @@ function SideUrlPanel({
     const isOembed = status === "oembed";
 
     return (
-        <div
-            aria-busy={isLoading}
-            aria-labelledby={getSideTabId(entry)}
-            className="relative min-h-0 min-w-0 flex-1"
-            id={getSidePanelId(entry)}
-            role="tabpanel"
-            // biome-ignore lint/a11y/noNoninteractiveTabindex: tabpanel needs keyboard focus per ARIA tabs pattern; matches previous DrawerPanel behavior
-            tabIndex={0}
-        >
+        <>
             {isLoading ? <SideLoading /> : null}
             {isBlocked ? (
                 <SideBlocked onRetry={onRetry} url={entry.url} />
@@ -1566,7 +1576,7 @@ function SideUrlPanel({
                     title={gt("Preview of {title}", { title: entry.title })}
                 />
             )}
-        </div>
+        </>
     );
 }
 
@@ -1681,85 +1691,24 @@ function SideOembedPreview({ oembed }: SideOembedPreviewProps) {
     );
 }
 
-interface SideListProps extends Omit<React.ComponentProps<"div">, "children"> {
+interface SideListProps {
     children: (item: SideEntry, index: number) => React.ReactNode;
     items: SideEntry[];
-    onTabSelect: (index: number) => void;
 }
 
-function SideList({
-    items,
-    className,
-    children,
-    onTabSelect,
-    ...props
-}: SideListProps) {
+function SideList({ items, children }: SideListProps) {
     const gt = useGT();
-    const tabRefs = useRefWithInit(
-        () => new Map<string, HTMLButtonElement>()
-    ).current;
-
-    const registerTab = useStableCallback(
-        (itemId: string, element: HTMLButtonElement | null) => {
-            if (element) {
-                tabRefs.set(itemId, element);
-            } else {
-                tabRefs.delete(itemId);
-            }
-        }
-    );
-
-    const focusTab = useStableCallback((itemId: string) => {
-        tabRefs.get(itemId)?.focus();
-    });
-
-    const handleKeyDown = useStableCallback(
-        (index: number, event: React.KeyboardEvent<HTMLButtonElement>) => {
-            let nextIndex: number | null = null;
-
-            if (event.key === "ArrowLeft") {
-                nextIndex = index === 0 ? items.length - 1 : index - 1;
-            } else if (event.key === "ArrowRight") {
-                nextIndex = index === items.length - 1 ? 0 : index + 1;
-            } else if (event.key === "Home") {
-                nextIndex = 0;
-            } else if (event.key === "End") {
-                nextIndex = items.length - 1;
-            }
-
-            if (nextIndex === null) {
-                return;
-            }
-
-            const nextItem = items[nextIndex];
-            if (!nextItem) {
-                return;
-            }
-
-            event.preventDefault();
-            onTabSelect(nextIndex);
-            focusTab(nextItem.id);
-        }
-    );
-
-    const contextValue = { onKeyDown: handleKeyDown, registerTab };
 
     return (
-        <SideTabsContext value={contextValue}>
-            <ScrollArea className="h-fit min-w-0 flex-1" shouldScrollFade>
-                <div
-                    {...props}
-                    aria-label={gt("Open side tabs")}
-                    className={cn(
-                        "flex min-w-full items-center gap-1",
-                        className
-                    )}
-                    role="tablist"
-                >
-                    {items.map(children)}
-                </div>
-            </ScrollArea>
-        </SideTabsContext>
+        <ScrollArea className="h-fit min-w-0 flex-1" shouldScrollFade>
+            <Tabs.List
+                activateOnFocus
+                aria-label={gt("Open side tabs")}
+                className="flex min-w-full items-center gap-1"
+            >
+                {items.map(children)}
+            </Tabs.List>
+        </ScrollArea>
     );
 }
 
@@ -1768,18 +1717,10 @@ interface SideListItemProps {
     isActive: boolean;
     item: SideEntry;
     onRemove: (item: SideEntry, index: number) => void;
-    onSelect: (index: number) => void;
 }
 
-function SideListItem({
-    index,
-    isActive,
-    item,
-    onRemove,
-    onSelect,
-}: SideListItemProps) {
+function SideListItem({ index, isActive, item, onRemove }: SideListItemProps) {
     const gt = useGT();
-    const { onKeyDown, registerTab } = useSideTabsContext();
 
     const entryTitle = getSideEntryTitle(item);
 
@@ -1795,25 +1736,24 @@ function SideListItem({
     }
     const closeLabel = gt("Close {title}", { title });
 
-    const handleKeyDown = useStableCallback(
-        (event: React.KeyboardEvent<HTMLButtonElement>) => {
-            onKeyDown(index, event);
-        }
-    );
-
-    const handleTabRef = useStableCallback(
-        (element: HTMLButtonElement | null) => {
-            registerTab(item.id, element);
-        }
-    );
-
-    const handleClick = useStableCallback(() => {
-        onSelect(index);
-    });
-
     const handleRemove = useStableCallback(() => {
         onRemove(item, index);
     });
+
+    const handleRemoveKeyDown = useStableCallback(
+        (event: React.KeyboardEvent<HTMLButtonElement>) => {
+            if (
+                event.key === "ArrowLeft" ||
+                event.key === "ArrowRight" ||
+                event.key === "ArrowUp" ||
+                event.key === "ArrowDown" ||
+                event.key === "Home" ||
+                event.key === "End"
+            ) {
+                event.stopPropagation();
+            }
+        }
+    );
 
     return (
         <div
@@ -1822,19 +1762,17 @@ function SideListItem({
                 isActive ? "bg-secondary" : "hover:bg-accent"
             )}
         >
-            <Button
-                aria-controls={getSidePanelId(item)}
-                aria-selected={isActive}
-                className="min-w-0 flex-1 justify-start overflow-hidden px-2"
+            <Tabs.Tab
                 id={getSideTabId(item)}
-                onClick={handleClick}
-                onKeyDown={handleKeyDown}
-                ref={handleTabRef}
-                role="tab"
-                size="sm"
-                tabIndex={isActive ? 0 : -1}
-                title={title}
-                variant="ghost"
+                render={
+                    <Button
+                        className="min-w-0 flex-1 justify-start overflow-hidden px-2"
+                        size="sm"
+                        title={title}
+                        variant="ghost"
+                    />
+                }
+                value={getSideTabId(item)}
             >
                 {item.type === "note" ? null : (
                     <Globe aria-hidden className="size-3.5" focusable="false" />
@@ -1842,11 +1780,12 @@ function SideListItem({
                 <Calligraph className="min-w-0 flex-1 truncate text-left font-medium">
                     {title}
                 </Calligraph>
-            </Button>
+            </Tabs.Tab>
             <Button
                 aria-label={closeLabel}
                 className="shrink-0"
                 onClick={handleRemove}
+                onKeyDown={handleRemoveKeyDown}
                 size="icon-sm"
                 title={closeLabel}
                 variant="ghost"
@@ -2128,24 +2067,18 @@ function SideNotePanel({
     }, [isActive]);
 
     return (
-        <NoteRoot
-            contentEditableRef={contentEditableRef}
-            isActive={isActive}
-            note={entry.note}
-            onClose={handleClose}
-            onSave={handleSave}
-            onUrlPaste={onUrlPaste}
+        <Tabs.Panel
+            className="relative flex min-h-0 min-w-0 flex-1 flex-col"
+            keepMounted
+            value={getSideTabId(entry)}
         >
-            <div
-                aria-hidden={!isActive}
-                aria-labelledby={getSideTabId(entry)}
-                className={cn(
-                    "min-h-0 min-w-0 flex-1 flex-col",
-                    isActive ? "flex" : "hidden"
-                )}
-                id={getSidePanelId(entry)}
-                role="tabpanel"
-                tabIndex={isActive ? 0 : -1}
+            <NoteRoot
+                contentEditableRef={contentEditableRef}
+                isActive={isActive}
+                note={entry.note}
+                onClose={handleClose}
+                onSave={handleSave}
+                onUrlPaste={onUrlPaste}
             >
                 <ScrollArea className="min-h-0 min-w-0 flex-1">
                     <div className="w-full min-w-0 p-4 pt-0">
@@ -2153,8 +2086,8 @@ function SideNotePanel({
                         <NoteMetrics />
                     </div>
                 </ScrollArea>
-            </div>
-        </NoteRoot>
+            </NoteRoot>
+        </Tabs.Panel>
     );
 }
 
@@ -2856,6 +2789,7 @@ function ExportProviderMenuItem({
     query: string;
 }) {
     const gt = useGT();
+
     const ProviderIcon = provider.icon;
     const title = provider.getTitle(gt);
     const href = provider.createUrl(query);
@@ -3050,6 +2984,10 @@ function ContentPlugin({
         return true;
     });
 
+    const handleChange = useStableCallback((editorState: EditorState) => {
+        onDraftChange(noteDraftFromEditorState(editorState.toJSON()));
+    });
+
     useEffect(
         () =>
             editor.registerCommand(
@@ -3059,10 +2997,6 @@ function ContentPlugin({
             ),
         [editor, handlePaste]
     );
-
-    const handleChange = useStableCallback((editorState: EditorState) => {
-        onDraftChange(noteDraftFromEditorState(editorState.toJSON()));
-    });
 
     return (
         <>
