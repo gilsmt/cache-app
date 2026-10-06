@@ -226,7 +226,8 @@ import { getSourceLabel } from "@/lib/integrations/support";
 import { getCollectionDescription } from "@/lib/intelligence/actions";
 import type { CollectionPriority } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
-import EmptyCollectionStateImage from "@/public/empty-collection-state.png";
+import EmptyCollectionStateDarkImage from "@/public/empty-collection-state-dark.webp";
+import EmptyCollectionStateLightImage from "@/public/empty-collection-state-light.webp";
 import SmartCollectionsBackgroundImg from "@/public/smart-collections-background-wide.webp";
 
 const NAME_REQUIRED_MESSAGE = "Enter a collection name.";
@@ -2969,9 +2970,16 @@ function CollectionsListEmpty({
                     <>
                         <Image
                             alt="empty cluster"
-                            className="squircle mx-auto size-10 rounded-lg outline-1 outline-black/5 -outline-offset-1 dark:outline-white/5"
+                            className="squircle mx-auto size-10 rounded-lg outline-1 outline-black/5 -outline-offset-1 dark:hidden dark:outline-white/5"
                             height={40}
-                            src={EmptyCollectionStateImage}
+                            src={EmptyCollectionStateLightImage}
+                            width={40}
+                        />
+                        <Image
+                            alt="empty cluster"
+                            className="squircle mx-auto hidden size-10 rounded-lg outline-1 outline-black/5 -outline-offset-1 dark:block dark:outline-white/5"
+                            height={40}
+                            src={EmptyCollectionStateDarkImage}
                             width={40}
                         />
                         <span className="inline-flex items-center">
