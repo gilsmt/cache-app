@@ -731,10 +731,24 @@ function deserializeSideItems(value: string): SideEntry[] {
     });
 }
 
+function isSideEntryPersisted(entry: SideEntry): boolean {
+    return entry.type === "url" || entry.note !== null;
+}
+
+function getPersistedActiveIndex(
+    items: SideEntry[],
+    activeIndex: number
+): number {
+    const safeIndex = clampActiveIndex(activeIndex, items.length);
+    const serializedPosition = items
+        .slice(0, safeIndex)
+        .filter(isSideEntryPersisted).length;
+    const serializedLength = items.filter(isSideEntryPersisted).length;
+    return clampActiveIndex(serializedPosition, serializedLength);
+}
+
 function serializeSideItems(items: SideEntry[]): string {
-    return JSON.stringify(
-        items.filter((item) => item.type === "url" || item.note !== null)
-    );
+    return JSON.stringify(items.filter(isSideEntryPersisted));
 }
 
 function isStorageQuotaExceededError(error: unknown): boolean {
@@ -1076,7 +1090,10 @@ function useSideUserScopeSync(): void {
             return;
         }
         writeSideItemsForUser(userId, items);
-        writeSideActiveIndexForUser(userId, activeIndex);
+        writeSideActiveIndexForUser(
+            userId,
+            getPersistedActiveIndex(items, activeIndex)
+        );
     }, [isPending, userId, items, activeIndex]);
 
     useEffect(() => {
@@ -1119,7 +1136,10 @@ function useSideUserScopeSync(): void {
 
         if (persistedItems.length === 0) {
             writeSideItemsForUser(userId, current.items);
-            writeSideActiveIndexForUser(userId, current.activeIndex);
+            writeSideActiveIndexForUser(
+                userId,
+                getPersistedActiveIndex(current.items, current.activeIndex)
+            );
             return;
         }
 
@@ -1151,11 +1171,27 @@ function useSideUserScopeSync(): void {
                 return;
             }
             const current = getSideStoreState();
-            const nextItems = loadSideItemsForUser(userId);
-            const nextIndex = loadSideActiveIndexForUser(
+            const nextPersistedItems = loadSideItemsForUser(userId);
+            const persistedIndex = loadSideActiveIndexForUser(
                 userId,
-                nextItems.length
+                nextPersistedItems.length
             );
+            // Persisted tabs never include unsaved new-note drafts, so keep
+            // this tab's in-memory drafts appended instead of dropping them.
+            const unsavedEntries = current.items.filter(
+                (item) => !isSideEntryPersisted(item)
+            );
+            const nextItems = [...nextPersistedItems, ...unsavedEntries];
+            const activeEntry = current.items[current.activeIndex] ?? null;
+            let nextIndex = persistedIndex;
+            if (activeEntry && !isSideEntryPersisted(activeEntry)) {
+                const unsavedIndex = nextItems.findIndex(
+                    (item) => item.id === activeEntry.id
+                );
+                if (unsavedIndex !== -1) {
+                    nextIndex = unsavedIndex;
+                }
+            }
             const haveItemsChanged =
                 current.items.length !== nextItems.length ||
                 current.items.some((item, itemIndex) => {
