@@ -1,4 +1,4 @@
-import { T } from "gt-next";
+import { LocaleSelector, T } from "gt-next";
 import Link from "next/link";
 import { GDPRIcon } from "@/components/ui/icons";
 import { CHANGELOG_URL, DOCS_URL, SUPPORT_URL } from "@/lib/common/constants";
@@ -9,8 +9,13 @@ export function Footer() {
             <div className="relative mx-auto mt-auto grid h-auto w-full max-w-5xl grid-cols-12 gap-x-[min(2.25vw,32px)] pt-30 lg:top-0">
                 <div className="relative z-20 col-span-full mx-auto grid w-full grid-cols-12 flex-col gap-6 gap-x-[min(2.25vw,32px)]">
                     <div className="col-span-full flex flex-col gap-4">
-                        <div className="col-span-full flex h-full flex-row flex-wrap gap-6 text-[0.8rem] text-foreground leading-[1.22] tracking-[-3%]">
+                        <div className="col-span-full flex h-full flex-row flex-wrap items-center gap-6 text-[0.8rem] text-foreground leading-[1.22] tracking-[-3%]">
                             <div className="flex flex-row flex-wrap gap-6 [&:has(a:hover,a:focus-visible)_a:focus-visible]:opacity-100 [&:has(a:hover,a:focus-visible)_a:hover]:opacity-100 [&:has(a:hover,a:focus-visible)_a]:opacity-25 [&_a:focus-visible]:opacity-100 [&_a:hover]:opacity-100 [&_a]:opacity-50 [&_a]:transition-opacity [&_a]:duration-300">
+                                <LocaleSelector
+                                    className="text-muted-foreground"
+                                    id="language-selector"
+                                    name="language"
+                                />
                                 <Link
                                     className="underline"
                                     href={DOCS_URL}
@@ -81,10 +86,7 @@ export function Footer() {
                             <p className="opacity-50">
                                 <T>&copy; Cache App. All rights reserved.</T>
                             </p>
-                            <div className="flex items-center gap-1 opacity-50">
-                                <GDPRIcon />
-                                <span>GDPR</span>
-                            </div>
+                            <GDPRIcon className="opacity-50" />
                         </div>
                     </div>
                     <div className="relative col-span-full flex flex-col items-start justify-between font-sans text-foreground text-xs leading-[1.22] tracking-[-3%] opacity-50">

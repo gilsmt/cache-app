@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { LocaleSelector, T } from "gt-next";
+import { T } from "gt-next";
 import { getGT } from "gt-next/server";
 import {
     Album,
@@ -211,8 +211,9 @@ export default async function Home() {
                             </h1>
                             <p className="font-medium text-base text-foreground leading-[1.22] tracking-[-3%] opacity-50 lg:max-w-[320px]">
                                 Cache is the AI bookmark manager for busy
-                                people. Collect, organize, and rediscover
-                                everything you've saved across platforms.
+                                people. A smarter way to collect, organize, and
+                                rediscover everything you've saved across
+                                platforms.
                             </p>
                         </T>
                         <SignInButton hasServerSession={!!session} />
@@ -240,12 +241,6 @@ export default async function Home() {
                                     </span>
                                 </p>
                             </a>
-                        </div>
-                        <div className="hidden lg:block">
-                            <LocaleSelector
-                                id="language-selector"
-                                name="language"
-                            />
                         </div>
                     </SidebarFooter>
                 </Sidebar>
@@ -275,16 +270,8 @@ export default async function Home() {
                             className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-black/3 ring-inset dark:ring-white/3"
                         />
                     </div>
-                    <div className="mx-auto -mt-2 mb-3 flex flex-col gap-2 md:max-w-prose md:pl-24">
-                        <h2 className="font-normal text-lg leading-snug">
-                            <T>
-                                Save hours every week with a smarter way to
-                                handle everything you save online — from
-                                $8/month.
-                            </T>
-                        </h2>
+                    <div className="mx-auto -mt-7 flex justify-center">
                         <Button
-                            className="w-fit px-0 text-muted-foreground"
                             nativeButton={false}
                             render={
                                 <a
@@ -294,12 +281,11 @@ export default async function Home() {
                                     target="_blank"
                                 />
                             }
-                            size="sm"
                             variant="link"
                         >
                             <GithubIcon
                                 aria-hidden
-                                className="size-4"
+                                className="size-4.5"
                                 focusable="false"
                             />
                             &nbsp;<T>Open-source. Truly yours</T>

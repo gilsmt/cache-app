@@ -1,9 +1,8 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
-import { cn } from "cn";
 import { T } from "gt-next";
-import { Check, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -54,18 +53,10 @@ export function SignInButton({ hasServerSession }: SignInButtonProps) {
         );
     }
 
-    return (
-        <>
-            <GoogleSignInButton />
-            <span className="-mt-3 inline-flex items-center gap-1 text-muted-foreground text-xs">
-                <Check className="size-3.5" />
-                <T>Get started now for free</T>
-            </span>
-        </>
-    );
+    return <GoogleSignInButton />;
 }
 
-function GoogleSignInButton({ className }: { className?: string }) {
+function GoogleSignInButton() {
     const [isPending, startTransition] = React.useTransition();
     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
@@ -95,10 +86,7 @@ function GoogleSignInButton({ className }: { className?: string }) {
     return (
         <div className="flex flex-col gap-1">
             <Button
-                className={cn(
-                    "border border-[#747775] bg-white text-[#1f1f1f] shadow-xs hover:bg-[#f8f9fa] *:data-[slot=spinner]:text-[#1f1f1f] dark:border-input dark:bg-popover dark:text-foreground dark:hover:bg-accent/50 dark:*:data-[slot=spinner]:text-foreground",
-                    className
-                )}
+                className="border border-[#747775] bg-white text-[#1f1f1f] shadow-xs hover:bg-[#f8f9fa] *:data-[slot=spinner]:text-[#1f1f1f] dark:border-input dark:bg-popover dark:text-foreground dark:hover:bg-accent/50 dark:*:data-[slot=spinner]:text-foreground"
                 isLoading={isPending}
                 onClick={handleSignIn}
                 size="xl"
