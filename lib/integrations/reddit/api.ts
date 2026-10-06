@@ -16,7 +16,7 @@ const REDDIT_SAVED_PAGE_SIZE = 100;
  */
 const REDDIT_LISTING_ITEM_CAP = 1000;
 /** Reddit requires a descriptive User-Agent and rate-limits generic ones. */
-const REDDIT_USER_AGENT = `CacheApp/1.0 (+https://${SITE_DOMAIN})`;
+export const REDDIT_USER_AGENT = `CacheApp/1.0 (+https://${SITE_DOMAIN})`;
 /**
  * Reddit stops serving a listing near 1,000 items and then stops issuing a
  * cursor, so ten full pages is the whole walk. Ten pages also bounds the work

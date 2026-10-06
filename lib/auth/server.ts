@@ -19,6 +19,7 @@ import { fetchWithTimeout } from "@/lib/common/timeout";
 import { tryParseUrl } from "@/lib/common/url";
 import { GOOGLE_PHOTOS_PICKER_SCOPE } from "@/lib/integrations/google-photos/shared";
 import { NOTION_API_VERSION } from "@/lib/integrations/notion/api";
+import { REDDIT_USER_AGENT } from "@/lib/integrations/reddit/api";
 import { prisma } from "@/prisma";
 import { i18nPlugin } from "./i18n";
 
@@ -339,7 +340,7 @@ const genericOAuthConfig = [
         // "better-auth") is not used.
         authentication: "basic",
         authorizationHeaders: {
-            "User-Agent": APP_NAME,
+            "User-Agent": REDDIT_USER_AGENT,
         },
         authorizationUrl: "https://www.reddit.com/api/v1/authorize",
         // A permanent duration makes Reddit issue a refresh token, without
@@ -350,7 +351,7 @@ const genericOAuthConfig = [
         },
         envPrefix: "REDDIT",
         extraHeaders: {
-            "User-Agent": APP_NAME,
+            "User-Agent": REDDIT_USER_AGENT,
         },
         mapUser: (data) => ({
             id: data.id,
