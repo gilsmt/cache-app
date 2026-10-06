@@ -91,19 +91,14 @@ export function Footer() {
                         <span className="opacity-90">
                             <T context="Disclaimer">
                                 Third-party platforms you connect through the
-                                Service are operated independently of Cache.
-                                Cache does not control their policies or how
-                                they apply them, and is not responsible for
-                                decisions those platforms make regarding your
-                                accounts or access to their services—including,
-                                without limitation, changes to
-                                availability—whether or not related to your use
-                                of Cache. You are responsible for complying with
-                                each platform's terms, policies, and community
-                                guidelines. Cache is not liable for any
-                                inconvenience, loss, or other outcome arising
-                                from your relationship with those platforms or
-                                your use of the Service in connection with them.
+                                Service operate independently of Cache. Cache
+                                does not control their policies, enforcement, or
+                                access decisions, including availability
+                                changes. You are responsible for complying with
+                                each platform's terms and policies. Cache is not
+                                liable for any loss arising from your
+                                relationship with those platforms or your use of
+                                the Service in connection with them.
                             </T>
                         </span>
                         <div className="relative inset-x-0 h-25 w-full overflow-clip sm:h-25 md:h-50">
