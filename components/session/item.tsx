@@ -638,14 +638,11 @@ function getItemDownloadFileExtension(
     if (urlExtension === "jpeg") {
         urlExtension = "jpg";
     }
-    const downloadExtensions = Object.values(
-        ITEM_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE
+    return (
+        Object.values(ITEM_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE).find(
+            (extension) => extension === urlExtension
+        ) ?? null
     );
-    return downloadExtensions.includes(
-        urlExtension as ItemDownloadFileExtension
-    )
-        ? (urlExtension as ItemDownloadFileExtension)
-        : null;
 }
 
 function formatItemDate(dateValue: Date | string | null | undefined): string {
