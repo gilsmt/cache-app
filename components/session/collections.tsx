@@ -2842,7 +2842,7 @@ function CollectionsListFavoritesItem({
                         />
                     }
                 >
-                    <span className="min-w-0 flex-1 truncate font-medium text-sm leading-none tracking-tight">
+                    <span className="min-w-0 flex-1 truncate font-medium text-sm tracking-tight">
                         {label}
                     </span>
                 </PreviewCardTrigger>
@@ -3462,7 +3462,7 @@ function CollectionsListSuggestionsItem({
                             focusable="false"
                         />
                     </span>
-                    <span className="min-w-0 flex-1 truncate font-medium text-sm leading-none">
+                    <span className="min-w-0 flex-1 truncate font-medium text-sm">
                         {template.name}
                     </span>
                     {isPending ? (
@@ -3720,7 +3720,7 @@ function CollectionsListItemValue() {
     const { textMatchQuery } = useCollectionsListStore();
 
     return (
-        <div className="flex min-w-0 flex-1 items-center gap-3 leading-none">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
             <span
                 className="max-w-full shrink-0 truncate font-medium text-sm tracking-tight"
                 title={collection.name}

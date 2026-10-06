@@ -466,11 +466,7 @@ function ThreadsListEmpty() {
                     <p className="font-medium text-muted-foreground text-xs leading-tight">
                         <T>No chats match this view.</T>
                     </p>
-                    <Button
-                        onClick={handleShowAll}
-                        size="sm"
-                        variant="secondary"
-                    >
+                    <Button onClick={handleShowAll} size="xs" variant="outline">
                         <T>Show all chats</T>
                     </Button>
                 </>
