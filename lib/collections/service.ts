@@ -811,15 +811,6 @@ export function trashLibraryItem({
             },
         });
 
-        await tx.libraryActivityEvent.create({
-            data: {
-                kind: "item_deleted",
-                libraryItemId: item.id,
-                occurredAt: now,
-                userId,
-            },
-        });
-
         return {
             collectionSummaries: await findCollectionSummariesOwnedByIds(tx, {
                 collectionIds: item.collections.map(
@@ -892,17 +883,6 @@ export function trashLibraryItems({
         });
         const trashedItemIds = trashedItems.map((item) => item.id);
 
-        if (trashedItemIds.length > 0) {
-            await tx.libraryActivityEvent.createMany({
-                data: trashedItemIds.map((libraryItemId) => ({
-                    kind: "item_deleted" as const,
-                    libraryItemId,
-                    occurredAt: now,
-                    userId,
-                })),
-            });
-        }
-
         const trashedItemIdSet = new Set(trashedItemIds);
         const collectionIds = Array.from(
             new Set(
@@ -937,8 +917,8 @@ interface RestoreLibraryItemResult {
 /**
  * Restores a tombstoned item back to the library. Items already restored or
  * never trashed surface as `not_found`; items currently in the trash are
- * brought back via a single update plus an `item_restored` activity event.
- * Collection summaries are returned so callers can refresh sidebar counts.
+ * brought back with one update. Collection summaries are returned so callers
+ * can refresh sidebar counts.
  */
 export function restoreLibraryItem({
     itemId,
@@ -970,18 +950,9 @@ export function restoreLibraryItem({
             });
         }
 
-        const now = new Date();
         await tx.libraryItem.update({
             data: { deletedAt: null },
             where: { id: item.id },
-        });
-        await tx.libraryActivityEvent.create({
-            data: {
-                kind: "item_restored",
-                libraryItemId: item.id,
-                occurredAt: now,
-                userId,
-            },
         });
 
         return {
@@ -1010,36 +981,23 @@ interface PurgeLibraryItemResult {
  * Recently deleted (live items or already-purged tombstones) surface as
  * `not_found` so callers do not accidentally hard-delete an active item.
  */
-export function purgeLibraryItem({
+export async function purgeLibraryItem({
     itemId,
     userId,
 }: PurgeLibraryItemArgs): Promise<PurgeLibraryItemResult> {
-    return prisma.$transaction(async (tx) => {
-        const item = await tx.libraryItem.findFirst({
-            select: { deletedAt: true, id: true },
-            where: { deletedAt: { not: null }, id: itemId, userId },
-        });
-
-        if (!item) {
-            throw createCollectionError({
-                code: "not_found",
-                message: "That saved item is no longer in Recently deleted.",
-                operation: "purgeLibraryItem",
-            });
-        }
-
-        await tx.libraryActivityEvent.create({
-            data: {
-                kind: "item_purged",
-                libraryItemId: item.id,
-                occurredAt: new Date(),
-                userId,
-            },
-        });
-        await tx.libraryItem.delete({ where: { id: item.id } });
-
-        return { itemId: item.id };
+    const deleted = await prisma.libraryItem.deleteMany({
+        where: { deletedAt: { not: null }, id: itemId, userId },
     });
+
+    if (deleted.count === 0) {
+        throw createCollectionError({
+            code: "not_found",
+            message: "That saved item is no longer in Recently deleted.",
+            operation: "purgeLibraryItem",
+        });
+    }
+
+    return { itemId };
 }
 
 interface PurgeExpiredLibraryItemsArgs {
@@ -1053,9 +1011,8 @@ interface PurgeExpiredLibraryItemsResult {
 
 /**
  * Lazily hard-deletes tombstones older than `LIBRARY_ITEM_TRASH_WINDOW_DAYS`
- * for one user. Each deletion writes an `item_purged` event so the activity
- * timeline reflects what was lost. Exposed for page-load sweeps so we never
- * ship a cron job for a feature that mostly writes Postgres rows.
+ * for one user. Exposed for page-load sweeps so we never ship a cron job for a
+ * feature that mostly writes Postgres rows.
  *
  * Pass `now` in tests; production callers use the default `new Date()`.
  */
@@ -1089,20 +1046,6 @@ export function purgeExpiredLibraryItems({
                 break;
             }
 
-            // Create activity events BEFORE the delete. The FK on
-            // libraryItemId references libraryItem.id, so events must be
-            // written while items still exist — otherwise the FK constraint
-            // rejects rows pointing at already-deleted items. Survivors
-            // (concurrently restored items) are cleaned up below.
-            await tx.libraryActivityEvent.createMany({
-                data: candidateIds.map((itemId) => ({
-                    kind: "item_purged" as const,
-                    libraryItemId: itemId,
-                    occurredAt: now,
-                    userId,
-                })),
-            });
-
             // deleteMany includes `deletedAt` so a concurrent restore that sets
             // `deletedAt = null` between the read above and this delete is
             // excluded — a restored item is no longer expired and must survive.
@@ -1114,10 +1057,7 @@ export function purgeExpiredLibraryItems({
                 },
             });
 
-            // Find which candidates survived the delete (were restored between
-            // read and delete) so we can remove their premature events. A
-            // restored item was never actually purged, so it must not carry an
-            // `item_purged` event.
+            // Return only candidates that no longer exist after the delete.
             const survivors = new Set(
                 (
                     await tx.libraryItem.findMany({
@@ -1126,16 +1066,6 @@ export function purgeExpiredLibraryItems({
                     })
                 ).map((item) => item.id)
             );
-
-            if (survivors.size > 0) {
-                await tx.libraryActivityEvent.deleteMany({
-                    where: {
-                        kind: "item_purged",
-                        libraryItemId: { in: [...survivors] },
-                        userId,
-                    },
-                });
-            }
 
             const batchPurged = candidateIds.filter((id) => !survivors.has(id));
             purgedIds.push(...batchPurged);
@@ -1176,19 +1106,6 @@ export function purgeAllRecentlyDeletedItems({
             return { purgedItemIds: [] };
         }
 
-        // Create activity events BEFORE the delete. The FK on
-        // libraryItemId references libraryItem.id, so events must be
-        // written while items still exist — otherwise the constraint
-        // rejects rows pointing at already-deleted items.
-        await tx.libraryActivityEvent.createMany({
-            data: itemIds.map((id) => ({
-                kind: "item_purged" as const,
-                libraryItemId: id,
-                occurredAt: new Date(),
-                userId,
-            })),
-        });
-
         // deleteMany includes `deletedAt` so a concurrent restore that sets
         // `deletedAt = null` between the read above and this delete is
         // excluded — a restored item must survive.
@@ -1200,8 +1117,6 @@ export function purgeAllRecentlyDeletedItems({
             },
         });
 
-        // Remove premature events for survivors (concurrently restored items
-        // that the delete excluded). A restored item was never purged.
         const survivors = new Set(
             (
                 await tx.libraryItem.findMany({
@@ -1210,16 +1125,6 @@ export function purgeAllRecentlyDeletedItems({
                 })
             ).map((item) => item.id)
         );
-
-        if (survivors.size > 0) {
-            await tx.libraryActivityEvent.deleteMany({
-                where: {
-                    kind: "item_purged",
-                    libraryItemId: { in: [...survivors] },
-                    userId,
-                },
-            });
-        }
 
         return { purgedItemIds: itemIds.filter((id) => !survivors.has(id)) };
     });

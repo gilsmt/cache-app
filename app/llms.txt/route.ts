@@ -1,5 +1,5 @@
 const content = `# [Cache](https://www.cachd.app)
-> Unify your bookmarks across all platforms into a single, searchable, actionable library. Save, organize, review, and synthesize content you care about.
+> Unify your bookmarks across all platforms into a single, searchable, actionable library. Save, organize, find, and synthesize content you care about.
 
 ## Core features
 
@@ -9,7 +9,6 @@ const content = `# [Cache](https://www.cachd.app)
 - **AI summaries** — Generate summaries of collections and sections through an AI-native interface
 - **Full-text search** — Search across captions, URLs, and note text
 - **Public sharing** — Share collections publicly via a unique link
-- **Review workflow** — Mark items as reviewed for weekly triage (Pro feature)
 - **Notes** — Save free-form notes alongside bookmarks
 - **Browser extension** — Chrome extension for one-click saving
 - **PWA** — Install as a progressive web app with offline support
@@ -58,13 +57,12 @@ Cache exposes a Model Context Protocol (MCP) server so AI agents can read and wr
 ## Key constants
 
 - Free tier previews up to 12 items per collection
-- Review window: 7 days per item
 - Max 50 items per MCP list query
 - Max 100 collections per item
 
 ## Pricing
 
-- **Free**: Limited bookmarks, collections, AI summaries, 7-day review workflow
+- **Free**: Limited bookmarks, collections, and AI summaries
 - **Pro**: Unlimited bookmarks, unlimited AI quota, priority support — monthly or yearly
 `;
 

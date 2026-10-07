@@ -19,7 +19,7 @@ const HOME_MARKDOWN: Record<SupportedLocale, string> = {
 
 - **Unify your bookmarks** — Bring saved content from Chrome, Instagram, TikTok, YouTube, X, GitHub, Pinterest, and Google Photos into one library.
 - **Organize with collections** — Group saved items and use AI-assisted collections to keep related content together.
-- **Find and revisit saved content** — Search your library, review saved items, and use automations to resurface useful content.
+- **Find and revisit saved content** — Search and browse your library, then use automations to resurface useful content.
 - **Work with your content** — Create notes, get AI summaries, share collections, and export to other tools.
 
 ## Agent access
@@ -42,7 +42,7 @@ Cache provides an authenticated MCP server for working with your library. See th
 
 - **Unifica tus marcadores** — Reúne en una biblioteca el contenido guardado en Chrome, Instagram, TikTok, YouTube, X, GitHub, Pinterest y Google Photos.
 - **Organiza con colecciones** — Agrupa los elementos guardados y usa colecciones con ayuda de IA para mantener junto el contenido relacionado.
-- **Encuentra y revisa lo que guardas** — Busca en tu biblioteca, revisa los elementos guardados y usa automatizaciones para recuperar contenido útil.
+- **Encuentra lo que guardas** — Busca y explora tu biblioteca, y usa automatizaciones para recuperar contenido útil.
 - **Trabaja con tu contenido** — Crea notas, genera resúmenes con IA, comparte colecciones y exporta a otras herramientas.
 
 ## Acceso para agentes

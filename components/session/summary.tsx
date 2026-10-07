@@ -11,7 +11,6 @@ import {
     Grid2x2,
     Grid2x2X,
     type LucideIcon,
-    NotebookPen,
     Star,
 } from "lucide-react";
 import type * as React from "react";
@@ -88,14 +87,12 @@ function SummaryDataList({ actions, metrics, ...props }: SummaryDataListProps) {
         duplicateCount,
         favoriteCount,
         itemCount,
-        noteCount,
         sourceSegments,
         unreachableCount,
     } = metrics;
 
     const rows: readonly LibraryRow[] = [
         { icon: Star, label: "Favorites", value: favoriteCount },
-        { icon: NotebookPen, label: "Notes", value: noteCount },
         {
             icon: Clock,
             isHiddenWhenEmpty: true,

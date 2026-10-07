@@ -55,20 +55,6 @@ enum CollectionPriority {
     archive
 }
 
-/// Timeline event taxonomy for library and collection changes. Events are
-/// append-only; add new kinds instead of rewriting historical metadata shape.
-enum LibraryActivityEventKind {
-    collection_created
-    collection_shared
-    item_added
-    item_collected
-    item_deleted
-    item_purged
-    item_restored
-    item_updated
-    source_connected
-}
-
 /// User-authored or first-party scheduled background behavior.
 enum AutomationStatus {
     active
@@ -144,7 +130,6 @@ model User {
     accounts                Account[]
     libraryItems            LibraryItem[]
     collections             Collection[]
-    libraryActivityEvents   LibraryActivityEvent[]
     automations             Automation[]
     automationRuns          AutomationRun[]
     chats                   Chat[]
@@ -173,7 +158,6 @@ model Collection {
     shareId        String?                @unique
     sharedAt       DateTime?
     items          LibraryItem[]
-    activityEvents LibraryActivityEvent[]
     automations    Automation[]
     createdAt      DateTime               @default(now())
     updatedAt      DateTime               @updatedAt
@@ -183,33 +167,8 @@ model Collection {
     @@map("collection")
 }
 
-/// Application-owned activity record for the user's library timeline. Item and
-/// collection relations are nullable so deletion preserves historical context.
-model LibraryActivityEvent {
-    id            String                   @id @default(cuid())
-    userId        String
-    user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    kind          LibraryActivityEventKind
-    libraryItemId String?
-    libraryItem   LibraryItem?             @relation(fields: [libraryItemId], references: [id], onDelete: SetNull)
-    collectionId  String?
-    collection    Collection?              @relation(fields: [collectionId], references: [id], onDelete: SetNull)
-    /// Event-specific payload. Keep payloads additive and version-tolerant because
-    /// old events may be replayed by timeline and analytics code.
-    metadata      Json?
-    /// User-visible time of the event. This may differ from `createdAt` for
-    /// imported or backfilled activity.
-    occurredAt    DateTime                 @default(now())
-    createdAt     DateTime                 @default(now())
-
-    @@index([userId, occurredAt, createdAt])
-    @@index([libraryItemId])
-    @@index([collectionId])
-    @@map("library_activity_event")
-}
-
 /// Application-owned saved content. The compound source identity is the durable
-/// dedupe key; collection membership and activity hang off this record.
+/// dedupe key; collection membership and comments hang off this record.
 model LibraryItem {
     id               String                       @id @default(cuid())
     userId           String
@@ -258,10 +217,7 @@ model LibraryItem {
     /// `lib/collections/service.ts:purgeExpiredLibraryItems`).
     deletedAt        DateTime?
     collections      Collection[]
-    activityEvents   LibraryActivityEvent[]
     comment          Comment?
-    /// Null means the item has not entered the review workflow yet.
-    reviewedAt       DateTime?
     /// When the user marked this item as a favorite. Null means not favorited.
     favoritedAt      DateTime?
     /// Last time Smart Collections added memberships to this item. Null means

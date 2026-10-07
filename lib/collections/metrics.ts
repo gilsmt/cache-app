@@ -1,6 +1,5 @@
 import { collectDuplicateBookmarkItemIds } from "@/lib/collections/library-quality";
 import { getChartColorsFromKeys } from "@/lib/common/color";
-import { ITEM_KIND_NOTE } from "@/lib/common/constants";
 import { parseDate } from "@/lib/common/date";
 import {
     LibraryItemLinkReachability,
@@ -27,7 +26,6 @@ export interface LibraryMetricsSnapshot {
     duplicateCount: number;
     favoriteCount: number;
     itemCount: number;
-    noteCount: number;
     sourceSegments: readonly LibraryMetricsSegment<LibraryItemSource>[];
     unreachableCount: number;
 }
@@ -55,7 +53,6 @@ export function buildComposerMetrics({
     const nowMs = Date.now();
     let addedInLast30DaysCount = 0;
     let favoriteCount = 0;
-    let noteCount = 0;
     let unreachableCount = 0;
 
     for (const item of items) {
@@ -82,9 +79,6 @@ export function buildComposerMetrics({
         }
         if (item.favoritedAt !== null) {
             favoriteCount += 1;
-        }
-        if (item.kind === ITEM_KIND_NOTE) {
-            noteCount += 1;
         }
         if (item.linkReachability === LibraryItemLinkReachability.unreachable) {
             unreachableCount += 1;
@@ -127,7 +121,6 @@ export function buildComposerMetrics({
         duplicateCount: collectDuplicateBookmarkItemIds(items).size,
         favoriteCount,
         itemCount: items.length,
-        noteCount,
         sourceSegments,
         unreachableCount,
     };
