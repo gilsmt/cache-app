@@ -109,7 +109,7 @@ export async function parseFeed(url: string): Promise<ParsedFeed> {
         items: (feed.items ?? []).map((item) => ({
             categories: item.categories,
             creator: item.creator,
-            guid: item.guid ?? item.link,
+            guid: item.guid,
             isoDate: item.isoDate ?? item.pubDate,
             link: item.link,
             title: item.title,
