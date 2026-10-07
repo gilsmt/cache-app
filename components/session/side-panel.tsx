@@ -389,6 +389,7 @@ interface SideStorageKeys {
 }
 
 interface SideContext {
+    onClosePreview: () => void;
     onSaveNote: NoteSaveHandler;
     onUrlPaste: (url: string) => Promise<void> | void;
 }
@@ -1125,7 +1126,11 @@ interface SideRootProps extends React.PropsWithChildren {
 }
 
 export function SideRoot({ children, onSaveNote, onUrlPaste }: SideRootProps) {
-    const contextValue: SideContext = { onSaveNote, onUrlPaste };
+    const contextValue: SideContext = {
+        onClosePreview: () => sideStoreActions.setIsOpen(false),
+        onSaveNote,
+        onUrlPaste,
+    };
 
     return <SideContext value={contextValue}>{children}</SideContext>;
 }
@@ -1170,8 +1175,18 @@ export function SideContent() {
         setIsOpen((prev) => !prev);
     });
 
+    const handleClosePreviewShortcut = useStableCallback(() => {
+        setIsOpen(false);
+    });
+
     useHotkeys("mod+j, mod+i, mod+alt+b", handleToggleShortcut, {
         description: gt("Open or close preview"),
+        preventDefault: true,
+    });
+
+    useHotkeys("ctrl+enter", handleClosePreviewShortcut, {
+        description: gt("Close preview"),
+        enabled: isOpen,
         preventDefault: true,
     });
 
@@ -2168,6 +2183,7 @@ function NoteRoot({
     onUrlPaste,
     tabId,
 }: NoteRootProps) {
+    const { onClosePreview } = useSideContext();
     const [initialDraft, setInitialDraft] = useState<NoteDraft>(() =>
         noteDraftFromItem(note)
     );
@@ -2332,21 +2348,31 @@ function NoteRoot({
         [handleClose, onRegisterClose, tabId]
     );
 
-    const handleCloseShortcut = useStableCallback((event: KeyboardEvent) => {
+    const handleEnterShortcut = useStableCallback((event: KeyboardEvent) => {
         if (
             event.defaultPrevented ||
             event.isComposing ||
-            !(event.metaKey || event.ctrlKey) ||
             event.key !== "Enter"
         ) {
             return;
         }
 
+        const isClosePreviewShortcut =
+            event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+        const isCloseNoteShortcut =
+            event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
+        if (!(isClosePreviewShortcut || isCloseNoteShortcut)) {
+            return;
+        }
+
         event.preventDefault();
-        // Capture the key before it reaches the editor: Lexical binds Enter
-        // with any modifiers to split the block, which would insert a
-        // paragraph before the tab closes.
+        // Stop modified Enter before Lexical runs its block-splitting handler.
         event.stopPropagation();
+        if (isClosePreviewShortcut) {
+            onClosePreview();
+            return;
+        }
+
         handleClose().catch((error: unknown) => {
             log.error("Unexpected note shortcut close failure", error);
         });
@@ -2360,15 +2386,15 @@ function NoteRoot({
         }
 
         const ownerDocument = getOwnerDocument(contentEditableRef.current);
-        ownerDocument.addEventListener("keydown", handleCloseShortcut, true);
+        ownerDocument.addEventListener("keydown", handleEnterShortcut, true);
         return () => {
             ownerDocument.removeEventListener(
                 "keydown",
-                handleCloseShortcut,
+                handleEnterShortcut,
                 true
             );
         };
-    }, [handleCloseShortcut, isActive]);
+    }, [handleEnterShortcut, isActive]);
 
     const deferredContentHtml = useDeferredValue(draft.contentHtml);
     const textMetrics = getNoteTextMetrics(deferredContentHtml);
