@@ -284,6 +284,8 @@ model Automation {
     updatedAt              DateTime               @updatedAt
 
     @@unique([userId, templateKey])
+    // Keep collection deletion's SET NULL check index-backed.
+    @@index([collectionId])
     @@map("automation")
 }
 
@@ -320,6 +322,8 @@ model AutomationRun {
     @@unique([automationId, scheduledForUtc])
     @@index([status, scheduledForUtc])
     @@index([automationId, createdAt])
+    // Keep user deletion's cascade check index-backed.
+    @@index([userId])
     @@map("automation_run")
 }
 
