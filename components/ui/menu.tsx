@@ -183,7 +183,7 @@ export function MenuSeparator({
     return (
         <MenuPrimitive.Separator
             {...props}
-            className={cn("my-1 h-px bg-border/50", className)}
+            className={cn("my-1 h-px shrink-0 bg-border/50", className)}
             data-slot="menu-separator"
         />
     );

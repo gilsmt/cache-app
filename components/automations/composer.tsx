@@ -7,7 +7,6 @@ import { cn } from "cn";
 import { useLocale } from "gt-next";
 import {
     CalendarDays,
-    ChevronDown,
     ChevronRight,
     Clock,
     FolderOpen,
@@ -541,7 +540,7 @@ export function AutomationComposerDialog({
                                 aria-describedby={
                                     formState.errorMessage ? errorId : undefined
                                 }
-                                className="-mx-[calc(--spacing(3)-1px)] *:resize-none"
+                                className="-mx-[calc(--spacing(3)-1px)]"
                                 id={promptId}
                                 isUnstyled
                                 onChange={handlePromptChange}
@@ -552,7 +551,7 @@ export function AutomationComposerDialog({
                                 value={formState.prompt}
                             />
                         </div>
-                        <div className="flex flex-wrap items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                             <span
                                 className="sr-only font-medium text-sm"
                                 id={collectionId}
@@ -663,25 +662,16 @@ function AutomationOptionTrigger({
             render={
                 <Button
                     aria-labelledby={labelId}
-                    className="min-w-0 max-w-full justify-start gap-1.5 px-2 font-normal text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="gap-1.5 text-muted-foreground hover:text-foreground"
                     size="xs"
                     variant="ghost"
                 />
             }
         >
-            <Icon
-                aria-hidden
-                className="size-3.5 shrink-0 opacity-70"
-                focusable="false"
-            />
+            <Icon aria-hidden className="size-3.5" focusable="false" />
             <span className={cn("min-w-0 truncate", valueClassName)}>
                 <ComboboxValue />
             </span>
-            <ChevronDown
-                aria-hidden
-                className="size-3 shrink-0 opacity-50"
-                focusable="false"
-            />
         </ComboboxTrigger>
     );
 }

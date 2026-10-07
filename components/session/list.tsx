@@ -5415,25 +5415,21 @@ function ItemsGroupResults() {
                                             disabled={!group.collapsed}
                                             onClick={group.onToggle}
                                         >
-                                            <ChevronDown className="size-4.5 text-muted-foreground" />
                                             Expand
                                         </MenuItem>
+                                        <MenuItem onClick={onExpandAllSections}>
+                                            Expand all
+                                        </MenuItem>
+                                        <MenuSeparator />
                                         <MenuItem
                                             disabled={group.collapsed}
                                             onClick={group.onToggle}
                                         >
-                                            <ChevronUp className="size-4.5 text-muted-foreground" />
                                             Collapse
-                                        </MenuItem>
-                                        <MenuSeparator />
-                                        <MenuItem onClick={onExpandAllSections}>
-                                            <ChevronsDown className="size-4.5 text-muted-foreground" />
-                                            Expand all
                                         </MenuItem>
                                         <MenuItem
                                             onClick={onCollapseAllSections}
                                         >
-                                            <ChevronsUp className="size-4.5 text-muted-foreground" />
                                             Collapse all
                                         </MenuItem>
                                         <MenuSeparator />
@@ -5939,7 +5935,7 @@ function CreateFromResultsCollectionDialog({
                                 Description (optional)
                             </label>
                             <Textarea
-                                className="-mx-[calc(--spacing(3)-1px)] *:resize-none"
+                                className="-mx-[calc(--spacing(3)-1px)]"
                                 id={createResultsDescriptionId}
                                 isUnstyled
                                 maxLength={1024}

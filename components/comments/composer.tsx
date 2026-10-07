@@ -22,11 +22,9 @@ async function fetchItemComment([_key, libraryItemId]: readonly [
     string,
 ]): Promise<string | null> {
     const result = await getLibraryItemComment(libraryItemId);
-
     if (result.status !== ACTION_STATUS.SUCCESS) {
         throw new Error(result.message);
     }
-
     return result.contentText;
 }
 

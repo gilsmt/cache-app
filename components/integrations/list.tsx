@@ -32,7 +32,7 @@ import {
 import { CollapsibleListVertical } from "@/components/ui/collapsible-list";
 import { HighlightIn } from "@/components/ui/highlight-in";
 import { ChevronDownFilledIcon } from "@/components/ui/icons";
-import { CmdKbd, Kbd } from "@/components/ui/kbd";
+import { Kbd, KbdCombo } from "@/components/ui/kbd";
 import {
     PreviewCard,
     PreviewCardPopup,
@@ -429,7 +429,7 @@ function IntegrationsList({
         setIsIntegrationsListOpen((prev) => !prev);
     });
 
-    useHotkeys("mod+i", toggleIntegrationsList, {
+    useHotkeys("mod+shift+i", toggleIntegrationsList, {
         description: gt("Toggle integrations panel"),
         preventDefault: true,
     });
@@ -491,7 +491,7 @@ function IntegrationsListTrigger({
                     </T>
                 </HighlightIn>
                 <Kbd className="invisible ml-auto bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
-                    <CmdKbd />I
+                    <KbdCombo keys="mod+shift+i" />
                 </Kbd>
             </PreviewCardTrigger>
             <PreviewCardPopup
