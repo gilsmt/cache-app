@@ -36,7 +36,7 @@ import { CommentComposer } from "@/components/comments/composer";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
 import { ItemCollectionsCombobox } from "@/components/session/collections";
-import { openSide } from "@/components/session/side";
+import { openSide } from "@/components/session/side-panel";
 import { AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {

@@ -111,7 +111,7 @@ import {
     openSideNote,
     SideContent,
     SideRoot,
-} from "@/components/session/side";
+} from "@/components/session/side-panel";
 import {
     Summary,
     SummaryPopup,
