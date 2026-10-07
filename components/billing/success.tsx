@@ -22,11 +22,11 @@ import {
 import { CrownFilledIcon } from "@/components/ui/icons";
 
 export function SuccessfulUpgradeDialog() {
+    const { mutate: refreshAccess } = useSubscriptionAccess();
     const [upgraded, setUpgraded] = useQueryState(
         UPGRADED_SEARCH_PARAM,
         parseAsString.withOptions({ history: "replace", scroll: false })
     );
-    const { mutate: refreshAccess } = useSubscriptionAccess();
 
     const isOpen = upgraded === UPGRADED_SEARCH_VALUE;
 

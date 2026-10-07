@@ -32,12 +32,18 @@ export async function generateMetadata({
 
     const userId = await getSessionUserId();
     if (!userId) {
-        return buildPageMetadata({
-            description: gt("Chat with Cache about your saved content."),
-            locale,
-            path: `/c/${id}`,
-            title: gt("Chat"),
-        });
+        return {
+            ...buildPageMetadata({
+                description: gt("Chat with Cache about your saved content."),
+                locale,
+                path: `/c/${id}`,
+                title: gt("Chat"),
+            }),
+            robots: {
+                follow: false,
+                index: false,
+            },
+        };
     }
 
     try {
@@ -55,12 +61,18 @@ export async function generateMetadata({
             },
         };
     } catch {
-        return buildPageMetadata({
-            description: gt("Chat with Cache about your saved content."),
-            locale,
-            path: `/c/${id}`,
-            title: gt("Chat"),
-        });
+        return {
+            ...buildPageMetadata({
+                description: gt("Chat with Cache about your saved content."),
+                locale,
+                path: `/c/${id}`,
+                title: gt("Chat"),
+            }),
+            robots: {
+                follow: false,
+                index: false,
+            },
+        };
     }
 }
 
