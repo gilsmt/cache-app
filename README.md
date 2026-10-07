@@ -1,7 +1,7 @@
 # Cache App
 
 <a href="https://www.cachd.app" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/cachd.app-000000?logo=vercel&logoColor=white" alt="cachd.app"></a>
-<a href="https://docs.cachd.app" target="_blank" rel="noopener noreferrer"><img src="Docs-Read-E6E6E6?labelColor=C3C3C3&color=E6E6E6" alt="Documentation"></a>
+<a href="https://docs.cachd.app" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/Docs-Read-E6E6E6?labelColor=C3C3C3&color=E6E6E6" alt="Documentation"></a>
 <a href="https://github.com/gilsmt/cache-app/releases" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/v/release/gilsmt/cache-app" alt="Release"></a>
 
 Collect, organize, and rediscover everything you've saved across platforms.
