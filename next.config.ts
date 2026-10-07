@@ -39,9 +39,8 @@ const nextConfig: NextConfig = {
     cacheComponents: true,
     experimental: {
         serverActions: { bodySizeLimit: "8mb" },
-        turbopackCjsTreeShaking: true,
+        turbopackLazyDynamicImports: true,
         turbopackRustReactCompiler: true,
-        turbopackSharedRuntime: true,
         useOffline: true,
         useTypeScriptCli: true,
     },
