@@ -56,6 +56,7 @@ import {
     CACHE_EXTENSION_DOWNLOAD_URL,
     FOUNDING_DATE,
     GITHUB_URL,
+    NOTICES_ADDRESS,
 } from "@/lib/common/constants";
 import { INTEGRATIONS } from "@/lib/integrations/support";
 import AiSectionLifestyleImage from "@/public/ai-section-lifestyle.webp";
@@ -88,7 +89,7 @@ const HOME_JSON_LD: Record<string, unknown> = {
             contactPoint: {
                 "@type": "ContactPoint",
                 contactType: "customer service",
-                email: "notices@cachd.app",
+                email: NOTICES_ADDRESS,
             },
             description:
                 "Cache is the AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms.",

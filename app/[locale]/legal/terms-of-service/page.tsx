@@ -2,7 +2,7 @@ import { getGT } from "gt-next/server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { buildPageMetadata } from "@/app/metadata";
-import { APP_NAME } from "@/lib/common/constants";
+import { APP_NAME, NOTICES_ADDRESS } from "@/lib/common/constants";
 
 export async function generateMetadata({
     params,
@@ -205,7 +205,7 @@ export default function TermsOfServicePage() {
                             <strong>Notice Address:</strong>
                         </p>
                         <p>
-                            <strong>For Provider:</strong> notices@cachd.app
+                            <strong>For Provider:</strong> {NOTICES_ADDRESS}
                         </p>
                         <p>
                             <strong>For Customer:</strong> The main email
@@ -283,7 +283,7 @@ export default function TermsOfServicePage() {
                 <p>
                     <strong>Designated Copyright Agent:</strong>
                 </p>
-                <p>Email: notices@cachd.app</p>
+                <p>Email: {NOTICES_ADDRESS}</p>
                 <p>
                     Upon receipt of a valid notice, we will remove or disable
                     access to the allegedly infringing material and take
@@ -347,7 +347,7 @@ export default function TermsOfServicePage() {
                     of Consumer Affairs may be contacted in writing at 1625
                     North Market Blvd., Suite N 112, Sacramento, CA 95834, or by
                     telephone at (800) 952-5210. You may contact us at
-                    notices@cachd.app.
+                    {NOTICES_ADDRESS}.
                 </p>
             </section>
 
@@ -359,7 +359,7 @@ export default function TermsOfServicePage() {
                     If you have any questions about these Terms of Service,
                     please contact us at:
                 </p>
-                <p>Email: notices@cachd.app</p>
+                <p>Email: {NOTICES_ADDRESS}</p>
             </section>
         </article>
     );

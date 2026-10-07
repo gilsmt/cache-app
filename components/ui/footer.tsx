@@ -1,7 +1,11 @@
 import { LocaleSelector, T } from "gt-next";
 import Link from "next/link";
 import { GDPRIcon } from "@/components/ui/icons";
-import { CHANGELOG_URL, DOCS_URL, SUPPORT_URL } from "@/lib/common/constants";
+import {
+    CHANGELOG_URL,
+    DOCS_URL,
+    SUPPORT_ADDRESS,
+} from "@/lib/common/constants";
 
 export function Footer() {
     return (
@@ -36,7 +40,7 @@ export function Footer() {
                                 </Link>
                                 <Link
                                     className="underline"
-                                    href={SUPPORT_URL}
+                                    href={`mailto:${SUPPORT_ADDRESS}`}
                                     rel="noopener noreferrer"
                                     target="_blank"
                                 >

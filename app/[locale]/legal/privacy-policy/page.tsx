@@ -2,7 +2,7 @@ import { getGT } from "gt-next/server";
 import type { Metadata } from "next";
 import type React from "react";
 import { buildPageMetadata } from "@/app/metadata";
-import { APP_NAME } from "@/lib/common/constants";
+import { APP_NAME, NOTICES_ADDRESS } from "@/lib/common/constants";
 
 export async function generateMetadata({
     params,
@@ -363,8 +363,8 @@ export default function PrivacyPolicyPage() {
                     <li>
                         To exercise privacy rights that are not available in the
                         product, contact{" "}
-                        <LinkText href="mailto:notices@cachd.app">
-                            notices@cachd.app
+                        <LinkText href={`mailto:${NOTICES_ADDRESS}`}>
+                            {NOTICES_ADDRESS}
                         </LinkText>
                         . We may need to verify your identity before acting on
                         your request.
@@ -454,8 +454,8 @@ export default function PrivacyPolicyPage() {
                     knowingly collect personal data from children under 13. If
                     you believe a child has provided personal data to us, please
                     contact{" "}
-                    <LinkText href="mailto:notices@cachd.app">
-                        notices@cachd.app
+                    <LinkText href={`mailto:${NOTICES_ADDRESS}`}>
+                        {NOTICES_ADDRESS}
                     </LinkText>{" "}
                     so we can investigate and take appropriate action.
                 </p>
@@ -481,8 +481,8 @@ export default function PrivacyPolicyPage() {
                     If you have questions, complaints, or requests about this
                     Privacy Policy or our handling of personal data, contact
                     CachdApp, Inc. at{" "}
-                    <LinkText href="mailto:notices@cachd.app">
-                        notices@cachd.app
+                    <LinkText href={`mailto:${NOTICES_ADDRESS}`}>
+                        {NOTICES_ADDRESS}
                     </LinkText>
                     .
                 </p>

@@ -11,7 +11,7 @@ import {
     APP_NAME,
     CHANGELOG_URL,
     GITHUB_URL,
-    SUPPORT_URL,
+    SUPPORT_ADDRESS,
 } from "@/lib/common/constants";
 import AppIconSmall from "@/public/cache-icon-small.png";
 
@@ -71,7 +71,7 @@ export default async function SignInPage() {
                 </Link>
                 <Link
                     className="text-muted-foreground text-sm transition-colors hover:text-foreground"
-                    href={SUPPORT_URL}
+                    href={`mailto:${SUPPORT_ADDRESS}`}
                     rel="noopener noreferrer"
                     target="_blank"
                 >

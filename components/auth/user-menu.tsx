@@ -53,8 +53,9 @@ import type { Session } from "@/lib/auth/session";
 import {
     ACTION_STATUS,
     CHANGELOG_URL,
+    DOCS_URL,
     GITHUB_URL,
-    SUPPORT_URL,
+    SUPPORT_ADDRESS,
 } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { getInitials } from "@/lib/common/string";
@@ -731,6 +732,19 @@ function UserMenuAccountActionsSubMenu(
                         className="justify-between"
                         render={
                             <Link
+                                href={`mailto:${SUPPORT_ADDRESS}`}
+                                rel="noopener noreferrer"
+                                target="_blank"
+                            />
+                        }
+                    >
+                        <T>Support</T>
+                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
+                    </MenuItem>
+                    <MenuItem
+                        className="justify-between"
+                        render={
+                            <Link
                                 href={CHANGELOG_URL}
                                 rel="noopener noreferrer"
                                 target="_blank"
@@ -744,13 +758,13 @@ function UserMenuAccountActionsSubMenu(
                         className="justify-between"
                         render={
                             <Link
-                                href={SUPPORT_URL}
+                                href={DOCS_URL}
                                 rel="noopener noreferrer"
                                 target="_blank"
                             />
                         }
                     >
-                        <T>Support</T>
+                        <T>Documentation</T>
                         <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
                     </MenuItem>
                     <MenuItem
