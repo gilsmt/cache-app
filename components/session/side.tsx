@@ -1,6 +1,5 @@
 "use client";
 
-import type { BaseUIEvent } from "@base-ui/react";
 import { Tabs } from "@base-ui/react/tabs";
 import {
     contains,
@@ -58,7 +57,6 @@ import {
     type RangeSelection,
     SELECTION_CHANGE_COMMAND,
     type SerializedEditorState,
-    type TextFormatType,
 } from "lexical";
 import {
     AlertCircleIcon,
@@ -97,6 +95,7 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
+import * as z from "zod";
 import {
     type OembedResolution,
     useOembed,
@@ -132,19 +131,16 @@ import {
     truncateLabel,
 } from "@/lib/collections/utils";
 import { ITEM_KIND_BOOKMARK } from "@/lib/common/constants";
-import {
-    getOwnerDocument,
-    getOwnerWindow,
-    isTextEntryTarget,
-} from "@/lib/common/dom";
+import { getOwnerDocument, getOwnerWindow } from "@/lib/common/dom";
 import { saveFile } from "@/lib/common/file";
 import { getSystemControlKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { clamp } from "@/lib/common/number";
-import { isRecord } from "@/lib/common/object";
 import { hasOembedSupport, type Oembed } from "@/lib/common/oembed";
+import { isStorageQuotaExceededError } from "@/lib/common/storage";
 import { slugify } from "@/lib/common/string";
 import {
+    isHttpUrl,
     openExternalUrl,
     parseDisplayUrl,
     parseStandaloneUrl,
@@ -160,14 +156,30 @@ import {
 } from "@/lib/integrations/notes/utils";
 import { sendNoteToNotion } from "@/lib/integrations/notion/actions";
 
-const SIDE_BLOCKED_URL = "about:blank";
-const DEFAULT_TITLE = "Preview";
-const DEFAULT_TIMEOUT_MS = 8000;
 const ACTIVE_INDEX_STORAGE_KEY = "cache:side:active-index";
 const ITEMS_STORAGE_KEY = "cache:side:items";
 const OPEN_STORAGE_KEY = "cache:side:open";
+const PREVIEW_LOADING_TIMEOUT_MS = 8000;
 const QUEUE_LIMIT = 12;
 const SIDE_RECENT_ITEMS_LIMIT = 3;
+
+// Restored tabs come from localStorage, so every field is validated at this
+// one boundary and bad entries are dropped instead of failing the whole list.
+const STORED_SIDE_ENTRY_SCHEMA = z.union([
+    z.object({ title: z.string().nullable().catch(null), url: z.string() }),
+    z.object({
+        id: z.string(),
+        note: z.object({
+            id: z.string(),
+            noteContentHtml: z.string().nullable().catch(null),
+            // `z.unknown()` accepts a missing key, so the default keeps the
+            // restored note identical to one that was serialized from null.
+            noteContentState: z.unknown().default(null),
+            noteContentText: z.string().nullable().catch(null),
+        }),
+        type: z.literal("note"),
+    }),
+]);
 
 const OEMBED_IFRAME_SANDBOX =
     "allow-scripts allow-popups allow-popups-to-escape-sandbox allow-presentation";
@@ -188,7 +200,7 @@ const INITIAL_FORMAT_STATE: FormatState = {
     blockType: "paragraph",
     bold: false,
     italic: false,
-    strikeThrough: false,
+    strikethrough: false,
     underline: false,
 };
 
@@ -250,78 +262,73 @@ const NOTE_TEXT_FORMAT_OPTIONS = [
         ariaLabel: (gt: Translate) => gt("Bold"),
         format: "bold",
         icon: BoldIcon,
-        stateKey: "bold",
     },
     {
         ariaLabel: (gt: Translate) => gt("Italic"),
         format: "italic",
         icon: ItalicIcon,
-        stateKey: "italic",
     },
     {
         ariaLabel: (gt: Translate) => gt("Underline"),
         format: "underline",
         icon: UnderlineIcon,
-        stateKey: "underline",
     },
     {
         ariaLabel: (gt: Translate) => gt("Strikethrough"),
         format: "strikethrough",
         icon: StrikethroughIcon,
-        stateKey: "strikeThrough",
     },
 ] satisfies ReadonlyArray<{
     ariaLabel: (gt: Translate) => string;
-    format: TextFormatType;
+    format: NoteInlineFormat;
     icon: LucideIcon;
-    stateKey: NoteInlineFormatStateKey;
 }>;
 
 const EXPORT_CONTENT_PROVIDERS: readonly ExportContentProvider[] = [
     {
-        createUrl: (query) =>
-            `https://chatgpt.com/?${new URLSearchParams({ hints: "search", prompt: query })}`,
+        createUrl: (plainText) =>
+            `https://chatgpt.com/?${new URLSearchParams({ hints: "search", prompt: plainText })}`,
         getTitle: (gt) => gt("Open in ChatGPT"),
         icon: OpenAIIcon,
         id: "chatgpt",
     },
     {
-        createUrl: (query) =>
-            `https://claude.ai/new?${new URLSearchParams({ q: query })}`,
+        createUrl: (plainText) =>
+            `https://claude.ai/new?${new URLSearchParams({ q: plainText })}`,
         getTitle: (gt) => gt("Open in Claude"),
         icon: ClaudeIcon,
         id: "claude",
     },
     {
-        createUrl: (query) =>
-            `https://cursor.com/link/prompt?${new URLSearchParams({ text: query })}`,
+        createUrl: (plainText) =>
+            `https://cursor.com/link/prompt?${new URLSearchParams({ text: plainText })}`,
         getTitle: (gt) => gt("Open in Cursor"),
         icon: CursorIcon,
         id: "cursor",
     },
     {
-        createUrl: (query) =>
-            `codex://new?${new URLSearchParams({ prompt: query })}`,
+        createUrl: (plainText) =>
+            `codex://new?${new URLSearchParams({ prompt: plainText })}`,
         getTitle: (gt) => gt("Open in Codex"),
         icon: OpenAIIcon,
         id: "codex",
     },
     {
-        createUrl: (query) =>
-            `https://t3.chat/new?${new URLSearchParams({ q: query })}`,
+        createUrl: (plainText) =>
+            `https://t3.chat/new?${new URLSearchParams({ q: plainText })}`,
         getTitle: (gt) => gt("Open in T3 Chat"),
         icon: MessageCircleIcon,
         id: "t3-chat",
     },
     {
-        createUrl: (query) =>
-            `https://v0.app?${new URLSearchParams({ q: query })}`,
+        createUrl: (plainText) =>
+            `https://v0.app?${new URLSearchParams({ q: plainText })}`,
         getTitle: (gt) => gt("Open in v0"),
         icon: V0Icon,
         id: "v0",
     },
     {
-        createUrl: (_query) => "https://docs.new",
+        createUrl: () => "https://docs.new",
         getTitle: (gt) => gt("Open in Google Docs"),
         icon: GoogleDocsIcon,
         id: "google-docs",
@@ -335,7 +342,7 @@ type OembedStatus = "blocked" | "loaded" | "loading" | "oembed";
 type Translate = ReturnType<typeof useGT>;
 
 interface SideUrlInput {
-    title?: string;
+    title?: string | null;
     url: string;
 }
 
@@ -348,7 +355,7 @@ interface SideNote {
 
 interface SideUrlEntry {
     id: string;
-    title: string;
+    title: string | null;
     type: "url";
     url: string;
 }
@@ -376,26 +383,55 @@ interface SideQueueState {
     items: SideEntry[];
 }
 
+interface SideStorageKeys {
+    activeIndex: string;
+    items: string;
+}
+
 interface SideContext {
     onSaveNote: NoteSaveHandler;
     onUrlPaste: (url: string) => Promise<void> | void;
 }
 
-interface SideStore {
-    activeIndex: number;
-    isOpen: boolean;
-    items: SideEntry[];
+interface FormatState {
+    blockType: NoteBlockType;
+    bold: boolean;
+    italic: boolean;
+    strikethrough: boolean;
+    underline: boolean;
 }
 
-interface SideActions {
-    openWithEntry: (entry: SideEntry) => void;
-    removeQueueItem: (index: number) => void;
-    selectQueueIndex: (index: number) => void;
-    updateNoteEntry: (id: string, note: SideNote) => void;
+interface NoteTextMetrics {
+    characterCount: number;
+    paragraphCount: number;
+    plainText: string;
+    readMinuteCount: number;
+    wordCount: number;
 }
 
-type SideStoreActions = SideActions &
-    Record<string, (...args: never[]) => void>;
+interface NoteContext {
+    contentEditableRef: React.RefObject<HTMLDivElement | null>;
+    contentHtml: string;
+    editorKey: number;
+    initialDraft: NoteDraft;
+    isDirty: boolean;
+    onDraftChange: (draft: NoteDraft) => void;
+    onUrlPaste: (url: string) => Promise<void> | void;
+    saveStatus: SaveStatus;
+    shouldCreateBookmarkFromUrlPaste: () => boolean;
+    textMetrics: NoteTextMetrics;
+}
+
+interface ExportContentProvider {
+    createUrl: (plainText: string) => string;
+    getTitle: (gt: Translate) => string;
+    icon: ComponentType<SVGProps<SVGSVGElement>>;
+    id: string;
+}
+
+type NoteBlockType = "h1" | "h2" | "h3" | "paragraph";
+
+type NoteInlineFormat = Exclude<keyof FormatState, "blockType">;
 
 const log = createLogger("library:side");
 
@@ -432,13 +468,22 @@ function useSideContext(): SideContext {
     return context;
 }
 
-function useSideStatus(url: string | null, timeoutMs: number) {
-    const oembedUrl =
-        url !== null && !isSideBlockedUrl(url) && hasOembedSupport(url)
-            ? url
-            : null;
+const NoteContext = createContext<NoteContext | null>(null);
 
+function useNoteContext(): NoteContext {
+    const context = use(NoteContext);
+    if (!context) {
+        throw new Error(
+            "Side note components must be rendered inside a note tab."
+        );
+    }
+    return context;
+}
+
+function useSideStatus(url: string | null) {
+    const oembedUrl = url !== null && hasOembedSupport(url) ? url : null;
     const { data, error, mutate } = useOembed(oembedUrl);
+
     const timeout = useTimeout();
     const statusCacheRef = useRefWithInit(
         () => new Map<string, IframeStatus>()
@@ -447,6 +492,9 @@ function useSideStatus(url: string | null, timeoutMs: number) {
         url ? (statusCacheRef.get(url) ?? "pending") : "pending"
     );
     const [attempt, setAttempt] = useState(0);
+
+    const oembed = data?.resolution === "found" ? data.oembed : null;
+    const status = parseOembedStatus(url, data, iframeStatus);
 
     const markAsBlocked = useStableCallback(() => {
         setIframeStatus((current) =>
@@ -482,45 +530,29 @@ function useSideStatus(url: string | null, timeoutMs: number) {
         }
     }, [url, iframeStatus, statusCacheRef]);
 
+    // An oEmbed hit stops the iframe, so the timeout only guards the direct
+    // iframe path. It restarts on `url` so a newly opened tab gets the full
+    // deadline even when the previous tab is still "loading".
     React.useEffect(() => {
-        if (isSideBlockedUrl(url) || iframeStatus !== "pending") {
+        if (url === null || status !== "loading") {
             timeout.clear();
             return;
         }
-        timeout.start(timeoutMs, () => {
-            setIframeStatus((current) =>
-                current === "pending" ? "blocked" : current
-            );
-        });
+        timeout.start(PREVIEW_LOADING_TIMEOUT_MS, markAsBlocked);
         return () => {
             timeout.clear();
         };
-    }, [timeout, timeoutMs, url, iframeStatus]);
+    }, [markAsBlocked, status, timeout, url]);
 
     React.useEffect(() => {
-        if (data?.resolution === "found") {
-            timeout.clear();
+        if (status !== "blocked" || url === null || !isHttpUrl(url)) {
+            return;
         }
-    }, [timeout, data]);
-
-    React.useEffect(() => {
-        if (error && url) {
-            log.warn("Side oEmbed fetch failed; trying iframe fallback.", {
-                host: parseDisplayUrl(url),
-            });
-        }
-    }, [error, url]);
-
-    React.useEffect(() => {
-        if (iframeStatus === "blocked" && url) {
-            log.warn("Side preview did not load; showing fallback.", {
-                host: parseDisplayUrl(url),
-            });
-        }
-    }, [iframeStatus, url]);
-
-    const oembed = data?.resolution === "found" ? data.oembed : null;
-    const status = parseOembedStatus(url, data, iframeStatus);
+        log.warn("Side preview did not load; showing fallback.", {
+            cause: error ? "oembed-request" : "iframe-load",
+            host: parseDisplayUrl(url),
+        });
+    }, [error, status, url]);
 
     return { attempt, markAsBlocked, markAsLoaded, oembed, retry, status };
 }
@@ -530,7 +562,7 @@ function parseOembedStatus(
     data: OembedResolution | undefined,
     iframeStatus: IframeStatus
 ): OembedStatus {
-    if (isSideBlockedUrl(url)) {
+    if (!isHttpUrl(url)) {
         return "blocked";
     }
 
@@ -585,6 +617,9 @@ function areSideEntriesSameTab(left: SideEntry, right: SideEntry): boolean {
         return false;
     }
     if (left.type === "note" && right.type === "note") {
+        // A saved note keeps its draft tab id so the mounted editor survives
+        // the save. Compare note ids to still find that tab by the note it
+        // now points at; `left.id` alone would open a duplicate tab.
         if (left.note !== null && right.note !== null) {
             return left.note.id === right.note.id;
         }
@@ -626,16 +661,15 @@ function areSideNotesEqual(
 function createSideUrlEntry(input: SideUrlInput): SideUrlEntry {
     return {
         id: `url:${input.url}`,
-        title: input.title ?? DEFAULT_TITLE,
+        title: input.title ?? null,
         type: "url",
         url: input.url,
     };
 }
 
-function getRecentSideItems(
-    items: LibraryItemWithCollections[],
-    lastVisitedItemIds: string[]
-): LibraryItemWithCollections[] {
+function useRecentSideItems(): LibraryItemWithCollections[] {
+    const { items } = useItemsStateContext();
+    const { lastVisitedItemIds } = useLastVisited();
     const itemsById = new Map(items.map((item) => [item.id, item]));
 
     return lastVisitedItemIds
@@ -645,6 +679,10 @@ function getRecentSideItems(
                 item?.kind === ITEM_KIND_BOOKMARK
         )
         .slice(0, SIDE_RECENT_ITEMS_LIMIT);
+}
+
+function getRecentItemCaption(item: LibraryItemWithCollections): string | null {
+    return item.caption?.trim() || null;
 }
 
 function createSideNoteEntry(note: SideNote | null): SideNoteEntry {
@@ -669,48 +707,16 @@ function deserializeSideItems(value: string): SideEntry[] {
     }
 
     return parsed.flatMap((rawItem): SideEntry[] => {
-        if (!isRecord(rawItem)) {
+        const item = STORED_SIDE_ENTRY_SCHEMA.safeParse(rawItem);
+        if (!item.success) {
             return [];
         }
 
-        if (typeof rawItem.url === "string") {
-            return [
-                createSideUrlEntry({
-                    title:
-                        typeof rawItem.title === "string"
-                            ? rawItem.title
-                            : undefined,
-                    url: rawItem.url,
-                }),
-            ];
+        if ("url" in item.data) {
+            return [createSideUrlEntry(item.data)];
         }
 
-        if (rawItem.type !== "note" || typeof rawItem.id !== "string") {
-            return [];
-        }
-
-        if (!isRecord(rawItem.note) || typeof rawItem.note.id !== "string") {
-            return [];
-        }
-
-        return [
-            {
-                id: rawItem.id,
-                note: {
-                    id: rawItem.note.id,
-                    noteContentHtml:
-                        typeof rawItem.note.noteContentHtml === "string"
-                            ? rawItem.note.noteContentHtml
-                            : null,
-                    noteContentState: rawItem.note.noteContentState ?? null,
-                    noteContentText:
-                        typeof rawItem.note.noteContentText === "string"
-                            ? rawItem.note.noteContentText
-                            : null,
-                },
-                type: "note",
-            } satisfies SideNoteEntry,
-        ];
+        return [{ ...item.data, type: "note" }];
     });
 }
 
@@ -734,49 +740,35 @@ function serializeSideItems(items: SideEntry[]): string {
     return JSON.stringify(items.filter(isSideEntryPersisted));
 }
 
-function isStorageQuotaExceededError(error: unknown): boolean {
-    if (!isRecord(error)) {
-        return false;
-    }
+function getSideStorageKeys(userId: string): SideStorageKeys {
+    const scopedKey = (baseKey: string) =>
+        `${baseKey}:user:${encodeURIComponent(userId)}`;
 
-    return (
-        error.name === "QuotaExceededError" ||
-        error.code === 22 ||
-        error.code === 1014
-    );
+    return {
+        activeIndex: scopedKey(ACTIVE_INDEX_STORAGE_KEY),
+        items: scopedKey(ITEMS_STORAGE_KEY),
+    };
 }
 
-function getSideScopedStorageKey(baseKey: string, userId: string): string {
-    return `${baseKey}:user:${encodeURIComponent(userId)}`;
-}
-
-function readSideItemsFromKey(storageKey: string): SideEntry[] | null {
+function readSideItemsFromKey(storageKey: string): SideEntry[] {
     try {
         const raw = localStorage.getItem(storageKey);
-        if (raw === null) {
-            return null;
-        }
-        return deserializeSideItems(raw);
+        return raw === null ? [] : deserializeSideItems(raw);
     } catch (error) {
         log.warn("Failed to read side tabs from storage.", error);
-        return null;
+        return [];
     }
 }
 
-function readSideActiveIndexFromKey(storageKey: string): number | null {
+function readSideActiveIndexFromKey(storageKey: string): number {
     try {
-        const raw = localStorage.getItem(storageKey);
-        if (raw === null) {
-            return null;
-        }
-        const parsed: unknown = JSON.parse(raw);
-        if (typeof parsed !== "number" || Number.isNaN(parsed)) {
-            return null;
-        }
-        return parsed;
+        const parsed: unknown = JSON.parse(
+            localStorage.getItem(storageKey) ?? "null"
+        );
+        return typeof parsed === "number" && !Number.isNaN(parsed) ? parsed : 0;
     } catch (error) {
         log.warn("Failed to read side tab index from storage.", error);
-        return null;
+        return 0;
     }
 }
 
@@ -784,85 +776,21 @@ function writeSideStorageValue(storageKey: string, value: string): void {
     try {
         localStorage.setItem(storageKey, value);
     } catch (error) {
-        if (isStorageQuotaExceededError(error)) {
-            log.warn(
-                "Side tabs exceeded local storage quota; keeping the current tabs in memory.",
-                error
-            );
-            return;
-        }
-
         log.warn(
-            "Failed to persist side tabs; keeping the current tabs in memory.",
+            isStorageQuotaExceededError(error)
+                ? "Side tabs exceeded local storage quota; keeping the current tabs in memory."
+                : "Failed to persist side tabs; keeping the current tabs in memory.",
             error
         );
     }
 }
 
-function removeSideStorageKey(storageKey: string): void {
-    // Best-effort cleanup. A failed removal only leaves the legacy key
-    // behind for the next login to retry.
-    try {
-        localStorage.removeItem(storageKey);
-    } catch {
-        // Ignore removal failures and retry on the next login.
-    }
+function writeSideItemsForUser(storageKey: string, items: SideEntry[]): void {
+    writeSideStorageValue(storageKey, serializeSideItems(items));
 }
 
-function writeSideItemsForUser(userId: string, items: SideEntry[]): void {
-    writeSideStorageValue(
-        getSideScopedStorageKey(ITEMS_STORAGE_KEY, userId),
-        serializeSideItems(items)
-    );
-}
-
-function writeSideActiveIndexForUser(userId: string, index: number): void {
-    writeSideStorageValue(
-        getSideScopedStorageKey(ACTIVE_INDEX_STORAGE_KEY, userId),
-        JSON.stringify(index)
-    );
-}
-
-function loadSideItemsForUser(userId: string): SideEntry[] {
-    const scoped = readSideItemsFromKey(
-        getSideScopedStorageKey(ITEMS_STORAGE_KEY, userId)
-    );
-    if (scoped !== null) {
-        removeSideStorageKey(ITEMS_STORAGE_KEY);
-        return scoped;
-    }
-
-    const legacy = readSideItemsFromKey(ITEMS_STORAGE_KEY);
-    if (legacy !== null) {
-        writeSideItemsForUser(userId, legacy);
-        removeSideStorageKey(ITEMS_STORAGE_KEY);
-        return legacy;
-    }
-
-    return [];
-}
-
-function loadSideActiveIndexForUser(
-    userId: string,
-    itemsLength: number
-): number {
-    const scoped = readSideActiveIndexFromKey(
-        getSideScopedStorageKey(ACTIVE_INDEX_STORAGE_KEY, userId)
-    );
-    if (scoped !== null) {
-        removeSideStorageKey(ACTIVE_INDEX_STORAGE_KEY);
-        return clampActiveIndex(scoped, itemsLength);
-    }
-
-    const legacy = readSideActiveIndexFromKey(ACTIVE_INDEX_STORAGE_KEY);
-    if (legacy !== null) {
-        const clamped = clampActiveIndex(legacy, itemsLength);
-        writeSideActiveIndexForUser(userId, clamped);
-        removeSideStorageKey(ACTIVE_INDEX_STORAGE_KEY);
-        return clamped;
-    }
-
-    return clampActiveIndex(0, itemsLength);
+function writeSideActiveIndexForUser(storageKey: string, index: number): void {
+    writeSideStorageValue(storageKey, JSON.stringify(index));
 }
 
 function getSideEntryTitle(entry: SideEntry): string | null {
@@ -880,23 +808,6 @@ function getSideEntryTitle(entry: SideEntry): string | null {
 
 function getSideTabId(entry: SideEntry): string {
     return `side-tab-${entry.type}-${encodeURIComponent(entry.id)}`;
-}
-
-function isSideBlockedUrl(url: string | null): boolean {
-    if (url === null || url === SIDE_BLOCKED_URL) {
-        return true;
-    }
-    const parsed = parseValidUrl(url);
-    return parsed?.protocol !== "http:" && parsed?.protocol !== "https:";
-}
-
-function isSideKeyboardShortcut(event: KeyboardEvent): boolean {
-    return (
-        ((event.code === "KeyJ" && !event.altKey) ||
-            (event.code === "KeyB" && event.altKey)) &&
-        (event.metaKey || event.ctrlKey) &&
-        !event.getModifierState("AltGraph")
-    );
 }
 
 function getOembedIframeSrc(oembed: Oembed): string | null {
@@ -984,11 +895,14 @@ function clampActiveIndex(index: number, itemsLength: number): number {
     return clamp(index, 0, itemsLength - 1);
 }
 
+// No explicit type arguments: stan-js constrains the custom actions type to
+// `Record<string, (...args: never[]) => void>`, which an inferred object type
+// satisfies and a declared interface does not.
 const {
     actions: sideStoreActions,
     getState: getSideStoreState,
     useStore: useSideStore,
-} = createStore<SideStore, SideStoreActions>(
+} = createStore(
     {
         activeIndex: 0,
         isOpen: storage(false, {
@@ -1072,9 +986,10 @@ function useSideUserScopeSync(): void {
         if (hydratedUserIdRef.current !== userId) {
             return;
         }
-        writeSideItemsForUser(userId, items);
+        const storageKeys = getSideStorageKeys(userId);
+        writeSideItemsForUser(storageKeys.items, items);
         writeSideActiveIndexForUser(
-            userId,
+            storageKeys.activeIndex,
             getPersistedActiveIndex(items, activeIndex)
         );
     }, [isPending, userId, items, activeIndex]);
@@ -1095,9 +1010,10 @@ function useSideUserScopeSync(): void {
             return;
         }
 
-        const persistedItems = loadSideItemsForUser(userId);
-        const persistedIndex = loadSideActiveIndexForUser(
-            userId,
+        const storageKeys = getSideStorageKeys(userId);
+        const persistedItems = readSideItemsFromKey(storageKeys.items);
+        const persistedIndex = clampActiveIndex(
+            readSideActiveIndexFromKey(storageKeys.activeIndex),
             persistedItems.length
         );
 
@@ -1118,9 +1034,9 @@ function useSideUserScopeSync(): void {
         }
 
         if (persistedItems.length === 0) {
-            writeSideItemsForUser(userId, current.items);
+            writeSideItemsForUser(storageKeys.items, current.items);
             writeSideActiveIndexForUser(
-                userId,
+                storageKeys.activeIndex,
                 getPersistedActiveIndex(current.items, current.activeIndex)
             );
             return;
@@ -1141,22 +1057,21 @@ function useSideUserScopeSync(): void {
         if (isPending || userId === null) {
             return;
         }
-        const itemsKey = getSideScopedStorageKey(ITEMS_STORAGE_KEY, userId);
-        const indexKey = getSideScopedStorageKey(
-            ACTIVE_INDEX_STORAGE_KEY,
-            userId
-        );
+        const storageKeys = getSideStorageKeys(userId);
         const handleStorage = (event: StorageEvent) => {
-            if (event.key !== itemsKey && event.key !== indexKey) {
+            if (
+                event.key !== storageKeys.items &&
+                event.key !== storageKeys.activeIndex
+            ) {
                 return;
             }
             if (hydratedUserIdRef.current !== userId) {
                 return;
             }
             const current = getSideStoreState();
-            const nextPersistedItems = loadSideItemsForUser(userId);
-            const persistedIndex = loadSideActiveIndexForUser(
-                userId,
+            const nextPersistedItems = readSideItemsFromKey(storageKeys.items);
+            const persistedIndex = clampActiveIndex(
+                readSideActiveIndexFromKey(storageKeys.activeIndex),
                 nextPersistedItems.length
             );
             // Persisted tabs never include unsaved new-note drafts, so keep
@@ -1217,7 +1132,6 @@ export function SideRoot({ children, onSaveNote, onUrlPaste }: SideRootProps) {
 
 export function SideContent() {
     const gt = useGT();
-    const { onSaveNote, onUrlPaste } = useSideContext();
     const {
         activeIndex,
         isOpen,
@@ -1249,18 +1163,14 @@ export function SideContent() {
         }
     );
 
-    const handleToggleShortcut = useStableCallback((event: KeyboardEvent) => {
-        if (
-            event.isComposing ||
-            !isSideKeyboardShortcut(event) ||
-            isTextEntryTarget(getTarget(event))
-        ) {
-            return;
-        }
+    // react-hotkeys-hook pins the handler it captured on the first render, so
+    // it must stay stable. It also matches modifiers exactly and already skips
+    // form tags and contenteditable targets, so this only has to toggle.
+    const handleToggleShortcut = useStableCallback(() => {
         setIsOpen((prev) => !prev);
     });
 
-    useHotkeys("mod+j, mod+alt+b", handleToggleShortcut, {
+    useHotkeys("mod+j, mod+i, mod+alt+b", handleToggleShortcut, {
         description: gt("Open or close preview"),
         preventDefault: true,
     });
@@ -1348,7 +1258,15 @@ export function SideContent() {
     const handleRemoveItem = useStableCallback(
         (item: SideEntry, index: number) => {
             if (item.type === "note") {
-                noteCloseHandlersRef.get(item.id)?.();
+                const closeNote = noteCloseHandlersRef.get(item.id);
+                if (closeNote) {
+                    Promise.resolve(closeNote()).catch((error: unknown) => {
+                        log.error("Failed to close note tab", {
+                            error,
+                            tabId: item.id,
+                        });
+                    });
+                }
                 return;
             }
             removeQueueItem(index);
@@ -1407,8 +1325,8 @@ export function SideContent() {
                         )}
                     >
                         <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-1">
-                            <SideList items={items}>
-                                {(item, index) => (
+                            <SideList>
+                                {items.map((item, index) => (
                                     <SideListItem
                                         index={index}
                                         isActive={index === safeActiveIndex}
@@ -1416,7 +1334,7 @@ export function SideContent() {
                                         key={item.id}
                                         onRemove={handleRemoveItem}
                                     />
-                                )}
+                                ))}
                             </SideList>
                             {activeEntry?.type === "url" ? (
                                 <SideCopyLinkButton
@@ -1433,8 +1351,6 @@ export function SideContent() {
                         items={items}
                         onCloseNote={handleCloseNote}
                         onRegisterNoteClose={registerNoteCloseHandler}
-                        onSaveNote={onSaveNote}
-                        onUrlPaste={onUrlPaste}
                     />
                 </Tabs.Root>
             </aside>
@@ -1451,8 +1367,6 @@ interface SidePanelProps {
         id: string,
         close: () => void | Promise<void>
     ) => () => void;
-    onSaveNote: NoteSaveHandler;
-    onUrlPaste: (url: string) => Promise<void> | void;
 }
 
 function SidePanel({
@@ -1461,14 +1375,11 @@ function SidePanel({
     items,
     onCloseNote,
     onRegisterNoteClose,
-    onSaveNote,
-    onUrlPaste,
 }: SidePanelProps) {
     const visibleActiveEntry = isOpen ? activeEntry : null;
     const { attempt, markAsBlocked, markAsLoaded, oembed, retry, status } =
         useSideStatus(
-            visibleActiveEntry?.type === "url" ? visibleActiveEntry.url : null,
-            DEFAULT_TIMEOUT_MS
+            visibleActiveEntry?.type === "url" ? visibleActiveEntry.url : null
         );
 
     const isLoading = status === "loading";
@@ -1489,8 +1400,6 @@ function SidePanel({
                             key={item.id}
                             onClose={onCloseNote}
                             onRegisterClose={onRegisterNoteClose}
-                            onSave={onSaveNote}
-                            onUrlPaste={onUrlPaste}
                         />
                     );
                 }
@@ -1573,7 +1482,9 @@ function SideUrlPanel({
                     referrerPolicy="strict-origin-when-cross-origin"
                     sandbox={OEMBED_IFRAME_SANDBOX}
                     src={entry.url}
-                    title={gt("Preview of {title}", { title: entry.title })}
+                    title={gt("Preview of {title}", {
+                        title: entry.title ?? gt("Preview"),
+                    })}
                 />
             )}
         </>
@@ -1581,10 +1492,7 @@ function SideUrlPanel({
 }
 
 function SidePanelEmpty() {
-    const { items } = useItemsStateContext();
-    const { lastVisitedItemIds } = useLastVisited();
-
-    const recentItems = getRecentSideItems(items, lastVisitedItemIds);
+    const recentItems = useRecentSideItems();
 
     return (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -1619,8 +1527,9 @@ interface SideRecentItemProps {
 
 function SideRecentItem({ item }: SideRecentItemProps) {
     const gt = useGT();
-    const title = item.caption?.trim() || item.url;
-    const label = item.caption?.trim() || parseDisplayUrl(item.url);
+    const caption = getRecentItemCaption(item);
+    const title = caption ?? item.url;
+    const label = caption ?? parseDisplayUrl(item.url);
 
     const handleOpen = useStableCallback(() => {
         openSide({
@@ -1692,11 +1601,10 @@ function SideOembedPreview({ oembed }: SideOembedPreviewProps) {
 }
 
 interface SideListProps {
-    children: (item: SideEntry, index: number) => React.ReactNode;
-    items: SideEntry[];
+    children: ReactNode;
 }
 
-function SideList({ items, children }: SideListProps) {
+function SideList({ children }: SideListProps) {
     const gt = useGT();
 
     return (
@@ -1706,7 +1614,7 @@ function SideList({ items, children }: SideListProps) {
                 aria-label={gt("Open side tabs")}
                 className="flex min-w-full items-center gap-1"
             >
-                {items.map(children)}
+                {children}
             </Tabs.List>
         </ScrollArea>
     );
@@ -1723,11 +1631,8 @@ function SideListItem({ index, isActive, item, onRemove }: SideListItemProps) {
     const gt = useGT();
 
     const entryTitle = getSideEntryTitle(item);
-
     let title: string;
-    if (entryTitle === DEFAULT_TITLE) {
-        title = gt("Preview");
-    } else if (entryTitle !== null) {
+    if (entryTitle !== null) {
         title = truncateLabel(entryTitle);
     } else if (item.type === "note") {
         title = item.note ? gt("Untitled note") : gt("New note");
@@ -1740,6 +1645,8 @@ function SideListItem({ index, isActive, item, onRemove }: SideListItemProps) {
         onRemove(item, index);
     });
 
+    // The tab list moves focus on arrow keys. Keep the close button from
+    // handing the caret to another tab when it has focus.
     const handleRemoveKeyDown = useStableCallback(
         (event: React.KeyboardEvent<HTMLButtonElement>) => {
             if (
@@ -1827,10 +1734,7 @@ function SideCopyLinkButton({ url }: SideCopyLinkButtonProps) {
 
 function SideNewTabMenu() {
     const gt = useGT();
-    const { items } = useItemsStateContext();
-    const { lastVisitedItemIds } = useLastVisited();
-
-    const recentItems = getRecentSideItems(items, lastVisitedItemIds);
+    const recentItems = useRecentSideItems();
     const triggerLabel = gt("Open recent tabs");
     const handleCreateNote = useStableCallback(() => openSideNote(null));
 
@@ -1885,8 +1789,9 @@ interface SideNewTabMenuItemProps {
 
 function SideNewTabMenuItem({ item }: SideNewTabMenuItemProps) {
     const gt = useGT();
-    const title = item.caption?.trim() || item.url;
-    const label = item.caption?.trim() || parseDisplayUrl(item.url);
+    const caption = getRecentItemCaption(item);
+    const title = caption ?? item.url;
+    const label = caption ?? parseDisplayUrl(item.url);
 
     const handleOpen = useStableCallback(() => {
         openSide({
@@ -1930,7 +1835,12 @@ function SideLoading() {
     );
 }
 
-function SideBlocked({ onRetry, url }: { onRetry: () => void; url: string }) {
+interface SideBlockedProps {
+    onRetry: () => void;
+    url: string;
+}
+
+function SideBlocked({ onRetry, url }: SideBlockedProps) {
     return (
         <div
             aria-live="polite"
@@ -1972,39 +1882,27 @@ function SideBlocked({ onRetry, url }: { onRetry: () => void; url: string }) {
     );
 }
 
-function SideToggle({
-    className,
-    onClick,
-    ...props
-}: React.ComponentProps<typeof Button>) {
+function SideToggle() {
     const gt = useGT();
     const { isOpen, setIsOpen } = useSideStore();
 
-    const handleClick = useStableCallback(
-        (event: BaseUIEvent<React.MouseEvent<HTMLButtonElement>>) => {
-            onClick?.(event);
-            if (event.defaultPrevented) {
-                return;
-            }
-            setIsOpen((prev) => !prev);
-        }
-    );
+    const handleClick = useStableCallback(() => {
+        setIsOpen((prev) => !prev);
+    });
 
     const toggleLabel = isOpen ? gt("Close preview") : gt("Open preview");
-    const toggleShortcut = `${getSystemControlKey()}J`;
+    const controlKey = getSystemControlKey();
+    const toggleShortcut = `${controlKey}J / ${controlKey}I`;
     const toggleTitle = isOpen
         ? gt("Close preview ({shortcut})", { shortcut: toggleShortcut })
         : gt("Open preview ({shortcut})", { shortcut: toggleShortcut });
 
     return (
         <Button
-            {...props}
             aria-label={toggleLabel}
-            className={cn(
-                "fixed top-2 right-0.5 z-60 lg:right-2",
-                { "text-muted-foreground": !isOpen },
-                className
-            )}
+            className={cn("fixed top-2 right-0.5 z-60 lg:right-2", {
+                "text-muted-foreground": !isOpen,
+            })}
             data-slot="side-toggle"
             onClick={handleClick}
             size="icon-sm"
@@ -2024,8 +1922,6 @@ interface SideNotePanelProps {
         id: string,
         close: () => void | Promise<void>
     ) => () => void;
-    onSave: NoteSaveHandler;
-    onUrlPaste: (url: string) => Promise<void> | void;
 }
 
 function SideNotePanel({
@@ -2033,10 +1929,8 @@ function SideNotePanel({
     isActive,
     onClose,
     onRegisterClose,
-    onSave,
-    onUrlPaste,
 }: SideNotePanelProps) {
-    const contentEditableRef = useRef<HTMLDivElement | null>(null);
+    const { onSaveNote, onUrlPaste } = useSideContext();
 
     const handleClose = useStableCallback(() => {
         onClose(entry.id);
@@ -2044,7 +1938,7 @@ function SideNotePanel({
 
     const handleSave = useStableCallback(
         async (draft: NoteDraft, noteId: string | null) => {
-            const savedNote = await onSave(draft, noteId);
+            const savedNote = await onSaveNote(draft, noteId);
             if (savedNote) {
                 const nextNote = toSideNote(savedNote);
                 if (!areSideNotesEqual(entry.note, nextNote)) {
@@ -2055,17 +1949,6 @@ function SideNotePanel({
         }
     );
 
-    useIsoLayoutEffect(
-        () => onRegisterClose(entry.id, handleClose),
-        [entry.id, handleClose, onRegisterClose]
-    );
-
-    useIsoLayoutEffect(() => {
-        if (isActive) {
-            contentEditableRef.current?.focus({ preventScroll: true });
-        }
-    }, [isActive]);
-
     return (
         <Tabs.Panel
             className="relative flex min-h-0 min-w-0 flex-1 flex-col"
@@ -2073,17 +1956,18 @@ function SideNotePanel({
             value={getSideTabId(entry)}
         >
             <NoteRoot
-                contentEditableRef={contentEditableRef}
                 isActive={isActive}
                 note={entry.note}
                 onClose={handleClose}
+                onRegisterClose={onRegisterClose}
                 onSave={handleSave}
                 onUrlPaste={onUrlPaste}
+                tabId={entry.id}
             >
                 <ScrollArea className="min-h-0 min-w-0 flex-1">
                     <div className="w-full min-w-0 p-4 pt-0">
                         <NoteEditor />
-                        <NoteMetrics />
+                        <NoteFooter />
                     </div>
                 </ScrollArea>
             </NoteRoot>
@@ -2098,60 +1982,6 @@ function toSideNote(note: LibraryItemWithCollections): SideNote {
         noteContentState: note.noteContentState,
         noteContentText: note.noteContentText,
     };
-}
-
-interface NoteContext {
-    contentEditableRef?: React.RefObject<HTMLDivElement | null>;
-    contentHtml: string;
-    editorKey: number;
-    initialDraft: NoteDraft;
-    isDirty: boolean;
-    onClose: () => void | Promise<void>;
-    onDraftChange: (draft: NoteDraft) => void;
-    onUrlPaste: (url: string) => Promise<void> | void;
-    query: string;
-    saveStatus: SaveStatus;
-    shouldCreateBookmarkFromUrlPaste: () => boolean;
-    textMetrics: NoteTextMetrics;
-}
-
-interface FormatState {
-    blockType: NoteBlockType;
-    bold: boolean;
-    italic: boolean;
-    strikeThrough: boolean;
-    underline: boolean;
-}
-
-interface NoteTextMetrics {
-    characterCount: number;
-    paragraphCount: number;
-    plainText: string;
-    readMinuteCount: number;
-    wordCount: number;
-}
-
-type NoteBlockType = "h1" | "h2" | "h3" | "paragraph";
-
-type NoteInlineFormatStateKey = Exclude<keyof FormatState, "blockType">;
-
-interface ExportContentProvider {
-    createUrl: (query: string) => string;
-    getTitle: (gt: Translate) => string;
-    icon: ComponentType<SVGProps<SVGSVGElement>>;
-    id: string;
-}
-
-const NoteContext = createContext<NoteContext | null>(null);
-
-function useNoteContext(): NoteContext {
-    const context = use(NoteContext);
-    if (!context) {
-        throw new Error(
-            "Side note components must be rendered inside a note tab."
-        );
-    }
-    return context;
 }
 
 function normalizeDraft(draft: NoteDraft): NoteDraft {
@@ -2255,7 +2085,7 @@ function areFormatStatesEqual(left: FormatState, right: FormatState): boolean {
         left.blockType === right.blockType &&
         left.bold === right.bold &&
         left.italic === right.italic &&
-        left.strikeThrough === right.strikeThrough &&
+        left.strikethrough === right.strikethrough &&
         left.underline === right.underline
     );
 }
@@ -2275,24 +2105,6 @@ function getSelectionBlockType(selection: RangeSelection): NoteBlockType {
         return headingTag;
     }
     return "paragraph";
-}
-
-function parseNoteBlockType(value: string | undefined): NoteBlockType | null {
-    for (const option of NOTE_BLOCK_OPTIONS) {
-        if (option.value === value) {
-            return option.value;
-        }
-    }
-    return null;
-}
-
-function parseTextFormat(value: string | undefined): TextFormatType | null {
-    for (const option of NOTE_TEXT_FORMAT_OPTIONS) {
-        if (option.format === value) {
-            return option.format;
-        }
-    }
-    return null;
 }
 
 function getInitialEditorState(
@@ -2334,22 +2146,27 @@ function createNoteSessionExtension(initialDraft: NoteDraft) {
 
 interface NoteRootProps {
     children: ReactNode;
-    contentEditableRef?: React.RefObject<HTMLDivElement | null>;
     isActive: boolean;
     note: SideNote | null;
     onClose: () => void | Promise<void>;
+    onRegisterClose: (
+        id: string,
+        close: () => void | Promise<void>
+    ) => () => void;
     onSave: NoteSaveHandler;
     onUrlPaste: (url: string) => Promise<void> | void;
+    tabId: string;
 }
 
 function NoteRoot({
     children,
-    contentEditableRef,
     isActive,
     note,
     onClose,
+    onRegisterClose,
     onSave,
     onUrlPaste,
+    tabId,
 }: NoteRootProps) {
     const [initialDraft, setInitialDraft] = useState<NoteDraft>(() =>
         noteDraftFromItem(note)
@@ -2357,6 +2174,7 @@ function NoteRoot({
     const [draft, setDraft] = useState<NoteDraft>(initialDraft);
     const [editorKey, setEditorKey] = useState(0);
     const isClosingRef = useRef(false);
+    const contentEditableRef = useRef<HTMLDivElement | null>(null);
 
     const initialDraftRef = useRef<NoteDraft>(draft);
     const latestDraftRef = useRef<NoteDraft>(draft);
@@ -2457,17 +2275,27 @@ function NoteRoot({
         });
     });
 
+    // The keydown listener lives on the owner document of the editor, so a
+    // tab that stays mounted still saves while its editor holds focus.
     useEffect(() => {
         if (!isActive) {
             return;
         }
 
-        const ownerDocument = getOwnerDocument(contentEditableRef?.current);
+        const ownerDocument = getOwnerDocument(contentEditableRef.current);
         ownerDocument.addEventListener("keydown", handleSaveShortcut);
         return () => {
             ownerDocument.removeEventListener("keydown", handleSaveShortcut);
         };
-    }, [contentEditableRef, handleSaveShortcut, isActive]);
+    }, [handleSaveShortcut, isActive]);
+
+    // Activating a tab must land the caret in the editor, so the notes panel
+    // is the only one that does not move focus to the tab itself.
+    useIsoLayoutEffect(() => {
+        if (isActive) {
+            contentEditableRef.current?.focus({ preventScroll: true });
+        }
+    }, [isActive]);
 
     const handleClose = useStableCallback(async () => {
         if (isClosingRef.current) {
@@ -2497,9 +2325,53 @@ function NoteRoot({
         }
     });
 
+    // The tab's close button removes this panel, so the registered handler
+    // must flush the draft first: only this component owns the save state.
+    useIsoLayoutEffect(
+        () => onRegisterClose(tabId, handleClose),
+        [handleClose, onRegisterClose, tabId]
+    );
+
+    const handleCloseShortcut = useStableCallback((event: KeyboardEvent) => {
+        if (
+            event.defaultPrevented ||
+            event.isComposing ||
+            !(event.metaKey || event.ctrlKey) ||
+            event.key !== "Enter"
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+        // Capture the key before it reaches the editor: Lexical binds Enter
+        // with any modifiers to split the block, which would insert a
+        // paragraph before the tab closes.
+        event.stopPropagation();
+        handleClose().catch((error: unknown) => {
+            log.error("Unexpected note shortcut close failure", error);
+        });
+    });
+
+    // The keydown listener lives on the owner document of the editor, so the
+    // shortcut works from anywhere in an active note tab.
+    useEffect(() => {
+        if (!isActive) {
+            return;
+        }
+
+        const ownerDocument = getOwnerDocument(contentEditableRef.current);
+        ownerDocument.addEventListener("keydown", handleCloseShortcut, true);
+        return () => {
+            ownerDocument.removeEventListener(
+                "keydown",
+                handleCloseShortcut,
+                true
+            );
+        };
+    }, [handleCloseShortcut, isActive]);
+
     const deferredContentHtml = useDeferredValue(draft.contentHtml);
     const textMetrics = getNoteTextMetrics(deferredContentHtml);
-    const query = textMetrics.plainText;
 
     return (
         <NoteContext
@@ -2509,10 +2381,8 @@ function NoteRoot({
                 editorKey,
                 initialDraft,
                 isDirty,
-                onClose: handleClose,
                 onDraftChange: handleDraftChange,
                 onUrlPaste: handleUrlPaste,
-                query,
                 saveStatus,
                 shouldCreateBookmarkFromUrlPaste,
                 textMetrics,
@@ -2525,7 +2395,8 @@ function NoteRoot({
 
 function NoteToolbarControls() {
     const gt = useGT();
-    const { contentHtml, query } = useNoteContext();
+    const { contentHtml, textMetrics } = useNoteContext();
+    const { plainText } = textMetrics;
     const { copyToClipboard, isCopied } = useCopyToClipboard();
 
     const [isSendingToNotion, startSendToNotion] = useTransition();
@@ -2534,17 +2405,17 @@ function NoteToolbarControls() {
         tone: "error" | "success";
     } | null>(null);
 
-    const hasQuery = query.length > 0;
+    const hasPlainText = plainText.length > 0;
 
     const handleCopyNote = useStableCallback(() => {
-        if (!hasQuery) {
+        if (!hasPlainText) {
             return;
         }
-        copyToClipboard(query);
+        copyToClipboard(plainText);
     });
 
     const handleExportMarkdown = useStableCallback(() => {
-        downloadMarkdownFile(contentHtml, query, gt("Markdown file")).catch(
+        downloadMarkdownFile(contentHtml, plainText, gt("Markdown file")).catch(
             (error: unknown) => {
                 log.error("Unexpected Markdown export failure", error);
             }
@@ -2552,7 +2423,7 @@ function NoteToolbarControls() {
     });
 
     const handleSendToNotion = useStableCallback(() => {
-        if (!hasQuery || isSendingToNotion) {
+        if (!hasPlainText || isSendingToNotion) {
             return;
         }
 
@@ -2560,7 +2431,7 @@ function NoteToolbarControls() {
         startSendToNotion(async () => {
             const result = await sendNoteToNotion({
                 contentHtml,
-                title: getNotionNoteTitle(query),
+                title: getNotionNoteTitle(plainText),
             });
 
             if (result.status === "SUCCESS") {
@@ -2584,7 +2455,7 @@ function NoteToolbarControls() {
             <NoteSaveStatus />
             <Button
                 aria-label={gt("Copy note")}
-                disabled={!hasQuery}
+                disabled={!hasPlainText}
                 onClick={handleCopyNote}
                 size="icon-sm"
                 variant="ghost"
@@ -2603,7 +2474,7 @@ function NoteToolbarControls() {
                 <MenuTrigger
                     render={
                         <Button
-                            disabled={!hasQuery}
+                            disabled={!hasPlainText}
                             size="sm"
                             variant="ghost"
                         />
@@ -2615,14 +2486,14 @@ function NoteToolbarControls() {
                 <MenuPopup align="start" className="w-60">
                     {EXPORT_CONTENT_PROVIDERS.map((provider) => (
                         <ExportProviderMenuItem
-                            hasQuery={hasQuery}
+                            hasPlainText={hasPlainText}
                             key={provider.id}
+                            plainText={plainText}
                             provider={provider}
-                            query={query}
                         />
                     ))}
                     <MenuItem
-                        disabled={!hasQuery || isSendingToNotion}
+                        disabled={!hasPlainText || isSendingToNotion}
                         onClick={handleSendToNotion}
                     >
                         <NotionIcon className="size-4 text-muted-foreground" />
@@ -2657,7 +2528,7 @@ function NoteToolbarControls() {
                     ) : null}
                     <MenuSeparator />
                     <MenuItem
-                        disabled={!hasQuery}
+                        disabled={!hasPlainText}
                         onClick={handleExportMarkdown}
                     >
                         <FileTextIcon className="size-4 text-muted-foreground" />
@@ -2705,13 +2576,19 @@ function NoteEditor() {
     );
 }
 
-function NoteMetrics() {
+function NoteFooter() {
     const { textMetrics } = useNoteContext();
 
     const shouldShowReadTime = textMetrics.readMinuteCount >= 2;
+    const closeShortcut = `${getSystemControlKey()}+Enter`;
 
     return (
         <div className="mt-3 flex items-center justify-end gap-4 border-border/60 border-t pt-3 text-muted-foreground text-xs">
+            <T>
+                <span className="mr-auto">
+                    <Var>{closeShortcut}</Var> to close
+                </span>
+            </T>
             {shouldShowReadTime ? (
                 <T>
                     <span>
@@ -2779,24 +2656,26 @@ function NoteSaveStatus() {
     );
 }
 
-function ExportProviderMenuItem({
-    hasQuery,
-    provider,
-    query,
-}: {
-    hasQuery: boolean;
+interface ExportProviderMenuItemProps {
+    hasPlainText: boolean;
+    plainText: string;
     provider: ExportContentProvider;
-    query: string;
-}) {
+}
+
+function ExportProviderMenuItem({
+    hasPlainText,
+    plainText,
+    provider,
+}: ExportProviderMenuItemProps) {
     const gt = useGT();
 
     const ProviderIcon = provider.icon;
     const title = provider.getTitle(gt);
-    const href = provider.createUrl(query);
+    const href = provider.createUrl(plainText);
 
     return (
         <MenuItem
-            disabled={!hasQuery}
+            disabled={!hasPlainText}
             render={<a href={href} rel="noopener noreferrer" target="_blank" />}
         >
             <ProviderIcon className="size-4 text-muted-foreground" />
@@ -2832,7 +2711,7 @@ function FormattingToolbarControls() {
             blockType: getSelectionBlockType(selection),
             bold: selection.hasFormat("bold"),
             italic: selection.hasFormat("italic"),
-            strikeThrough: selection.hasFormat("strikethrough"),
+            strikethrough: selection.hasFormat("strikethrough"),
             underline: selection.hasFormat("underline"),
         });
     });
@@ -2863,44 +2742,6 @@ function FormattingToolbarControls() {
         );
     }, [editor, syncToolbarSelection, updateToolbarState]);
 
-    const setBlockType = useStableCallback((blockType: NoteBlockType) => {
-        editor.update(() => {
-            const selection = $getSelection();
-            if (!$isRangeSelection(selection)) {
-                return;
-            }
-
-            if (blockType === "paragraph") {
-                $setBlocksType(selection, () => $createParagraphNode());
-                return;
-            }
-
-            $setBlocksType(selection, () => $createHeadingNode(blockType));
-        });
-    });
-
-    const handleBlockTypeMouseDown = useStableCallback(
-        (event: React.MouseEvent<HTMLButtonElement>) => {
-            event.preventDefault();
-            const blockType = parseNoteBlockType(
-                event.currentTarget.dataset.blockType
-            );
-            if (blockType) {
-                setBlockType(blockType);
-            }
-        }
-    );
-
-    const handleFormatMouseDown = useStableCallback(
-        (event: React.MouseEvent<HTMLButtonElement>) => {
-            event.preventDefault();
-            const format = parseTextFormat(event.currentTarget.dataset.format);
-            if (format) {
-                editor.dispatchCommand(FORMAT_TEXT_COMMAND, format);
-            }
-        }
-    );
-
     return (
         <div
             aria-label={gt("Text formatting")}
@@ -2910,44 +2751,104 @@ function FormattingToolbarControls() {
             role="toolbar"
         >
             {NOTE_BLOCK_OPTIONS.map((option) => (
-                <Button
-                    aria-label={option.ariaLabel(gt)}
-                    data-block-type={option.value}
+                <NoteBlockTypeButton
+                    isActive={formats.blockType === option.value}
                     key={option.value}
-                    onMouseDown={handleBlockTypeMouseDown}
-                    size="xs"
-                    variant={
-                        formats.blockType === option.value
-                            ? "secondary"
-                            : "ghost"
-                    }
-                >
-                    {option.label(gt)}
-                </Button>
+                    option={option}
+                />
             ))}
-            {NOTE_TEXT_FORMAT_OPTIONS.map((option) => {
-                const Icon = option.icon;
-
-                return (
-                    <Button
-                        aria-label={option.ariaLabel(gt)}
-                        className={cn(formats[option.stateKey] && "bg-accent")}
-                        data-format={option.format}
-                        key={option.format}
-                        onMouseDown={handleFormatMouseDown}
-                        size="icon-xs"
-                        variant="ghost"
-                    >
-                        <Icon className="size-4" />
-                    </Button>
-                );
-            })}
+            {NOTE_TEXT_FORMAT_OPTIONS.map((option) => (
+                <NoteInlineFormatButton
+                    isActive={formats[option.format]}
+                    key={option.format}
+                    option={option}
+                />
+            ))}
         </div>
     );
 }
 
+interface NoteBlockTypeButtonProps {
+    isActive: boolean;
+    option: (typeof NOTE_BLOCK_OPTIONS)[number];
+}
+
+function NoteBlockTypeButton({ isActive, option }: NoteBlockTypeButtonProps) {
+    const gt = useGT();
+    const [editor] = useLexicalComposerContext();
+
+    // Mousedown keeps the editor selection alive; a click would collapse it
+    // before the block type command runs.
+    const handleMouseDown = useStableCallback(
+        (event: React.MouseEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+            editor.update(() => {
+                const selection = $getSelection();
+                if (!$isRangeSelection(selection)) {
+                    return;
+                }
+
+                if (option.value === "paragraph") {
+                    $setBlocksType(selection, () => $createParagraphNode());
+                    return;
+                }
+
+                $setBlocksType(selection, () =>
+                    $createHeadingNode(option.value)
+                );
+            });
+        }
+    );
+
+    return (
+        <Button
+            aria-label={option.ariaLabel(gt)}
+            onMouseDown={handleMouseDown}
+            size="xs"
+            variant={isActive ? "secondary" : "ghost"}
+        >
+            {option.label(gt)}
+        </Button>
+    );
+}
+
+interface NoteInlineFormatButtonProps {
+    isActive: boolean;
+    option: (typeof NOTE_TEXT_FORMAT_OPTIONS)[number];
+}
+
+function NoteInlineFormatButton({
+    isActive,
+    option,
+}: NoteInlineFormatButtonProps) {
+    const gt = useGT();
+    const [editor] = useLexicalComposerContext();
+    const Icon = option.icon;
+
+    // Mousedown keeps the editor selection alive; a click would collapse it
+    // before the format command runs.
+    const handleMouseDown = useStableCallback(
+        (event: React.MouseEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, option.format);
+        }
+    );
+
+    return (
+        <Button
+            aria-label={option.ariaLabel(gt)}
+            className={cn(isActive && "bg-accent")}
+            onMouseDown={handleMouseDown}
+            size="icon-xs"
+            variant="ghost"
+        >
+            <Icon className="size-4" />
+        </Button>
+    );
+}
+
 interface ContentPluginProps {
-    contentEditableRef?: React.RefObject<HTMLDivElement | null>;
+    contentEditableRef: React.RefObject<HTMLDivElement | null>;
     onDraftChange: (draft: NoteDraft) => void;
     onUrlPaste: (url: string) => Promise<void> | void;
     shouldCreateBookmarkFromUrlPaste: () => boolean;

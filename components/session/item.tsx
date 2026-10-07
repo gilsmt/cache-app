@@ -15,6 +15,7 @@ import {
     FilePenLineIcon,
     History,
     LinkIcon,
+    Quote,
     SearchIcon,
     Star,
     Volume2Icon,
@@ -110,10 +111,20 @@ import { getSourceIcon } from "@/lib/integrations/support";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import { useDimensionCacheContext } from "./dimension-cache";
 
+const log = createLogger("session:item");
+
 const FAVORITE_REVEAL_TIMEOUT_MS = 2000;
+
 const TOOLBAR_SLOT_DURATION_SECONDS = 0.22;
 
-const log = createLogger("session:item");
+const NOTE_QUOTE_PAIRS = [
+    ['"', '"'],
+    ["'", "'"],
+    ["“", "”"],
+    ["‘", "’"],
+    ["«", "»"],
+    ["‹", "›"],
+] as const;
 
 const ITEM_DOWNLOAD_TIMEOUT_MS = 60_000;
 
@@ -692,6 +703,18 @@ async function saveItemMedia(item: LibraryItemWithCollections): Promise<void> {
     });
 }
 
+function hasWrappingQuotes(text: string | null): boolean {
+    const trimmedText = text?.trim();
+    if (!trimmedText || trimmedText.length < 3) {
+        return false;
+    }
+    return NOTE_QUOTE_PAIRS.some(
+        ([openingQuote, closingQuote]) =>
+            trimmedText.startsWith(openingQuote) &&
+            trimmedText.endsWith(closingQuote)
+    );
+}
+
 interface ItemPreviewProps {
     hover?: ItemHoverVideo | null;
     src: string | null;
@@ -707,7 +730,7 @@ export function ItemPreview({
         <ItemPreviewImage src={src}>
             {hover?.shouldLoadVideo ? (
                 <video
-                    className="squircle drag-none pointer-events-none absolute inset-0 size-full rounded-xl object-contain transition-opacity ease-out"
+                    className="squircle drag-none pointer-events-none absolute inset-0 size-full rounded-xl object-contain"
                     crossOrigin="use-credentials"
                     draggable="false"
                     key={videoSrc}
@@ -727,14 +750,25 @@ export function ItemPreview({
 
 interface ItemNotePreviewProps {
     contentHtml: string | null;
+    contentText: string | null;
 }
 
 export function ItemNotePreview({
     contentHtml,
+    contentText,
 }: ItemNotePreviewProps): React.ReactElement {
+    const isQuoted = hasWrappingQuotes(contentText);
+
     return (
-        <div className="mask-b-from-[calc(100%-var(--fade-size))] size-full max-h-60 select-none p-4 [--fade-size:2rem]">
-            <Streamdown className="text-[11px] text-foreground" mode="static">
+        <div className="mask-b-from-[calc(100%-var(--fade-size))] size-full max-h-60 select-none p-4 [--fade-size:1rem]">
+            {isQuoted && <Quote className="mx-auto mb-2 size-4" />}
+            <Streamdown
+                className={cn(
+                    "text-[11px] text-foreground",
+                    isQuoted && "text-center text-base italic"
+                )}
+                mode="static"
+            >
                 {contentHtml ?? "Tap to start writing in this note"}
             </Streamdown>
         </div>
@@ -745,15 +779,15 @@ export function ItemCardProvider({
     children,
     value,
 }: React.PropsWithChildren<{ value: LibraryItemWithCollections }>) {
+    const contextValue: ItemCardDataContext = {
+        displayTitle: getLibraryItemPrimaryText(value),
+        isNote: value.kind === ITEM_KIND_NOTE,
+        item: value,
+        previewImageUrl: itemPreviewImageUrl(value),
+    };
+
     return (
-        <ItemCardDataContext
-            value={{
-                displayTitle: getLibraryItemPrimaryText(value),
-                isNote: value.kind === ITEM_KIND_NOTE,
-                item: value,
-                previewImageUrl: itemPreviewImageUrl(value),
-            }}
-        >
+        <ItemCardDataContext value={contextValue}>
             {children}
         </ItemCardDataContext>
     );
@@ -774,14 +808,14 @@ export function ItemCardZoomProvider({ children }: React.PropsWithChildren) {
         setIsZoomed(true);
     });
 
+    const contextValue: ItemCardZoomContext = {
+        isZoomed,
+        onZoomChange: handleZoomChange,
+        onZoomIn: handleZoomIn,
+    };
+
     return (
-        <ItemCardZoomContext
-            value={{
-                isZoomed,
-                onZoomChange: handleZoomChange,
-                onZoomIn: handleZoomIn,
-            }}
-        >
+        <ItemCardZoomContext value={contextValue}>
             {children}
         </ItemCardZoomContext>
     );
@@ -809,11 +843,14 @@ export function ItemCardDownloadProvider({
         });
     });
 
+    const contextValue: ItemCardDownloadContext = {
+        isDownloading,
+        onDownload: handleDownload,
+    };
+
     return (
         <>
-            <ItemCardDownloadContext
-                value={{ isDownloading, onDownload: handleDownload }}
-            >
+            <ItemCardDownloadContext value={contextValue}>
                 {children}
             </ItemCardDownloadContext>
             {hasDownloadError ? (
@@ -888,14 +925,14 @@ export function ItemCardSurface({ children }: React.PropsWithChildren) {
         }
     });
 
+    const contextValue: ItemCardSurfaceContext = {
+        isMenuOpen,
+        isOverlayOpen: isMenuOpen || isContextMenuOpen,
+        onMenuOpenChange: setIsMenuOpen,
+    };
+
     return (
-        <ItemCardSurfaceContext
-            value={{
-                isMenuOpen,
-                isOverlayOpen: isMenuOpen || isContextMenuOpen,
-                onMenuOpenChange: setIsMenuOpen,
-            }}
-        >
+        <ItemCardSurfaceContext value={contextValue}>
             <ContextMenu onOpenChange={setIsContextMenuOpen}>
                 <ContextMenuTrigger
                     className="group relative flex shrink-0 flex-col ease-out before:absolute before:-inset-x-2 before:-top-2 before:bottom-0 before:-z-10 before:rounded-xl before:bg-muted/50 before:opacity-0 before:transition-transform before:ease-out hover:before:opacity-100 focus-visible:outline-none active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80!"
@@ -990,6 +1027,7 @@ export function ItemCardTarget() {
                             ? item.noteContentHtml
                             : null
                     }
+                    contentText={item.noteContentText}
                 />
             ) : (
                 <>
@@ -1188,7 +1226,7 @@ function ItemCardToolbar({
         <Toolbar
             aria-label="Preview actions"
             className={cn(
-                "squircle absolute right-2 bottom-2 z-10 w-auto justify-end gap-px overflow-hidden rounded-lg bg-black/55 p-0.5 text-white shadow-lg transition-opacity duration-200",
+                "squircle absolute right-2 bottom-2 z-10 w-auto justify-end gap-px overflow-hidden rounded-lg bg-black/55 p-0.5 text-white shadow-lg transition-opacity",
                 !isPinned &&
                     "opacity-0 focus-within:opacity-100 group-hover/preview:opacity-100"
             )}
@@ -1211,7 +1249,7 @@ function ItemCardToolbar({
                     >
                         <Spinner
                             aria-hidden
-                            className="size-3.5"
+                            className="ml-1 size-3.5"
                             focusable="false"
                         />
                     </ItemCardToolbarSlot>

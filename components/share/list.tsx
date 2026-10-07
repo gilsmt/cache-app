@@ -115,7 +115,10 @@ function PublicShareGridCard({
             )}
         >
             {isNote ? (
-                <ItemNotePreview contentHtml={noteContent} />
+                <ItemNotePreview
+                    contentHtml={noteContent}
+                    contentText={noteContent}
+                />
             ) : (
                 <ItemPreview src={data.previewImageUrl} />
             )}
