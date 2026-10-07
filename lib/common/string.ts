@@ -39,6 +39,25 @@ export function slugify(input: string): string {
         .replaceAll(/^-+|-+$/g, "");
 }
 
+export function getTextMatchScore(
+    candidateName: string,
+    query: string
+): number {
+    if (query.length === 0) {
+        return 0;
+    }
+    if (candidateName === query) {
+        return 3;
+    }
+    if (candidateName.startsWith(query)) {
+        return 2;
+    }
+    if (candidateName.includes(query)) {
+        return 1;
+    }
+    return 0;
+}
+
 export function normalizeCollectionName(baseName: string): {
     name: string;
     nameKey: string;

@@ -11,11 +11,13 @@ import {
     History,
     LayoutList,
     MessageCircle,
+    Search,
     Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import { ActivePathname } from "@/components/ui/active-pathname";
@@ -27,6 +29,18 @@ import {
 } from "@/components/ui/collapsible";
 import { CollapsibleListVertical } from "@/components/ui/collapsible-list";
 import {
+    Combobox,
+    ComboboxCollection,
+    ComboboxEmpty,
+    ComboboxGroup,
+    ComboboxGroupLabel,
+    ComboboxInput,
+    ComboboxItem,
+    ComboboxList,
+    ComboboxPopup,
+    ComboboxTrigger,
+} from "@/components/ui/combobox";
+import {
     Dialog,
     DialogClose,
     DialogDescription,
@@ -37,6 +51,7 @@ import {
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/error-message";
 import { ChevronDownFilledIcon } from "@/components/ui/icons";
+import { CmdKbd, Kbd } from "@/components/ui/kbd";
 import {
     Menu,
     MenuGroupLabel,
@@ -46,6 +61,7 @@ import {
     MenuTrigger,
 } from "@/components/ui/menu";
 import { SidebarItem, SidebarItemValue } from "@/components/ui/sidebar";
+import { TextMatch } from "@/components/ui/text-match";
 import { Ticker } from "@/components/ui/ticker";
 import { Toolbar, ToolbarButton, ToolbarGroup } from "@/components/ui/toolbar";
 import {
@@ -55,13 +71,17 @@ import {
 } from "@/lib/collections/grouping";
 import { ACTION_STATUS } from "@/lib/common/constants";
 import { type Dayjs, dayjs } from "@/lib/common/dayjs";
+import { getSystemControlKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { getTextMatchScore } from "@/lib/common/string";
 import { normalizePathname } from "@/lib/common/url";
 import { deleteThread, setThreadArchived } from "@/lib/threads/actions";
 import type { ThreadListItem } from "@/lib/threads/service";
 
 const THREADS_OPEN_STORAGE_KEY = "cache:threads:open";
 const THREADS_LIST_VIEW_STORAGE_KEY = "cache:threads:view:v1";
+const THREADS_LIST_TEXT_MATCH_QUERY_STORAGE_KEY =
+    "cache:threads:text-match-query";
 
 const THREADS_LIST_GROUP_LABELS: Record<RelativeDateGroupId, React.ReactNode> =
     {
@@ -79,7 +99,12 @@ interface ThreadSection {
     threads: ThreadListItem[];
 }
 
+type ThreadSearchOption =
+    | { query: string; type: "filter" }
+    | { query: ""; type: "clear" };
+
 interface ThreadsListContext {
+    textMatchQuery: string;
     threads: ThreadListItem[];
     visibleThreads: ThreadListItem[];
 }
@@ -103,6 +128,9 @@ const { useStore: useThreadsListStore } = createStore({
         storageKey: THREADS_OPEN_STORAGE_KEY,
     }),
     pendingDeleteThreadId: null as string | null,
+    textMatchQuery: storage("", {
+        storageKey: THREADS_LIST_TEXT_MATCH_QUERY_STORAGE_KEY,
+    }),
     view: storage<ThreadListView>("exclude-archives", {
         storageKey: THREADS_LIST_VIEW_STORAGE_KEY,
     }),
@@ -110,12 +138,63 @@ const { useStore: useThreadsListStore } = createStore({
 
 function getVisibleThreads(
     threads: ThreadListItem[],
-    view: ThreadListView
+    view: ThreadListView,
+    textMatchQuery: string
 ): ThreadListItem[] {
-    if (view === "show-all") {
-        return threads;
+    const visibleThreads =
+        view === "show-all"
+            ? threads
+            : threads.filter((thread) => !thread.isArchived);
+    const normalizedQuery = textMatchQuery.trim().toLowerCase();
+
+    if (normalizedQuery.length === 0) {
+        return visibleThreads;
     }
-    return threads.filter((thread) => !thread.isArchived);
+
+    return visibleThreads
+        .map((thread) => ({
+            score: getTextMatchScore(
+                thread.title.trim().toLowerCase(),
+                normalizedQuery
+            ),
+            thread,
+        }))
+        .filter(({ score }) => score > 0)
+        .toSorted((left, right) => right.score - left.score)
+        .map(({ thread }) => thread);
+}
+
+function getThreadSearchOptions(
+    inputValue: string,
+    activeQuery: string
+): ThreadSearchOption[] {
+    const query = inputValue.trim();
+    const currentQuery = activeQuery.trim();
+    const options: ThreadSearchOption[] = [];
+
+    if (query.length > 0 || currentQuery.length > 0) {
+        options.push({
+            query: query.length > 0 ? query : currentQuery,
+            type: "filter",
+        });
+    }
+
+    if (currentQuery.length > 0) {
+        options.push({ query: "", type: "clear" });
+    }
+
+    return options;
+}
+
+function isThreadSearchOptionEqual(
+    left: ThreadSearchOption,
+    right: ThreadSearchOption
+): boolean {
+    return left.type === right.type && left.query === right.query;
+}
+
+function getThreadSearchOptionValue(option: ThreadSearchOption): string {
+    return option.type === "clear" ? "Clear title filter" : option.query;
 }
 
 function groupThreadsByUpdatedAt(
@@ -222,7 +301,7 @@ function useDeleteThread(threadId: string | null, onDeleted: () => void) {
                     normalizePathname(pathname ?? "/") ===
                     normalizePathname(`/c/${threadId}`)
                 ) {
-                    router.push("/");
+                    router.replace("/library");
                 } else {
                     router.refresh();
                 }
@@ -247,10 +326,14 @@ interface ThreadsProps {
 }
 
 export function Threads({ threads }: ThreadsProps) {
-    const { view } = useThreadsListStore();
+    const { textMatchQuery, view } = useThreadsListStore();
 
-    const visibleThreads = getVisibleThreads(threads, view);
-    const contextValue: ThreadsListContext = { threads, visibleThreads };
+    const visibleThreads = getVisibleThreads(threads, view, textMatchQuery);
+    const contextValue: ThreadsListContext = {
+        textMatchQuery,
+        threads,
+        visibleThreads,
+    };
 
     return (
         <ThreadsListContext value={contextValue}>
@@ -263,6 +346,10 @@ export function Threads({ threads }: ThreadsProps) {
                         <T>Recents</T>
                     </ThreadsListTrigger>
                     <ToolbarGroup className="pointer-events-none absolute right-1 justify-end">
+                        <ToolbarButton
+                            className="pointer-events-auto"
+                            render={<ThreadsListSearch />}
+                        />
                         <ToolbarButton
                             className="pointer-events-auto"
                             render={<ThreadsListFilterTrigger />}
@@ -373,6 +460,124 @@ function ThreadsListFilterTrigger(
     );
 }
 
+function ThreadsListSearch(
+    props: React.ComponentProps<typeof ComboboxTrigger>
+) {
+    const gt = useGT();
+    const { setIsOpen, setTextMatchQuery, textMatchQuery } =
+        useThreadsListStore();
+    const [isSearchOpen, setIsSearchOpen] = React.useState(false);
+    const [inputValue, setInputValue] = React.useState("");
+    const searchOptions = getThreadSearchOptions(inputValue, textMatchQuery);
+    const value: ThreadSearchOption | null =
+        textMatchQuery.trim().length > 0
+            ? { query: textMatchQuery, type: "filter" }
+            : null;
+
+    const handleValueChange = useStableCallback(
+        (nextValue: ThreadSearchOption | null) => {
+            if (!nextValue) {
+                return;
+            }
+
+            setTextMatchQuery(nextValue.query);
+            setInputValue("");
+            setIsSearchOpen(false);
+        }
+    );
+
+    const handleOpenChange = useStableCallback((nextOpen: boolean) => {
+        setIsSearchOpen(nextOpen);
+        if (nextOpen) {
+            setIsOpen(true);
+        }
+    });
+
+    const handleSearchHotkey = useStableCallback((event: KeyboardEvent) => {
+        event.preventDefault();
+        setIsOpen(true);
+        setIsSearchOpen(true);
+    });
+
+    useHotkeys("mod+f", handleSearchHotkey, {
+        description: "Search chats",
+        enabled: !isSearchOpen,
+        preventDefault: true,
+    });
+
+    return (
+        <Combobox<ThreadSearchOption>
+            autoHighlight
+            filter={null}
+            inputValue={inputValue}
+            isItemEqualToValue={isThreadSearchOptionEqual}
+            items={searchOptions}
+            itemToStringValue={getThreadSearchOptionValue}
+            onInputValueChange={setInputValue}
+            onOpenChange={handleOpenChange}
+            onValueChange={handleValueChange}
+            open={isSearchOpen}
+            value={value}
+        >
+            <ComboboxTrigger
+                {...props}
+                render={
+                    <Button
+                        aria-label={gt("Search chats")}
+                        className={
+                            textMatchQuery.trim().length > 0
+                                ? "text-primary"
+                                : undefined
+                        }
+                        size="icon-xs"
+                        title={`${gt("Search chats")} (${getSystemControlKey()}F)`}
+                        variant="ghost"
+                    />
+                }
+            >
+                <Search aria-hidden className="size-3.5" focusable="false" />
+            </ComboboxTrigger>
+            <ComboboxPopup align="start" positionMethod="fixed" side="right">
+                <ComboboxInput
+                    endAddon={
+                        <Kbd>
+                            <CmdKbd />F
+                        </Kbd>
+                    }
+                    placeholder="Filter chat titles…"
+                />
+                <ComboboxEmpty>
+                    <T>Type a chat title to filter</T>
+                </ComboboxEmpty>
+                <ComboboxList>
+                    {searchOptions.length > 0 ? (
+                        <ComboboxGroup items={searchOptions}>
+                            <ComboboxGroupLabel>
+                                <T>Match chat title</T>
+                            </ComboboxGroupLabel>
+                            <ComboboxCollection>
+                                {(option: ThreadSearchOption) => (
+                                    <ComboboxItem
+                                        key={`${option.type}:${option.query}`}
+                                        shouldShowIndicatorLast
+                                        value={option}
+                                    >
+                                        {option.type === "clear" ? (
+                                            <T>Clear title filter</T>
+                                        ) : (
+                                            `“${option.query}”`
+                                        )}
+                                    </ComboboxItem>
+                                )}
+                            </ComboboxCollection>
+                        </ComboboxGroup>
+                    ) : null}
+                </ComboboxList>
+            </ComboboxPopup>
+        </Combobox>
+    );
+}
+
 interface ThreadsListContentProps {
     children: (entry: ThreadListItem, index: number) => React.ReactNode;
 }
@@ -445,10 +650,11 @@ function ThreadsListGroup({
 }
 
 function ThreadsListEmpty() {
-    const { threads, visibleThreads } = useThreadsListContext();
-    const { setView } = useThreadsListStore();
+    const { threads, textMatchQuery, visibleThreads } = useThreadsListContext();
+    const { setTextMatchQuery, setView } = useThreadsListStore();
 
     const handleShowAll = useStableCallback(() => setView("show-all"));
+    const handleClearSearch = useStableCallback(() => setTextMatchQuery(""));
 
     if (visibleThreads.length > 0) {
         return null;
@@ -464,11 +670,29 @@ function ThreadsListEmpty() {
                         focusable="false"
                     />
                     <p className="font-medium text-muted-foreground text-xs leading-tight">
-                        <T>No chats match this view.</T>
+                        {textMatchQuery.trim().length > 0 ? (
+                            <T>No chats match your search.</T>
+                        ) : (
+                            <T>No chats match this view.</T>
+                        )}
                     </p>
-                    <Button onClick={handleShowAll} size="xs" variant="outline">
-                        <T>Show all chats</T>
-                    </Button>
+                    {textMatchQuery.trim().length > 0 ? (
+                        <Button
+                            onClick={handleClearSearch}
+                            size="xs"
+                            variant="outline"
+                        >
+                            <T>Clear search</T>
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={handleShowAll}
+                            size="xs"
+                            variant="outline"
+                        >
+                            <T>Show all chats</T>
+                        </Button>
+                    )}
                 </>
             ) : (
                 <>
@@ -568,6 +792,7 @@ interface ThreadsListItemProps {
 }
 
 function ThreadsListItem({ entry }: ThreadsListItemProps) {
+    const { textMatchQuery } = useThreadsListContext();
     const { errorMessage, isPending, setArchived } = useSetThreadArchived(
         entry.id,
         !entry.isArchived
@@ -604,8 +829,10 @@ function ThreadsListItem({ entry }: ThreadsListItemProps) {
                         />
                     </span>
                     <SidebarItemValue>
-                        <Ticker className="font-medium text-sm leading-none tracking-tight">
-                            {entry.title}
+                        <Ticker className="font-medium text-sm leading-none tracking-tight [--accent-color:var(--primary)]">
+                            <TextMatch query={textMatchQuery}>
+                                {entry.title}
+                            </TextMatch>
                         </Ticker>
                     </SidebarItemValue>
                 </ActivePathname>

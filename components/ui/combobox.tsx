@@ -188,18 +188,14 @@ export function ComboboxPopup({
                 side={side}
                 sideOffset={sideOffset}
             >
-                <span
+                <ComboboxPrimitive.Popup
+                    {...props}
                     className={cn(
-                        "squircle before:squircle relative flex max-h-full min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) rounded-[calc(var(--radius-lg)+1px)] border bg-popover not-dark:bg-clip-padding shadow-lg/5 transition-[scale,opacity] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle relative flex min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) flex-col rounded-[calc(var(--radius-lg)+1px)] border bg-popover not-dark:bg-clip-padding text-foreground shadow-lg/5 transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 data-instant:transition-none dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
-                >
-                    <ComboboxPrimitive.Popup
-                        {...props}
-                        className="flex max-h-[min(var(--available-height),23rem)] flex-1 flex-col text-foreground"
-                        data-slot="combobox-popup"
-                    />
-                </span>
+                    data-slot="combobox-popup"
+                />
             </ComboboxPrimitive.Positioner>
         </ComboboxPrimitive.Portal>
     );
@@ -249,7 +245,7 @@ export function ComboboxSeparator({
     return (
         <ComboboxPrimitive.Separator
             {...props}
-            className={cn("mt-1.5 mb-1 h-px bg-border last:hidden", className)}
+            className={cn("mt-1.5 mb-1 h-px shrink-0 bg-border/50", className)}
             data-slot="combobox-separator"
         />
     );
@@ -330,11 +326,11 @@ export function ComboboxList({
     ...props
 }: ComboboxPrimitive.List.Props) {
     return (
-        <ScrollArea shouldScrollFade shouldUseScrollbarGutter>
+        <ScrollArea shouldScrollFade>
             <ComboboxPrimitive.List
                 {...props}
                 className={cn(
-                    "not-empty:scroll-py-1 not-empty:px-1 not-empty:py-1 in-data-has-overflow-y:pe-3",
+                    "max-h-[min(var(--available-height),23rem)] not-empty:scroll-py-1 not-empty:px-1 not-empty:py-1 in-data-has-overflow-y:pe-3 outline-0",
                     className
                 )}
                 data-slot="combobox-list"

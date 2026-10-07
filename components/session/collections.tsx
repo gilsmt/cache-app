@@ -211,6 +211,7 @@ import { saveFile } from "@/lib/common/file";
 import { getSystemControlKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
+    getTextMatchScore,
     NAME_COLLATOR,
     normalizeWhitespace,
     slugify,
@@ -268,6 +269,7 @@ const UPDATE_ITEMS_COLLECTIONS_ERROR_MESSAGE =
 
 const PREVIEW_SLIDE_INTERVAL_MS = 1400;
 const PREVIEW_CROSSFADE_MS = 200;
+const MAX_MATCHING_COLLECTIONS = 8;
 
 const COLLECTIONS_LIST_SORT_FIELD_STORAGE_KEY = "cache:collections:sort-field";
 const COLLECTIONS_LIST_TEXT_MATCH_QUERY_STORAGE_KEY =
@@ -467,7 +469,7 @@ interface ComboboxValue {
 }
 
 interface ComboboxGroupData {
-    group: "sort" | "text-match" | "view";
+    group: "sort" | "text-match" | "view" | "collections";
     items: ComboboxValue[];
     label?: string;
 }
@@ -1619,22 +1621,6 @@ function useInternalCollectionsState({
     };
 }
 
-function getTextMatchScore(name: string, query: string): number {
-    if (query.length === 0) {
-        return 0;
-    }
-    if (name === query) {
-        return 3;
-    }
-    if (name.startsWith(query)) {
-        return 2;
-    }
-    if (name.includes(query)) {
-        return 1;
-    }
-    return 0;
-}
-
 function sortCollectionSummaries<T extends SortableCollectionSummary>(
     collections: readonly T[],
     sortField: CollectionSortField,
@@ -1936,7 +1922,8 @@ function toComboboxValue(
 
 function getComboboxCollectionsSortingGroups(
     inputValue: string,
-    currentValue: ComboboxValue
+    currentValue: ComboboxValue,
+    collections: LibraryCollectionSummary[]
 ): ComboboxGroupData[] {
     const query = inputValue.trim();
     const normalizedQuery = query.toLowerCase();
@@ -2007,6 +1994,46 @@ function getComboboxCollectionsSortingGroups(
             items: matchingViewOptions.map((option) =>
                 toComboboxValue(option, currentValue, { view: option.value })
             ),
+        });
+    }
+
+    const matchingCollections =
+        normalizedQuery.length === 0
+            ? []
+            : collections
+                  .map((collection) => ({
+                      collection,
+                      score: getTextMatchScore(
+                          collection.name.trim().toLowerCase(),
+                          normalizedQuery
+                      ),
+                  }))
+                  .filter(({ score }) => score > 0)
+                  .toSorted((left, right) => {
+                      if (right.score !== left.score) {
+                          return right.score - left.score;
+                      }
+                      return NAME_COLLATOR.compare(
+                          left.collection.name,
+                          right.collection.name
+                      );
+                  })
+                  .slice(0, MAX_MATCHING_COLLECTIONS);
+
+    if (matchingCollections.length > 0) {
+        groups.push({
+            group: "collections",
+            items: matchingCollections.map(({ collection }) =>
+                toComboboxValue(
+                    { icon: LibraryBig, label: collection.name },
+                    currentValue,
+                    {
+                        sortField: "text-match",
+                        sortQuery: collection.name,
+                    }
+                )
+            ),
+            label: "Matching collections",
         });
     }
 
@@ -3085,6 +3112,7 @@ function CollectionsListSortingCombobox({
     render,
     ...props
 }: React.ComponentProps<typeof ComboboxTrigger>) {
+    const { collections } = useCollectionsContext();
     const {
         setIsCollectionsListOpen,
         setSortField,
@@ -3166,7 +3194,11 @@ function CollectionsListSortingCombobox({
             filter={null}
             inputValue={inputValue}
             isItemEqualToValue={isComboboxValueEqual}
-            items={getComboboxCollectionsSortingGroups(inputValue, value)}
+            items={getComboboxCollectionsSortingGroups(
+                inputValue,
+                value,
+                collections
+            )}
             itemToStringValue={getComboboxOptionValue}
             onInputValueChange={setInputValue}
             onOpenChange={handleOpenChange}
@@ -3390,20 +3422,44 @@ function CollectionsListSuggestions({
             onOpenChange={setIsSuggestionsOpen}
             open={isSuggestionsOpen}
         >
-            <CollapsibleTrigger
-                className="flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground"
-                title={
-                    isSuggestionsOpen
-                        ? "Hide suggested collections"
-                        : "Show suggested collections"
-                }
-            >
-                {isSuggestionsOpen ? (
-                    <T>Hide suggestions</T>
-                ) : (
-                    <T>Show suggestions</T>
-                )}
-            </CollapsibleTrigger>
+            <PreviewCard>
+                <PreviewCardTrigger
+                    render={
+                        <CollapsibleTrigger
+                            className="flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground"
+                            title={
+                                isSuggestionsOpen
+                                    ? "Hide suggested collections"
+                                    : "Show suggested collections"
+                            }
+                        />
+                    }
+                >
+                    {isSuggestionsOpen ? (
+                        <T>Hide suggestions</T>
+                    ) : (
+                        <T>Show suggestions</T>
+                    )}
+                </PreviewCardTrigger>
+                <PreviewCardPopup
+                    align="start"
+                    className="p-3"
+                    positionMethod="fixed"
+                    side="right"
+                >
+                    <div className="flex max-w-64 flex-col gap-1">
+                        <p className="font-medium text-xs leading-tight">
+                            <T>Collection suggestions</T>
+                        </p>
+                        <p className="text-muted-foreground text-xs leading-snug">
+                            <T>
+                                Suggestions show ways to organize your saved
+                                items into collections.
+                            </T>
+                        </p>
+                    </div>
+                </PreviewCardPopup>
+            </PreviewCard>
             <CollapsiblePanel>
                 <div className="flex flex-col gap-1">{items.map(children)}</div>
             </CollapsiblePanel>
@@ -4354,8 +4410,8 @@ export function ItemCollectionsCombobox({
 
     const defaultTriggerAriaLabel =
         selectedCount === 0
-            ? "Add to collections"
-            : `Edit collections (${selectedCount} selected)`;
+            ? "Assign collections"
+            : `Change or add collections (${selectedCount} selected)`;
     const triggerLabel = triggerAriaLabel ?? defaultTriggerAriaLabel;
 
     return (
@@ -4402,27 +4458,111 @@ export function ItemCollectionsCombobox({
                 <ComboboxEmpty>No matching collections</ComboboxEmpty>
                 <ComboboxList>
                     <ComboboxCollection>
-                        {(collection) => (
-                            <ComboboxItem
-                                className="group/item"
-                                key={collection.id}
-                                value={collection.id}
-                            >
-                                <div className="flex max-w-56 items-center justify-between gap-3">
-                                    <span className="min-w-0 max-w-full flex-1 truncate text-foreground text-sm">
-                                        {collection.name}
-                                    </span>
-                                    <div className="relative flex w-fit items-center justify-end pl-4">
-                                        <span className="shrink-0 text-nowrap text-muted-foreground text-xs tabular-nums transition-opacity ease-out group-data-highlighted/item:opacity-0">
-                                            {collection.itemCount}
-                                        </span>
-                                        <span className="absolute right-0 shrink-0 text-nowrap text-muted-foreground text-xs opacity-0 transition-opacity ease-out group-data-highlighted/item:opacity-100">
-                                            Save
-                                        </span>
-                                    </div>
-                                </div>
-                            </ComboboxItem>
-                        )}
+                        {(collection) => {
+                            const isSharedPublicly =
+                                collection.shareId !== null &&
+                                collection.sharedAt !== null;
+                            const collectionItemStyle = getCollectionItemStyle(
+                                collection.name,
+                                false
+                            );
+
+                            return (
+                                <PreviewCard key={collection.id}>
+                                    <PreviewCardTrigger
+                                        render={
+                                            <ComboboxItem
+                                                className="group/item"
+                                                value={collection.id}
+                                            />
+                                        }
+                                    >
+                                        <div className="flex min-w-0 max-w-56 items-center gap-3">
+                                            <span
+                                                aria-hidden
+                                                className="size-2 shrink-0 rounded-full bg-(--accent-color)"
+                                                style={collectionItemStyle}
+                                            />
+                                            <span className="min-w-0 max-w-full flex-1 truncate text-foreground text-sm">
+                                                {collection.name}
+                                            </span>
+                                            <div className="relative flex w-fit items-center justify-end pl-4">
+                                                <span className="shrink-0 text-nowrap text-muted-foreground text-xs tabular-nums group-data-highlighted/item:opacity-0">
+                                                    {collection.itemCount}
+                                                </span>
+                                                <span className="absolute right-0 shrink-0 text-nowrap text-muted-foreground text-xs opacity-0 group-data-highlighted/item:opacity-100">
+                                                    Save
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </PreviewCardTrigger>
+                                    <PreviewCardPopup
+                                        align="start"
+                                        className="p-3"
+                                        positionMethod="fixed"
+                                        side="right"
+                                    >
+                                        <div className="flex min-w-0 flex-col gap-2">
+                                            <div className="flex min-w-0 items-center gap-2">
+                                                <span
+                                                    aria-hidden
+                                                    className="size-2 shrink-0 rounded-full bg-(--accent-color)"
+                                                    style={collectionItemStyle}
+                                                />
+                                                <p className="min-w-0 truncate font-medium text-xs leading-tight">
+                                                    {collection.name}
+                                                </p>
+                                            </div>
+                                            {collection.description ? (
+                                                <p className="line-clamp-4 text-muted-foreground text-xs leading-snug">
+                                                    {collection.description}
+                                                </p>
+                                            ) : null}
+                                            <div className="flex items-center justify-between gap-3 border-t pt-2 text-muted-foreground text-xs">
+                                                <span className="flex min-w-0 items-center gap-1.5">
+                                                    <LibraryBig
+                                                        aria-hidden
+                                                        className="size-3.5 shrink-0"
+                                                        focusable="false"
+                                                    />
+                                                    <span className="tabular-nums">
+                                                        {COMPACT_NUMBER_FORMATTER.format(
+                                                            collection.itemCount
+                                                        )}{" "}
+                                                        {collection.itemCount ===
+                                                        1 ? (
+                                                            <T>item</T>
+                                                        ) : (
+                                                            <T>items</T>
+                                                        )}
+                                                    </span>
+                                                </span>
+                                                <span className="flex shrink-0 items-center gap-1.5">
+                                                    {isSharedPublicly ? (
+                                                        <Globe
+                                                            aria-hidden
+                                                            className="size-3.5"
+                                                            focusable="false"
+                                                        />
+                                                    ) : (
+                                                        <LockKeyhole
+                                                            aria-hidden
+                                                            className="size-3.5"
+                                                            focusable="false"
+                                                        />
+                                                    )}
+                                                    {isSharedPublicly ? (
+                                                        <T>Public</T>
+                                                    ) : (
+                                                        <T>Private</T>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </PreviewCardPopup>
+                                </PreviewCard>
+                            );
+                        }}
                     </ComboboxCollection>
                 </ComboboxList>
             </ComboboxPopup>
@@ -4726,7 +4866,7 @@ function CollectionsCreateDialog() {
                                             ? true
                                             : undefined
                                     }
-                                    className="-mx-[calc(--spacing(3)-1px)] *:resize-none *:pr-10"
+                                    className="-mx-[calc(--spacing(3)-1px)] *:pr-10"
                                     id={descriptionInputId}
                                     isUnstyled
                                     maxLength={DESCRIPTION_MAX_LENGTH}

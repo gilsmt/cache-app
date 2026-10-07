@@ -143,14 +143,12 @@ interface CommandListProps extends Autocomplete.List.Props {
     shouldScrollFade?: boolean;
     /** Set to false when a parent scroll area owns scrolling. */
     shouldUseScrollArea?: boolean;
-    shouldUseScrollbarGutter?: boolean;
 }
 
 export function CommandList({
     className,
     shouldScrollFade = false,
     shouldUseScrollArea = true,
-    shouldUseScrollbarGutter = false,
     ...props
 }: CommandListProps) {
     const list = (
@@ -170,14 +168,7 @@ export function CommandList({
         return list;
     }
 
-    return (
-        <ScrollArea
-            shouldScrollFade={shouldScrollFade}
-            shouldUseScrollbarGutter={shouldUseScrollbarGutter}
-        >
-            {list}
-        </ScrollArea>
-    );
+    return <ScrollArea shouldScrollFade={shouldScrollFade}>{list}</ScrollArea>;
 }
 
 export function CommandItem({ className, ...props }: Autocomplete.Item.Props) {
