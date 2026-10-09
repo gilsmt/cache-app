@@ -698,6 +698,40 @@ export function integrationIds(): IntegrationId[] {
     return INTEGRATION_DEFINITIONS.map((definition) => definition.id);
 }
 
+/**
+ * Reports whether this deployment configured the OAuth provider an
+ * integration connects through. An offered integration whose provider is
+ * absent fails its connect flow with "Provider not found".
+ */
+function isIntegrationAvailable(
+    integration: Integration,
+    configuredProviderIds: ReadonlySet<string>
+): boolean {
+    return integration.behaviors.every((behavior) => {
+        switch (behavior.kind) {
+            case "oauth-link":
+                return configuredProviderIds.has(behavior.providerId);
+            case "social-sign-in":
+                return configuredProviderIds.has(behavior.provider);
+            default:
+                return true;
+        }
+    });
+}
+
+/**
+ * Registry order list of the integrations whose connect providers this
+ * deployment configured. The UI offers only these.
+ */
+export function listAvailableIntegrations(
+    configuredProviderIds: Iterable<string>
+): Integration[] {
+    const providers = new Set(configuredProviderIds);
+    return INTEGRATION_DEFINITIONS.filter((integration) =>
+        isIntegrationAvailable(integration, providers)
+    );
+}
+
 export function findBehaviorForRole(
     integration: Integration,
     role: IntegrationActionRole
