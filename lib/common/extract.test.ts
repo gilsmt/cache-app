@@ -517,6 +517,12 @@ describe("extractPreviewMetadata — favicons", () => {
             "https://example.com/favicon.ico",
         ]);
     });
+
+    test("rel value is ASCII case-insensitive", () => {
+        expect(faviconsOf(`<link rel="Icon" href="/icon.png">`)).toEqual([
+            "https://example.com/icon.png",
+        ]);
+    });
 });
 
 describe("extractPreviewMetadata — combined", () => {

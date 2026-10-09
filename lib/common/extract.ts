@@ -231,7 +231,9 @@ function extractPreviewMetadataWithParser(
     };
 
     const handleLinkTag = (attrs: Record<string, string>) => {
-        if (attrs.rel === "image_src" && imageSrcLinkHref === null) {
+        const rel =
+            typeof attrs.rel === "string" ? attrs.rel.toLowerCase() : "";
+        if (rel === "image_src" && imageSrcLinkHref === null) {
             imageSrcLinkHref = attrs.href
                 ? (resolveUrl(attrs.href, base, { decodeEntities: true }) ?? "")
                 : "";
@@ -240,11 +242,11 @@ function extractPreviewMetadataWithParser(
             ? resolveUrl(attrs.href, base, { decodeEntities: true })
             : null;
         if (href !== null) {
-            if (attrs.rel === "icon") {
+            if (rel === "icon") {
                 faviconIconHrefs.push(href);
-            } else if (attrs.rel === "shortcut icon") {
+            } else if (rel === "shortcut icon") {
                 faviconShortcutIconHrefs.push(href);
-            } else if (attrs.rel === "apple-touch-icon") {
+            } else if (rel === "apple-touch-icon") {
                 faviconAppleTouchIconHrefs.push(href);
             }
         }
