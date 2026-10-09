@@ -34,12 +34,12 @@ export type IntegrationConnectionSignal =
 
 export interface IntegrationDirectionDefinition {
     /** Any-of: connected when at least one signal matches. */
-    connectedWhen: IntegrationConnectionSignal[];
+    connectedWhen: readonly IntegrationConnectionSignal[];
 }
 
 export interface IntegrationSourceDefinition
     extends IntegrationDirectionDefinition {
-    libraryItemSources: LibraryItemSource[];
+    libraryItemSources: readonly LibraryItemSource[];
     syncable: boolean;
 }
 
@@ -125,13 +125,13 @@ export type IntegrationBehavior =
     | RouteSyncBehavior;
 
 export interface IntegrationDefinition {
-    actions: SupportedIntegrationAction[];
+    actions: readonly SupportedIntegrationAction[];
     /**
      * At most one behavior per action role. Each
      * behavior declares the role it serves, so lookup needs no table:
      * match `behavior.role` against the action role.
      */
-    behaviors: IntegrationBehavior[];
+    behaviors: readonly IntegrationBehavior[];
     description: string;
     destination?: IntegrationDestinationDefinition;
     hint: string;
