@@ -47,6 +47,7 @@ export function DeleteAccountDialogTrigger(
                     return;
                 }
 
+                // Best effort: the account is already deleted, so sign-out failure must not block the redirect.
                 try {
                     const signOutResult = await authClient.signOut();
 

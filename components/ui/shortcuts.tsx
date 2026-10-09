@@ -141,6 +141,13 @@ export function KeyboardShortcutsDialogTrigger(
         }
     });
 
+    const handleSearchQueryChange = useStableCallback((nextQuery: string) => {
+        if (!isOpen) {
+            return;
+        }
+        setSearchQuery(nextQuery);
+    });
+
     const shortcutHotkeysByDescription = new Map<string, string[]>();
     for (const shortcut of hotkeys) {
         const description = shortcut.description?.trim();
@@ -221,7 +228,7 @@ export function KeyboardShortcutsDialogTrigger(
                             filteredItems={visibleShortcutGroups}
                             inline
                             items={shortcutGroups}
-                            onValueChange={setSearchQuery}
+                            onValueChange={handleSearchQueryChange}
                             open
                             value={searchQuery}
                         >

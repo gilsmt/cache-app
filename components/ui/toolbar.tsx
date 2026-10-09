@@ -39,7 +39,7 @@ export function ToolbarButton({
         <ToolbarPrimitive.Button
             {...props}
             className={cn(
-                "inline-flex size-7 shrink-0 cursor-pointer select-none items-center justify-center rounded-md outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
+                "inline-flex size-7 shrink-0 cursor-pointer select-none items-center justify-center rounded-md outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
                 className
             )}
         />

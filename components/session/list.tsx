@@ -532,7 +532,7 @@ interface ComposerCommand {
 
 interface ComposerCommandGroup {
     items: ComposerCommand[];
-    label: string;
+    label?: string;
     layout?: "horizontal" | "vertical";
 }
 
@@ -3318,7 +3318,6 @@ function buildSearchCommands({
             items: shouldDefaultToAssistant
                 ? [assistantItem, addSearchItem]
                 : [addSearchItem, assistantItem],
-            label: "Search",
         });
     }
 
@@ -4774,21 +4773,25 @@ export function ItemsList({
                                                     </CommandEmpty>
                                                     <CommandList className="max-w-2xl">
                                                         {(
-                                                            group: ComposerCommandGroup
+                                                            group: ComposerCommandGroup,
+                                                            index: number
                                                         ) => (
                                                             <CommandGroup
                                                                 items={
                                                                     group.items
                                                                 }
                                                                 key={
-                                                                    group.label
+                                                                    group.label ??
+                                                                    `composer-group-${index}`
                                                                 }
                                                             >
-                                                                <CommandGroupLabel>
-                                                                    {
-                                                                        group.label
-                                                                    }
-                                                                </CommandGroupLabel>
+                                                                {group.label ? (
+                                                                    <CommandGroupLabel>
+                                                                        {
+                                                                            group.label
+                                                                        }
+                                                                    </CommandGroupLabel>
+                                                                ) : null}
                                                                 {group.layout ===
                                                                 "horizontal" ? (
                                                                     <CommandRow className="grid grid-cols-2 gap-2 pt-1 pr-2 pb-4 md:grid-cols-3 lg:grid-cols-4">

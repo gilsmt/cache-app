@@ -140,15 +140,31 @@ export function MenuItem({
     );
 }
 
-interface MenuLinkItemProps extends MenuPrimitive.Item.Props {
+interface MenuLinkItemProps extends MenuPrimitive.LinkItem.Props {
     href: string;
+    variant?: "default" | "destructive";
 }
 
-export function MenuLinkItem({ href, ...props }: MenuLinkItemProps) {
+export function MenuLinkItem({
+    className,
+    href,
+    variant = "default",
+    closeOnClick = true,
+    ...props
+}: MenuLinkItemProps) {
     return (
-        <MenuItem
+        <MenuPrimitive.LinkItem
             {...props}
-            nativeButton={false}
+            className={cn(
+                "flex cursor-default select-none items-center gap-2 rounded-xl px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
+                variant === "default" &&
+                    "data-highlighted:text-accent-foreground",
+                variant === "destructive" &&
+                    "text-destructive-foreground data-highlighted:bg-destructive/8 data-highlighted:text-destructive-foreground",
+                className
+            )}
+            closeOnClick={closeOnClick}
+            data-slot="menu-link-item"
             render={<Link href={href} />}
         />
     );
@@ -246,7 +262,7 @@ export function MenuSubPopup({
             align={align}
             alignOffset={alignOffset ?? defaultAlignOffset}
             anchor={anchor}
-            className={cn("transition-none", className)}
+            className={className}
             collisionAvoidance={collisionAvoidance}
             data-slot="menu-sub-popup"
             portalProps={portalProps}

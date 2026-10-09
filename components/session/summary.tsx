@@ -281,10 +281,10 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
     });
 
     return (
-        <div className="col-span-full grid min-w-0 gap-3">
+        <div className="col-span-full grid w-fit min-w-0 gap-3">
             <HeatGraph.Root
                 aria-label="Daily item additions over the past year. Focus a filled day to see its count."
-                className="grid min-w-0 gap-2"
+                className="grid w-fit min-w-0 gap-2"
                 colorScale={ACTIVITY_COLOR_SCALE}
                 data={[...activity]}
                 role="group"
@@ -295,7 +295,11 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                         {({ label, totalWeeks }) =>
                             label.month % 3 === 0 ? (
                                 <span
-                                    className="absolute"
+                                    className={cn(
+                                        "absolute",
+                                        label.column === totalWeeks - 1 &&
+                                            "-translate-x-full"
+                                    )}
                                     style={{
                                         left: `${(label.column / totalWeeks) * 100}%`,
                                     }}
@@ -306,7 +310,7 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                         }
                     </HeatGraph.MonthLabels>
                 </div>
-                <HeatGraph.Grid className="gap-0.5">
+                <HeatGraph.Grid className="w-fit gap-px">
                     {({ cell }) => {
                         const isActiveDay = cell.count > 0;
                         const label = isActiveDay
@@ -317,7 +321,7 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                             <HeatGraph.Cell
                                 aria-hidden={!isActiveDay}
                                 aria-label={label}
-                                className="aspect-square min-w-0 rounded-[1px] focus-visible:ring-2 focus-visible:ring-ring"
+                                className="aspect-square size-[3px] rounded-[1px] focus-visible:ring-2 focus-visible:ring-ring"
                                 onBlur={clearActiveLabel}
                                 onFocus={
                                     label

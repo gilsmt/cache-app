@@ -280,11 +280,10 @@ export function ComboboxGroupLabel({
     );
 }
 
-interface ComboboxLabelProps extends ComboboxPrimitive.Label.Props {
-    htmlFor: string;
-}
-
-export function ComboboxLabel({ className, ...props }: ComboboxLabelProps) {
+export function ComboboxLabel({
+    className,
+    ...props
+}: ComboboxPrimitive.Label.Props) {
     return (
         <ComboboxPrimitive.Label
             {...props}

@@ -61,8 +61,8 @@ export function ToTopButton({
             inert={!isVisible || undefined}
         >
             <Button
-                {...props}
                 aria-label="Back to top"
+                {...props}
                 onClick={scrollToTop}
                 size={size}
             />
