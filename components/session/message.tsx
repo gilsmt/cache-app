@@ -149,7 +149,7 @@ function ThreadMessageSource({ children: source }: ThreadMessageSourceProps) {
         return null;
     }
 
-    const label = source.title?.trim() ? source.title : source.url;
+    const label = source.title?.trim() || source.url;
 
     return (
         <Badge

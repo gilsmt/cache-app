@@ -365,7 +365,7 @@ function extractPreviewMetadataWithParser(
         };
         // Mirror link-preview-js: video/ prefixed types splice to the front so
         // native videos win over "video embed" fallbacks.
-        if (video.type?.startsWith("video/")) {
+        if (video.type?.toLowerCase().startsWith("video/")) {
             videos.unshift(video);
         } else {
             videos.push(video);

@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { getErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { StripeError } from "./error";
 
@@ -62,7 +63,7 @@ export const withStripe = async <T>(
 
         throw new StripeError(
             {
-                message: error instanceof Error ? error.message : String(error),
+                message: getErrorMessage(error),
                 operation: "core::withStripe",
             },
             { cause: error }
