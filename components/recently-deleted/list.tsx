@@ -29,7 +29,7 @@ import {
 import { ACTION_STATUS, ITEM_KIND_NOTE } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { parseDisplayUrl } from "@/lib/common/url";
-import { getSourceIcon } from "@/lib/integrations/support";
+import { getSourceIcon } from "@/lib/integrations/resolver";
 
 const log = createLogger("recently-deleted");
 

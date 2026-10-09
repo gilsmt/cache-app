@@ -16,10 +16,8 @@ import { getSessionUserId } from "@/lib/auth/session";
 import { userHasProAccess } from "@/lib/billing/service";
 import { getLibrary, listCollections } from "@/lib/collections/service";
 import { listLinkedIntegrationAccounts } from "@/lib/integrations/account";
-import {
-    type IntegrationId,
-    listConnectedIntegrationIds,
-} from "@/lib/integrations/support";
+import type { IntegrationId } from "@/lib/integrations/registry";
+import { listConnectedIntegrationIds } from "@/lib/integrations/registry";
 
 export const instant = false;
 

@@ -8,7 +8,7 @@ import type { ItemCommentWithItem } from "@/lib/comment/service";
 import { FALLBACK_URL, ITEM_KIND_NOTE } from "@/lib/common/constants";
 import { dayjs } from "@/lib/common/dayjs";
 import { parseDisplayUrl, toValidUrl } from "@/lib/common/url";
-import { getSourceIcon } from "@/lib/integrations/support";
+import { getSourceIcon } from "@/lib/integrations/resolver";
 
 const CommentsListContext = React.createContext<ItemCommentWithItem[] | null>(
     null

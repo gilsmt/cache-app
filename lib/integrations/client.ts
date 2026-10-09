@@ -16,7 +16,7 @@ import type {
     OAuthLinkConnectBehavior,
     RouteSyncBehavior,
     SocialSignInConnectBehavior,
-} from "@/lib/integrations/support";
+} from "@/lib/integrations/registry";
 
 const CONNECTION_FLOW_ERROR_MESSAGE = "Failed to start the connection";
 

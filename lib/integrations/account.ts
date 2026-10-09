@@ -8,8 +8,8 @@ import {
     compareProviderAccountsForScopePreference,
     getProviderTokenApiErrorCode,
     isSoftProviderTokenResolutionFailure,
-} from "./provider-account-resolution";
-import { listIntegrationAccountProviderIds } from "./support";
+} from "./provider-account-resolver";
+import { listIntegrationAccountProviderIds } from "./registry";
 
 const log = createLogger("integrations:account");
 

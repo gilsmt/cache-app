@@ -223,7 +223,7 @@ import {
     parseDisplayUrl,
 } from "@/lib/common/url";
 import { sendCollectionToNotion } from "@/lib/integrations/notion/actions";
-import { getSourceLabel } from "@/lib/integrations/support";
+import { getSourceLabel } from "@/lib/integrations/resolver";
 import { getCollectionDescription } from "@/lib/intelligence/actions";
 import type { CollectionPriority } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";

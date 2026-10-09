@@ -5,7 +5,7 @@ import {
     resolveProviderAccountAccessToken,
 } from "@/lib/integrations/account";
 import { IntegrationConnectionError } from "@/lib/integrations/error";
-import type { IntegrationId } from "@/lib/integrations/support";
+import type { IntegrationId } from "@/lib/integrations/registry";
 
 interface OAuthImportResult<T> {
     response: Omit<T, "smartCollectionItemIds">;

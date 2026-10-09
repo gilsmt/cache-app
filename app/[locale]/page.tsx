@@ -64,7 +64,8 @@ import {
     GITHUB_URL,
     NOTICES_ADDRESS,
 } from "@/lib/common/constants";
-import { INTEGRATIONS } from "@/lib/integrations/support";
+import { INTEGRATION_DEFINITIONS } from "@/lib/integrations/registry";
+import { getIntegrationIcon } from "@/lib/integrations/resolver";
 import AiSectionLifestyleImage from "@/public/ai-section-lifestyle.webp";
 import AiSectionTravelImage from "@/public/ai-section-travel.webp";
 import LogoIconImage from "@/public/cache-app-icon.png";
@@ -431,8 +432,12 @@ export default async function Home() {
                             <figure className="relative flex h-full items-center justify-center overflow-hidden p-6">
                                 <div className="relative mx-auto flex w-full max-w-sm items-center justify-between">
                                     <div className="space-y-6">
-                                        {INTEGRATIONS.slice(0, 3).map(
-                                            ({ id, Icon }, index) => (
+                                        {INTEGRATION_DEFINITIONS.slice(
+                                            0,
+                                            3
+                                        ).map(({ id }, index) => {
+                                            const Icon = getIntegrationIcon(id);
+                                            return (
                                                 <IntegrationCard
                                                     key={id}
                                                     position={
@@ -447,8 +452,8 @@ export default async function Home() {
                                                 >
                                                     <Icon className="size-6" />
                                                 </IntegrationCard>
-                                            )
-                                        )}
+                                            );
+                                        })}
                                     </div>
                                     <div className="relative z-20 rounded-2xl border bg-muted p-1">
                                         <IntegrationCard
@@ -469,8 +474,12 @@ export default async function Home() {
                                         className="mask-[radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] absolute inset-1/3 bg-[radial-gradient(var(--dots-color)_1px,transparent_1px)] bg-size-[16px_16px] opacity-50 [--dots-color:var(--foreground)]"
                                     />
                                     <div className="space-y-6">
-                                        {INTEGRATIONS.slice(3, 6).map(
-                                            ({ id, Icon }, index) => (
+                                        {INTEGRATION_DEFINITIONS.slice(
+                                            3,
+                                            6
+                                        ).map(({ id }, index) => {
+                                            const Icon = getIntegrationIcon(id);
+                                            return (
                                                 <IntegrationCard
                                                     key={id}
                                                     position={
@@ -485,8 +494,8 @@ export default async function Home() {
                                                 >
                                                     <Icon className="size-6" />
                                                 </IntegrationCard>
-                                            )
-                                        )}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </figure>

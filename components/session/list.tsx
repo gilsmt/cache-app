@@ -249,7 +249,7 @@ import {
     type NoteMutationResult,
     updateNote,
 } from "@/lib/integrations/notes/actions";
-import { getSourceIcon, getSourceLabel } from "@/lib/integrations/support";
+import { getSourceIcon, getSourceLabel } from "@/lib/integrations/resolver";
 import { getAgentViewPage, runAssistant } from "@/lib/intelligence/actions";
 import type {
     AssistantComposerPatch,

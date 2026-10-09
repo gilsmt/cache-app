@@ -1,41 +1,19 @@
-import { Bot, Rss } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
-import {
-    ChromeIcon,
-    GithubIcon,
-    InstagramIcon,
-    MarkdownIcon,
-    NotionIcon,
-    PhotosIcon,
-    PinterestIcon,
-    RedditIcon,
-    TikTokIcon,
-    XSocialIcon,
-    YouTubeIcon,
-} from "@/components/ui/icons";
+/**
+ * Server-safe integration registry
+ *
+ * Presentation (icons, labels) lives in `resolver.ts`, which resolves them
+ * from these definitions by ID.
+ *
+ * OAuth `linked-provider` signals reference better-auth provider IDs
+ * (`lib/auth/server.ts`), which do not always equal the integration ID
+ * (e.g. `google-photos` listens on provider `google`). Keep both sides
+ * aligned when adding OAuth integrations, and treat a shipped
+ * integration ID as immutable.
+ */
 import { CACHE_EXTENSION_DOWNLOAD_URL } from "@/lib/common/constants";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
-export type IntegrationCategory = "developer" | "media" | "social";
-
 export type IntegrationDirection = "destination" | "source";
-
-export type IntegrationIcon = ComponentType<SVGProps<SVGSVGElement>>;
-
-export type IntegrationId =
-    | "chrome"
-    | "github"
-    | "google-photos"
-    | "instagram"
-    | "markdown"
-    | "mcp"
-    | "notion"
-    | "pinterest"
-    | "reddit"
-    | "rss"
-    | "tiktok"
-    | "x"
-    | "youtube";
 
 export type IntegrationActionRole =
     | "connect"
@@ -55,6 +33,7 @@ export type IntegrationConnectionSignal =
       };
 
 export interface IntegrationDirectionDefinition {
+    /** Any-of: connected when at least one signal matches. */
     connectedWhen: IntegrationConnectionSignal[];
 }
 
@@ -85,6 +64,7 @@ export interface ExtensionOpenBehavior {
     installURL: string;
     kind: "extension-entry";
     openURL: string;
+    role: "open";
 }
 
 export interface OAuthLinkConnectBehavior {
@@ -92,6 +72,7 @@ export interface OAuthLinkConnectBehavior {
     errorCallbackURL: string;
     kind: "oauth-link";
     providerId: string;
+    role: "connect";
 }
 
 export interface SocialSignInConnectBehavior {
@@ -99,10 +80,12 @@ export interface SocialSignInConnectBehavior {
     errorCallbackURL: string;
     kind: "social-sign-in";
     provider: string;
+    role: "connect";
 }
 
 export interface RssManageConnectBehavior {
     kind: "rss-manage";
+    role: "connect";
 }
 
 export interface RouteSyncBehavior {
@@ -110,42 +93,50 @@ export interface RouteSyncBehavior {
     kind: "route";
     method: "POST";
     path: string;
+    role: "sync";
     successKey: string;
     successMessage?: (payload: Record<string, unknown>) => string | null;
 }
 
 export interface GooglePhotosPickerSyncBehavior {
     kind: "google-photos-picker";
+    role: "sync";
 }
 
 export interface CopyPromptBehavior {
     kind: "copy-prompt";
     path: string;
+    role: "copy";
 }
 
 export interface MarkdownImportBehavior {
     kind: "markdown-import";
+    role: "import";
 }
 
-export interface SupportedIntegration {
+export type IntegrationBehavior =
+    | OAuthLinkConnectBehavior
+    | RssManageConnectBehavior
+    | SocialSignInConnectBehavior
+    | CopyPromptBehavior
+    | MarkdownImportBehavior
+    | ExtensionOpenBehavior
+    | GooglePhotosPickerSyncBehavior
+    | RouteSyncBehavior;
+
+export interface IntegrationDefinition {
     actions: SupportedIntegrationAction[];
-    behaviors: {
-        connect?:
-            | OAuthLinkConnectBehavior
-            | RssManageConnectBehavior
-            | SocialSignInConnectBehavior;
-        copy?: CopyPromptBehavior;
-        import?: MarkdownImportBehavior;
-        open?: ExtensionOpenBehavior;
-        sync?: GooglePhotosPickerSyncBehavior | RouteSyncBehavior;
-    };
-    category: IntegrationCategory;
+    /**
+     * At most one behavior per action role. Each
+     * behavior declares the role it serves, so lookup needs no table:
+     * match `behavior.role` against the action role.
+     */
+    behaviors: IntegrationBehavior[];
     description: string;
     destination?: IntegrationDestinationDefinition;
     hint: string;
     hintImage?: string;
-    Icon: IntegrationIcon;
-    id: IntegrationId;
+    id: string;
     label: string;
     source?: IntegrationSourceDefinition;
 }
@@ -182,7 +173,11 @@ function formatImportedCountMessage(
     return `${base} ${notices.join(" ")}`;
 }
 
-export const INTEGRATIONS: readonly SupportedIntegration[] = [
+/**
+ * Array order is display order (landing slices, list rendering): append
+ * new entries at the end unless placement is deliberate.
+ */
+export const INTEGRATION_DEFINITIONS = [
     {
         actions: [
             {
@@ -195,27 +190,27 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 visibleWhen: "connected",
             },
         ],
-        behaviors: {
-            connect: {
+        behaviors: [
+            {
                 callbackURL: LIBRARY_CALLBACK_URL,
                 errorCallbackURL: LIBRARY_CALLBACK_URL,
                 kind: "oauth-link",
                 providerId: "x",
+                role: "connect",
             },
-            sync: {
+            {
                 errorMessage: "Could not import bookmarks from X.",
                 kind: "route",
                 method: "POST",
                 path: "/api/integrations/x/import",
+                role: "sync",
                 successKey: "importedCount",
                 successMessage: (payload) =>
                     formatImportedCountMessage(payload, "bookmark"),
             },
-        },
-        category: "social",
+        ],
         description: "Posts you save to Bookmarks",
         hint: "Import your X Bookmarks into Cache.",
-        Icon: XSocialIcon,
         id: "x",
         label: "X",
         source: {
@@ -236,17 +231,16 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 role: "open",
             },
         ],
-        behaviors: {
-            open: {
+        behaviors: [
+            {
                 installURL: CACHE_EXTENSION_DOWNLOAD_URL,
                 kind: "extension-entry",
                 openURL: CACHE_EXTENSION_DOWNLOAD_URL,
+                role: "open",
             },
-        },
-        category: "social",
+        ],
         description: "Bookmarks you save in your browser",
         hint: 'Open the Cache extension popup and mark "Sync" under Browser bookmarks.',
-        Icon: ChromeIcon,
         id: "chrome",
         label: "Chrome",
         source: {
@@ -267,18 +261,17 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 role: "open",
             },
         ],
-        behaviors: {
-            open: {
+        behaviors: [
+            {
                 autoSync: true,
                 installURL: CACHE_EXTENSION_DOWNLOAD_URL,
                 kind: "extension-entry",
                 openURL: "https://www.youtube.com/playlist?list=WL",
+                role: "open",
             },
-        },
-        category: "media",
+        ],
         description: "Videos you save to playlists",
         hint: 'Go to your Watch Later playlist, open the Cache extension popup, and press "Import page" to import the videos.',
-        Icon: YouTubeIcon,
         id: "youtube",
         label: "YouTube",
         source: {
@@ -299,18 +292,17 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 role: "open",
             },
         ],
-        behaviors: {
-            open: {
+        behaviors: [
+            {
                 autoSync: true,
                 installURL: CACHE_EXTENSION_DOWNLOAD_URL,
                 kind: "extension-entry",
                 openURL: "https://www.instagram.com/explore/saved/",
+                role: "open",
             },
-        },
-        category: "social",
+        ],
         description: "Posts you save to Favorites",
         hint: 'Go to your saved posts, open the Cache extension popup, and press "Import page" to import them.',
-        Icon: InstagramIcon,
         id: "instagram",
         label: "Instagram",
         source: {
@@ -331,18 +323,17 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 role: "open",
             },
         ],
-        behaviors: {
-            open: {
+        behaviors: [
+            {
                 autoSync: true,
                 installURL: CACHE_EXTENSION_DOWNLOAD_URL,
                 kind: "extension-entry",
                 openURL: "https://www.tiktok.com/profile",
+                role: "open",
             },
-        },
-        category: "social",
+        ],
         description: "Videos you save to Favorites",
         hint: 'Go to your favorites, open the Cache extension popup, and press "Import page" to import them.',
-        Icon: TikTokIcon,
         id: "tiktok",
         label: "TikTok",
         source: {
@@ -370,21 +361,21 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 visibleWhen: "connected",
             },
         ],
-        behaviors: {
-            connect: {
+        behaviors: [
+            {
                 callbackURL: LIBRARY_CALLBACK_URL,
                 errorCallbackURL: LIBRARY_CALLBACK_URL,
                 kind: "social-sign-in",
                 provider: "google",
+                role: "connect",
             },
-            sync: {
+            {
                 kind: "google-photos-picker",
+                role: "sync",
             },
-        },
-        category: "media",
+        ],
         description: "Photos and albums you star",
         hint: "Import your favorite photos and albums from Google Photos.",
-        Icon: PhotosIcon,
         id: "google-photos",
         label: "Google Photos",
         source: {
@@ -410,27 +401,27 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 visibleWhen: "connected",
             },
         ],
-        behaviors: {
-            connect: {
+        behaviors: [
+            {
                 callbackURL: LIBRARY_CALLBACK_URL,
                 errorCallbackURL: LIBRARY_CALLBACK_URL,
                 kind: "oauth-link",
                 providerId: "pinterest",
+                role: "connect",
             },
-            sync: {
+            {
                 errorMessage: "Could not import pins from Pinterest.",
                 kind: "route",
                 method: "POST",
                 path: "/api/integrations/pinterest/import",
+                role: "sync",
                 successKey: "importedCount",
                 successMessage: (payload) =>
                     formatImportedCountMessage(payload, "pin"),
             },
-        },
-        category: "social",
+        ],
         description: "Pins you save to boards",
         hint: "Import pins from your Pinterest boards.",
-        Icon: PinterestIcon,
         id: "pinterest",
         label: "Pinterest",
         source: {
@@ -456,27 +447,27 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 visibleWhen: "connected",
             },
         ],
-        behaviors: {
-            connect: {
+        behaviors: [
+            {
                 callbackURL: LIBRARY_CALLBACK_URL,
                 errorCallbackURL: LIBRARY_CALLBACK_URL,
                 kind: "oauth-link",
                 providerId: "reddit",
+                role: "connect",
             },
-            sync: {
+            {
                 errorMessage: "Could not import saved posts from Reddit.",
                 kind: "route",
                 method: "POST",
                 path: "/api/integrations/reddit/import",
+                role: "sync",
                 successKey: "importedCount",
                 successMessage: (payload) =>
                     formatImportedCountMessage(payload, "saved item"),
             },
-        },
-        category: "social",
+        ],
         description: "Posts and comments you save",
         hint: "Import posts and comments you saved on Reddit. Reddit only serves about the 1,000 most recent saves, so older ones are never fetched.",
-        Icon: RedditIcon,
         id: "reddit",
         label: "Reddit",
         source: {
@@ -502,19 +493,21 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 visibleWhen: "connected",
             },
         ],
-        behaviors: {
-            connect: {
+        behaviors: [
+            {
                 callbackURL: LIBRARY_CALLBACK_URL,
                 errorCallbackURL: LIBRARY_CALLBACK_URL,
                 kind: "oauth-link",
                 providerId: "github",
+                role: "connect",
             },
-            sync: {
+            {
                 errorMessage:
                     "Could not import starred repositories from GitHub.",
                 kind: "route",
                 method: "POST",
                 path: "/api/integrations/github/import",
+                role: "sync",
                 successKey: "importedCount",
                 successMessage: (payload) =>
                     formatImportedCountMessage(
@@ -523,11 +516,9 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                         "repositories"
                     ),
             },
-        },
-        category: "developer",
+        ],
         description: "Repositories you star",
         hint: "Import repositories you've starred on GitHub.",
-        Icon: GithubIcon,
         id: "github",
         label: "GitHub",
         source: {
@@ -548,15 +539,15 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 role: "connect",
             },
         ],
-        behaviors: {
-            connect: {
+        behaviors: [
+            {
                 callbackURL: LIBRARY_CALLBACK_URL,
                 errorCallbackURL: LIBRARY_CALLBACK_URL,
                 kind: "oauth-link",
                 providerId: "notion",
+                role: "connect",
             },
-        },
-        category: "developer",
+        ],
         description: "Pages you export from Cache",
         destination: {
             connectedWhen: [
@@ -567,7 +558,6 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
             ],
         },
         hint: "Connect Notion to send Cache notes and collections into your workspace.",
-        Icon: NotionIcon,
         id: "notion",
         label: "Notion",
     },
@@ -591,24 +581,24 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 visibleWhen: "connected",
             },
         ],
-        behaviors: {
-            connect: {
+        behaviors: [
+            {
                 kind: "rss-manage",
+                role: "connect",
             },
-            sync: {
+            {
                 errorMessage: "Could not refresh RSS feeds.",
                 kind: "route",
                 method: "POST",
                 path: "/api/integrations/rss/check",
+                role: "sync",
                 successKey: "importedCount",
                 successMessage: (payload) =>
                     formatImportedCountMessage(payload, "entry", "entries"),
             },
-        },
-        category: "developer",
+        ],
         description: "Feeds you follow",
         hint: "Add RSS feeds to import new entries into your library automatically.",
-        Icon: Rss,
         id: "rss",
         label: "RSS",
         source: {
@@ -630,16 +620,15 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 role: "copy",
             },
         ],
-        behaviors: {
-            copy: {
+        behaviors: [
+            {
                 kind: "copy-prompt",
                 path: "/mcp/prompt",
+                role: "copy",
             },
-        },
-        category: "developer",
+        ],
         description: "Agent access to your library",
         hint: "Give AI agents access to your library via the Model Context Protocol.",
-        Icon: Bot,
         id: "mcp",
         label: "MCP",
     },
@@ -652,15 +641,14 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
                 visibleWhen: "always",
             },
         ],
-        behaviors: {
-            import: {
+        behaviors: [
+            {
                 kind: "markdown-import",
+                role: "import",
             },
-        },
-        category: "developer",
+        ],
         description: "Markdown files on your computer",
         hint: "Import Markdown files from Obsidian, Bear, Apple Notes exports, or hand-authored folders on your computer.",
-        Icon: MarkdownIcon,
         id: "markdown",
         label: "Markdown",
         source: {
@@ -674,46 +662,81 @@ export const INTEGRATIONS: readonly SupportedIntegration[] = [
             syncable: false,
         },
     },
-] as const;
+] as const satisfies readonly IntegrationDefinition[];
 
-const INTEGRATION_BY_ID = new Map<IntegrationId, SupportedIntegration>(
-    INTEGRATIONS.map((item) => [item.id, item])
-);
+export type IntegrationId = (typeof INTEGRATION_DEFINITIONS)[number]["id"];
+
+/**
+ * Precise registry element: same shape as `IntegrationDefinition` but
+ * with the literal `id` union, so `id` never widens to `string` at
+ * component boundaries. Use this in signatures; use
+ * `IntegrationDefinition` only as the `satisfies` constraint and for
+ * internals that must accept any entry shape.
+ */
+export interface Integration extends IntegrationDefinition {
+    id: IntegrationId;
+}
 
 const INTEGRATION_ID_SET: ReadonlySet<string> = new Set(
-    INTEGRATIONS.map((item) => item.id)
+    INTEGRATION_DEFINITIONS.map((definition) => definition.id)
 );
 
-const SOURCE_TO_LABEL = new Map<string, string>(
-    INTEGRATIONS.flatMap((integration) =>
-        (integration.source?.libraryItemSources ?? []).map((source) => [
-            source,
-            integration.label,
-        ])
-    )
-);
+export function isIntegrationId(value: unknown): value is IntegrationId {
+    return typeof value === "string" && INTEGRATION_ID_SET.has(value);
+}
 
-// Internal sources that don't belong to a specific external integration
-SOURCE_TO_LABEL.set(LibraryItemSource.cache_note, "Notes");
-SOURCE_TO_LABEL.set(LibraryItemSource.extension_clip, "Extension");
+export function assertIntegrationId(value: unknown): IntegrationId {
+    if (!isIntegrationId(value)) {
+        throw new TypeError(
+            `Expected IntegrationId, received: ${String(value)}`
+        );
+    }
+    return value;
+}
 
-const SOURCE_TO_ICON = new Map<LibraryItemSource, IntegrationIcon>(
-    INTEGRATIONS.flatMap((integration) =>
-        (integration.source?.libraryItemSources ?? []).map((source) => [
-            source,
-            integration.Icon,
-        ])
-    )
-);
+export function integrationIds(): IntegrationId[] {
+    return INTEGRATION_DEFINITIONS.map((definition) => definition.id);
+}
+
+export function findBehaviorForRole(
+    integration: Integration,
+    role: IntegrationActionRole
+): IntegrationBehavior | undefined {
+    return integration.behaviors.find((behavior) => behavior.role === role);
+}
+
+export function filterToIntegrationIds(values: string[]): IntegrationId[] {
+    return values.filter(isIntegrationId);
+}
+
+export function recordHasIntegrationId<K extends string>(
+    record: Record<K, unknown>,
+    key: K
+): record is Record<K, IntegrationId> & typeof record {
+    return isIntegrationId(record[key]);
+}
+
+function listDirectionDefinitions(
+    definition: IntegrationDefinition
+): IntegrationDirectionDefinition[] {
+    const definitions: IntegrationDirectionDefinition[] = [];
+    if (definition.source) {
+        definitions.push(definition.source);
+    }
+    if (definition.destination) {
+        definitions.push(definition.destination);
+    }
+    return definitions;
+}
 
 const INTEGRATION_ACCOUNT_PROVIDER_IDS: readonly Extract<
     IntegrationConnectionSignal,
     { kind: "linked-provider" }
 >["providerId"][] = Array.from(
     new Set(
-        INTEGRATIONS.flatMap((integration) =>
-            listDirectionDefinitions(integration).flatMap((definition) =>
-                definition.connectedWhen.flatMap((signal) =>
+        INTEGRATION_DEFINITIONS.flatMap((definition) =>
+            listDirectionDefinitions(definition).flatMap((direction) =>
+                direction.connectedWhen.flatMap((signal) =>
                     signal.kind === "linked-provider" ? [signal.providerId] : []
                 )
             )
@@ -721,30 +744,19 @@ const INTEGRATION_ACCOUNT_PROVIDER_IDS: readonly Extract<
     )
 );
 
-export const LIBRARY_BOOKMARK_SYNC_INTEGRATION_IDS = INTEGRATIONS.filter(
-    (item) => item.source?.syncable
-).map((item) => item.id);
-
-function listDirectionDefinitions(
-    integration: SupportedIntegration
-): IntegrationDirectionDefinition[] {
-    const definitions: IntegrationDirectionDefinition[] = [];
-    if (integration.source) {
-        definitions.push(integration.source);
-    }
-    if (integration.destination) {
-        definitions.push(integration.destination);
-    }
-    return definitions;
+export function listIntegrationAccountProviderIds(): string[] {
+    return [...INTEGRATION_ACCOUNT_PROVIDER_IDS];
 }
 
+const INTEGRATION_BY_ID = new Map<IntegrationId, Integration>(
+    INTEGRATION_DEFINITIONS.map((item) => [item.id, item])
+);
+
 function getDirectionDefinition(
-    integration: SupportedIntegration,
+    definition: IntegrationDefinition,
     direction: IntegrationDirection
 ): IntegrationDestinationDefinition | IntegrationSourceDefinition | undefined {
-    return direction === "source"
-        ? integration.source
-        : integration.destination;
+    return direction === "source" ? definition.source : definition.destination;
 }
 
 function buildConnectionSets(context: IntegrationConnectionContext): {
@@ -777,20 +789,7 @@ function integrationMatchesSignal(
     return context.linkedProviderIds.has(signal.providerId);
 }
 
-export function isIntegrationId(value: unknown): value is IntegrationId {
-    return typeof value === "string" && INTEGRATION_ID_SET.has(value);
-}
-
-export function assertIntegrationId(value: unknown): IntegrationId {
-    if (!isIntegrationId(value)) {
-        throw new TypeError(
-            `Expected IntegrationId, received: ${String(value)}`
-        );
-    }
-    return value;
-}
-
-export function getIntegration(id: IntegrationId): SupportedIntegration {
+export function getIntegration(id: IntegrationId): Integration {
     const row = INTEGRATION_BY_ID.get(id);
     if (!row) {
         throw new TypeError(`Missing integration definition for id: ${id}`);
@@ -798,9 +797,7 @@ export function getIntegration(id: IntegrationId): SupportedIntegration {
     return row;
 }
 
-export function findIntegrationById(
-    value: unknown
-): SupportedIntegration | undefined {
+export function findIntegrationById(value: unknown): Integration | undefined {
     if (!isIntegrationId(value)) {
         return;
     }
@@ -808,23 +805,11 @@ export function findIntegrationById(
 }
 
 export function listIntegrations(
-    predicate?: (item: SupportedIntegration) => boolean
-): SupportedIntegration[] {
-    return predicate ? INTEGRATIONS.filter(predicate) : [...INTEGRATIONS];
-}
-
-export function integrationsInCategory(
-    category: IntegrationCategory
-): SupportedIntegration[] {
-    return INTEGRATIONS.filter((item) => item.category === category);
-}
-
-export function integrationIds(): IntegrationId[] {
-    return INTEGRATIONS.map((item) => item.id);
-}
-
-export function filterToIntegrationIds(values: string[]): IntegrationId[] {
-    return values.filter(isIntegrationId);
+    predicate?: (item: Integration) => boolean
+): Integration[] {
+    return predicate
+        ? INTEGRATION_DEFINITIONS.filter(predicate)
+        : [...INTEGRATION_DEFINITIONS];
 }
 
 export function listIntegrationActions(
@@ -843,19 +828,18 @@ export function integrationSupportsDirection(
     return getDirectionDefinition(getIntegration(id), direction) !== undefined;
 }
 
-export function listIntegrationAccountProviderIds(): string[] {
-    return [...INTEGRATION_ACCOUNT_PROVIDER_IDS];
-}
-
-export function listSyncableIntegrations(): SupportedIntegration[] {
-    return INTEGRATIONS.filter((item) => item.source?.syncable);
+export function listSyncableIntegrations(): Integration[] {
+    return INTEGRATION_DEFINITIONS.filter(
+        (item: IntegrationDefinition) => !!item.source?.syncable
+    );
 }
 
 export function integrationOwnsLibraryItemSource(
     id: IntegrationId,
     source: LibraryItemSource
 ): boolean {
-    const definition = getIntegration(id).source;
+    const integration: IntegrationDefinition = getIntegration(id);
+    const definition = integration.source;
     if (!definition) {
         return false;
     }
@@ -893,21 +877,4 @@ export function listConnectedIntegrationIds(
             );
         })
         .map((integration) => integration.id);
-}
-
-export function recordHasIntegrationId<K extends string>(
-    record: Record<K, unknown>,
-    key: K
-): record is Record<K, IntegrationId> & typeof record {
-    return isIntegrationId(record[key]);
-}
-
-export function getSourceLabel(source: string): string {
-    return SOURCE_TO_LABEL.get(source) ?? "Other";
-}
-
-export function getSourceIcon(
-    source: LibraryItemSource
-): IntegrationIcon | undefined {
-    return SOURCE_TO_ICON.get(source);
 }

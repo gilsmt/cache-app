@@ -6,7 +6,7 @@ import {
     IntegrationApiError,
     IntegrationConnectionError,
 } from "@/lib/integrations/error";
-import type { IntegrationId } from "@/lib/integrations/support";
+import type { IntegrationId } from "@/lib/integrations/registry";
 import { scheduleSmartCollections } from "@/lib/intelligence/collections/schedule";
 import { runOAuthImportService } from "./service";
 

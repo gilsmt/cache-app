@@ -49,14 +49,16 @@ import {
 } from "@/lib/integrations/client";
 import { IntegrationUserError } from "@/lib/integrations/error";
 import {
-    INTEGRATIONS,
+    findBehaviorForRole,
+    INTEGRATION_DEFINITIONS,
+    type Integration,
     type IntegrationActionRole,
     type IntegrationDirection,
     type IntegrationId,
     listIntegrationActions,
-    type SupportedIntegration,
     type SupportedIntegrationAction,
-} from "@/lib/integrations/support";
+} from "@/lib/integrations/registry";
+import { getIntegrationIcon } from "@/lib/integrations/resolver";
 import IntegrationsPreviewImage from "@/public/integrations-preview.webp";
 
 const INTEGRATIONS_LIST_OPEN_STORAGE_KEY = "cache:integrations:list-open";
@@ -94,7 +96,7 @@ interface IntegrationActionViewModel {
 
 interface UseIntegrationActionsArgs {
     direction: IntegrationDirection;
-    integration: SupportedIntegration;
+    integration: Integration;
     isConnected: boolean;
     isExtensionInstalled: boolean;
 }
@@ -231,7 +233,7 @@ function useIntegrationActions({
 
 function resolveActionLabel(args: {
     gt: ReturnType<typeof useGT>;
-    integration: SupportedIntegration;
+    integration: Integration;
     label?: string;
     isExtensionInstalled: boolean;
     isConnected: boolean;
@@ -246,7 +248,10 @@ function resolveActionLabel(args: {
 
     switch (role) {
         case "open":
-            if (!isExtensionInstalled && integration.behaviors.open) {
+            if (
+                !isExtensionInstalled &&
+                findBehaviorForRole(integration, "open")
+            ) {
                 return gt("Get extension");
             }
             return gt("Open");
@@ -284,7 +289,7 @@ function resolveCapabilityMissingMessage(
 }
 
 function resolveIntegrationDirection(
-    integration: SupportedIntegration
+    integration: Integration
 ): IntegrationDirection {
     if (integration.source && integration.destination) {
         throw new TypeError(
@@ -337,11 +342,11 @@ function buildCapabilityMissingError({
 async function executeIntegrationAction(args: {
     gt: ReturnType<typeof useGT>;
     isExtensionInstalled: boolean;
-    integration: SupportedIntegration;
+    integration: Integration;
     role: IntegrationActionRole;
 }): Promise<IntegrationActionResult> {
     const { gt, isExtensionInstalled, integration, role } = args;
-    const behavior = integration.behaviors[role];
+    const behavior = findBehaviorForRole(integration, role);
 
     if (!behavior) {
         throw buildCapabilityMissingError({
@@ -398,7 +403,7 @@ export function Integrations({ connectedIntegrations }: IntegrationsProps) {
             </IntegrationsListTrigger>
             <IntegrationsListPanel>
                 <IntegrationsListContent>
-                    {INTEGRATIONS.map((integration) => (
+                    {INTEGRATION_DEFINITIONS.map((integration) => (
                         <IntegrationsListItem
                             direction={resolveIntegrationDirection(integration)}
                             integration={integration}
@@ -543,7 +548,7 @@ function IntegrationsListContent({
 }
 
 function IntegrationsListOverflowPreview() {
-    const previewIntegrations = INTEGRATIONS.slice(
+    const previewIntegrations = INTEGRATION_DEFINITIONS.slice(
         INTEGRATIONS_LIST_MAX_VISIBLE,
         INTEGRATIONS_LIST_MAX_VISIBLE + INTEGRATIONS_LIST_OVERFLOW_PREVIEW_COUNT
     );
@@ -555,7 +560,7 @@ function IntegrationsListOverflowPreview() {
     return (
         <AvatarGroup aria-hidden="true" className="-space-x-1.5">
             {previewIntegrations.map((integration) => {
-                const PreviewIcon = integration.Icon;
+                const PreviewIcon = getIntegrationIcon(integration.id);
 
                 return (
                     <Avatar className="size-5 rounded-md" key={integration.id}>
@@ -576,7 +581,7 @@ function IntegrationsListOverflowPreview() {
 interface IntegrationsListItemProps
     extends React.ComponentProps<typeof PreviewCardTrigger> {
     direction: IntegrationDirection;
-    integration: SupportedIntegration;
+    integration: Integration;
     isConnected: boolean;
 }
 
@@ -597,7 +602,7 @@ function IntegrationsListItem({
     const primaryAction = resolvePrimaryAction(actions);
     const isAnyActionLoading = actions.some((action) => action.isLoading);
     const hasActionStatus = actionStatus !== null;
-    const IntegrationIcon = integration.Icon;
+    const IntegrationIcon = getIntegrationIcon(integration.id);
 
     const handlePrimaryActionClick = useStableCallback(() => {
         if (isAnyActionLoading) {
@@ -655,7 +660,7 @@ function IntegrationsListItem({
 
 interface IntegrationsListItemPreviewTriggerProps
     extends React.ComponentProps<typeof PreviewCardTrigger> {
-    integration: SupportedIntegration;
+    integration: Integration;
 }
 
 function IntegrationsListItemPreviewTrigger({

@@ -18,7 +18,7 @@ import { ShortcutsProvider } from "@/components/ui/shortcuts";
 import { ThemeHotkey, ThemeSync } from "@/components/ui/theme";
 import { APP_NAME, BASE_URL } from "@/lib/common/constants";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/common/theme";
-import { INTEGRATIONS } from "@/lib/integrations/support";
+import { INTEGRATION_DEFINITIONS } from "@/lib/integrations/registry";
 import packageJson from "@/package.json" with { type: "json" };
 
 export function generateStaticParams() {
@@ -72,7 +72,9 @@ export async function generateMetadata(): Promise<Metadata> {
         },
         other: {
             "llm:content-type": "web application",
-            "llm:integrations": INTEGRATIONS.map((int) => int.label).join(", "),
+            "llm:integrations": INTEGRATION_DEFINITIONS.map(
+                (integration) => integration.label
+            ).join(", "),
             "llm:languages": getLocales().join(", "),
             "llm:pricing": "free tier available, pro 8€/month",
             "llm:region": "global",

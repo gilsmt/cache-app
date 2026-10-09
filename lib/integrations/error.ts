@@ -1,10 +1,13 @@
 import * as z from "zod";
 import { NamedError } from "@/lib/common/error";
-import type { IntegrationId } from "./support";
+import type { IntegrationId } from "./registry";
+import { isIntegrationId } from "./registry";
 
 const IntegrationErrorData = z.object({
     cause: z.unknown().optional(),
-    integrationId: z.custom<IntegrationId>().optional(),
+    integrationId: z
+        .custom<IntegrationId>((value) => isIntegrationId(value))
+        .optional(),
     message: z.string(),
     operation: z.string().optional(),
 });

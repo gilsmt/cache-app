@@ -107,7 +107,7 @@ import {
     toValidUrl,
     tryParseUrl,
 } from "@/lib/common/url";
-import { getSourceIcon } from "@/lib/integrations/support";
+import { getSourceIcon } from "@/lib/integrations/resolver";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import { useDimensionCacheContext } from "./dimension-cache";
 
