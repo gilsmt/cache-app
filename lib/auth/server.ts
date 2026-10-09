@@ -451,6 +451,13 @@ const trustedProviders = [
     ...genericOAuthConfig.map((c) => c.providerId),
 ];
 
+/**
+ * OAuth providers this deployment configured. The integrations UI offers an
+ * integration only when the provider it connects through appears here.
+ */
+export const CONFIGURED_OAUTH_PROVIDER_IDS: readonly string[] =
+    trustedProviders;
+
 const planPriceIds = serverEnv.SELF_HOSTED ? null : getPlanPriceIds();
 
 export const auth = betterAuth({

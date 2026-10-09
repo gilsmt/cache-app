@@ -12,12 +12,16 @@ import { DimensionCacheProvider } from "@/components/session/dimension-cache";
 import { ItemsStateProvider } from "@/components/session/items";
 import { ItemsList } from "@/components/session/list";
 import { SidebarPanel } from "@/components/session/sidebar";
+import { CONFIGURED_OAUTH_PROVIDER_IDS } from "@/lib/auth/server";
 import { getSessionUserId } from "@/lib/auth/session";
 import { userHasProAccess } from "@/lib/billing/service";
 import { getLibrary, listCollections } from "@/lib/collections/service";
 import { listLinkedIntegrationAccounts } from "@/lib/integrations/account";
 import type { IntegrationId } from "@/lib/integrations/registry";
-import { listConnectedIntegrationIds } from "@/lib/integrations/registry";
+import {
+    listAvailableIntegrations,
+    listConnectedIntegrationIds,
+} from "@/lib/integrations/registry";
 
 export const instant = false;
 
@@ -79,6 +83,12 @@ export default async function LibraryPage() {
         ),
     ]);
 
+    const availableIntegrations: Set<IntegrationId> = new Set(
+        listAvailableIntegrations(CONFIGURED_OAUTH_PROVIDER_IDS).map(
+            (integration) => integration.id
+        )
+    );
+
     return (
         <DimensionCacheProvider>
             <ItemsStateProvider initialItems={items} key={userId}>
@@ -90,6 +100,7 @@ export default async function LibraryPage() {
                     >
                         <SidebarPanel>
                             <Integrations
+                                availableIntegrations={availableIntegrations}
                                 connectedIntegrations={connectedIntegrations}
                             />
                             <Collections />

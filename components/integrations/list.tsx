@@ -390,10 +390,18 @@ async function executeIntegrationAction(args: {
 }
 
 interface IntegrationsProps {
+    availableIntegrations: ReadonlySet<IntegrationId>;
     connectedIntegrations: ReadonlySet<IntegrationId>;
 }
 
-export function Integrations({ connectedIntegrations }: IntegrationsProps) {
+export function Integrations({
+    availableIntegrations,
+    connectedIntegrations,
+}: IntegrationsProps) {
+    const integrations = INTEGRATION_DEFINITIONS.filter((integration) =>
+        availableIntegrations.has(integration.id)
+    );
+
     return (
         <IntegrationsList data-sidebar-collapsible="">
             <IntegrationsListTrigger
@@ -402,8 +410,8 @@ export function Integrations({ connectedIntegrations }: IntegrationsProps) {
                 <T>Integrations</T>
             </IntegrationsListTrigger>
             <IntegrationsListPanel>
-                <IntegrationsListContent>
-                    {INTEGRATION_DEFINITIONS.map((integration) => (
+                <IntegrationsListContent integrations={integrations}>
+                    {integrations.map((integration) => (
                         <IntegrationsListItem
                             direction={resolveIntegrationDirection(integration)}
                             integration={integration}
@@ -534,21 +542,35 @@ function IntegrationsListPanel({
     return <CollapsiblePanel {...props} />;
 }
 
+interface IntegrationsListContentProps
+    extends React.ComponentProps<typeof CollapsibleListVertical> {
+    integrations: readonly Integration[];
+}
+
 function IntegrationsListContent({
+    integrations,
     ...props
-}: React.ComponentProps<typeof CollapsibleListVertical>) {
+}: IntegrationsListContentProps) {
     return (
         <CollapsibleListVertical
             {...props}
-            collapsedPreview={<IntegrationsListOverflowPreview />}
+            collapsedPreview={
+                <IntegrationsListOverflowPreview integrations={integrations} />
+            }
             maxVisible={INTEGRATIONS_LIST_MAX_VISIBLE}
             triggerProps={{ className: "ml-1.25" }}
         />
     );
 }
 
-function IntegrationsListOverflowPreview() {
-    const previewIntegrations = INTEGRATION_DEFINITIONS.slice(
+interface IntegrationsListOverflowPreviewProps {
+    integrations: readonly Integration[];
+}
+
+function IntegrationsListOverflowPreview({
+    integrations,
+}: IntegrationsListOverflowPreviewProps) {
+    const previewIntegrations = integrations.slice(
         INTEGRATIONS_LIST_MAX_VISIBLE,
         INTEGRATIONS_LIST_MAX_VISIBLE + INTEGRATIONS_LIST_OVERFLOW_PREVIEW_COUNT
     );
