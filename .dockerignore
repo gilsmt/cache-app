@@ -8,14 +8,14 @@
 .gitignore
 .dockerignore
 
-# IDE and editor (settings stay tracked, the image needs none)
+# IDE and editor
 .vscode
 .idea
 .zed
 *.swp
 *.swo
 
-# CI/CD and DevOps (tracked, never imported by the build)
+# CI/CD and DevOps
 .github
 .devcontainer
 .husky
@@ -23,7 +23,7 @@
 **/Dockerfile*
 # docker/start.sh must stay in context, so match Dockerfiles only.
 
-# dependencies (match .gitignore)
+# dependencies
 node_modules
 /.pnp
 .pnp.*
@@ -34,7 +34,7 @@ node_modules
 !.yarn/versions
 .bun
 
-# output (match .gitignore)
+# output
 .next
 out
 dist
@@ -42,11 +42,11 @@ build
 *.tgz
 prisma/client
 
-# code coverage (match .gitignore)
+# code coverage
 coverage
 *.lcov
 
-# logs (match .gitignore)
+# logs
 *.log
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 npm-debug.log*
@@ -55,14 +55,14 @@ yarn-error.log*
 .pnpm-debug.log*
 .plans
 
-# dotenv environment variable files (secrets enter at runtime via env_file)
+# dotenv environment variable files (secrets enter at runtime)
 .env
 .env.development.local
 .env.test.local
 .env.production.local
 .env.local
 
-# local (match .gitignore)
+# local
 backups
 .tmp
 tmp
@@ -70,16 +70,16 @@ temp
 .opencode
 opencode.json
 
-# caches (match .gitignore)
+# caches
 .eslintcache
 .cache
 .turbo
 
-# typescript (match .gitignore)
+# typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# Testing (tracked, unneeded for next build)
+# Testing
 **/*.test.ts
 **/*.test.tsx
 **/*.spec.ts
@@ -93,7 +93,7 @@ vitest.config.*
 .vercel
 .swc
 
-# misc (match .gitignore; docs stay tracked, the image skips them)
+# misc
 .DS_Store
 Thumbs.db
 *.pem
