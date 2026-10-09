@@ -36,14 +36,20 @@ import {
     GeminiIcon,
     GithubIcon,
     GrokIcon,
+    KarakeepIcon,
     ModelContextProtocolIcon,
+    MyMindIcon,
     OpenAIIcon,
     PerplexityIcon,
+    PocketIcon,
+    RaindropIcon,
+    ResurfIcon,
     TikTokIcon,
 } from "@/components/ui/icons";
 import { JsonLdScript } from "@/components/ui/json-ld-script";
 import { PageShell } from "@/components/ui/page-shell";
 import { Popover, PopoverPopup, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import {
     Sidebar,
     SidebarContent,
@@ -92,7 +98,7 @@ const HOME_JSON_LD: Record<string, unknown> = {
                 email: NOTICES_ADDRESS,
             },
             description:
-                "Cache is the AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms.",
+                "Cache App is the AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms.",
             foundingDate: FOUNDING_DATE.toISOString().slice(0, 10),
             logo: {
                 "@type": "ImageObject",
@@ -100,7 +106,7 @@ const HOME_JSON_LD: Record<string, unknown> = {
                 url: `${BASE_URL}/icon1.png`,
                 width: 96,
             },
-            name: "CachdApp, Inc.",
+            name: "Cache App, Inc.",
             sameAs: [GITHUB_URL],
             url: BASE_URL,
         },
@@ -108,7 +114,7 @@ const HOME_JSON_LD: Record<string, unknown> = {
             "@type": "SoftwareApplication",
             applicationCategory: "ProductivityApplication",
             description:
-                "Cache is the AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms.",
+                "Cache App is the AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms.",
             name: APP_NAME,
             offers: {
                 "@type": "Offer",
@@ -129,7 +135,7 @@ const HOME_JSON_LD: Record<string, unknown> = {
 const HERO_IMAGE_SIZES = "(max-width: 1024px) 100vw, 1024px";
 const SECTION_IMAGE_SIZES = "(max-width: 768px) 100vw, 512px";
 const ASSISTANT_QUERY =
-    "What does Cache, the app at https://www.cachd.app, do?";
+    "What does Cache App, the app at https://www.cachd.app, do?";
 const ASSISTANT_CHATGPT_URL = `https://chatgpt.com/?${new URLSearchParams({
     q: ASSISTANT_QUERY,
 })}`;
@@ -173,7 +179,7 @@ export async function generateMetadata({
         locale,
         path: "/",
         title: {
-            absolute: `Cache | ${gt("Unify your bookmarks across every platform")}`,
+            absolute: `Cache App | ${gt("Unify your bookmarks across every platform")}`,
         },
     });
 
@@ -271,7 +277,7 @@ export default async function Home() {
                             className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-black/3 ring-inset dark:ring-white/3"
                         />
                     </div>
-                    <div className="mx-auto -mt-7 flex justify-center">
+                    <div className="mx-auto -mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
                         <Button
                             nativeButton={false}
                             render={
@@ -291,6 +297,57 @@ export default async function Home() {
                             />
                             &nbsp;<T>Open-source. Truly yours</T>
                         </Button>
+                        <Separator
+                            aria-hidden
+                            className="hidden sm:block"
+                            orientation="vertical"
+                        />
+                        <span className="flex items-center gap-2 font-medium text-foreground text-sm sm:ml-3">
+                            <span>
+                                <T>Alternative for</T>
+                            </span>
+                            <span title="MyMind">
+                                <MyMindIcon
+                                    aria-hidden
+                                    className="size-4.5"
+                                    focusable="false"
+                                />
+                            </span>
+                            <span title="Raindrop.io">
+                                <RaindropIcon
+                                    aria-hidden
+                                    className="size-4.5"
+                                    focusable="false"
+                                />
+                            </span>
+                            <span title="Karakeep">
+                                <KarakeepIcon
+                                    aria-hidden
+                                    className="size-4.5"
+                                    focusable="false"
+                                />
+                            </span>
+                            <span title="Resurf">
+                                <ResurfIcon
+                                    aria-hidden
+                                    className="size-4.5"
+                                    focusable="false"
+                                />
+                            </span>
+                            <span title="Pocket">
+                                <PocketIcon
+                                    aria-hidden
+                                    className="size-4.5"
+                                    focusable="false"
+                                />
+                            </span>
+                            <span className="sr-only">
+                                <T>
+                                    MyMind, Raindrop.io, Karakeep, Resurf and
+                                    Pocket
+                                </T>
+                            </span>
+                        </span>
                     </div>
                     <section className="grid w-full grid-cols-1 gap-2 md:grid-cols-2 md:gap-10">
                         <div className="flex max-w-[340px] flex-col gap-3 py-5 md:gap-4">
@@ -399,7 +456,7 @@ export default async function Home() {
                                             isCenter
                                         >
                                             <Image
-                                                alt="Cache"
+                                                alt="Cache App"
                                                 className="size-9"
                                                 height={32}
                                                 src={IconSmallImage}
@@ -916,7 +973,7 @@ export default async function Home() {
                                 size="icon-lg"
                                 variant="secondary"
                             >
-                                <OpenAIIcon className="size-5 sm:size-4" />
+                                <OpenAIIcon className="size-4.5" />
                             </Button>
                             <Button
                                 aria-label={gt(
@@ -933,7 +990,7 @@ export default async function Home() {
                                 size="icon-lg"
                                 variant="secondary"
                             >
-                                <ClaudeIcon className="size-5 sm:size-4" />
+                                <ClaudeIcon className="size-4.5" />
                             </Button>
                             <Button
                                 aria-label={gt(
@@ -950,7 +1007,7 @@ export default async function Home() {
                                 size="icon-lg"
                                 variant="secondary"
                             >
-                                <PerplexityIcon className="size-5 sm:size-4" />
+                                <PerplexityIcon className="size-4.5" />
                             </Button>
                             <Button
                                 aria-label={gt(
@@ -967,7 +1024,7 @@ export default async function Home() {
                                 size="icon-lg"
                                 variant="secondary"
                             >
-                                <GeminiIcon className="size-5 sm:size-4" />
+                                <GeminiIcon className="size-4.5" />
                             </Button>
                             <Button
                                 aria-label={gt(
@@ -984,7 +1041,7 @@ export default async function Home() {
                                 size="icon-lg"
                                 variant="secondary"
                             >
-                                <GrokIcon className="size-5 sm:size-4" />
+                                <GrokIcon className="size-4.5" />
                             </Button>
                         </div>
                     </div>

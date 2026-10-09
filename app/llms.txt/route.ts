@@ -1,4 +1,4 @@
-const content = `# [Cache](https://www.cachd.app)
+const content = `# [Cache App](https://www.cachd.app)
 > Unify your bookmarks across all platforms into a single, searchable, actionable library. Save, organize, find, and synthesize content you care about.
 
 ## Core features
@@ -15,7 +15,7 @@ const content = `# [Cache](https://www.cachd.app)
 
 ## MCP integration (agent access)
 
-Cache exposes a Model Context Protocol (MCP) server so AI agents can read and write your library directly.
+Cache App exposes a Model Context Protocol (MCP) server so AI agents can read and write your library directly.
 
 ### Setup
 

@@ -5,7 +5,7 @@ export function GET() {
     expiresDate.setFullYear(expiresDate.getFullYear() + 1);
     const expires = expiresDate.toISOString();
 
-    const securityTxt = `# Security Policy for Cache
+    const securityTxt = `# Security Policy for Cache App
 # https://securitytxt.org/
 # RFC 9116: https://www.rfc-editor.org/rfc/rfc9116.html
 

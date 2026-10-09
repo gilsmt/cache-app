@@ -1,4 +1,4 @@
-# Contributing to Cache
+# Contributing to Cache App
 
 Thank you for your interest in contributing to the Cache App. We welcome contributions in all forms—from bug fixes and documentation to new features. This repository favors incremental change over perfection.
 
@@ -104,4 +104,4 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## License
 
-By contributing to Cache, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).
+By contributing to Cache App, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).

@@ -1,6 +1,6 @@
 # Security Policy
 
-Thank you for helping us keep Cache secure. We take the security of our application and our users' data seriously.
+Thank you for helping us keep Cache App secure. We take the security of our application and our users' data seriously.
 
 ## Supported Versions
 
@@ -29,7 +29,7 @@ Please report vulnerabilities directly to `notices@cachd.app`. Include:
 
 ## Scope
 
-Cache is a web application at `cachd.app` and includes:
+Cache App is a web application at `cachd.app` and includes:
 
 - The main Next.js application
 - The browser extension (Chrome)

@@ -11,11 +11,11 @@ import {
 const LOCALE_SCHEMA = z.enum(SUPPORTED_LOCALES);
 
 const HOME_MARKDOWN: Record<SupportedLocale, string> = {
-    "en-US": `# Cache
+    "en-US": `# Cache App
 
 > The AI bookmark manager for busy people. Collect, organize, and rediscover everything you've saved across platforms.
 
-## What Cache does
+## What Cache App does
 
 - **Unify your bookmarks** — Bring saved content from Chrome, Instagram, TikTok, YouTube, X, GitHub, Pinterest, and Google Photos into one library.
 - **Organize with collections** — Group saved items and use AI-assisted collections to keep related content together.
@@ -24,21 +24,21 @@ const HOME_MARKDOWN: Record<SupportedLocale, string> = {
 
 ## Agent access
 
-Cache provides an authenticated MCP server for working with your library. See the [agent guide](${BASE_URL}/llms.txt) for setup and tool details.
+Cache App provides an authenticated MCP server for working with your library. See the [agent guide](${BASE_URL}/llms.txt) for setup and tool details.
 
 ## Links
 
-- [Open Cache](${BASE_URL}/en-US)
+- [Open Cache App](${BASE_URL}/en-US)
 - [Markdown sitemap](${BASE_URL}/api/markdown/sitemap)
 - [MCP endpoint](${BASE_URL}/mcp)
 - [Chrome extension](${CACHE_EXTENSION_DOWNLOAD_URL})
 - [GitHub repository](${GITHUB_URL})
 `,
-    "es-ES": `# Cache
+    "es-ES": `# Cache App
 
 > El gestor de marcadores con IA para personas ocupadas. Recopila, organiza y vuelve a descubrir todo lo que has guardado en distintas plataformas.
 
-## Qué hace Cache
+## Qué hace Cache App
 
 - **Unifica tus marcadores** — Reúne en una biblioteca el contenido guardado en Chrome, Instagram, TikTok, YouTube, X, GitHub, Pinterest y Google Photos.
 - **Organiza con colecciones** — Agrupa los elementos guardados y usa colecciones con ayuda de IA para mantener junto el contenido relacionado.
@@ -47,11 +47,11 @@ Cache provides an authenticated MCP server for working with your library. See th
 
 ## Acceso para agentes
 
-Cache ofrece un servidor MCP autenticado para trabajar con tu biblioteca. Consulta la [guía para agentes](${BASE_URL}/llms.txt) para ver la configuración y las herramientas disponibles.
+Cache App ofrece un servidor MCP autenticado para trabajar con tu biblioteca. Consulta la [guía para agentes](${BASE_URL}/llms.txt) para ver la configuración y las herramientas disponibles.
 
 ## Enlaces
 
-- [Abrir Cache](${BASE_URL}/es-ES)
+- [Abrir Cache App](${BASE_URL}/es-ES)
 - [Mapa del sitio en Markdown](${BASE_URL}/api/markdown/sitemap)
 - [Endpoint MCP](${BASE_URL}/mcp)
 - [Extensión de Chrome](${CACHE_EXTENSION_DOWNLOAD_URL})

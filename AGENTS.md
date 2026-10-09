@@ -1,5 +1,7 @@
 [README.md](README.md) for the product overview.
 
+This file is the entry point for AI agents working in this repo.
+
 Cache has a zero technical debt policy. Do it right the first time: the design that lands in the codebase should be the correct one, with no intentional debt in that surface. A problem solved in design costs less than one solved in implementation, which costs less than one solved in production. "Right the first time" describes the landed output, not the exploration that produced it — see simplicity below.
 
 When rules conflict, prefer in order: correctness and safety of the change surface, then local coherence in files you already touch, then YAGNI, then style. If a tradeoff is required, choose correctness and robustness over short-term convenience or shortcuts.
@@ -61,7 +63,7 @@ Great names capture what a thing actually is or does. Append qualifiers to names
 
 Use mostly ASD-STE100 Simplified Technical English. Active-voice, simple tenses, single-meaning sentences, and consistent terms. Avoid dense, jargon-heavy, or ambiguous prose.
 
-Explain why, not what, and only when a future reader (with no access to this PR or chat) would otherwise be confused, otherwise prefer no inline code comments at all.
+Explain why, not what, and only when a future reader (with no access to this PR or chat) would otherwise be confused.
 
 Never log change history or chat context in code — no "previously did X, now does Y", "per <task/PR>", "changed because…", or "AI:"/"agent:" notes.
 
@@ -143,7 +145,7 @@ Never discard or hide user work with a git command. `git restore`, `git checkout
 
 Before any git write, inspect `git status --short`, `git diff`, and `git diff --cached` for the named paths. Touch only those paths. Keep edits in the worktree. Do not change the index (`--staged`) unless the user explicitly asks. Do not modify or revert changes you didn't author.
 
-If rebase conflicts occur: Resolve conflicts only in files you modified. If a conflict is in a file you did not modify, abort and ask the user.
+When resolving merge conflicts, resolve only in files you modified, strategically unblocking resolution. If a conflict is in a file you did not modify, abort and ask the user.
 
 Never force push.
 

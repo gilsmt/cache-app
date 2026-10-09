@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
         background_color: "#ffffff",
         categories: ["productivity", "utilities"],
         description:
-            "Cache is a tool to unify your bookmarks across all platforms.",
+            "Cache App is a tool to unify your bookmarks across all platforms.",
         dir: "ltr",
         display: "standalone",
         icons: [

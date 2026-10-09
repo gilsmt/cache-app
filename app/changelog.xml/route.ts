@@ -50,9 +50,9 @@ export async function GET() {
         const xml = `<?xml version="1.0" encoding="UTF-8" ?>
       <rss version="2.0">
         <channel>
-          <title>Cache Changelog</title>
+          <title>Cache App Changelog</title>
           <link>${BASE_URL}/changelog</link>
-          <description>Latest changes, fixes and updates in Cache.</description>
+          <description>Latest changes, fixes and updates in Cache App.</description>
           <language>en-us</language>
           ${items}
         </channel>

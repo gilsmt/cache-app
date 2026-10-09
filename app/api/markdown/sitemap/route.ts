@@ -2,9 +2,9 @@ import sitemap from "@/app/sitemap";
 import { MIME_TYPES } from "@/lib/common/constants";
 
 const MARKDOWN_SITEMAP = [
-    "# Cache sitemap",
+    "# Cache App sitemap",
     "",
-    "Public pages for Cache:",
+    "Public pages for Cache App:",
     "",
     ...Array.from(
         new Set(
