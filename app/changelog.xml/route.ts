@@ -41,7 +41,7 @@ export async function GET() {
           <link>${r.html_url}</link>
           <guid isPermaLink="true">${r.html_url}</guid>
           <pubDate>${new Date(r.published_at).toUTCString()}</pubDate>
-          <description><![CDATA[${r.body || ""}]]></description>
+          <description>${escapeXml(r.body || "")}</description>
         </item>
       `
             )
