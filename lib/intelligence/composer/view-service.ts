@@ -1,6 +1,6 @@
 import "server-only";
 
-import { userHasActiveSubscription } from "@/lib/billing/service";
+import { userHasProAccess } from "@/lib/billing/service";
 import { SORT_DESC } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { prisma } from "@/prisma";
@@ -38,7 +38,7 @@ export async function resolveAgentViewPage(
         AGENT_VIEW_OFFSET_MAX
     );
     const [hasAccess, rows] = await Promise.all([
-        userHasActiveSubscription(input.userId),
+        userHasProAccess(input.userId),
         prisma.libraryItem.findMany({
             orderBy: [
                 { scrapedAt: SORT_DESC },

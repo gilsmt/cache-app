@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { authClient, useSession } from "@/lib/auth/client";
 import { isActiveSubscriptionStatus } from "@/lib/billing/subscription-status";
 import { getActiveSubscription } from "@/lib/billing/subscriptions";
+import type { PaidPriceType } from "@/lib/billing/types";
 
 const PERIOD_END_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
     day: "numeric",
@@ -29,11 +30,8 @@ const SubscriptionRedirectResultSchema = z.object({
     error: z.object({ message: z.string() }).nullish(),
 });
 
-/**
- * Unified action wrapper for Stripe redirects. Standardizes loading states, URL
- * assignment, and accessibility-compliant failure notifications for checkout
- * and portal actions.
- */
+const SelfHostContext = React.createContext(false);
+
 function useSubscriptionRedirectAction(
     request: () => Promise<{ data: unknown; error: unknown }>,
     fallbackMessage: React.ReactNode
@@ -78,12 +76,8 @@ function useSubscriptionRedirectAction(
     return { errorMessage, execute, isPending };
 }
 
-/**
- * Returns user subscription status and access checks, unifying auth session
- * and active Stripe records. This prevents desync bugs where the local session
- * claims active status but Stripe has canceled or suspended the account.
- */
 export function useSubscriptionAccess() {
+    const isSelfHosted = React.use(SelfHostContext);
     const {
         data: session,
         error: sessionError,
@@ -103,7 +97,7 @@ export function useSubscriptionAccess() {
         isLoading: isSubscriptionLoading,
         mutate: refreshSubscription,
     } = useSWR(
-        sessionUserId ? ["subscription", sessionUserId] : null,
+        sessionUserId && !isSelfHosted ? ["subscription", sessionUserId] : null,
         getActiveSubscription,
         {
             keepPreviousData: true,
@@ -112,12 +106,14 @@ export function useSubscriptionAccess() {
         }
     );
 
-    const hasAccess = isActiveSubscriptionStatus(subscription?.status);
-    const isLoading = isPending || isSubscriptionLoading;
+    const hasAccess = isSelfHosted
+        ? !!sessionUserId
+        : isActiveSubscriptionStatus(subscription?.status);
+    const isLoading = isPending || (!isSelfHosted && isSubscriptionLoading);
 
     const refreshAccess = useStableCallback(async () => {
         await refreshSession();
-        if (sessionUserId) {
+        if (sessionUserId && !isSelfHosted) {
             await refreshSubscription();
         }
     });
@@ -125,15 +121,46 @@ export function useSubscriptionAccess() {
     return {
         hasAccess,
         isLoading,
+        isSelfHosted,
         mutate: refreshAccess,
         session,
-        subscription,
+        subscription: isSelfHosted ? null : subscription,
     };
+}
+
+/** Use with a plain MenuItem when the action lives inside a menu. */
+export function useSubscriptionUpgradeAction(
+    billingFrequency: PaidPriceType = "monthly"
+) {
+    return useSubscriptionRedirectAction(
+        () =>
+            authClient.subscription.upgrade({
+                annual: billingFrequency === "yearly",
+                cancelUrl: getReturnUrl(),
+                plan: "pro",
+                successUrl: getSuccessfulUpgradeReturnUrl(),
+            }),
+        <T>We couldn't open checkout right now.</T>
+    );
+}
+
+/** Use with a plain MenuItem inside a menu; Button styles add extra padding and borders. */
+export function useSubscriptionBillingPortalAction() {
+    return useSubscriptionRedirectAction(
+        () =>
+            authClient.subscription.billingPortal({
+                returnUrl: getReturnUrl(),
+            }),
+        <T>We couldn't open billing right now.</T>
+    );
 }
 
 function subscriptionPlanLabel(plan: string | null | undefined) {
     if (!plan) {
         return <T>Subscription</T>;
+    }
+    if (plan === "pro") {
+        return <T>Pro</T>;
     }
     return `${plan[0]?.toUpperCase()}${plan.slice(1)}`;
 }
@@ -179,11 +206,30 @@ function getSuccessfulUpgradeReturnUrl() {
     return url.toString();
 }
 
-/**
- * Renders the compact account-menu status badge. Consolidates Stripe subscription
- * states (free, cancelling, trialing, active) into concise labels to ensure they
- * fit without breaking layout in dense, localized navigation headers.
- */
+interface SelfHostProviderProps {
+    children: React.ReactNode;
+    isSelfHosted: boolean;
+}
+
+export function SelfHostProvider({
+    children,
+    isSelfHosted,
+}: SelfHostProviderProps) {
+    return <SelfHostContext value={isSelfHosted}>{children}</SelfHostContext>;
+}
+
+interface CloudHostOnlyProps {
+    children: React.ReactNode;
+}
+
+export function CloudHostOnly({ children }: CloudHostOnlyProps) {
+    if (React.use(SelfHostContext)) {
+        return null;
+    }
+
+    return children;
+}
+
 export function SubscriptionStatusBadge() {
     return (
         <WithSubscriptionOnly
@@ -262,49 +308,18 @@ export function SubscriptionStatusBadge() {
     );
 }
 
-/**
- * Requests a Stripe Checkout redirect for the premium Pro plan. Use this with
- * a plain MenuItem when the action lives inside a menu, where Button styles
- * would add extra padding and borders.
- */
-export function useSubscriptionUpgradeAction(isAnnual = false) {
-    return useSubscriptionRedirectAction(
-        () =>
-            authClient.subscription.upgrade({
-                annual: isAnnual,
-                cancelUrl: getReturnUrl(),
-                plan: "pro",
-                successUrl: getSuccessfulUpgradeReturnUrl(),
-            }),
-        <T>We couldn't open checkout right now.</T>
-    );
+interface SubscriptionUpgradeButtonProps
+    extends React.ComponentProps<typeof Button> {
+    billingFrequency?: PaidPriceType;
 }
 
-/**
- * Requests a Stripe billing portal redirect. Use this with a plain MenuItem
- * when the action lives inside a menu, where Button styles would add extra
- * padding and borders.
- */
-export function useSubscriptionBillingPortalAction() {
-    return useSubscriptionRedirectAction(
-        () =>
-            authClient.subscription.billingPortal({
-                returnUrl: getReturnUrl(),
-            }),
-        <T>We couldn't open billing right now.</T>
-    );
-}
-
-/**
- * Triggers Stripe Checkout redirection for the premium Pro plan.
- */
 export function SubscriptionUpgradeButton({
-    isAnnual = false,
+    billingFrequency = "monthly",
     variant = "ghost",
     ...props
-}: React.ComponentProps<typeof Button> & { isAnnual?: boolean }) {
+}: SubscriptionUpgradeButtonProps) {
     const { errorMessage, execute, isPending } =
-        useSubscriptionUpgradeAction(isAnnual);
+        useSubscriptionUpgradeAction(billingFrequency);
 
     return (
         <>
@@ -319,14 +334,15 @@ export function SubscriptionUpgradeButton({
     );
 }
 
-/**
- * Directs the customer to the Stripe billing portal to update payments, view
- * historical invoices, or manage subscription cycles.
- */
+interface SubscriptionBillingPortalButtonProps
+    extends React.ComponentProps<typeof Button> {
+    variant?: React.ComponentProps<typeof Button>["variant"];
+}
+
 export function SubscriptionBillingPortalButton({
     variant = "ghost",
     ...props
-}: React.ComponentProps<typeof Button>) {
+}: SubscriptionBillingPortalButtonProps) {
     const { errorMessage, execute, isPending } =
         useSubscriptionBillingPortalAction();
 
@@ -348,10 +364,6 @@ interface SubscriptionGateProps {
     fallback?: React.ReactNode;
 }
 
-/**
- * Restricts rendering to users with active subscriptions. Use this to hide
- * premium features or promotional copy from non-paying users.
- */
 export function SubscribedOnly({
     children,
     fallback = null,
@@ -365,11 +377,7 @@ export function SubscribedOnly({
     return hasAccess ? children : null;
 }
 
-/**
- * Restricts rendering to unsubscribed users. Defers rendering during initial load
- * to prevent flashing upgrade prompts or free-tier UI while the subscription status
- * is still being verified.
- */
+/** Defers rendering during initial load to prevent flashing upgrade prompts while access is verified. */
 export function UnsubscribedOnly({
     children,
     fallback = null,
@@ -400,11 +408,7 @@ interface WithSubscriptionOnlyProps {
     fallback?: React.ReactNode;
 }
 
-/**
- * Renders UI dependent on subscription data once resolved. Prevents rendering
- * intermediate states (such as flashing "Free Plan" before active Stripe data returns)
- * by deferring child execution until the subscription status is fully loaded.
- */
+/** Defers child execution until subscription status loads to prevent flashing "Free Plan" before active Stripe data returns. */
 export function WithSubscriptionOnly({
     children,
     fallback = null,

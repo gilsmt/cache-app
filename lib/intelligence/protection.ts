@@ -3,9 +3,9 @@ import "server-only";
 import type { ArcjetDecision, ArcjetNextRequest } from "@arcjet/next";
 import arcjet, { tokenBucket } from "@arcjet/next";
 import { serverEnv } from "@/env/server";
-import type { PriceType } from "@/lib/billing/prices";
 import { GEN_AI_QUOTAS } from "@/lib/billing/quotas";
 import { getUserPlanType } from "@/lib/billing/service";
+import type { PriceType } from "@/lib/billing/types";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { GenAiProtectionError } from "@/lib/intelligence/error";
 

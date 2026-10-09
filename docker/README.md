@@ -11,7 +11,7 @@ Self-host Cache with Docker for total control over your data. Cache has zero tel
 ```bash
 # 1. Configure environment
 cp .env.example .env
-# Edit .env — at minimum set BETTER_AUTH_SECRET, GEMINI_API_KEY, DATABASE_URL, REDIS_URL
+# Edit .env — set SELF_HOSTED=true and at minimum set BETTER_AUTH_SECRET, GEMINI_API_KEY, DATABASE_URL, REDIS_URL
 
 # 2. Build and start
 # --env-file .env makes Compose read the repo-root .env for interpolation;
@@ -42,6 +42,7 @@ Source changes on the host reload inside the container. `node_modules` and `.nex
 
 ## Notes for self-hosters
 
+- **SELF_HOSTED=true** disables Stripe subscription endpoints and grants full application access. Stripe keys are not needed in this mode.
 - **Database credentials:** the compose defaults (`postgres:postgres`) are fine for local testing. For anything internet-facing, set `POSTGRES_PASSWORD` (and optionally `POSTGRES_USER` / `POSTGRES_DB`) in `.env`. The DB/Redis ports are not published to the host — the `app` service reaches them over the compose network. To use host tools (`psql`, `redis-cli`) against the stack, add `ports: ["127.0.0.1:5432:5432"]` / `["127.0.0.1:6379:6379"]` to the `db` / `redis` services (loopback-only, never `"5432:5432"`).
 - **i18n:** the Docker build intentionally skips `gt translate` (General Translation), which calls their API at build time and requires `GT_API_KEY`. If you want translated strings baked into the image, run `bunx gt translate` locally before building and commit the generated message files.
 - **Prisma migrations** run automatically on container start via `start.sh`. The image does not include the full `node_modules` at runtime — `prisma` is invoked via `bunx` for migrations only.

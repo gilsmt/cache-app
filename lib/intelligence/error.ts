@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { PRICE_TYPES } from "@/lib/billing/types";
 import { NamedError } from "@/lib/common/error";
 
 export const GenAiProtectionError = NamedError.create(
@@ -7,7 +8,7 @@ export const GenAiProtectionError = NamedError.create(
         feature: z.string(),
         message: z.string(),
         operation: z.string(),
-        plan: z.enum(["free", "monthly", "yearly"]),
+        plan: z.enum(PRICE_TYPES),
         reason: z.enum(["quota_exceeded", "forbidden"]),
         requestedTokens: z.int().positive(),
         userId: z.string(),

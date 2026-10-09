@@ -9,6 +9,7 @@ import type {
 } from "better-auth/plugins";
 import { genericOAuth, multiSession, oneTap } from "better-auth/plugins";
 import * as z from "zod";
+import { serverEnv } from "@/env/server";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/billing/client";
 import { getPlanPriceIds } from "@/lib/billing/prices";
 import { cancelUserNonterminalSubscriptions } from "@/lib/billing/service";
@@ -450,7 +451,7 @@ const trustedProviders = [
     ...genericOAuthConfig.map((c) => c.providerId),
 ];
 
-const planPriceIds = getPlanPriceIds();
+const planPriceIds = serverEnv.SELF_HOSTED ? null : getPlanPriceIds();
 
 export const auth = betterAuth({
     account: {
@@ -488,25 +489,29 @@ export const auth = betterAuth({
         multiSession(),
         oneTap({ clientId: GOOGLE_CLIENT_ID }),
         genericOAuth({ config: genericOAuthConfig }),
-        stripe({
-            createCustomerOnSignUp: true,
-            stripeClient: getStripeClient(),
-            stripeWebhookSecret: getStripeWebhookSecret(),
-            // NOTE: The @better-auth/stripe plugin registers its webhook handler
-            // implicitly at /api/auth/stripe/webhook via the catch-all [...all]
-            // route in app/api/auth/[...all]/route.ts. Configure the Stripe
-            // Dashboard endpoint to exactly: {baseURL}/api/auth/stripe/webhook
-            subscription: {
-                enabled: true,
-                plans: [
-                    {
-                        annualDiscountPriceId: planPriceIds.yearly,
-                        name: "pro",
-                        priceId: planPriceIds.monthly,
-                    },
-                ],
-            },
-        }),
+        ...(planPriceIds
+            ? [
+                  stripe({
+                      createCustomerOnSignUp: true,
+                      stripeClient: getStripeClient(),
+                      stripeWebhookSecret: getStripeWebhookSecret(),
+                      // NOTE: The @better-auth/stripe plugin registers its webhook handler
+                      // implicitly at /api/auth/stripe/webhook via the catch-all [...all]
+                      // route in app/api/auth/[...all]/route.ts. Configure the Stripe
+                      // Dashboard endpoint to exactly: {baseURL}/api/auth/stripe/webhook
+                      subscription: {
+                          enabled: true,
+                          plans: [
+                              {
+                                  annualDiscountPriceId: planPriceIds.yearly,
+                                  name: "pro",
+                                  priceId: planPriceIds.monthly,
+                              },
+                          ],
+                      },
+                  }),
+              ]
+            : []),
         nextCookies(),
     ],
     secret: requiredEnv("BETTER_AUTH_SECRET"),

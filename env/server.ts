@@ -26,10 +26,6 @@ export const serverEnv = createEnv({
                 /^postgres(ql)?:\/\//,
                 "DATABASE_URL must start with postgres:// or postgresql://"
             ),
-        DISABLE_AUTH: z
-            .enum(["true", "false"])
-            .default("false")
-            .transform((value) => value === "true"),
         EMAIL_FROM: z.string().optional(),
         EMAIL_SERVER_HOST: z.string().optional(),
         EMAIL_SERVER_PASSWORD: z.string().optional(),
@@ -49,6 +45,10 @@ export const serverEnv = createEnv({
         REDDIT_CLIENT_ID: z.string().optional(),
         REDDIT_CLIENT_SECRET: z.string().optional(),
         RESEND_API_KEY: z.string().optional(),
+        SELF_HOSTED: z
+            .enum(["true", "false"])
+            .default("false")
+            .transform((value) => value === "true"),
         STRIPE_PRICE_ID_MONTHLY: z.string().startsWith("price_").optional(),
         STRIPE_PRICE_ID_YEARLY: z.string().startsWith("price_").optional(),
         STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),

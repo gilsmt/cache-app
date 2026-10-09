@@ -2,10 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { getRun } from "workflow/api";
-import {
-    getUserActiveSubscriptionStatus,
-    userHasActiveSubscription,
-} from "@/lib/billing/service";
+import { userHasProAccess } from "@/lib/billing/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import type { GenerationUsage } from "@/lib/intelligence/generation";
 import { createThreadForAutomationRun } from "@/lib/threads/service";
@@ -981,7 +978,7 @@ async function requireCanUseAutomations(
     userId: string,
     operation: string
 ): Promise<void> {
-    if (await userHasActiveSubscription(userId)) {
+    if (await userHasProAccess(userId)) {
         return;
     }
 
@@ -1247,11 +1244,7 @@ async function claimAutomationRun(args: {
                 return { status: "skipped" };
             }
 
-            const subscription = await getUserActiveSubscriptionStatus(
-                run.userId,
-                tx
-            );
-            if (!subscription) {
+            if (!(await userHasProAccess(run.userId, tx))) {
                 const paused = await pauseAutomationForInactiveSubscription(
                     tx,
                     {

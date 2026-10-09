@@ -15,11 +15,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import useSWR from "swr";
 import { DeleteAccountDialogTrigger } from "@/components/auth/delete-account-dialog-trigger";
 import { LogOutDialogTrigger } from "@/components/auth/logout-dialog-trigger";
 import { WithUserSessionOnly } from "@/components/auth/session";
 import {
+    CloudHostOnly,
     SubscribedOnly,
     SubscriptionLoadingOnly,
     SubscriptionStatusBadge,
@@ -27,6 +27,11 @@ import {
     useSubscriptionBillingPortalAction,
     useSubscriptionUpgradeAction,
 } from "@/components/billing/subscription";
+import { useDesktopDownloads } from "@/components/hooks/queries/use-desktop-downloads";
+import {
+    type DeviceSession,
+    useDeviceSessions,
+} from "@/components/hooks/queries/use-device-sessions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ErrorMessage } from "@/components/ui/error-message";
@@ -51,7 +56,6 @@ import { ThemeSelector } from "@/components/ui/theme";
 import { authClient, useSession } from "@/lib/auth/client";
 import type { Session } from "@/lib/auth/session";
 import {
-    ACTION_STATUS,
     CHANGELOG_URL,
     DOCS_URL,
     GITHUB_URL,
@@ -59,7 +63,6 @@ import {
 } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { getInitials } from "@/lib/common/string";
-import { getDesktopDownloads } from "@/lib/desktop/actions";
 import { DESKTOP_ASSETS } from "@/lib/desktop/constants";
 import { detectDesktopPlatform } from "@/lib/desktop/platform";
 import {
@@ -68,19 +71,7 @@ import {
     getStaticDesktopDownloads,
 } from "@/lib/desktop/releases";
 
-const DEVICE_SESSIONS_SWR_KEY = ["auth-user-menu:device-sessions"] as const;
-const DESKTOP_DOWNLOADS_SWR_KEY = ["desktop:downloads"] as const;
-
 type AccountMenuError = "add" | "load" | "switch";
-
-type AccountUser = NonNullable<Session>["user"];
-
-interface DeviceSession {
-    session: {
-        token: string;
-    };
-    user: AccountUser;
-}
 
 const log = createLogger("auth-user-menu");
 
@@ -99,14 +90,11 @@ function useUserMenuAccounts() {
     const [addAccountError, setAddAccountError] = React.useState<unknown>(null);
 
     const {
-        data: deviceSessions = [],
-        error: deviceSessionsError,
-        isLoading: isLoadingDeviceSessions,
-        mutate: refreshDeviceSessions,
-    } = useSWR(
-        activeSession ? DEVICE_SESSIONS_SWR_KEY : null,
-        listDeviceSessions
-    );
+        deviceSessions,
+        deviceSessionsError,
+        isLoadingDeviceSessions,
+        refreshDeviceSessions,
+    } = useDeviceSessions(!!activeSession);
 
     const handleAccountChange = useStableCallback((sessionToken: string) => {
         if (
@@ -211,15 +199,6 @@ function getAccountOptions(
     ];
 }
 
-async function listDeviceSessions(): Promise<DeviceSession[]> {
-    const result = await authClient.multiSession.listDeviceSessions();
-    if (result.error) {
-        log.error("Failed to load device sessions", result.error);
-        throw new Error("Failed to load device sessions.");
-    }
-    return result.data ?? [];
-}
-
 function getAccountMenuError(
     addAccountError: unknown,
     deviceSessionsError: unknown
@@ -231,26 +210,6 @@ function getAccountMenuError(
         return "load";
     }
     return null;
-}
-
-async function fetchDesktopDownloads(): Promise<{
-    downloads: DesktopDownload[];
-    version?: string;
-}> {
-    try {
-        const result = await getDesktopDownloads();
-
-        if (result.status === ACTION_STATUS.SUCCESS) {
-            return {
-                downloads: result.data.downloads,
-                version: result.data.version,
-            };
-        }
-    } catch (error) {
-        log.warn("Desktop downloads action failed; using static URLs", error);
-    }
-
-    return { downloads: getStaticDesktopDownloads() };
 }
 
 export function UserMenu(
@@ -350,9 +309,11 @@ export function UserMenuHeader() {
                             </span>
                         </div>
                     </UserMenuAccountSwitcherSubMenu>
-                    <div className="flex items-center px-2 py-1">
-                        <SubscriptionStatusBadge />
-                    </div>
+                    <CloudHostOnly>
+                        <div className="flex items-center px-2 py-1">
+                            <SubscriptionStatusBadge />
+                        </div>
+                    </CloudHostOnly>
                 </div>
             )}
         </WithUserSessionOnly>
@@ -372,18 +333,20 @@ export function UserMenuContent() {
             </MenuGroup>
             <MenuSeparator />
             <MenuGroup>
-                <SubscriptionLoadingOnly>
-                    <MenuItem disabled>
-                        <Skeleton className="h-5 w-24" />
-                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground/50" />
-                    </MenuItem>
-                </SubscriptionLoadingOnly>
-                <SubscribedOnly>
-                    <UserMenuBillingItem />
-                </SubscribedOnly>
-                <UnsubscribedOnly>
-                    <UserMenuUpgradeItem />
-                </UnsubscribedOnly>
+                <CloudHostOnly>
+                    <SubscriptionLoadingOnly>
+                        <MenuItem disabled>
+                            <Skeleton className="h-5 w-24" />
+                            <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground/50" />
+                        </MenuItem>
+                    </SubscriptionLoadingOnly>
+                    <SubscribedOnly>
+                        <UserMenuBillingItem />
+                    </SubscribedOnly>
+                    <UnsubscribedOnly>
+                        <UserMenuUpgradeItem />
+                    </UnsubscribedOnly>
+                </CloudHostOnly>
                 <UserMenuDesktopDownloadSubMenu />
                 <LogOutDialogTrigger
                     nativeButton={false}
@@ -626,10 +589,7 @@ function AccountMenuErrorMessage({ error }: { error: AccountMenuError }) {
 
 function UserMenuDesktopDownloadSubMenu() {
     const recommendedPlatform = detectDesktopPlatform();
-    const { data } = useSWR(DESKTOP_DOWNLOADS_SWR_KEY, fetchDesktopDownloads, {
-        revalidateOnFocus: false,
-        shouldRetryOnError: false,
-    });
+    const { data } = useDesktopDownloads();
 
     const downloads = data?.downloads ?? getStaticDesktopDownloads();
     const versionLabel = data?.version;

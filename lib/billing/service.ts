@@ -1,8 +1,9 @@
 import "server-only";
 
+import { serverEnv } from "@/env/server";
 import { withStripe } from "@/lib/billing/client";
 import { StripeError } from "@/lib/billing/error";
-import type { PriceType } from "@/lib/billing/prices";
+import type { PriceType } from "@/lib/billing/types";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
@@ -18,6 +19,10 @@ export async function getUserActiveSubscriptionStatus(
     userId: string,
     tx?: Prisma.TransactionClient
 ) {
+    if (serverEnv.SELF_HOSTED) {
+        return null;
+    }
+
     const client = tx ?? prisma;
     const subscription = await client.subscription.findFirst({
         orderBy: {
@@ -36,17 +41,25 @@ export async function getUserActiveSubscriptionStatus(
     return subscription;
 }
 
-export async function userHasActiveSubscription(
-    userId: string
+export async function userHasProAccess(
+    userId: string,
+    tx?: Prisma.TransactionClient
 ): Promise<boolean> {
-    const subscription = await getUserActiveSubscriptionStatus(userId);
+    if (serverEnv.SELF_HOSTED) {
+        return true;
+    }
+
+    const subscription = await getUserActiveSubscriptionStatus(userId, tx);
 
     return isActiveSubscriptionStatus(subscription?.status);
 }
 
 export async function getUserPlanType(userId: string): Promise<PriceType> {
-    const subscription = await getUserActiveSubscriptionStatus(userId);
+    if (serverEnv.SELF_HOSTED) {
+        return "monthly";
+    }
 
+    const subscription = await getUserActiveSubscriptionStatus(userId);
     if (!(subscription && isActiveSubscriptionStatus(subscription.status))) {
         return "free";
     }
@@ -64,6 +77,10 @@ export async function getUserPlanType(userId: string): Promise<PriceType> {
 export async function cancelUserNonterminalSubscriptions(
     userId: string
 ): Promise<void> {
+    if (serverEnv.SELF_HOSTED) {
+        return;
+    }
+
     const subscriptions = await prisma.subscription.findMany({
         select: { stripeSubscriptionId: true },
         where: {

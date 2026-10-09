@@ -1,8 +1,7 @@
 import "server-only";
 
 import { createId, verifyId } from "legid";
-import { getUserActiveSubscriptionStatus } from "@/lib/billing/service";
-import { isActiveSubscriptionStatus } from "@/lib/billing/subscription-status";
+import { userHasProAccess } from "@/lib/billing/service";
 import {
     LIBRARY_COLLECTION_TAG_SELECT,
     toLibraryCollectionTag,
@@ -138,12 +137,7 @@ async function hasPublicShareAccess(args: {
     tx: CollectionShareTransaction;
     userId: string;
 }): Promise<boolean> {
-    const subscription = await getUserActiveSubscriptionStatus(
-        args.userId,
-        args.tx
-    );
-
-    if (isActiveSubscriptionStatus(subscription?.status)) {
+    if (await userHasProAccess(args.userId, args.tx)) {
         return true;
     }
 

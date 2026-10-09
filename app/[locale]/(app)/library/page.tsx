@@ -13,7 +13,7 @@ import { ItemsStateProvider } from "@/components/session/items";
 import { ItemsList } from "@/components/session/list";
 import { SidebarPanel } from "@/components/session/sidebar";
 import { getSessionUserId } from "@/lib/auth/session";
-import { userHasActiveSubscription } from "@/lib/billing/service";
+import { userHasProAccess } from "@/lib/billing/service";
 import { getLibrary, listCollections } from "@/lib/collections/service";
 import { listLinkedIntegrationAccounts } from "@/lib/integrations/account";
 import {
@@ -61,7 +61,7 @@ export default async function LibraryPage() {
         collections,
         linkedAccounts,
     ] = await Promise.all([
-        userHasActiveSubscription(userId).then((hasAccess) =>
+        userHasProAccess(userId).then((hasAccess) =>
             getLibrary({ hasAccess, userId })
         ),
         listCollections({ userId }),

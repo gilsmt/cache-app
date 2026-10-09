@@ -77,8 +77,7 @@ const state: {
 mock.module("server-only", () => ({}));
 
 mock.module("@/lib/billing/service", () => ({
-    getUserActiveSubscriptionStatus: () => state.activeSubscription,
-    userHasActiveSubscription: () => state.activeSubscription !== null,
+    userHasProAccess: () => state.activeSubscription !== null,
 }));
 
 const tx = {

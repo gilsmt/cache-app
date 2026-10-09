@@ -1,8 +1,7 @@
 import { serverEnv } from "@/env/server";
 import { withStripe } from "@/lib/billing/client";
 import { StripeError } from "@/lib/billing/error";
-
-export type PriceType = "free" | "monthly" | "yearly";
+import type { PaidPriceType } from "./types";
 
 export async function getPlanPriceById(priceId: string) {
     const price = await withStripe((stripe) => stripe.prices.retrieve(priceId));
@@ -31,7 +30,7 @@ export async function getPlanPriceById(priceId: string) {
     };
 }
 
-export function getPlanPriceIds(): { monthly: string; yearly: string } {
+export function getPlanPriceIds(): Record<PaidPriceType, string> {
     return {
         monthly: requirePlanPriceId(
             serverEnv.STRIPE_PRICE_ID_MONTHLY,
