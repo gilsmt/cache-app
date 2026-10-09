@@ -3,8 +3,9 @@
 import { T } from "gt-next";
 import { MessageSquare } from "lucide-react";
 import * as React from "react";
+import { getNoteExcerpt } from "@/lib/collections/utils";
 import type { ItemCommentWithItem } from "@/lib/comment/service";
-import { FALLBACK_URL } from "@/lib/common/constants";
+import { FALLBACK_URL, ITEM_KIND_NOTE } from "@/lib/common/constants";
 import { dayjs } from "@/lib/common/dayjs";
 import { parseDisplayUrl, toValidUrl } from "@/lib/common/url";
 import { getSourceIcon } from "@/lib/integrations/support";
@@ -120,7 +121,10 @@ interface CommentsListItemValueProps {
 function CommentsListItemValue({ comment }: CommentsListItemValueProps) {
     const SourceIcon = getSourceIcon(comment.item.source) ?? MessageSquare;
     const displayUrl = parseDisplayUrl(comment.item.url);
-    const title = comment.item.caption?.trim() || displayUrl;
+    const title =
+        comment.item.kind === ITEM_KIND_NOTE
+            ? getNoteExcerpt(comment.item.noteContentText) || "Untitled note"
+            : comment.item.caption?.trim() || displayUrl;
 
     return (
         <>
