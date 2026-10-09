@@ -154,7 +154,11 @@ interface PositionerOptions {
 }
 
 function normalizeOptions(options: PositionerOptions): PositionerOptions {
-    return { ...options, rowGap: Math.max(0, options.rowGap) };
+    return {
+        ...options,
+        columnGap: Math.max(0, options.columnGap),
+        rowGap: Math.max(0, options.rowGap),
+    };
 }
 
 export function parseOptions({
@@ -790,7 +794,7 @@ export interface MasonryRootProps<T = unknown>
      * Accepts a single number for both axes or an object to configure them individually.
      * When an object is provided, `vertical` defaults to `horizontal`.
      */
-    gap: number | { horizontal: number; vertical: number };
+    gap: number | { horizontal?: number; vertical?: number };
     /**
      * Returns the stable string or number identity of an item, used to keep measured
      * heights attached to their item across reorders.
