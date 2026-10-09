@@ -10,10 +10,15 @@ export type OembedResolution =
           resolution: "not-found" | "unsupported";
       };
 
-async function resolveOembed(url: string): Promise<OembedResolution> {
-    const response = await fetch(`/api/oembed?url=${encodeURIComponent(url)}`, {
-        headers: { Accept: "application/json" },
-    });
+type OembedSWRKey = readonly [base: "oembed", url: string];
+
+async function fetchOembed(key: OembedSWRKey): Promise<OembedResolution> {
+    const response = await fetch(
+        `/api/oembed?url=${encodeURIComponent(key[1])}`,
+        {
+            headers: { Accept: "application/json" },
+        }
+    );
     if (response.status === 404) {
         return { resolution: "unsupported" };
     }
@@ -26,10 +31,14 @@ async function resolveOembed(url: string): Promise<OembedResolution> {
         : { resolution: "not-found" };
 }
 
+function getOembedKey(url: string | null): OembedSWRKey | null {
+    return url === null ? null : ["oembed", url];
+}
+
 export function useOembed(url: string | null) {
-    const { data, error, mutate } = useSWR<OembedResolution, Error>(
-        url,
-        resolveOembed,
+    const { data, error, isLoading, mutate } = useSWR<OembedResolution, Error>(
+        getOembedKey(url),
+        fetchOembed,
         {
             revalidateIfStale: false,
             revalidateOnFocus: false,
@@ -41,6 +50,7 @@ export function useOembed(url: string | null) {
     return {
         data,
         error,
+        isLoading,
         mutate,
     };
 }

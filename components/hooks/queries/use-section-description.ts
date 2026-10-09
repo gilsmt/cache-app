@@ -7,9 +7,13 @@ interface SectionDescriptionResponse {
     summary: string;
 }
 
-type SectionDescriptionSWRKey = readonly [requestBody: string];
+type SectionDescriptionSWRKey = readonly [
+    base: "section-description",
+    requestBody: string,
+];
 
 async function fetchSectionDescription([
+    ,
     payload,
 ]: SectionDescriptionSWRKey): Promise<SectionDescriptionResponse> {
     let rawInput: unknown;
@@ -49,7 +53,7 @@ function getSectionDescriptionSWRKey(
     payload: string,
     itemCount: number
 ): SectionDescriptionSWRKey | null {
-    return itemCount > 0 ? [payload] : null;
+    return itemCount > 0 ? ["section-description", payload] : null;
 }
 
 export function useSectionDescription(payload: string, itemCount: number) {
