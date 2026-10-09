@@ -15,7 +15,7 @@ import * as z from "zod";
 import { requireRouteUserId } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { GenAiProtectionError } from "@/lib/intelligence/error";
-import { resolveRegisteredModel } from "@/lib/intelligence/providers/model-resolver";
+import { resolveRegisteredModel } from "@/lib/intelligence/providers/resolver";
 import { createAutomationAgentTools } from "@/lib/intelligence/tools/agent-tools";
 import { estimateTokens } from "@/lib/intelligence/usage";
 import {

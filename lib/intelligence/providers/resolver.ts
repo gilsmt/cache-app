@@ -5,10 +5,7 @@ import { gateway, type LanguageModel } from "ai";
 import { serverEnv } from "@/env/server";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { GenAiConfigurationError } from "../error";
-import {
-    DEFAULT_REGISTERED_MODEL,
-    parseRegisteredModel,
-} from "./model-registry";
+import { DEFAULT_REGISTERED_MODEL, parseRegisteredModel } from "./registry";
 
 const log = createLogger("intelligence:providers");
 

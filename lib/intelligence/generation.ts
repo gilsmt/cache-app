@@ -11,7 +11,7 @@ import type * as z from "zod";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { classifyGenerationError } from "./classify";
 import { GenAiGenerationError } from "./error";
-import { resolveRegisteredModel } from "./providers/model-resolver";
+import { resolveRegisteredModel } from "./providers/resolver";
 
 const log = createLogger("intelligence:generation");
 

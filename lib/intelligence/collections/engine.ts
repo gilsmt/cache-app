@@ -10,7 +10,7 @@ import { normalizeCollectionName, truncateText } from "@/lib/common/string";
 import { GenAiProtectionError } from "@/lib/intelligence/error";
 import { generateStructured } from "@/lib/intelligence/generation";
 import { protectGenAiRequest } from "@/lib/intelligence/protection";
-import { isIntelligenceConfigured } from "@/lib/intelligence/providers/model-resolver";
+import { isIntelligenceConfigured } from "@/lib/intelligence/providers/resolver";
 import { prisma } from "@/prisma";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import { estimateTokens } from "../usage";

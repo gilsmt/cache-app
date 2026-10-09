@@ -7,7 +7,7 @@ import { EmptyGenerationOutputError, summarizeStepUsage } from "../classify";
 import { type GenerationUsage, runGeneration } from "../generation";
 import { normalizeGeneratedMarkdown } from "../markdown";
 import { protectGenAiRequest } from "../protection";
-import type { resolveRegisteredModel } from "../providers/model-resolver";
+import type { resolveRegisteredModel } from "../providers/resolver";
 import { createAssistantAgentTools } from "../tools/agent-tools";
 import { estimateTokens } from "../usage";
 import {

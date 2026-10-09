@@ -3,7 +3,7 @@ import { isStepCount } from "ai";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { summarizeStepUsage } from "@/lib/intelligence/classify";
 import type { GenerationUsage } from "@/lib/intelligence/generation";
-import { resolveRegisteredModel } from "@/lib/intelligence/providers/model-resolver";
+import { resolveRegisteredModel } from "@/lib/intelligence/providers/resolver";
 import {
     type AutomationAgentSource,
     createAutomationAgentTools,
