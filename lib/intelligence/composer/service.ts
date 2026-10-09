@@ -83,9 +83,7 @@ export async function runAssistantAgent({
         };
     } catch (error) {
         log.error("Ask Cache agent run failed", {
-            errorMessage:
-                error instanceof Error ? error.message : String(error),
-            errorName: error instanceof Error ? error.name : undefined,
+            error,
             userId,
         });
         throw error;

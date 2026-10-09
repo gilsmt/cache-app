@@ -4,16 +4,24 @@ const SENSITIVE_LOG_KEY_PATTERN =
 export const LOG_STRING_MAX_LENGTH = 2000;
 export const LOG_ARRAY_SAMPLE_LIMIT = 5;
 export const LOG_OBJECT_KEYS_LIMIT = 12;
+export const LOG_ERROR_CAUSE_MAX_DEPTH = 5;
 
 const REDACTED_LOG_VALUE = "[REDACTED]";
 const CIRCULAR_LOG_VALUE = "[Circular]";
 const UNREADABLE_PROPERTY_LOG_VALUE = "[Unreadable property value]";
+const MAX_CAUSE_DEPTH_EXCEEDED_LOG_VALUE = "[Max cause depth exceeded]";
 
-const ERROR_STANDARD_FIELD_NAMES = new Set(["message", "name", "stack"]);
+const ERROR_STANDARD_FIELD_NAMES = new Set([
+    "message",
+    "name",
+    "stack",
+    "cause",
+]);
 
 type UnsupportedLogValueBehavior = "describe" | "throw";
 
 interface LogValueFormatContext {
+    readonly errorCauseDepth: number;
     readonly options: RequiredLogValueFormatOptions;
     readonly visitedObjects: WeakSet<object>;
 }
@@ -133,6 +141,19 @@ function formatErrorForLog(
         );
     }
 
+    const cause = readFieldForLog(error, "cause");
+    if (cause !== undefined) {
+        if (context.errorCauseDepth >= LOG_ERROR_CAUSE_MAX_DEPTH) {
+            record.cause = MAX_CAUSE_DEPTH_EXCEEDED_LOG_VALUE;
+        } else {
+            record.cause = formatValueForLog("cause", cause, {
+                errorCauseDepth: context.errorCauseDepth + 1,
+                options: context.options,
+                visitedObjects: context.visitedObjects,
+            });
+        }
+    }
+
     for (const key of Object.keys(error)) {
         if (ERROR_STANDARD_FIELD_NAMES.has(key)) {
             continue;
@@ -185,6 +206,7 @@ export function formatLogValue(
     options: LogValueFormatOptions = {}
 ): unknown {
     return formatValueForLog("", value, {
+        errorCauseDepth: 0,
         options: resolveFormatOptions(options),
         visitedObjects: new WeakSet(),
     });

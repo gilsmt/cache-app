@@ -119,7 +119,7 @@ export async function runGeneration<T>(
         const classification = classifyGenerationError(error);
         log.warn("Generation failed", {
             ...input.logContext,
-            error: error instanceof Error ? error.message : String(error),
+            error,
             errorClassification: classification.message,
             feature: input.feature,
         });
