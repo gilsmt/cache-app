@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as z from "zod";
+import { parseDate } from "@/lib/common/date";
 import { IntegrationApiError } from "@/lib/integrations/error";
 import type { Prisma } from "@/prisma/client/client";
 
@@ -131,7 +132,7 @@ function parseRepository(
     return {
         caption: record.description ?? fullName,
         externalId: String(record.id),
-        postedAt: record.updated_at ? new Date(record.updated_at) : null,
+        postedAt: parseDate(record.updated_at),
         sourceMetadata: {
             github: {
                 defaultBranch: record.default_branch ?? null,

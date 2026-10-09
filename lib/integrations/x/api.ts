@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as z from "zod";
+import { parseDate } from "@/lib/common/date";
 import { IntegrationApiError } from "@/lib/integrations/error";
 import type { Prisma } from "@/prisma/client/client";
 
@@ -241,7 +242,7 @@ function parseBookmark(
     return {
         caption,
         externalId: record.id,
-        postedAt: record.created_at ? new Date(record.created_at) : null,
+        postedAt: parseDate(record.created_at),
         sourceMetadata: {
             x: {
                 author: authorId

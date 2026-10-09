@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as z from "zod";
+import { parseDate } from "@/lib/common/date";
 import { IntegrationApiError } from "@/lib/integrations/error";
 
 const PINTEREST_API_BASE_URL = "https://api.pinterest.com/v5";
@@ -140,13 +141,8 @@ function parseBoard(candidate: unknown): PinterestBoardSummary | null {
         id: parsed.data.id,
         name: parsed.data.name ?? null,
         updatedAt:
-            (parsed.data.updated_at
-                ? new Date(parsed.data.updated_at)
-                : null) ??
-            (parsed.data.created_at
-                ? new Date(parsed.data.created_at)
-                : null) ??
-            null,
+            parseDate(parsed.data.updated_at) ??
+            parseDate(parsed.data.created_at),
     };
 }
 
@@ -174,10 +170,7 @@ function parsePin(
     return {
         caption: caption ?? null,
         externalId: record.id,
-        scrapedAt:
-            (record.created_at ? new Date(record.created_at) : null) ??
-            (record.updated_at ? new Date(record.updated_at) : null) ??
-            null,
+        scrapedAt: parseDate(record.created_at) ?? parseDate(record.updated_at),
         url: destinationUrl,
     };
 }
