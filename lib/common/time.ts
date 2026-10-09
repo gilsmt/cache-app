@@ -24,8 +24,7 @@ const MINUTES_PER_15_MIN_BLOCK = 15;
 const MINUTES_PER_DAY = 24 * 60;
 
 /**
- * Default 9 AM in minutes-since-midnight, used as the seed time for
- * unscheduled time-of-day pickers (e.g. new automations).
+ * Default 9 AM in minutes-since-midnight
  */
 export const DEFAULT_TIME_OF_DAY_MINUTES = 9 * 60;
 

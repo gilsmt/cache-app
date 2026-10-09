@@ -174,14 +174,13 @@ export function ComboboxPopup({
     ...props
 }: ComboboxPopupProps) {
     const { chipsRef } = React.use(ComboboxContext);
-    const anchor = anchorProp ?? chipsRef;
 
     return (
         <ComboboxPrimitive.Portal {...portalProps}>
             <ComboboxPrimitive.Positioner
                 align={align}
                 alignOffset={alignOffset}
-                anchor={anchor}
+                anchor={anchorProp ?? chipsRef}
                 className="z-50 select-none outline-none"
                 data-slot="combobox-positioner"
                 positionMethod={positionMethod}

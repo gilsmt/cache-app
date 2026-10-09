@@ -3,7 +3,6 @@
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { parseDate } from "chrono-node";
-import { cn } from "cn";
 import { useLocale } from "gt-next";
 import {
     CalendarDays,
@@ -649,13 +648,11 @@ export function AutomationComposerDialog({
 interface AutomationOptionTriggerProps {
     icon: LucideIcon;
     labelId: string;
-    valueClassName?: string;
 }
 
 function AutomationOptionTrigger({
     icon: Icon,
     labelId,
-    valueClassName,
 }: AutomationOptionTriggerProps) {
     return (
         <ComboboxTrigger
@@ -669,7 +666,7 @@ function AutomationOptionTrigger({
             }
         >
             <Icon aria-hidden className="size-3.5" focusable="false" />
-            <span className={cn("min-w-0 truncate", valueClassName)}>
+            <span className="min-w-0 truncate">
                 <ComboboxValue />
             </span>
         </ComboboxTrigger>
@@ -689,15 +686,12 @@ function AutomationCollectionCombobox({
     options,
     value,
 }: AutomationCollectionComboboxProps) {
-    const [isOpen, setIsOpen] = React.useState(false);
-
     const handleValueChange = useStableCallback(
         (nextCollection: AutomationCollectionOption | null) => {
             if (!nextCollection) {
                 return;
             }
             onValueChange(nextCollection);
-            setIsOpen(false);
         }
     );
 
@@ -707,13 +701,11 @@ function AutomationCollectionCombobox({
             items={options}
             itemToStringLabel={getAutomationCollectionName}
             itemToStringValue={getAutomationCollectionId}
-            onOpenChange={setIsOpen}
             onValueChange={handleValueChange}
-            open={isOpen}
             value={value}
         >
             <AutomationOptionTrigger icon={FolderOpen} labelId={labelId} />
-            <ComboboxPopup className="min-w-44">
+            <ComboboxPopup>
                 <ComboboxInput
                     aria-label="Search collections"
                     placeholder="Collection"
@@ -749,15 +741,12 @@ function AutomationCadenceCombobox({
     onValueChange,
     value,
 }: AutomationCadenceComboboxProps) {
-    const [isOpen, setIsOpen] = React.useState(false);
-
     const handleValueChange = useStableCallback(
         (nextCadence: CadenceOption | null) => {
             if (!nextCadence) {
                 return;
             }
             onValueChange(nextCadence);
-            setIsOpen(false);
         }
     );
 
@@ -768,13 +757,11 @@ function AutomationCadenceCombobox({
             items={CADENCE_OPTIONS}
             itemToStringLabel={getOptionLabel}
             itemToStringValue={getStringOptionValue}
-            onOpenChange={setIsOpen}
             onValueChange={handleValueChange}
-            open={isOpen}
             value={value}
         >
             <AutomationOptionTrigger icon={CalendarDays} labelId={labelId} />
-            <ComboboxPopup className="min-w-36">
+            <ComboboxPopup>
                 <ComboboxList>
                     <ComboboxCollection>
                         {(option: CadenceOption) => (
@@ -806,67 +793,51 @@ function AutomationTimeCombobox({
     options,
     value,
 }: AutomationTimeComboboxProps) {
-    const [isOpen, setIsOpen] = React.useState(false);
     const [inputValue, setInputValue] = React.useState(() => value.label);
 
     useIsoLayoutEffect(() => {
         setInputValue(value.label);
     }, [value.label]);
 
-    const handleSelectFromList = useStableCallback(
-        (nextTime: TimeOfDayOption) => {
-            onValueChange(nextTime.value);
-            setInputValue(nextTime.label);
-            setIsOpen(false);
-        }
-    );
-
     const handleFreeformEnter = useStableCallback(() => {
         const exactOption = getTimeOfDayOptionByLabel(options, inputValue);
         if (exactOption) {
             onValueChange(exactOption.value);
             setInputValue(exactOption.label);
-            setIsOpen(false);
             return;
         }
 
-        const parsedDate = parseDate(inputValue);
-        if (!parsedDate) {
+        const date = parseDate(inputValue);
+        if (!date) {
             setInputValue(value.label);
             return;
         }
 
         const roundedValue = formatTimeOfDayMinutes(
-            roundTimeOfDayMinutes(
-                parsedDate.getHours() * 60 + parsedDate.getMinutes()
-            )
+            roundTimeOfDayMinutes(date.getHours() * 60 + date.getMinutes())
         );
         const roundedOption = getTimeOfDayOption(options, roundedValue);
+
         onValueChange(roundedOption.value);
         setInputValue(roundedOption.label);
-        setIsOpen(false);
     });
-
-    const handleInputValueChange = useStableCallback(
-        (nextInputValue: string) => {
-            setInputValue(nextInputValue);
-        }
-    );
-
-    const handleValueChange = useStableCallback(
-        (nextTime: TimeOfDayOption | null) => {
-            if (!nextTime) {
-                return;
-            }
-            handleSelectFromList(nextTime);
-        }
-    );
 
     const handleKeyDown = useStableCallback((event: React.KeyboardEvent) => {
         if (event.key === "Enter") {
             handleFreeformEnter();
         }
     });
+
+    const handleValueChange = useStableCallback(
+        (nextTime: TimeOfDayOption | null) => {
+            if (!nextTime) {
+                return;
+            }
+
+            onValueChange(nextTime.value);
+            setInputValue(nextTime.label);
+        }
+    );
 
     return (
         <Combobox<TimeOfDayOption>
@@ -875,18 +846,12 @@ function AutomationTimeCombobox({
             items={options}
             itemToStringLabel={getOptionLabel}
             itemToStringValue={getStringOptionValue}
-            onInputValueChange={handleInputValueChange}
-            onOpenChange={setIsOpen}
+            onInputValueChange={setInputValue}
             onValueChange={handleValueChange}
-            open={isOpen}
             value={value}
         >
-            <AutomationOptionTrigger
-                icon={Clock}
-                labelId={labelId}
-                valueClassName="tabular-nums"
-            />
-            <ComboboxPopup className="min-w-36">
+            <AutomationOptionTrigger icon={Clock} labelId={labelId} />
+            <ComboboxPopup>
                 <ComboboxInput
                     aria-label="Search times"
                     onKeyDown={handleKeyDown}
@@ -924,15 +889,12 @@ function AutomationWeekDayCombobox({
     onValueChange,
     value,
 }: AutomationWeekDayComboboxProps) {
-    const [isOpen, setIsOpen] = React.useState(false);
-
     const handleValueChange = useStableCallback(
         (nextWeekDay: WeekDayOption | null) => {
             if (!nextWeekDay) {
                 return;
             }
             onValueChange(nextWeekDay.value);
-            setIsOpen(false);
         }
     );
 
@@ -943,13 +905,11 @@ function AutomationWeekDayCombobox({
             items={WEEK_DAYS}
             itemToStringLabel={getOptionLabel}
             itemToStringValue={getNumericOptionValue}
-            onOpenChange={setIsOpen}
             onValueChange={handleValueChange}
-            open={isOpen}
             value={value}
         >
             <AutomationOptionTrigger icon={CalendarDays} labelId={labelId} />
-            <ComboboxPopup className="min-w-36">
+            <ComboboxPopup>
                 <ComboboxList>
                     <ComboboxCollection>
                         {(option: WeekDayOption) => (
@@ -979,15 +939,12 @@ function AutomationMonthDayCombobox({
     onValueChange,
     value,
 }: AutomationMonthDayComboboxProps) {
-    const [isOpen, setIsOpen] = React.useState(false);
-
     const handleValueChange = useStableCallback(
         (nextMonthDay: MonthDayOption | null) => {
             if (!nextMonthDay) {
                 return;
             }
             onValueChange(nextMonthDay.value);
-            setIsOpen(false);
         }
     );
 
@@ -997,13 +954,11 @@ function AutomationMonthDayCombobox({
             items={MONTH_DAY_OPTIONS}
             itemToStringLabel={getOptionLabel}
             itemToStringValue={getNumericOptionValue}
-            onOpenChange={setIsOpen}
             onValueChange={handleValueChange}
-            open={isOpen}
             value={value}
         >
             <AutomationOptionTrigger icon={CalendarDays} labelId={labelId} />
-            <ComboboxPopup className="min-w-32">
+            <ComboboxPopup>
                 <ComboboxInput
                     aria-label="Search month days"
                     placeholder="Day"
