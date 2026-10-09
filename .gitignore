@@ -1,8 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Keep aligned with .dockerignore. Paths tracked here stay out of git; paths
+# tracked in git but unneeded in the image live only in .dockerignore.
 
 # dependencies (bun install)
 node_modules
-/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -10,19 +11,18 @@ node_modules
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+.bun
 
 # output
+.next
 out
 dist
+build
 *.tgz
-/.next/
-/out/
-/build
-/prisma/client/
+prisma/client
 
 # code coverage
 coverage
-/coverage
 *.lcov
 
 # logs
@@ -44,12 +44,15 @@ yarn-error.log*
 # local
 backups
 .tmp
+tmp
+temp
 .opencode
 opencode.json
 
 # caches
 .eslintcache
 .cache
+.turbo
 
 # typescript
 *.tsbuildinfo
@@ -57,14 +60,15 @@ next-env.d.ts
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
 .swc
+*.swp
+*.swo
 
 # vercel
 .vercel
 
 # IntelliJ based IDEs
 .idea
-
-# Finder (MacOS) folder config
-.DS_Store
+# .vscode and .zed hold shared settings and stay tracked.

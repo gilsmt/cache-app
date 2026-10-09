@@ -1,49 +1,85 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Mirrors .gitignore so local output never reaches the build context. Extra
+# entries are tracked in git but unneeded to build the image.
 
 # Git
 .git
+.gitattributes
 .gitignore
+.dockerignore
 
-# IDE and editor
+# IDE and editor (settings stay tracked, the image needs none)
 .vscode
 .idea
 .zed
 *.swp
 *.swo
 
-# CI/CD and DevOps
+# CI/CD and DevOps (tracked, never imported by the build)
 .github
 .devcontainer
 .husky
-docker-compose*.yml
-Dockerfile*
+**/docker-compose*.yml
+**/Dockerfile*
+# docker/start.sh must stay in context, so match Dockerfiles only.
 
-# dependencies
+# dependencies (match .gitignore)
 node_modules
-.pnp
-.pnp.js
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 .bun
 
-# next.js
-.next/
-out/
+# output (match .gitignore)
+.next
+out
+dist
 build
+*.tgz
+prisma/client
 
-# debug
+# code coverage (match .gitignore)
+coverage
+*.lcov
+
+# logs (match .gitignore)
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-backups
+.pnpm-debug.log*
+.plans
 
-# local env files
+# dotenv environment variable files (secrets enter at runtime via env_file)
 .env
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.local
 
-# Testing
-coverage
+# local (match .gitignore)
+backups
+.tmp
+tmp
+temp
+.opencode
+opencode.json
+
+# caches (match .gitignore)
+.eslintcache
+.cache
+.turbo
+
+# typescript (match .gitignore)
+*.tsbuildinfo
+next-env.d.ts
+
+# Testing (tracked, unneeded for next build)
 **/*.test.ts
 **/*.test.tsx
 **/*.spec.ts
@@ -53,17 +89,12 @@ __mocks__
 jest.config.*
 vitest.config.*
 
-# Build artifacts and caches
+# Build artifacts
 .vercel
-*.tsbuildinfo
 .swc
-.turbo
 
-# misc
+# misc (match .gitignore; docs stay tracked, the image skips them)
 .DS_Store
-*.pem
 Thumbs.db
-tmp
-temp
-LICENSE
+*.pem
 docs
