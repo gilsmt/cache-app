@@ -96,6 +96,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import * as z from "zod";
+import { useFavicon } from "@/components/hooks/queries/use-favicon";
 import {
     type OembedResolution,
     useOembed,
@@ -971,7 +972,7 @@ const {
     })
 );
 
-function useSideUserScopeSync(): void {
+function useSideUserScopeSync(): string | null {
     const { data: session, isPending } = useSession();
     const userId = session?.user?.id ?? null;
     const { activeIndex, items } = useSideStore();
@@ -1108,6 +1109,8 @@ function useSideUserScopeSync(): void {
             window.removeEventListener("storage", handleStorage);
         };
     }, [isPending, userId]);
+
+    return userId;
 }
 
 export function openSide(input: SideUrlInput) {
@@ -1146,7 +1149,15 @@ export function SideContent() {
         setIsOpen,
     } = useSideStore();
 
-    useSideUserScopeSync();
+    const userId = useSideUserScopeSync();
+
+    const sideTabUrls = isOpen
+        ? items.flatMap((item) => (item.type === "url" ? [item.url] : []))
+        : [];
+    const faviconsByUrl = useFavicon(
+        userId,
+        sideTabUrls.length > 0 ? sideTabUrls : null
+    );
 
     const safeActiveIndex = clampActiveIndex(activeIndex, items.length);
     const activeEntry = items[safeActiveIndex] ?? null;
@@ -1343,6 +1354,12 @@ export function SideContent() {
                             <SideList>
                                 {items.map((item, index) => (
                                     <SideListItem
+                                        faviconUrl={
+                                            item.type === "url"
+                                                ? (faviconsByUrl[item.url] ??
+                                                  null)
+                                                : null
+                                        }
                                         index={index}
                                         isActive={index === safeActiveIndex}
                                         item={item}
@@ -1636,13 +1653,20 @@ function SideList({ children }: SideListProps) {
 }
 
 interface SideListItemProps {
+    faviconUrl: string | null;
     index: number;
     isActive: boolean;
     item: SideEntry;
     onRemove: (item: SideEntry, index: number) => void;
 }
 
-function SideListItem({ index, isActive, item, onRemove }: SideListItemProps) {
+function SideListItem({
+    faviconUrl,
+    index,
+    isActive,
+    item,
+    onRemove,
+}: SideListItemProps) {
     const gt = useGT();
 
     const entryTitle = getSideEntryTitle(item);
@@ -1697,7 +1721,10 @@ function SideListItem({ index, isActive, item, onRemove }: SideListItemProps) {
                 value={getSideTabId(item)}
             >
                 {item.type === "note" ? null : (
-                    <Globe aria-hidden className="size-3.5" focusable="false" />
+                    <SideTabFavicon
+                        faviconUrl={faviconUrl}
+                        key={faviconUrl ?? "globe"}
+                    />
                 )}
                 <Calligraph className="min-w-0 flex-1 truncate text-left font-medium">
                     {title}
@@ -1715,6 +1742,34 @@ function SideListItem({ index, isActive, item, onRemove }: SideListItemProps) {
                 <XIcon className="size-3.5 shrink-0" />
             </Button>
         </div>
+    );
+}
+
+interface SideTabFaviconProps {
+    faviconUrl: string | null;
+}
+
+function SideTabFavicon({ faviconUrl }: SideTabFaviconProps) {
+    const [hasFailed, setHasFailed] = useState(false);
+    const handleError = useStableCallback(() => setHasFailed(true));
+
+    return (
+        <span aria-hidden className="relative size-3.5 shrink-0">
+            <Globe className="absolute inset-0 size-full" focusable="false" />
+            {faviconUrl && !hasFailed ? (
+                // biome-ignore lint/a11y/noNoninteractiveElementInteractions: image load errors are resource lifecycle events, not user interactions.
+                <img
+                    alt=""
+                    className="absolute inset-0 size-full object-contain"
+                    draggable={false}
+                    height={14}
+                    loading="lazy"
+                    onError={handleError}
+                    src={`/api/preview?url=${encodeURIComponent(faviconUrl)}`}
+                    width={14}
+                />
+            ) : null}
+        </span>
     );
 }
 

@@ -82,6 +82,8 @@ const SUPPORTED_PREVIEW_IMAGE_MIME_TYPES = new Set<string>([
     MIME_TYPES.jpg,
     MIME_TYPES.png,
     MIME_TYPES.webp,
+    MIME_TYPES.ico,
+    "image/vnd.microsoft.icon",
 ]);
 const SUPPORTED_PREVIEW_VIDEO_MIME_TYPES = new Set<string>([
     "video/mp4",

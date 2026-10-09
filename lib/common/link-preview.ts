@@ -1,4 +1,5 @@
 import { Parser } from "htmlparser2";
+import { unique } from "@/lib/common/array";
 import { MIME_TYPES, USER_AGENT } from "@/lib/common/constants";
 import {
     extractPreviewMetadata,
@@ -6,10 +7,13 @@ import {
 } from "@/lib/common/extract";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { fetchPublicRedirect } from "@/lib/common/security/fetch";
+import { isHttpUrl, parseStandaloneUrl } from "@/lib/common/url";
 
 const log = createLogger("common:link-preview");
 
 const HEAD_SCAN_MAX_BYTES = 512_000;
+const LINK_FAVICON_FETCH_TIMEOUT_MS = 5000;
+const LINK_FAVICON_MAX_URL_LENGTH = 4096;
 const MAX_REDIRECTS = 3;
 const LINK_PREVIEW_ACCEPT_HEADER = "text/html,application/xhtml+xml";
 
@@ -89,6 +93,36 @@ export async function fetchLinkPreview(
         log.debug("Link preview fetch failed", { url });
         return null;
     }
+}
+
+export async function fetchLinkFavicons(
+    urls: readonly string[]
+): Promise<Array<string | null>> {
+    const faviconsByUrl = new Map<string, string | null>();
+    await Promise.all(
+        unique(urls).map(async (url) => {
+            faviconsByUrl.set(url, await fetchLinkFavicon(url));
+        })
+    );
+    return urls.map((url) => faviconsByUrl.get(url) ?? null);
+}
+
+async function fetchLinkFavicon(url: string): Promise<string | null> {
+    const targetUrl = parseStandaloneUrl(url);
+    if (!targetUrl) {
+        return null;
+    }
+
+    const preview = await fetchLinkPreview(targetUrl.href, {
+        timeoutMs: LINK_FAVICON_FETCH_TIMEOUT_MS,
+    });
+    return (
+        preview?.favicons.find(
+            (faviconUrl) =>
+                faviconUrl.length <= LINK_FAVICON_MAX_URL_LENGTH &&
+                isHttpUrl(faviconUrl)
+        ) ?? null
+    );
 }
 
 function isHtmlPreviewContentType(contentType: string): boolean {

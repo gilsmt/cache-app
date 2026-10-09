@@ -30,6 +30,8 @@ import { LibraryCollectionError } from "./error";
 import * as service from "./service";
 
 const log = createLogger("library:actions");
+const SIDE_TAB_FAVICON_MAX_URL_LENGTH = 4096;
+const SIDE_TAB_FAVICON_MAX_URLS = 12;
 
 const CollectionCreateInputSchema = z.object({
     assignToItemId: z.string().trim().min(1).optional(),
@@ -85,6 +87,13 @@ const CollectionRenameInputSchema = z.object({
     name: collectionNameSchema,
 });
 
+const SideTabFaviconsInputSchema = z.object({
+    urls: z
+        .array(z.string().min(1).max(SIDE_TAB_FAVICON_MAX_URL_LENGTH))
+        .min(1)
+        .max(SIDE_TAB_FAVICON_MAX_URLS),
+});
+
 export type CollectionCreateResult =
     | {
           assignedItemId: string | null;
@@ -129,6 +138,40 @@ export type CollectionRenameResult =
           status: typeof ACTION_STATUS.UPDATED;
       }
     | ActionErrorWithDuplicate;
+
+export type SideTabFaviconsResult =
+    | {
+          faviconUrls: Array<string | null>;
+          status: typeof ACTION_STATUS.SUCCESS;
+      }
+    | ActionErrorWithoutNotFound;
+
+export async function getSideTabFavicons(input: {
+    urls: string[];
+}): Promise<SideTabFaviconsResult> {
+    const parsed = SideTabFaviconsInputSchema.safeParse(input);
+    if (!parsed.success) {
+        return {
+            message: getValidationErrorMessage(
+                parsed,
+                "We couldn't load the site icons."
+            ),
+            status: ACTION_STATUS.INVALID,
+        };
+    }
+
+    const auth = await requireActionUserId("Sign in again to preview links.");
+    if (isUnauthenticated(auth)) {
+        return auth;
+    }
+
+    const { fetchLinkFavicons } = await import("@/lib/common/link-preview");
+
+    return {
+        faviconUrls: await fetchLinkFavicons(parsed.data.urls),
+        status: ACTION_STATUS.SUCCESS,
+    };
+}
 
 export async function createCollection(input: {
     assignToItemId?: string;
