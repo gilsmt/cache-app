@@ -5,7 +5,6 @@ import { connection } from "next/server";
 import * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
 import { Thread } from "@/components/session/thread";
-import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionUserId } from "@/lib/auth/session";
 import { ThreadError } from "@/lib/threads/error";
@@ -105,17 +104,15 @@ async function ThreadPageBody({ params }: ThreadPageParams) {
     }
     return (
         <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col p-4">
-            <FadeIn>
-                <div className="flex h-[calc(100dvh-1rem)] min-h-0 flex-col">
-                    <ThreadPageHeader thread={thread} />
-                    <Thread
-                        initialMessages={toUIMessages(thread.messages)}
-                        key={thread.id}
-                        sources={thread.run?.sources ?? []}
-                        threadId={thread.id}
-                    />
-                </div>
-            </FadeIn>
+            <div className="flex h-[calc(100dvh-1rem)] min-h-0 flex-col">
+                <ThreadPageHeader thread={thread} />
+                <Thread
+                    initialMessages={toUIMessages(thread.messages)}
+                    key={thread.id}
+                    sources={thread.run?.sources ?? []}
+                    threadId={thread.id}
+                />
+            </div>
         </div>
     );
 }

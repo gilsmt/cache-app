@@ -9,7 +9,6 @@ import { AutomationComposerDialog } from "@/components/automations/composer";
 import { AutomationsList } from "@/components/automations/list";
 import { SidebarPanel } from "@/components/session/sidebar";
 import { Threads } from "@/components/session/threads";
-import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionUserId } from "@/lib/auth/session";
 import { listCollectionOptions } from "@/lib/collections/service";
@@ -88,19 +87,15 @@ async function AutomationsPageBody() {
                 <Threads threads={threads} />
             </SidebarPanel>
             <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col gap-6 p-8">
-                <FadeIn>
-                    <div className="flex flex-col gap-8">
-                        <AutomationsPageHeader>
-                            <AutomationComposerDialog
-                                collections={collections}
-                            />
-                        </AutomationsPageHeader>
-                        <AutomationsList
-                            automations={automations}
-                            collections={collections}
-                        />
-                    </div>
-                </FadeIn>
+                <div className="flex flex-col gap-8">
+                    <AutomationsPageHeader>
+                        <AutomationComposerDialog collections={collections} />
+                    </AutomationsPageHeader>
+                    <AutomationsList
+                        automations={automations}
+                        collections={collections}
+                    />
+                </div>
             </div>
         </>
     );

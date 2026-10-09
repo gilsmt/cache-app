@@ -7,7 +7,6 @@ import * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
 import { CommentsList } from "@/components/comments/list";
 import { SidebarPanel } from "@/components/session/sidebar";
-import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionUserId } from "@/lib/auth/session";
 import { listCommentsForUser } from "@/lib/comment/service";
@@ -76,12 +75,10 @@ async function CommentsPageBody() {
     const comments = await listCommentsForUser({ userId });
 
     return (
-        <FadeIn>
-            <div className="flex flex-col gap-8">
-                <CommentsPageHeader />
-                <CommentsList comments={comments} />
-            </div>
-        </FadeIn>
+        <div className="flex flex-col gap-8">
+            <CommentsPageHeader />
+            <CommentsList comments={comments} />
+        </div>
     );
 }
 

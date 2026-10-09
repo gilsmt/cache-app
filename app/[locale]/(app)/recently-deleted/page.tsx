@@ -7,7 +7,6 @@ import * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
 import { RecentlyDeletedList } from "@/components/recently-deleted/list";
 import { SidebarPanel } from "@/components/session/sidebar";
-import { FadeIn } from "@/components/ui/fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionUserId } from "@/lib/auth/session";
 import { listRecentlyDeletedItems } from "@/lib/collections/service";
@@ -88,12 +87,10 @@ async function RecentlyDeletedPageBody() {
     const items = await listRecentlyDeletedItems({ userId });
 
     return (
-        <FadeIn>
-            <div className="flex flex-col gap-8">
-                <RecentlyDeletedPageHeader />
-                <RecentlyDeletedList items={items.map((entry) => entry.item)} />
-            </div>
-        </FadeIn>
+        <div className="flex flex-col gap-8">
+            <RecentlyDeletedPageHeader />
+            <RecentlyDeletedList items={items.map((entry) => entry.item)} />
+        </div>
     );
 }
 

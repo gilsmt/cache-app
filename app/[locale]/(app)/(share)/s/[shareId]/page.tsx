@@ -11,7 +11,6 @@ import {
     PublicShareGridSkeleton,
 } from "@/components/share/list";
 import { BrandLogo } from "@/components/ui/brand-logo";
-import { FadeIn } from "@/components/ui/fade-in";
 import { publicCollectionShareMetadataTag } from "@/lib/collections/sharing/cache";
 import { getPublicCollectionShareById } from "@/lib/collections/sharing/service";
 import { getNoteExcerpt } from "@/lib/collections/utils";
@@ -160,24 +159,20 @@ async function CollectionShareBody(props: CollectionSharePageProps) {
     });
 
     return (
-        <FadeIn>
-            <div className="flex flex-col gap-6">
-                {collection.name ? (
-                    <div className="flex flex-col items-center justify-center text-muted-foreground text-sm">
-                        <h1 className="font-medium text-foreground text-xl">
-                            {collection.name}
-                        </h1>
-                        <span className="tabular-nums">
-                            {collection.itemCount}{" "}
-                            {collection.itemCount === 1
-                                ? gt("item")
-                                : gt("items")}
-                        </span>
-                    </div>
-                ) : null}
-                <PublicShareGrid items={items} />
-            </div>
-        </FadeIn>
+        <div className="flex flex-col gap-6">
+            {collection.name ? (
+                <div className="flex flex-col items-center justify-center text-muted-foreground text-sm">
+                    <h1 className="font-medium text-foreground text-xl">
+                        {collection.name}
+                    </h1>
+                    <span className="tabular-nums">
+                        {collection.itemCount}{" "}
+                        {collection.itemCount === 1 ? gt("item") : gt("items")}
+                    </span>
+                </div>
+            ) : null}
+            <PublicShareGrid items={items} />
+        </div>
     );
 }
 
