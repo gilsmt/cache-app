@@ -112,7 +112,7 @@ export function normalizeChromeBookmarkRecord(
         parentExternalId: bookmark.parentExternalId ?? null,
         postedAt:
             typeof bookmark.dateAdded === "number"
-                ? new Date(bookmark.dateAdded)
+                ? parseDate(new Date(bookmark.dateAdded))
                 : null,
         scrapedAt: parseDate(occurredAt) ?? new Date(),
         source: LibraryItemSource.chrome_bookmarks,

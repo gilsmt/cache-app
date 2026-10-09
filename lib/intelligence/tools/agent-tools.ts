@@ -139,7 +139,7 @@ export function createAutomationAgentTools(args: { runId: string }) {
                     }
                     sources.push({
                         id: item.id,
-                        title: item.caption?.trim() ? item.caption : item.url,
+                        title: item.caption?.trim() || item.url,
                         type: "library_item",
                         url: item.url,
                     });
