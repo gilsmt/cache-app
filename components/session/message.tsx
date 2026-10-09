@@ -12,7 +12,7 @@ import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { CollapsibleListHorizontal } from "@/components/ui/collapsible-list";
 import { dayjs } from "@/lib/common/dayjs";
 import { uses24HourClock } from "@/lib/common/time";
-import { normalizeURL } from "@/lib/common/url";
+import { isHttpUrl, normalizeURL } from "@/lib/common/url";
 import { getMessageCreatedAt, getMessageText } from "@/lib/threads/messages";
 import type { ThreadSource } from "@/lib/threads/sources";
 
@@ -40,12 +40,13 @@ export function ThreadMessage({ message, sources }: ThreadMessageProps) {
         );
     }
 
-    if (text.length === 0 && (!sources || sources.length === 0)) {
+    const displaySources = sources?.filter((source) => isHttpUrl(source.url));
+    if (text.length === 0 && (!displaySources || displaySources.length === 0)) {
         return null;
     }
 
     const hasText = text.length > 0;
-    const hasSources = !!sources && sources.length > 0;
+    const hasSources = !!displaySources && displaySources.length > 0;
 
     return (
         <div className="group min-w-0">
@@ -56,7 +57,7 @@ export function ThreadMessage({ message, sources }: ThreadMessageProps) {
                 <AssistantMessageActions>
                     {hasSources ? (
                         <ThreadMessageSources>
-                            {sources?.map((source) => {
+                            {displaySources?.map((source) => {
                                 const key =
                                     source.type === "library_item"
                                         ? source.id
@@ -111,17 +112,18 @@ function ThreadMessageTimestamp({
     children: createdAt,
 }: ThreadMessageTimestampProps) {
     const created = dayjs(createdAt);
+    const shouldUse24HourClock = uses24HourClock();
+    const label = created.isToday()
+        ? created.format(shouldUse24HourClock ? "HH:mm" : "h:mm A")
+        : created.format(shouldUse24HourClock ? "dddd HH:mm" : "dddd h:mm A");
 
     return (
         <time
-            className="text-muted-foreground/50 text-xs opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
+            className="text-muted-foreground/50 text-xs"
             dateTime={createdAt.toISOString()}
             title={created.format("MMM DD, YYYY, h:mm A")}
         >
-            {uses24HourClock()
-                ? created.format("dddd HH:mm")
-                : created.format("dddd h:mm A")}
-            , {created.fromNow()}
+            {label}, {created.fromNow()}
         </time>
     );
 }
@@ -143,7 +145,11 @@ interface ThreadMessageSourceProps {
 }
 
 function ThreadMessageSource({ children: source }: ThreadMessageSourceProps) {
-    const label = source.title ?? source.url;
+    if (!isHttpUrl(source.url)) {
+        return null;
+    }
+
+    const label = source.title?.trim() ? source.title : source.url;
 
     return (
         <Badge

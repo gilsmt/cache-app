@@ -2,7 +2,7 @@ import { tool } from "ai";
 import * as z from "zod";
 import { LIBRARY_ITEM_COLLECTIONS_INCLUDE } from "@/lib/collections/utils";
 import { ITEM_KIND_FOLDER, SORT_DESC } from "@/lib/common/constants";
-import { parseDisplayUrl } from "@/lib/common/url";
+import { isHttpUrl, parseDisplayUrl } from "@/lib/common/url";
 import type { Prisma } from "@/prisma/client/client";
 import {
     AutomationPayloadItemsInputSchema,
@@ -105,7 +105,11 @@ export function createAutomationAgentTools(args: { runId: string }) {
             execute: async (input, { abortSignal }) => {
                 const { githubRepo } = await import("./github-repo");
                 const result = await githubRepo({ ...input, abortSignal });
-                if (result.ok && typeof result.url === "string") {
+                if (
+                    result.ok &&
+                    typeof result.url === "string" &&
+                    isHttpUrl(result.url)
+                ) {
                     sources.push({
                         title: result.repo,
                         type: "web",
@@ -130,9 +134,12 @@ export function createAutomationAgentTools(args: { runId: string }) {
                     search: input.search,
                 });
                 for (const item of result.items) {
+                    if (!isHttpUrl(item.url)) {
+                        continue;
+                    }
                     sources.push({
                         id: item.id,
-                        title: item.caption ?? item.url,
+                        title: item.caption?.trim() ? item.caption : item.url,
                         type: "library_item",
                         url: item.url,
                     });
@@ -151,7 +158,7 @@ export function createAutomationAgentTools(args: { runId: string }) {
                 const result = await automationWebFetch({
                     url: input.url,
                 });
-                if (typeof result.url === "string") {
+                if (typeof result.url === "string" && isHttpUrl(result.url)) {
                     sources.push({
                         type: "web",
                         url: result.url,
@@ -168,6 +175,9 @@ export function createAutomationAgentTools(args: { runId: string }) {
                 const { webSearch } = await import("./web-search");
                 const result = await webSearch({ ...input, abortSignal });
                 for (const webResult of result.results) {
+                    if (!isHttpUrl(webResult.url)) {
+                        continue;
+                    }
                     sources.push({
                         title: webResult.title,
                         type: "web",
