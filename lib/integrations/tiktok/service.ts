@@ -4,7 +4,7 @@ import * as z from "zod";
 import {
     extensionSavedItemBaseSchema,
     importExtensionSavedItems,
-} from "@/lib/integrations/extension-ingest/service";
+} from "@/lib/extension/ingest/service";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
 export const tiktokSavedItemSchema = extensionSavedItemBaseSchema

@@ -1,14 +1,14 @@
 import * as z from "zod";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { extensionClipBodySchema } from "@/lib/integrations/extension-clip/schema";
+import { extensionClipBodySchema } from "@/lib/extension/clip/schema";
 import {
     clipPageFromExtension,
     ExtensionClipError,
-} from "@/lib/integrations/extension-clip/service";
+} from "@/lib/extension/clip/service";
 import {
     authenticateExtensionIngest,
     extensionIngestCorsHeaders,
-} from "@/lib/integrations/extension-ingest/route";
+} from "@/lib/extension/ingest/route";
 import { scheduleSmartCollections } from "@/lib/intelligence/collections/schedule";
 
 const log = createLogger("api:integrations:extension:clip");

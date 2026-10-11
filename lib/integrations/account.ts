@@ -158,11 +158,13 @@ export async function resolveProviderAccountAccess(args: {
         );
     }
 
-    for await (const access of eachProviderAccountAccess({
+    const access = await attemptProviderAccounts({
+        attempt: async (candidate) => candidate,
         providerId: args.providerId,
         requiredScope: args.requiredScope,
         userId: args.userId,
-    })) {
+    });
+    if (access !== null) {
         return access;
     }
 
@@ -175,15 +177,17 @@ export async function resolveProviderAccountAccess(args: {
 }
 
 /**
- * Yields successfully resolved access tokens for each linked account,
- * preferring accounts that grant {@link args.requiredScope}. Soft token
- * failures skip to the next account; hard auth/config errors rethrow.
+ * Tries linked accounts in scope-preference order and returns the first
+ * non-null result from the callback. Each token is resolved immediately
+ * before the callback runs, so callers can stop without resolving later
+ * accounts.
  */
-export async function* eachProviderAccountAccess(args: {
+export async function attemptProviderAccounts<TResult>(args: {
+    attempt: (access: ResolvedProviderAccess) => Promise<TResult | null>;
     providerId: string;
     requiredScope?: string;
     userId: string;
-}): AsyncGenerator<ResolvedProviderAccess> {
+}): Promise<TResult | null> {
     const accounts = await prisma.account.findMany({
         orderBy: { id: "asc" },
         select: { id: true, scope: true },
@@ -210,10 +214,17 @@ export async function* eachProviderAccountAccess(args: {
             args.providerId,
             "Skipping account with unusable access token"
         );
-        if (access) {
-            yield access;
+        if (!access) {
+            continue;
+        }
+
+        const result = await args.attempt(access);
+        if (result !== null) {
+            return result;
         }
     }
+
+    return null;
 }
 
 export async function resolveProviderAccountAccessToken(args: {

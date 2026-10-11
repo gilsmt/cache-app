@@ -6,15 +6,12 @@ import {
 } from "@/lib/collections/utils";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { IntegrationUserError } from "@/lib/integrations/error";
-import {
-    convertNoteHtmlToMarkdown,
-    extractNoteText,
-} from "@/lib/integrations/notes/utils";
 import { createNotionMarkdownPage } from "@/lib/integrations/notion/api";
 import {
     buildNotionCollectionMarkdown,
     buildNotionNoteMarkdown,
 } from "@/lib/integrations/notion/markdown";
+import { convertNoteHtmlToMarkdown, extractNoteText } from "@/lib/notes/utils";
 import { prisma } from "@/prisma";
 
 const log = createLogger("integrations:notion");

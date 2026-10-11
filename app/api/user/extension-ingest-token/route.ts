@@ -1,9 +1,9 @@
 import { requireRouteUserId } from "@/lib/auth/session";
-import { extensionTokenCorsHeaders } from "@/lib/integrations/extension-ingest/route";
+import { extensionTokenCorsHeaders } from "@/lib/extension/ingest/route";
 import {
     getOrCreateExtensionIngestToken,
     rotateExtensionIngestToken,
-} from "@/lib/integrations/extension-ingest/service";
+} from "@/lib/extension/ingest/service";
 
 export function OPTIONS(request: Request) {
     return new Response(null, {

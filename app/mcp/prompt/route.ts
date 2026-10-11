@@ -1,9 +1,6 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth/server";
-import {
-    generateMcpSetupPrompt,
-    rotateMcpTokens,
-} from "@/lib/integrations/mcp/service";
+import { generateMcpSetupPrompt, rotateMcpTokens } from "@/lib/mcp/service";
 
 /**
  * Mint and revoke surface for MCP bearer tokens.

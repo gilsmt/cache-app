@@ -4,12 +4,14 @@ import { after } from "next/server";
 import * as z from "zod";
 import { getSessionUserId } from "@/lib/auth/session";
 import type { LibraryItemWithCollections } from "@/lib/collections/utils";
-import { ITEM_KIND_BOOKMARK } from "@/lib/common/constants";
+import {
+    DEFAULT_BROWSER_PROFILE_ID,
+    ITEM_KIND_BOOKMARK,
+} from "@/lib/common/constants";
 import { extractNamedErrorMessage } from "@/lib/common/error";
 import { fetchLinkPreview } from "@/lib/common/link-preview";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { parseStandaloneUrl } from "@/lib/common/url";
-import { DEFAULT_BROWSER_PROFILE_ID } from "@/lib/integrations/browser-profiles";
 import {
     applyChromeBookmarkSyncEvents,
     getChromeBookmarkItemForUserByExternalId,

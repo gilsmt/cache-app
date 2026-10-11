@@ -1,9 +1,9 @@
 import "server-only";
 
 import * as z from "zod";
+import { DEFAULT_BROWSER_PROFILE_ID } from "@/lib/common/constants";
 import { parseDate } from "@/lib/common/date";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { DEFAULT_BROWSER_PROFILE_ID } from "@/lib/integrations/browser-profiles";
 import { importLibraryItemSnapshot } from "@/lib/integrations/import";
 import { LibraryItemSource } from "@/prisma/client/enums";
 

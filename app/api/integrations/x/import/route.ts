@@ -1,5 +1,5 @@
 import type { IntegrationApiError } from "@/lib/integrations/error";
-import { runOAuthImport } from "@/lib/integrations/oauth-import/route";
+import { runOAuthImport } from "@/lib/integrations/oauth";
 import { importXBookmarks } from "@/lib/integrations/x/service";
 
 function messageForXApiError(error: IntegrationApiError): string {

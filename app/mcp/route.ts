@@ -19,7 +19,7 @@ import {
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { isTrustedCacheWebOrigin } from "@/lib/common/security/origins";
 import { IntegrationApiError } from "@/lib/integrations/error";
-import { MCP_SCOPES, type McpScope } from "@/lib/integrations/mcp/auth";
+import { MCP_SCOPES, type McpScope } from "@/lib/mcp/auth";
 import {
     McpAddLibraryItemInputSchema,
     McpCollectionListOutputSchema,
@@ -29,17 +29,17 @@ import {
     McpLibraryItemListInputSchema,
     McpLibraryItemListOutputSchema,
     McpLibraryItemSchema,
-} from "@/lib/integrations/mcp/protocol";
+} from "@/lib/mcp/protocol";
 import {
     incrementMcpRateCounter,
     isOverLimit,
     MCP_RATE_BUCKETS,
-} from "@/lib/integrations/mcp/rate-limit";
+} from "@/lib/mcp/rate-limit";
 import {
     addLibraryItem,
     toMcpLibraryItem,
     verifyMcpAuthToken,
-} from "@/lib/integrations/mcp/service";
+} from "@/lib/mcp/service";
 
 const log = createLogger("mcp.route");
 

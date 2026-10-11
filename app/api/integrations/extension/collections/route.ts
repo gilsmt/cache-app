@@ -1,15 +1,15 @@
 import * as z from "zod";
 import { LibraryCollectionError } from "@/lib/collections/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { extensionCreateCollectionBodySchema } from "@/lib/integrations/extension-clip/schema";
+import { extensionCreateCollectionBodySchema } from "@/lib/extension/clip/schema";
 import {
     createExtensionCollection,
     listExtensionCollections,
-} from "@/lib/integrations/extension-clip/service";
+} from "@/lib/extension/clip/service";
 import {
     authenticateExtensionIngest,
     extensionIngestCorsHeaders,
-} from "@/lib/integrations/extension-ingest/route";
+} from "@/lib/extension/ingest/route";
 
 const log = createLogger("api:integrations:extension:collections");
 

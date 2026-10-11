@@ -1,6 +1,6 @@
 import { requireRouteUserId } from "@/lib/auth/session";
 import {
-    eachProviderAccountAccess,
+    attemptProviderAccounts,
     resolveProviderAccountAccessToken,
 } from "@/lib/integrations/account";
 import { IntegrationApiError } from "@/lib/integrations/error";
@@ -42,29 +42,36 @@ export async function POST() {
 
     let lastPhotosAuthError: IntegrationApiError | null = null;
 
-    for await (const access of eachProviderAccountAccess({
+    const response = await attemptProviderAccounts({
+        attempt: async (access) => {
+            try {
+                const pickerSession = await createPickerSession(
+                    access.accessToken
+                );
+                return Response.json(
+                    mapPickerSessionToViewModel(pickerSession, access.accountId)
+                );
+            } catch (error) {
+                if (isPhotosAuthFailure(error)) {
+                    lastPhotosAuthError = error;
+                    return null;
+                }
+                if (
+                    IntegrationApiError.isInstance(error) &&
+                    error.data.integrationId === "google-photos"
+                ) {
+                    return photosAuthErrorResponse(error);
+                }
+                throw error;
+            }
+        },
         providerId: "google",
         requiredScope: GOOGLE_PHOTOS_PICKER_SCOPE,
         userId,
-    })) {
-        try {
-            const pickerSession = await createPickerSession(access.accessToken);
-            return Response.json(
-                mapPickerSessionToViewModel(pickerSession, access.accountId)
-            );
-        } catch (error) {
-            if (isPhotosAuthFailure(error)) {
-                lastPhotosAuthError = error;
-                continue;
-            }
-            if (
-                IntegrationApiError.isInstance(error) &&
-                error.data.integrationId === "google-photos"
-            ) {
-                return photosAuthErrorResponse(error);
-            }
-            throw error;
-        }
+    });
+
+    if (response !== null) {
+        return response;
     }
 
     if (lastPhotosAuthError) {

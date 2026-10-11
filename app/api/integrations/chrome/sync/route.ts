@@ -3,14 +3,14 @@ import * as z from "zod";
 import { requireRouteUserId } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
+    authenticateExtensionIngest,
+    extensionIngestCorsHeaders,
+} from "@/lib/extension/ingest/route";
+import {
     applyChromeBookmarkSyncEvents,
     chromeBookmarkSyncBodySchema,
     purgeChromeBookmarksForUser,
 } from "@/lib/integrations/chrome/service";
-import {
-    authenticateExtensionIngest,
-    extensionIngestCorsHeaders,
-} from "@/lib/integrations/extension-ingest/route";
 import { autoTagLibraryItemsByIds } from "@/lib/intelligence/collections/engine";
 
 const log = createLogger("api:sync:chrome-bookmarks");

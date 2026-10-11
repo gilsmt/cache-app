@@ -1,6 +1,6 @@
 import type { IntegrationApiError } from "@/lib/integrations/error";
 import { importGitHubStarredRepositories } from "@/lib/integrations/github/service";
-import { runOAuthImport } from "@/lib/integrations/oauth-import/route";
+import { runOAuthImport } from "@/lib/integrations/oauth";
 
 function messageForGitHubApiError(error: IntegrationApiError): string {
     if (error.data.status === 401) {

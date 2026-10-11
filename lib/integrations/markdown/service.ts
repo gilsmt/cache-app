@@ -19,7 +19,7 @@ import { IntegrationUserError } from "@/lib/integrations/error";
 import {
     type NormalizedNotePayload,
     normalizeNotePayload,
-} from "@/lib/integrations/notes/service";
+} from "@/lib/notes/service";
 import { prisma } from "@/prisma";
 import { Prisma } from "@/prisma/client/client";
 import { LibraryItemSource } from "@/prisma/client/enums";
