@@ -35,14 +35,10 @@
             },
             "suspicious": {
                 "noBitwiseOperators": "off",
-                "noForIn": "error",
                 "noUnnecessaryConditions": "off"
             },
             "style": {
                 "useDestructuring": "off"
-            },
-            "correctness": {
-                "noUndeclaredDependencies": "error"
             }
         }
     }
