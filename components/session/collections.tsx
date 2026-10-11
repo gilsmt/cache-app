@@ -386,7 +386,7 @@ const TEMPLATE_COMBOBOX_ITEMS = BaseUICombobox.createItems(TEMPLATES, {
 const VIEW_OPTIONS = [
     { icon: LayoutList, label: "Show all", value: "show-all" },
     { icon: ArchiveX, label: "Exclude archives", value: "exclude-archives" },
-    { icon: GlobeCheck, label: "Show shared only", value: "show-shared-only" },
+    { icon: GlobeCheck, label: "Shared only", value: "show-shared-only" },
 ] as const;
 
 const LIST_FORMATTER = new Intl.ListFormat(undefined, {
@@ -430,6 +430,11 @@ interface CollectionItemStyle extends React.CSSProperties {
 }
 
 type CollectionListSource = "favorites" | "collections";
+
+interface HoveredCollectionTarget {
+    collectionId: string;
+    source: CollectionListSource;
+}
 
 interface PriorityComboboxOpenTarget {
     collectionId: string;
@@ -539,8 +544,7 @@ interface CollectionsRootPendingActionsContext {
 }
 
 interface CollectionsListHoverContext {
-    hoveredCollectionIdRef: React.RefObject<string | null>;
-    setHoveredCollectionSource: (source: CollectionListSource | null) => void;
+    hoveredCollectionTargetRef: React.RefObject<HoveredCollectionTarget | null>;
 }
 
 interface CollectionsListItemContext {
@@ -1241,8 +1245,7 @@ function useCollectionPanelHotkeys() {
 }
 
 interface UseCollectionHoverHotkeysProps {
-    hoveredCollectionIdRef: React.RefObject<string | null>;
-    hoveredCollectionSourceRef: React.RefObject<CollectionListSource | null>;
+    hoveredCollectionTargetRef: React.RefObject<HoveredCollectionTarget | null>;
     onCopyLinks: (collection: LibraryCollectionSummary) => Promise<void>;
     onDelete: (collection: LibraryCollectionSummary) => void;
     onRename: (collection: LibraryCollectionSummary) => void;
@@ -1256,8 +1259,7 @@ interface UseCollectionHoverHotkeysProps {
 }
 
 function useCollectionHoverHotkeys({
-    hoveredCollectionIdRef,
-    hoveredCollectionSourceRef,
+    hoveredCollectionTargetRef,
     onCopyLinks,
     onDelete,
     onRename,
@@ -1272,9 +1274,14 @@ function useCollectionHoverHotkeys({
         if (!hoverHotkeySurface.isOwnedBy(HOVER_HOTKEY_REGIONS.collections)) {
             return null;
         }
+        const hoveredCollectionId =
+            hoveredCollectionTargetRef.current?.collectionId;
+        if (!hoveredCollectionId) {
+            return null;
+        }
         return (
             collections.find(
-                (collection) => collection.id === hoveredCollectionIdRef.current
+                (collection) => collection.id === hoveredCollectionId
             ) ?? null
         );
     });
@@ -1323,16 +1330,19 @@ function useCollectionHoverHotkeys({
     });
 
     const handleSetPriority = useStableCallback((event: KeyboardEvent) => {
-        const target = resolveHoveredCollection();
-        if (!target) {
+        const hoveredTarget = hoveredCollectionTargetRef.current;
+        if (!hoveredTarget) {
             return;
         }
-        const source = hoveredCollectionSourceRef.current;
-        if (!source) {
+        const target = resolveHoveredCollection();
+        if (!target || target.id !== hoveredTarget.collectionId) {
             return;
         }
         event.preventDefault();
-        onSetPriorityComboboxOpen({ collectionId: target.id, source });
+        onSetPriorityComboboxOpen({
+            collectionId: target.id,
+            source: hoveredTarget.source,
+        });
     });
 
     useHotkeys("alt+e", handleRename, {
@@ -1379,7 +1389,6 @@ function useCollectionPreviewPlayback({
         Record<string, number>
     >({});
     const [activeSrc, setActiveSrc] = React.useState<string | null>(null);
-    const [prevShouldLoad, setPrevShouldLoad] = React.useState(shouldLoad);
 
     const readySlides = thumbnails.flatMap((url) => {
         const aspectRatio = aspectsBySrc[url] ?? peekImageAspect(url);
@@ -1387,13 +1396,13 @@ function useCollectionPreviewPlayback({
     });
     const readySlidesRef = useValueAsRef(readySlides);
 
-    if (!Object.is(prevShouldLoad, shouldLoad)) {
-        setPrevShouldLoad(shouldLoad);
-        // Reset playback so the next hover starts from the first slide.
+    // Reset playback so the next hover starts from the first slide. Runs
+    // before paint so reopening never flashes a stale slide
+    useIsoLayoutEffect(() => {
         if (!shouldLoad) {
             setActiveSrc(null);
         }
-    }
+    }, [shouldLoad]);
 
     React.useEffect(() => {
         if (!shouldLoad) {
@@ -2158,11 +2167,9 @@ function getSharedCollections(
     if (!firstItem) {
         return [];
     }
-
     const sharedCollections = new Map(
         firstItem.collections.map((collection) => [collection.id, collection])
     );
-
     for (const item of remainingItems) {
         const itemCollectionIds = new Set(
             item.collections.map((collection) => collection.id)
@@ -2173,7 +2180,6 @@ function getSharedCollections(
             }
         }
     }
-
     return [...sharedCollections.values()];
 }
 
@@ -2201,7 +2207,7 @@ export function Collections() {
                         </Kbd>
                     </ToolbarGroup>
                 </Toolbar>
-                <CollapsiblePanel>
+                <CollectionsListFavoritesPanel>
                     <CollectionsListFavoritesItemsContent>
                         {(item) => (
                             <CollectionsListFavoritesItem
@@ -2227,7 +2233,7 @@ export function Collections() {
                             </CollectionsListItem>
                         )}
                     </CollectionsListFavoritesContent>
-                </CollapsiblePanel>
+                </CollectionsListFavoritesPanel>
             </CollectionsListFavorites>
             <CollectionsList
                 className="group/collapsible"
@@ -2244,11 +2250,11 @@ export function Collections() {
                         </Kbd>
                         <ToolbarButton
                             className="pointer-events-auto"
-                            render={<CollectionsListClearButton />}
+                            render={<CollectionsListClear />}
                         />
                         <ToolbarButton
                             className="pointer-events-auto"
-                            render={<CollectionsListSortingCombobox />}
+                            render={<CollectionsListCombobox />}
                         />
                         <ToolbarButton
                             className="pointer-events-auto"
@@ -2256,7 +2262,7 @@ export function Collections() {
                         />
                     </ToolbarGroup>
                 </Toolbar>
-                <CollapsiblePanel>
+                <CollectionsListPanel>
                     <div className="flex p-1.5 pt-0.5 pl-2.5">
                         <CollectionsListSmartCollectionsPopover />
                     </div>
@@ -2288,7 +2294,7 @@ export function Collections() {
                             />
                         )}
                     </CollectionsListSuggestions>
-                </CollapsiblePanel>
+                </CollectionsListPanel>
             </CollectionsList>
             <CollectionsListStatus />
             <CollectionsRenameDialog />
@@ -2296,6 +2302,18 @@ export function Collections() {
             <CollectionsDeleteDialog />
         </CollectionsListProvider>
     );
+}
+
+function CollectionsListFavoritesPanel(
+    props: React.ComponentProps<typeof CollapsiblePanel>
+) {
+    return <CollapsiblePanel {...props} />;
+}
+
+function CollectionsListPanel(
+    props: React.ComponentProps<typeof CollapsiblePanel>
+) {
+    return <CollapsiblePanel {...props} />;
 }
 
 interface CollectionsProviderProps extends React.PropsWithChildren {
@@ -2429,14 +2447,12 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
     const dialogs = useCollectionDialogRequests();
     const rowActions = useCollectionRowActions();
 
-    const hoveredCollectionIdRef = React.useRef<string | null>(null);
-    const hoveredCollectionSourceRef =
-        React.useRef<CollectionListSource | null>(null);
+    const hoveredCollectionTargetRef =
+        React.useRef<HoveredCollectionTarget | null>(null);
     const hoverHotkeySurface = useHoverHotkeySurface();
 
     useCollectionHoverHotkeys({
-        hoveredCollectionIdRef,
-        hoveredCollectionSourceRef,
+        hoveredCollectionTargetRef,
         onCopyLinks: rowActions.onCopyLinks,
         onDelete: dialogs.requestDelete,
         onRename: dialogs.requestRename,
@@ -2448,8 +2464,8 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
 
     const syncDeleted = useStableCallback((collectionId: string) => {
         syncCollectionDeleted(collectionId);
-        if (hoveredCollectionIdRef.current === collectionId) {
-            hoveredCollectionIdRef.current = null;
+        if (hoveredCollectionTargetRef.current?.collectionId === collectionId) {
+            hoveredCollectionTargetRef.current = null;
             hoverHotkeySurface.clear();
         }
         setFavoriteCollectionIds((current) =>
@@ -2457,18 +2473,11 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
         );
     });
 
-    const setHoveredCollectionSource = useStableCallback(
-        (source: CollectionListSource | null) => {
-            hoveredCollectionSourceRef.current = source;
-        }
-    );
-
     React.useEffect(() => {
         const win = getOwnerWindow();
         const doc = getOwnerDocument();
         const clearStaleCollectionHover = () => {
-            hoveredCollectionIdRef.current = null;
-            hoveredCollectionSourceRef.current = null;
+            hoveredCollectionTargetRef.current = null;
             hoverHotkeySurface.clear();
         };
         const handleVisibilityChange = () => {
@@ -2485,8 +2494,7 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
     }, [hoverHotkeySurface]);
 
     const hoverContextValue: CollectionsListHoverContext = {
-        hoveredCollectionIdRef,
-        setHoveredCollectionSource,
+        hoveredCollectionTargetRef,
     };
 
     const stateContextValue: CollectionsListStateContext = {
@@ -2848,8 +2856,7 @@ function CollectionsListFavoritesItem({
             <div className="pointer-events-none absolute top-1/2 left-1.25 z-10 size-6 -translate-y-1/2 overflow-hidden rounded-md">
                 {isNote ? null : (
                     <>
-                        <CollectionsListFavoritesItemImage
-                            alt=""
+                        <CollectionsListFavoritesItemPreview
                             className="size-full object-cover"
                             src={previewImageUrl ?? undefined}
                         />
@@ -2886,7 +2893,7 @@ function CollectionsListFavoritesItem({
                             </p>
                         </div>
                     ) : (
-                        <CollectionsListFavoritesItemImage
+                        <CollectionsListFavoritesItemPreview
                             alt=""
                             className="aspect-auto h-auto w-full"
                             src={previewImageUrl ?? undefined}
@@ -2916,8 +2923,8 @@ function CollectionsListFavoritesItem({
     );
 }
 
-function CollectionsListFavoritesItemImage({
-    alt,
+function CollectionsListFavoritesItemPreview({
+    alt = "",
     className,
     src,
     ...props
@@ -2960,6 +2967,7 @@ function CollectionsListEmpty({
     const hasActiveFilters = view !== "show-all" || textMatchQuery.length > 0;
 
     const handleRequestCreate = useStableCallback(() => openCreateDialog());
+
     const handleClearFilters = useStableCallback(() => {
         setView("show-all");
         setTextMatchQuery("");
@@ -3069,7 +3077,7 @@ function CollectionsListStatus({
     );
 }
 
-function CollectionsListClearButton({
+function CollectionsListClear({
     onClick: onClickProp,
     ...props
 }: React.ComponentProps<typeof Button>) {
@@ -3108,7 +3116,7 @@ function CollectionsListClearButton({
     );
 }
 
-function CollectionsListSortingCombobox({
+function CollectionsListCombobox({
     render,
     ...props
 }: React.ComponentProps<typeof ComboboxTrigger>) {
@@ -3251,10 +3259,11 @@ function CollectionsListSortingCombobox({
                                             shouldShowIndicatorLast
                                             value={option}
                                         >
-                                            <CollectionsComboboxOptionItem
+                                            <CollectionsComboboxItem
                                                 icon={option.icon}
-                                                label={option.label}
-                                            />
+                                            >
+                                                {option.label}
+                                            </CollectionsComboboxItem>
                                         </ComboboxItem>
                                     )}
                                 </ComboboxCollection>
@@ -3269,13 +3278,13 @@ function CollectionsListSortingCombobox({
 }
 
 interface CollectionsComboboxOptionItemProps {
+    children: React.ReactNode;
     icon: React.ElementType;
-    label: string;
 }
 
-function CollectionsComboboxOptionItem({
+function CollectionsComboboxItem({
     icon: Icon,
-    label,
+    children,
 }: CollectionsComboboxOptionItemProps) {
     return (
         <span className="flex min-w-0 items-center gap-2 text-foreground text-sm">
@@ -3284,7 +3293,7 @@ function CollectionsComboboxOptionItem({
                 className="size-4 text-muted-foreground"
                 focusable="false"
             />
-            <span className="truncate">{label}</span>
+            <span className="min-w-0 truncate">{children}</span>
         </span>
     );
 }
@@ -3598,8 +3607,7 @@ function CollectionsListItem({
     ...props
 }: CollectionsListItemProps) {
     const { selectedCollectionIdSet } = useCollectionsContext();
-    const { hoveredCollectionIdRef, setHoveredCollectionSource } =
-        useCollectionsListHoverContext();
+    const { hoveredCollectionTargetRef } = useCollectionsListHoverContext();
     const { claim: claimHoverHotkey, release: releaseHoverHotkeyClaim } =
         useHoverHotkeyRegionClaim(HOVER_HOTKEY_REGIONS.collections);
 
@@ -3611,16 +3619,21 @@ function CollectionsListItem({
 
     const releaseHoverClaim = useStableCallback(() => {
         releaseHoverHotkeyClaim();
-        if (hoveredCollectionIdRef.current === collection.id) {
-            hoveredCollectionIdRef.current = null;
-            setHoveredCollectionSource(null);
+        const hoveredTarget = hoveredCollectionTargetRef.current;
+        if (
+            hoveredTarget?.collectionId === collection.id &&
+            hoveredTarget.source === source
+        ) {
+            hoveredCollectionTargetRef.current = null;
         }
     });
 
     const onPointerEnter = useStableCallback(
         (event: React.PointerEvent<HTMLDivElement>) => {
-            hoveredCollectionIdRef.current = collection.id;
-            setHoveredCollectionSource(source);
+            hoveredCollectionTargetRef.current = {
+                collectionId: collection.id,
+                source,
+            };
             claimHoverHotkey();
             handlePointerEnterProp?.(event);
         }
@@ -3721,7 +3734,7 @@ function CollectionsListItemTrigger({
                 side="right"
             >
                 {activeSlide ? (
-                    <CollectionsListItemPreviewImage
+                    <CollectionsListItemPreview
                         activeSlide={activeSlide}
                         name={collection.name}
                         onSlideError={reportSlideError}
@@ -3732,17 +3745,17 @@ function CollectionsListItemTrigger({
     );
 }
 
-interface CollectionsListItemPreviewImageProps {
+interface CollectionsListItemPreviewProps {
     activeSlide: ReadyPreviewSlide;
     name: string;
     onSlideError: (src: string) => void;
 }
 
-function CollectionsListItemPreviewImage({
+function CollectionsListItemPreview({
     activeSlide,
     name,
     onSlideError,
-}: CollectionsListItemPreviewImageProps) {
+}: CollectionsListItemPreviewProps) {
     const handleError = useStableCallback(() => {
         onSlideError(activeSlide.src);
     });
@@ -3883,10 +3896,11 @@ function CollectionsListItemPriorityCombobox() {
                                 shouldShowIndicatorLast
                                 value={priorityOption.value}
                             >
-                                <CollectionsComboboxOptionItem
+                                <CollectionsComboboxItem
                                     icon={priorityOption.icon}
-                                    label={priorityOption.label}
-                                />
+                                >
+                                    {priorityOption.label}
+                                </CollectionsComboboxItem>
                             </ComboboxItem>
                         )}
                     </ComboboxCollection>
@@ -4079,11 +4093,13 @@ function CollectionsListItemShareSubmenu() {
     const { showError, showSuccess } = useCollectionStatus();
     const copyWithFeedback = useCopyWithFeedback();
     const { copyToClipboard } = useCopyToClipboard();
-    const { isPending, runCollectionAction } = useCollectionActionRunner();
+    const { runCollectionAction } = useCollectionActionRunner();
 
     const isShared = !!collection.shareId;
-    const isShareActionPending =
-        isPending || isCollectionActionPending("share", collection.id);
+    const isShareActionPending = isCollectionActionPending(
+        "share",
+        collection.id
+    );
 
     const handleCopyShareLink = useStableCallback(async () => {
         if (!collection.shareId) {
@@ -4215,11 +4231,10 @@ function CollectionsListItemExportSubmenu() {
     const { collection } = useCollectionsListItemContext();
     const { isCollectionActionPending } = useCollectionsPendingActionsContext();
     const { showError, showSuccess } = useCollectionStatus();
-    const { isPending, runCollectionAction } = useCollectionActionRunner();
+    const { runCollectionAction } = useCollectionActionRunner();
 
     const hasItems = collection.itemCount > 0;
-    const isNotionPending =
-        isPending || isCollectionActionPending("notion", collection.id);
+    const isNotionPending = isCollectionActionPending("notion", collection.id);
 
     const handleCopyLinks = useStableCallback(() => onCopyLinks(collection));
     const handleCopyTitle = useStableCallback(() => onCopyTitle(collection));
@@ -4458,115 +4473,119 @@ export function ItemCollectionsCombobox({
                 <ComboboxEmpty>No matching collections</ComboboxEmpty>
                 <ComboboxList>
                     <ComboboxCollection>
-                        {(collection) => {
-                            const isSharedPublicly =
-                                collection.shareId !== null &&
-                                collection.sharedAt !== null;
-                            const collectionItemStyle = getCollectionItemStyle(
-                                collection.name,
-                                false
-                            );
-
-                            return (
-                                <PreviewCard key={collection.id}>
-                                    <PreviewCardTrigger
-                                        render={
-                                            <ComboboxItem
-                                                className="group/item"
-                                                value={collection.id}
-                                            />
-                                        }
-                                    >
-                                        <div className="flex min-w-0 max-w-56 items-center gap-3">
-                                            <span
-                                                aria-hidden
-                                                className="size-2 shrink-0 rounded-full bg-(--accent-color)"
-                                                style={collectionItemStyle}
-                                            />
-                                            <span className="min-w-0 max-w-full flex-1 truncate text-foreground text-sm">
-                                                {collection.name}
-                                            </span>
-                                            <div className="relative flex w-fit items-center justify-end pl-4">
-                                                <span className="shrink-0 text-nowrap text-muted-foreground text-xs tabular-nums group-data-highlighted/item:opacity-0">
-                                                    {collection.itemCount}
-                                                </span>
-                                                <span className="absolute right-0 shrink-0 text-nowrap text-muted-foreground text-xs opacity-0 group-data-highlighted/item:opacity-100">
-                                                    Save
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </PreviewCardTrigger>
-                                    <PreviewCardPopup
-                                        align="start"
-                                        className="p-3"
-                                        positionMethod="fixed"
-                                        side="right"
-                                    >
-                                        <div className="flex min-w-0 flex-col gap-2">
-                                            <div className="flex min-w-0 items-center gap-2">
-                                                <span
-                                                    aria-hidden
-                                                    className="size-2 shrink-0 rounded-full bg-(--accent-color)"
-                                                    style={collectionItemStyle}
-                                                />
-                                                <p className="min-w-0 truncate font-medium text-xs leading-tight">
-                                                    {collection.name}
-                                                </p>
-                                            </div>
-                                            {collection.description ? (
-                                                <p className="line-clamp-4 text-muted-foreground text-xs leading-snug">
-                                                    {collection.description}
-                                                </p>
-                                            ) : null}
-                                            <div className="flex items-center justify-between gap-3 border-t pt-2 text-muted-foreground text-xs">
-                                                <span className="flex min-w-0 items-center gap-1.5">
-                                                    <LibraryBig
-                                                        aria-hidden
-                                                        className="size-3.5 shrink-0"
-                                                        focusable="false"
-                                                    />
-                                                    <span className="tabular-nums">
-                                                        {COMPACT_NUMBER_FORMATTER.format(
-                                                            collection.itemCount
-                                                        )}{" "}
-                                                        {collection.itemCount ===
-                                                        1 ? (
-                                                            <T>item</T>
-                                                        ) : (
-                                                            <T>items</T>
-                                                        )}
-                                                    </span>
-                                                </span>
-                                                <span className="flex shrink-0 items-center gap-1.5">
-                                                    {isSharedPublicly ? (
-                                                        <Globe
-                                                            aria-hidden
-                                                            className="size-3.5"
-                                                            focusable="false"
-                                                        />
-                                                    ) : (
-                                                        <LockKeyhole
-                                                            aria-hidden
-                                                            className="size-3.5"
-                                                            focusable="false"
-                                                        />
-                                                    )}
-                                                    {isSharedPublicly ? (
-                                                        <T>Public</T>
-                                                    ) : (
-                                                        <T>Private</T>
-                                                    )}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </PreviewCardPopup>
-                                </PreviewCard>
-                            );
-                        }}
+                        {(collection: LibraryCollectionSummary) => (
+                            <ItemCollectionsComboboxItem
+                                collection={collection}
+                                key={collection.id}
+                            />
+                        )}
                     </ComboboxCollection>
                 </ComboboxList>
             </ComboboxPopup>
         </Combobox>
+    );
+}
+
+interface ItemCollectionsComboboxItemProps {
+    collection: LibraryCollectionSummary;
+}
+
+function ItemCollectionsComboboxItem({
+    collection,
+}: ItemCollectionsComboboxItemProps) {
+    const isSharedPublicly =
+        collection.shareId !== null && collection.sharedAt !== null;
+    const collectionItemStyle = getCollectionItemStyle(collection.name, false);
+
+    return (
+        <PreviewCard>
+            <PreviewCardTrigger
+                render={
+                    <ComboboxItem
+                        className="group/item"
+                        value={collection.id}
+                    />
+                }
+            >
+                <div className="flex min-w-0 max-w-56 items-center gap-3">
+                    <span
+                        aria-hidden
+                        className="size-2 shrink-0 rounded-full bg-(--accent-color)"
+                        style={collectionItemStyle}
+                    />
+                    <span className="min-w-0 max-w-full flex-1 truncate text-foreground text-sm">
+                        {collection.name}
+                    </span>
+                    <div className="relative flex w-fit items-center justify-end pl-4">
+                        <span className="shrink-0 text-nowrap text-muted-foreground text-xs tabular-nums group-data-highlighted/item:opacity-0">
+                            {collection.itemCount}
+                        </span>
+                        <span className="absolute right-0 shrink-0 text-nowrap text-muted-foreground text-xs opacity-0 group-data-highlighted/item:opacity-100">
+                            Save
+                        </span>
+                    </div>
+                </div>
+            </PreviewCardTrigger>
+            <PreviewCardPopup
+                align="start"
+                className="p-3"
+                positionMethod="fixed"
+                side="right"
+            >
+                <div className="flex min-w-0 flex-col gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <span
+                            aria-hidden
+                            className="size-2 shrink-0 rounded-full bg-(--accent-color)"
+                            style={collectionItemStyle}
+                        />
+                        <p className="min-w-0 truncate font-medium text-xs leading-tight">
+                            {collection.name}
+                        </p>
+                    </div>
+                    {collection.description ? (
+                        <p className="line-clamp-4 text-muted-foreground text-xs leading-snug">
+                            {collection.description}
+                        </p>
+                    ) : null}
+                    <div className="flex items-center justify-between gap-3 border-t pt-2 text-muted-foreground text-xs">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                            <LibraryBig
+                                aria-hidden
+                                className="size-3.5 shrink-0"
+                                focusable="false"
+                            />
+                            <span className="tabular-nums">
+                                {COMPACT_NUMBER_FORMATTER.format(
+                                    collection.itemCount
+                                )}{" "}
+                                {collection.itemCount === 1 ? (
+                                    <T>item</T>
+                                ) : (
+                                    <T>items</T>
+                                )}
+                            </span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1.5">
+                            {isSharedPublicly ? (
+                                <Globe
+                                    aria-hidden
+                                    className="size-3.5"
+                                    focusable="false"
+                                />
+                            ) : (
+                                <LockKeyhole
+                                    aria-hidden
+                                    className="size-3.5"
+                                    focusable="false"
+                                />
+                            )}
+                            {isSharedPublicly ? <T>Public</T> : <T>Private</T>}
+                        </span>
+                    </div>
+                </div>
+            </PreviewCardPopup>
+        </PreviewCard>
     );
 }
 
