@@ -8,7 +8,8 @@ const DISALLOWED_PATHS = [
     "/automations",
     "/recently-deleted",
     "/comments",
-    "/c",
+    "/c/",
+    "/c$",
 ];
 
 export default function robots(): MetadataRoute.Robots {
