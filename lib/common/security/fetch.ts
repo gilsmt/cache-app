@@ -183,8 +183,8 @@ function closePinnedAgent(agent: Agent): void {
         }
         return;
     }
-    close
-        .call(agent)
+    Promise.resolve()
+        .then(() => close.call(agent))
         .catch(() => destroy?.call(agent))
         .catch(() => undefined);
 }
