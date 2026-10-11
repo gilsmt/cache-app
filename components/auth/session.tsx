@@ -80,7 +80,7 @@ export function SessionLoadingOnly({ children }: React.PropsWithChildren) {
     return isPending ? children : null;
 }
 
-interface WithUserSessionOnlyProps {
+interface WithSessionOnlyProps {
     children: (user: Session["user"]) => React.ReactNode;
     fallback?: React.ReactNode;
 }
@@ -89,10 +89,10 @@ interface WithUserSessionOnlyProps {
  * Receives only `session.user` to decouple call sites from better-auth's full
  * payload. Use a server-side session read for personalized initial renders.
  */
-export function WithUserSessionOnly({
+export function WithSessionOnly({
     children,
     fallback = null,
-}: WithUserSessionOnlyProps) {
+}: WithSessionOnlyProps) {
     const { isPending, data: session } = useSession();
 
     if (isPending) {

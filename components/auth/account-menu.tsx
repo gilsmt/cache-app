@@ -15,9 +15,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { DeleteAccountDialogTrigger } from "@/components/auth/delete-account-dialog-trigger";
-import { LogOutDialogTrigger } from "@/components/auth/logout-dialog-trigger";
-import { WithUserSessionOnly } from "@/components/auth/session";
+import { DeleteAccountDialogTrigger } from "@/components/auth/delete-account-dialog";
+import { LogOutDialogTrigger } from "@/components/auth/logout-dialog";
+import { WithSessionOnly } from "@/components/auth/session";
 import {
     CloudHostOnly,
     SubscribedOnly,
@@ -73,9 +73,9 @@ import {
 
 type AccountMenuError = "add" | "load" | "switch";
 
-const log = createLogger("auth-user-menu");
+const log = createLogger("auth-account-menu");
 
-function useUserMenuAccounts() {
+function useAccountSwitcher() {
     const router = useRouter();
     const { data: activeSession, refetch } = useSession();
 
@@ -212,7 +212,7 @@ function getAccountMenuError(
     return null;
 }
 
-export function UserMenu(
+export function AccountMenu(
     props: Omit<React.ComponentProps<typeof Menu>, "open" | "onOpenChange">
 ) {
     const [isOpen, setIsOpen] = React.useState(false);
@@ -229,7 +229,7 @@ export function UserMenu(
     return <Menu {...props} onOpenChange={setIsOpen} open={isOpen} />;
 }
 
-export function UserMenuTrigger(
+export function AccountMenuTrigger(
     props: React.ComponentProps<typeof MenuTrigger>
 ) {
     const gt = useGT();
@@ -240,7 +240,7 @@ export function UserMenuTrigger(
             aria-label={props["aria-label"] ?? gt("Open account menu")}
             openOnHover
         >
-            <WithUserSessionOnly fallback={<UserMenuTriggerSkeleton />}>
+            <WithSessionOnly fallback={<AccountMenuTriggerSkeleton />}>
                 {(user) => (
                     <span className="flex min-w-0 items-center gap-2">
                         <Avatar className="size-5.5 rounded-md">
@@ -258,7 +258,7 @@ export function UserMenuTrigger(
                         </span>
                     </span>
                 )}
-            </WithUserSessionOnly>
+            </WithSessionOnly>
             <ChevronDown
                 aria-hidden
                 className="pointer-events-none invisible inline-block size-4 shrink-0 text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
@@ -275,7 +275,7 @@ export function UserMenuTrigger(
     );
 }
 
-export function UserMenuPopup({
+export function AccountMenuPopup({
     children,
     align = "start",
     className,
@@ -294,12 +294,12 @@ export function UserMenuPopup({
     );
 }
 
-export function UserMenuHeader() {
+export function AccountMenuHeader() {
     return (
-        <WithUserSessionOnly>
+        <WithSessionOnly>
             {(user) => (
                 <div className="w-full min-w-0 flex-1 pb-1">
-                    <UserMenuAccountSwitcherSubMenu className="gap-5 rounded-xl">
+                    <AccountSwitcherSubMenu className="gap-5 rounded-xl">
                         <div className="min-w-0">
                             <span className="block truncate font-medium text-sm">
                                 {user.name ?? <T>Cache account</T>}
@@ -308,7 +308,7 @@ export function UserMenuHeader() {
                                 {user.email}
                             </span>
                         </div>
-                    </UserMenuAccountSwitcherSubMenu>
+                    </AccountSwitcherSubMenu>
                     <CloudHostOnly>
                         <div className="flex items-center px-2 py-1">
                             <SubscriptionStatusBadge />
@@ -316,11 +316,11 @@ export function UserMenuHeader() {
                     </CloudHostOnly>
                 </div>
             )}
-        </WithUserSessionOnly>
+        </WithSessionOnly>
     );
 }
 
-export function UserMenuContent() {
+export function AccountMenuContent() {
     return (
         <>
             <MenuGroup>
@@ -341,13 +341,13 @@ export function UserMenuContent() {
                         </MenuItem>
                     </SubscriptionLoadingOnly>
                     <SubscribedOnly>
-                        <UserMenuBillingItem />
+                        <AccountMenuBillingItem />
                     </SubscribedOnly>
                     <UnsubscribedOnly>
-                        <UserMenuUpgradeItem />
+                        <AccountMenuUpgradeItem />
                     </UnsubscribedOnly>
                 </CloudHostOnly>
-                <UserMenuDesktopDownloadSubMenu />
+                <AccountMenuDesktopDownloadSubMenu />
                 <LogOutDialogTrigger
                     nativeButton={false}
                     render={
@@ -364,7 +364,7 @@ export function UserMenuContent() {
     );
 }
 
-export function UserMenuFooter() {
+export function AccountMenuFooter() {
     return (
         <>
             <MenuSeparator />
@@ -421,19 +421,19 @@ export function UserMenuFooter() {
                 >
                     <T>Security</T>
                 </Button>
-                <UserMenuAccountActionsSubMenu className="ml-auto">
+                <AccountActionsSubMenu className="ml-auto">
                     <Ellipsis
                         aria-hidden
                         className="inline-block size-3.5 shrink-0"
                         focusable="false"
                     />
-                </UserMenuAccountActionsSubMenu>
+                </AccountActionsSubMenu>
             </div>
         </>
     );
 }
 
-function UserMenuTriggerSkeleton() {
+function AccountMenuTriggerSkeleton() {
     return (
         <span className="flex min-w-0 items-center gap-2">
             <Skeleton className="size-5.5 rounded-md" />
@@ -442,7 +442,7 @@ function UserMenuTriggerSkeleton() {
     );
 }
 
-function UserMenuAccountSwitcherSubMenu(
+function AccountSwitcherSubMenu(
     props: React.ComponentProps<typeof MenuSubTrigger>
 ) {
     return (
@@ -453,14 +453,14 @@ function UserMenuAccountSwitcherSubMenu(
                     <MenuGroupLabel>
                         <T>Your accounts</T>
                     </MenuGroupLabel>
-                    <UserMenuAccountSwitcherContent />
+                    <AccountSwitcherContent />
                 </MenuGroup>
             </MenuSubPopup>
         </MenuSub>
     );
 }
 
-function UserMenuAccountSwitcherContent() {
+function AccountSwitcherContent() {
     const {
         accountMenuError,
         accountOptions,
@@ -471,7 +471,7 @@ function UserMenuAccountSwitcherContent() {
         isLoadingDeviceSessions,
         pendingSessionToken,
         switchAccountError,
-    } = useUserMenuAccounts();
+    } = useAccountSwitcher();
 
     if (!activeSession) {
         return null;
@@ -587,7 +587,7 @@ function AccountMenuErrorMessage({ error }: { error: AccountMenuError }) {
     }
 }
 
-function UserMenuDesktopDownloadSubMenu() {
+function AccountMenuDesktopDownloadSubMenu() {
     const recommendedPlatform = detectDesktopPlatform();
     const { data } = useDesktopDownloads();
 
@@ -671,7 +671,7 @@ function DesktopDownloadMenuItem({
     );
 }
 
-function UserMenuAccountActionsSubMenu(
+function AccountActionsSubMenu(
     props: React.ComponentProps<typeof MenuSubTrigger>
 ) {
     const gt = useGT();
@@ -773,7 +773,7 @@ function UserMenuAccountActionsSubMenu(
     );
 }
 
-function UserMenuBillingItem() {
+function AccountMenuBillingItem() {
     const { errorMessage, execute, isPending } =
         useSubscriptionBillingPortalAction();
 
@@ -796,7 +796,7 @@ function UserMenuBillingItem() {
     );
 }
 
-function UserMenuUpgradeItem() {
+function AccountMenuUpgradeItem() {
     const { errorMessage, execute, isPending } = useSubscriptionUpgradeAction();
 
     return (

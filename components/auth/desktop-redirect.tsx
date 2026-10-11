@@ -6,7 +6,7 @@ import type * as React from "react";
 import { useEffect } from "react";
 import { useDesktopApp } from "@/lib/desktop/use-desktop-platform";
 
-export function DesktopHomeRedirect({ children }: React.PropsWithChildren) {
+export function DesktopRedirect({ children }: React.PropsWithChildren) {
     const router = useRouter();
     const locale = useLocale();
     const { isDesktopApp } = useDesktopApp();

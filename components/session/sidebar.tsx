@@ -10,13 +10,13 @@ import {
 import type * as React from "react";
 import { Suspense } from "react";
 import {
-    UserMenu,
-    UserMenuContent,
-    UserMenuFooter,
-    UserMenuHeader,
-    UserMenuPopup,
-    UserMenuTrigger,
-} from "@/components/auth/user-menu";
+    AccountMenu,
+    AccountMenuContent,
+    AccountMenuFooter,
+    AccountMenuHeader,
+    AccountMenuPopup,
+    AccountMenuTrigger,
+} from "@/components/auth/account-menu";
 import { AutomationsCount } from "@/components/automations/count";
 import { CommentsCount } from "@/components/comments/count";
 import { RecentlyDeletedCount } from "@/components/recently-deleted/count";
@@ -47,18 +47,18 @@ export function SidebarPanel({
         <Sidebar {...props} className={cn("pt-0", className)}>
             <SidebarContent className="gap-3 py-8 lg:top-0 lg:max-h-dvh">
                 <div className="flex items-center justify-between gap-1">
-                    <UserMenu>
+                    <AccountMenu>
                         <SidebarItem
                             className="px-2 opacity-100 data-popup-open:before:opacity-100"
                             data-sidebar-collapsible=""
-                            render={<UserMenuTrigger />}
+                            render={<AccountMenuTrigger />}
                         />
-                        <UserMenuPopup>
-                            <UserMenuHeader />
-                            <UserMenuContent />
-                            <UserMenuFooter />
-                        </UserMenuPopup>
-                    </UserMenu>
+                        <AccountMenuPopup>
+                            <AccountMenuHeader />
+                            <AccountMenuContent />
+                            <AccountMenuFooter />
+                        </AccountMenuPopup>
+                    </AccountMenu>
                     <OfflineBadge />
                     <SidebarTrigger />
                 </div>

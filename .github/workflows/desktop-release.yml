@@ -1,5 +1,5 @@
 # Build Cache desktop installers with Pake (https://github.com/tw93/Pake)
-# and attach them to a GitHub Release for user-menu downloads.
+# and attach them to a GitHub Release for account-menu downloads.
 #
 # Triggers:
 #   - workflow_dispatch (manual rebuild)

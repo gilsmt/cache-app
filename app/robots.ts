@@ -3,15 +3,12 @@ import type { MetadataRoute } from "next";
 import { BASE_URL } from "@/lib/common/constants";
 
 const DISALLOWED_TOP_LEVEL_PATHS = ["/mcp", "/api"];
-
 const DISALLOWED_PATHS = [
     "/library",
     "/automations",
     "/recently-deleted",
     "/comments",
-    "/signin",
-    "/logout",
-    "/c/",
+    "/c",
 ];
 
 export default function robots(): MetadataRoute.Robots {
