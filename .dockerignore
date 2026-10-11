@@ -1,6 +1,4 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-# Mirrors .gitignore so local output never reaches the build context. Extra
-# entries are tracked in git but unneeded to build the image.
 
 # Git
 .git

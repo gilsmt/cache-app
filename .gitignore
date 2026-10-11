@@ -1,6 +1,4 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-# Keep aligned with .dockerignore. Paths tracked here stay out of git; paths
-# tracked in git but unneeded in the image live only in .dockerignore.
 
 # dependencies (bun install)
 node_modules
