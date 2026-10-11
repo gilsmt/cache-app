@@ -61,14 +61,12 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
         if (!shouldStickRef.current) {
             return;
         }
-
         animationFrame.request(() => {
             const viewport = scrollViewportRef.current;
             if (viewport && shouldStickRef.current) {
                 viewport.scrollTop = viewport.scrollHeight;
             }
         });
-
         return animationFrame.cancel;
     }, [animationFrame, lastMessageId, lastMessageText, status]);
 

@@ -716,7 +716,7 @@ function hasWrappingQuotes(text: string | null): boolean {
 }
 
 interface ItemPreviewProps {
-    hover?: ItemHoverVideo | null;
+    hover?: ItemHoverVideo;
     src: string | null;
     videoSrc?: string | null;
 }
@@ -730,7 +730,7 @@ export function ItemPreview({
         <ItemPreviewImage src={src}>
             {hover?.shouldLoadVideo ? (
                 <video
-                    className="squircle drag-none pointer-events-none absolute inset-0 size-full rounded-xl object-contain"
+                    className="squircle pointer-events-none absolute inset-0 size-full rounded-xl object-contain"
                     crossOrigin="use-credentials"
                     draggable="false"
                     key={videoSrc}
@@ -951,7 +951,7 @@ export function ItemCardSurface({ children }: React.PropsWithChildren) {
 }
 
 export function ItemCardTarget() {
-    const { isNote, item } = useItemCardDataContext();
+    const { isNote, item, previewImageUrl } = useItemCardDataContext();
     const {
         favoriteItemIdSet,
         markVisited,
@@ -963,7 +963,6 @@ export function ItemCardTarget() {
 
     const isFavorite = favoriteItemIdSet.has(item.id);
     const hasNoteContent = (item.noteContentText ?? "").trim().length > 0;
-    const previewImageUrl = itemPreviewImageUrl(item);
     const previewVideoUrl = itemPreviewVideoUrl(item);
 
     const hover = useItemHoverVideo(isNote ? null : previewVideoUrl);
@@ -1158,7 +1157,7 @@ function ItemPreviewImage({
                     width={displayDimensions.w}
                 />
             ) : (
-                <Placeholder className="-z-1 size-full" />
+                <Placeholder />
             )}
             {children}
         </div>
@@ -1386,7 +1385,7 @@ function ItemCardColorSwatch({ name, value }: ItemCardColorSwatchProps) {
     return (
         <button
             aria-label={`Copy ${name}`}
-            className="relative flex size-4.5 cursor-pointer items-center justify-center rounded-full"
+            className="relative flex size-4.5 items-center justify-center rounded-full"
             onClick={handleCopy}
             style={{ backgroundColor: value }}
             title={name}
@@ -1394,7 +1393,7 @@ function ItemCardColorSwatch({ name, value }: ItemCardColorSwatchProps) {
         >
             {isCopied ? (
                 <>
-                    <Check className="size-3 text-black invert" />
+                    <Check className="size-3 text-foreground" />
                     <span className="absolute -bottom-4 text-nowrap rounded-xl bg-background text-[11px] text-success-foreground">
                         Copied!
                     </span>
@@ -1714,6 +1713,8 @@ function ItemCardFindSimilarAction({
     );
 }
 
+const WAYBACK_BASE_URL = "https://web.archive.org/web";
+
 const ITEM_WAYBACK_SNAPSHOT_OFFSETS: {
     daysOffset: number | null;
     label: string;
@@ -1786,11 +1787,11 @@ function ItemCardWaybackSnapshotItem({
 
     const handleSnapshot = useStableCallback(() => {
         if (daysOffset === null) {
-            openExternalUrl(`https://web.archive.org/web/*/${item.url}`);
+            openExternalUrl(`${WAYBACK_BASE_URL}/*/${item.url}`);
             return;
         }
         openExternalUrl(
-            `https://web.archive.org/web/${formatWaybackTimestamp(daysOffset)}/${item.url}`
+            `${WAYBACK_BASE_URL}/${formatWaybackTimestamp(daysOffset)}/${item.url}`
         );
     });
 

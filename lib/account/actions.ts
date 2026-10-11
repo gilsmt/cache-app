@@ -4,6 +4,9 @@ import { headers } from "next/headers";
 import { AccountError } from "@/lib/account/error";
 import * as service from "@/lib/account/service";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
+import { createLogger } from "@/lib/common/logs/console/logger";
+
+const log = createLogger("account:actions");
 
 interface DeleteAccountActionState {
     message: string;
@@ -39,6 +42,10 @@ export async function deleteAccountAction(): Promise<DeleteAccountActionState> {
                 status: "error",
             };
         }
+
+        log.error("Delete account action failed", error, {
+            operation: "deleteAccountAction",
+        });
 
         return {
             message: "We couldn't delete your account. Please try again.",

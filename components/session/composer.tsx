@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Command, CommandInput } from "@/components/ui/command";
 import type { FileAttachment } from "@/lib/common/file";
+import { isSubmitKey } from "@/lib/common/keyboard";
 
 const MARKDOWN_CODE_FENCE_PATTERN = /```[\s\S]*?(?:```|$)/g;
 const MARKDOWN_IMAGE_PATTERN = /!\[([^\]]*)\]\([^)]*\)/g;
@@ -64,26 +65,6 @@ function useComposerContext(): ComposerContext {
         );
     }
     return context;
-}
-
-interface SubmitKeyEvent {
-    altKey: boolean;
-    ctrlKey: boolean;
-    key: string;
-    metaKey: boolean;
-    nativeEvent: { isComposing: boolean };
-    shiftKey: boolean;
-}
-
-export function isSubmitKey(event: SubmitKeyEvent): boolean {
-    return (
-        event.key === "Enter" &&
-        !event.shiftKey &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        !event.nativeEvent.isComposing
-    );
 }
 
 function toSpeakableText(markdown: string): string {

@@ -27,13 +27,17 @@ export const getSessionUserId = cache(async (): Promise<string | null> => {
 type WithSessionCallback<T> = (session: Session | null) => Promise<T> | T;
 
 /**
- * Executes a callback with the current session, normalizing failures to a named error.
+ * Executes a callback with the current session. Only session resolution
+ * failures normalize to SessionError; callback errors propagate untouched so
+ * their domain is preserved.
  */
 export async function withSession<T>(
     callback: WithSessionCallback<T>
 ): Promise<T> {
+    let session: Session | null;
+
     try {
-        return await callback(await getServerSession());
+        session = await getServerSession();
     } catch (error) {
         log.error("Session operation failed", error);
 
@@ -49,6 +53,8 @@ export async function withSession<T>(
             { cause: error }
         );
     }
+
+    return callback(session);
 }
 
 interface UnauthorizedActionResult {

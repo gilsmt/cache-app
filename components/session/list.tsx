@@ -80,7 +80,6 @@ import {
     ComposerChip,
     ComposerInput,
     CopyResponseButton,
-    isSubmitKey,
     ReadAloudResponseButton,
 } from "@/components/session/composer";
 import {
@@ -233,6 +232,7 @@ import { parseDate } from "@/lib/common/date";
 import { isTextEntryTarget } from "@/lib/common/dom";
 import { revokeFileAttachmentObjectUrl, saveFile } from "@/lib/common/file";
 import { filterValidImageUrls } from "@/lib/common/image";
+import { isSubmitKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { NAME_COLLATOR, slugify, truncateText } from "@/lib/common/string";
 import {
