@@ -196,7 +196,7 @@ export function ContextMenuSubPopup({
             align={align}
             alignOffset={alignOffset ?? defaultAlignOffset}
             anchor={anchor}
-            className={className}
+            className={cn("transition-none", className)}
             data-slot="context-menu-sub-popup"
             portalProps={portalProps}
             positionMethod={positionMethod}

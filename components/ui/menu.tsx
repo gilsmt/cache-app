@@ -262,7 +262,7 @@ export function MenuSubPopup({
             align={align}
             alignOffset={alignOffset ?? defaultAlignOffset}
             anchor={anchor}
-            className={className}
+            className={cn("transition-none", className)}
             collisionAvoidance={collisionAvoidance}
             data-slot="menu-sub-popup"
             portalProps={portalProps}
