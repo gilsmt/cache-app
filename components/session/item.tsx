@@ -36,7 +36,7 @@ import { CommentComposer } from "@/components/comments/composer";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
 import { ItemCollectionsCombobox } from "@/components/session/collections";
-import { openSide } from "@/components/session/side-panel";
+import { openSidePanel } from "@/components/session/side-panel";
 import { AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -1266,7 +1266,7 @@ function ItemCardToolbar({
                                     : "Enable video preview sound"
                             }
                             aria-pressed={isSoundEnabled}
-                            className="size-5 rounded-lg text-white transition-none hover:bg-white/15 focus-visible:ring-white/70"
+                            className="size-5 text-white transition-none hover:bg-white/15 focus-visible:ring-white/70"
                             onClick={onToggleSound}
                             onKeyDown={handleCardKeyDown}
                         >
@@ -1290,7 +1290,7 @@ function ItemCardToolbar({
                                     : "Add to Favorites"
                             }
                             aria-pressed={isFavorite}
-                            className="size-5 rounded-lg text-white transition-none hover:bg-white/15 focus-visible:ring-white/70"
+                            className="size-5 text-white transition-none hover:bg-white/15 focus-visible:ring-white/70"
                             onClick={handleFavoriteClick}
                             onKeyDown={handleCardKeyDown}
                         >
@@ -1308,7 +1308,7 @@ function ItemCardToolbar({
             </AnimatePresence>
             <ToolbarButton
                 aria-label="Open"
-                className="size-5 rounded-lg text-white transition-none hover:bg-white/15 focus-visible:ring-white/70"
+                className="size-5 text-white transition-none hover:bg-white/15 focus-visible:ring-white/70"
                 onClick={handleOpenClick}
                 onKeyDown={handleCardKeyDown}
             >
@@ -1610,7 +1610,7 @@ function ItemCardQuickLookAction({
     const { displayTitle, item } = useItemCardDataContext();
 
     const handleOpen = useStableCallback(() => {
-        openSide({
+        openSidePanel({
             title: displayTitle,
             url: item.url,
         });

@@ -106,11 +106,12 @@ import {
 import { OnboardingMenu } from "@/components/session/onboarding";
 
 import {
-    type NoteDraft,
-    openSide,
+    type EditorDraft,
     openSideNote,
-    SideContent,
-    SideRoot,
+    openSidePanel,
+    SidePanel,
+    SidePanelContent,
+    SidePanelToggle,
 } from "@/components/session/side-panel";
 import {
     Summary,
@@ -244,11 +245,6 @@ import {
     type CreateChromeBookmarkFromUrlResult,
     createChromeBookmarkFromUrl,
 } from "@/lib/integrations/chrome/actions";
-import {
-    createNote,
-    type NoteMutationResult,
-    updateNote,
-} from "@/lib/integrations/notes/actions";
 import { getSourceIcon, getSourceLabel } from "@/lib/integrations/resolver";
 import { getAgentViewPage, runAssistant } from "@/lib/intelligence/actions";
 import type {
@@ -280,6 +276,11 @@ import {
     SECTION_DESCRIPTION_URL_MAX_LENGTH,
     type SectionDescriptionContextItem,
 } from "@/lib/intelligence/overview";
+import {
+    createNote,
+    type NoteMutationResult,
+    updateNote,
+} from "@/lib/notes/actions";
 import { createThreadFromAssistant } from "@/lib/threads/actions";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
@@ -979,7 +980,7 @@ function useItemHoverHotkeys({
                 return;
             }
             event.preventDefault();
-            openSide({
+            openSidePanel({
                 title: getLibraryItemTitle(item),
                 url: item.url,
             });
@@ -2149,7 +2150,7 @@ async function saveLibraryNoteDraft({
     draft,
 }: {
     activeNoteId: string | null;
-    draft: NoteDraft;
+    draft: EditorDraft;
 }): Promise<NoteMutationResult> {
     try {
         return activeNoteId
@@ -4613,7 +4614,7 @@ export function ItemsList({
     );
 
     const handleSaveNote = useStableCallback(
-        async (draft: NoteDraft, noteId: string | null) => {
+        async (draft: EditorDraft, noteId: string | null) => {
             const result = await saveLibraryNoteDraft({
                 activeNoteId: noteId,
                 draft,
@@ -4701,11 +4702,11 @@ export function ItemsList({
     };
 
     return (
-        <ItemsContext value={itemsContextValue}>
-            <SideRoot
-                onSaveNote={handleSaveNote}
-                onUrlPaste={handlePasteUrlIntoLibrary}
-            >
+        <SidePanel
+            onSaveNote={handleSaveNote}
+            onUrlPaste={handlePasteUrlIntoLibrary}
+        >
+            <ItemsContext value={itemsContextValue}>
                 <ItemsListContext value={itemsListContextValue}>
                     {children}
                     <div className="z-0 flex min-h-0 w-full min-w-0 flex-1 items-stretch">
@@ -4972,7 +4973,8 @@ export function ItemsList({
                                 lockedItemCount={lockedItemCount}
                             />
                         </div>
-                        <SideContent />
+                        <SidePanelContent />
+                        <SidePanelToggle />
                     </div>
                     <DeleteItemDialog
                         deleteErrorMessage={deleteErrorMessage}
@@ -5001,8 +5003,8 @@ export function ItemsList({
                     />
                     <SuccessfulUpgradeDialog />
                 </ItemsListContext>
-            </SideRoot>
-        </ItemsContext>
+            </ItemsContext>
+        </SidePanel>
     );
 }
 
@@ -5570,7 +5572,7 @@ function ItemsGroupOverviewContent() {
     return (
         <div
             aria-busy={isPending}
-            className="fade-in-0 flex w-full animate-in items-start gap-1 text-xs leading-snug motion-reduce:animate-none"
+            className="flex w-full items-start gap-1 text-xs leading-snug"
             id={contentId}
         >
             <Streamdown
@@ -6002,7 +6004,7 @@ function AssistantResponseShell({
             {prompt ? (
                 <Bubble align="end" variant="muted">
                     <BubbleContent>
-                        <Streamdown>{prompt}</Streamdown>
+                        <Streamdown mode="static">{prompt}</Streamdown>
                     </BubbleContent>
                 </Bubble>
             ) : null}
@@ -6187,7 +6189,7 @@ function PaletteActionsList({
 
     return (
         <PaletteActionsContext value={contextValue}>
-            <ScrollArea className="h-fit" shouldScrollFade>
+            <ScrollArea className="h-fit">
                 <ToolbarGroup
                     {...props}
                     className={cn("gap-2 px-3", className)}
@@ -6394,7 +6396,7 @@ function PaletteSuggestionsList({
             <CollapsiblePanel
                 {...props}
                 className={cn("px-3", className)}
-                render={<ScrollArea shouldScrollFade />}
+                render={<ScrollArea />}
             >
                 <div className="flex w-max select-none flex-nowrap items-center gap-1.5 text-nowrap">
                     {suggestions.map((suggestion, index) => (

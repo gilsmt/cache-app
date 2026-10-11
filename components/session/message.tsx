@@ -24,15 +24,15 @@ interface ThreadMessageProps {
 export function ThreadMessage({ message, sources }: ThreadMessageProps) {
     const [renderedAt] = React.useState(() => new Date());
 
-    const createdAt = getMessageCreatedAt(message) ?? renderedAt;
     const text = getMessageText(message);
+    const createdAt = getMessageCreatedAt(message) ?? renderedAt;
 
     if (message.role === "user") {
         return (
             <div className="group flex flex-col items-end gap-2">
                 <Bubble align="end" variant="muted">
                     <BubbleContent>
-                        <Streamdown>{text}</Streamdown>
+                        <Streamdown mode="static">{text}</Streamdown>
                     </BubbleContent>
                 </Bubble>
                 <ThreadMessageTimestamp>{createdAt}</ThreadMessageTimestamp>
