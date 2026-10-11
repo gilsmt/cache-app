@@ -32,7 +32,7 @@ import {
     SidebarMenuTrigger,
     SidebarNavigationItem,
     SidebarRail,
-    SidebarTrigger,
+    SidebarToggle,
 } from "@/components/ui/sidebar";
 
 const COMMENTS_SHORTCUT_KEYS = "mod+alt+c";
@@ -60,7 +60,7 @@ export function SidebarPanel({
                         </AccountMenuPopup>
                     </AccountMenu>
                     <OfflineBadge />
-                    <SidebarTrigger />
+                    <SidebarToggle />
                 </div>
                 <nav aria-label="Main navigation">
                     <SidebarGroup>

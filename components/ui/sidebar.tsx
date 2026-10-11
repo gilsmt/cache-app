@@ -313,7 +313,7 @@ export function SidebarContent({
     );
 }
 
-export function SidebarTrigger({
+export function SidebarToggle({
     className,
     onClick,
     ...props
@@ -577,7 +577,7 @@ export function SidebarMenuTrigger({
             <SidebarItemValue>{children}</SidebarItemValue>
             <ChevronRight
                 aria-hidden
-                className="invisible ml-auto inline-block size-4 shrink-0 text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
+                className="invisible ml-auto inline-block size-4.5 shrink-0 text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
                 data-sidebar-label=""
                 focusable="false"
             />
