@@ -1236,7 +1236,7 @@ function ItemCardToolbar({
                         key="visited"
                         transition={slotTransition}
                     >
-                        <span className="whitespace-nowrap px-1 font-medium text-[11px]">
+                        <span className="truncate px-1 font-medium text-[11px]">
                             <T>Last visited</T>
                         </span>
                     </ItemCardToolbarSlot>

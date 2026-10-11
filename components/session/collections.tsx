@@ -139,7 +139,9 @@ import {
 } from "@/components/ui/popover";
 import {
     PreviewCard,
+    PreviewCardDescription,
     PreviewCardPopup,
+    PreviewCardTitle,
     PreviewCardTrigger,
 } from "@/components/ui/preview-card";
 import { SidebarItem } from "@/components/ui/sidebar";
@@ -2718,11 +2720,7 @@ function CollectionsListGroupSummary({
         description ??
         (labels.length > 0 ? LIST_FORMATTER.format(labels) : placeholder);
 
-    return (
-        <p className="whitespace-normal font-medium text-xs leading-tight">
-            {summary}
-        </p>
-    );
+    return <PreviewCardTitle>{summary}</PreviewCardTitle>;
 }
 
 function CollectionsListTrigger(
@@ -3392,7 +3390,7 @@ function CollectionsListSmartCollectionsPopover() {
                 />
                 <div className="mt-4 flex max-w-64 flex-col gap-2">
                     <PopoverTitle>Let Cache do the organizing</PopoverTitle>
-                    <PopoverDescription className="text-foreground text-xs leading-snug">
+                    <PopoverDescription>
                         Smart Collections will use AI to automatically group
                         your saves into contextual collections as you add new
                         entries.
@@ -3457,15 +3455,15 @@ function CollectionsListSuggestions({
                     side="right"
                 >
                     <div className="flex max-w-64 flex-col gap-1">
-                        <p className="font-medium text-xs leading-tight">
+                        <PreviewCardTitle>
                             <T>Collection suggestions</T>
-                        </p>
-                        <p className="text-muted-foreground text-xs leading-snug">
+                        </PreviewCardTitle>
+                        <PreviewCardDescription>
                             <T>
                                 Suggestions show ways to organize your saved
                                 items into collections.
                             </T>
-                        </p>
+                        </PreviewCardDescription>
                     </div>
                 </PreviewCardPopup>
             </PreviewCard>
@@ -3553,12 +3551,10 @@ function CollectionsListSuggestionsItem({
                     side="right"
                 >
                     <div className="flex max-w-64 flex-col gap-1">
-                        <p className="font-medium text-xs leading-tight">
-                            {template.name}
-                        </p>
-                        <p className="text-muted-foreground text-xs leading-snug">
+                        <PreviewCardTitle>{template.name}</PreviewCardTitle>
+                        <PreviewCardDescription>
                             {template.description}
-                        </p>
+                        </PreviewCardDescription>
                     </div>
                 </PreviewCardPopup>
             </PreviewCard>
@@ -4539,14 +4535,12 @@ function ItemCollectionsComboboxItem({
                             className="size-2 shrink-0 rounded-full bg-(--accent-color)"
                             style={collectionItemStyle}
                         />
-                        <p className="min-w-0 truncate font-medium text-xs leading-tight">
-                            {collection.name}
-                        </p>
+                        <PreviewCardTitle>{collection.name}</PreviewCardTitle>
                     </div>
                     {collection.description ? (
-                        <p className="line-clamp-4 text-muted-foreground text-xs leading-snug">
+                        <PreviewCardDescription className="line-clamp-4">
                             {collection.description}
-                        </p>
+                        </PreviewCardDescription>
                     ) : null}
                     <div className="flex items-center justify-between gap-3 border-t pt-2 text-muted-foreground text-xs">
                         <span className="flex min-w-0 items-center gap-1.5">

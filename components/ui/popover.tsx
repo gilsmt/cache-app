@@ -101,7 +101,7 @@ export function PopoverDescription({
     return (
         <PopoverPrimitive.Description
             {...props}
-            className={cn("text-muted-foreground text-sm", className)}
+            className={cn("text-foreground text-xs leading-snug", className)}
             data-slot="popover-description"
         />
     );

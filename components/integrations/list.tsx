@@ -35,7 +35,9 @@ import { ChevronDownFilledIcon } from "@/components/ui/icons";
 import { Kbd, KbdCombo } from "@/components/ui/kbd";
 import {
     PreviewCard,
+    PreviewCardDescription,
     PreviewCardPopup,
+    PreviewCardTitle,
     PreviewCardTrigger,
 } from "@/components/ui/preview-card";
 import { SidebarItem } from "@/components/ui/sidebar";
@@ -513,15 +515,15 @@ function IntegrationsListTrigger({
                     src={IntegrationsPreviewImage}
                 />
                 <div className="m-3 flex max-w-64 flex-col gap-2">
-                    <h2 className="font-medium text-sm">
+                    <PreviewCardTitle>
                         <T>Integrations</T>
-                    </h2>
-                    <p className="text-foreground text-xs">
+                    </PreviewCardTitle>
+                    <PreviewCardDescription>
                         <T>
                             Enable Cache to sync content from other platforms
                             into your library.
                         </T>
-                    </p>
+                    </PreviewCardDescription>
                 </div>
             </PreviewCardPopup>
         </PreviewCard>
@@ -686,7 +688,9 @@ function IntegrationsListItemPreviewTrigger({
                         />
                     </div>
                 ) : null}
-                <p className="p-3 text-xs leading-tight">{integration.hint}</p>
+                <PreviewCardDescription className="p-3">
+                    {integration.hint}
+                </PreviewCardDescription>
             </PreviewCardPopup>
         </PreviewCard>
     );

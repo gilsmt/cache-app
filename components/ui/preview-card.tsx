@@ -2,6 +2,7 @@
 
 import { PreviewCard as PreviewCardPrimitive } from "@base-ui/react/preview-card";
 import { cn } from "cn";
+import type * as React from "react";
 
 export const PreviewCard: typeof PreviewCardPrimitive.Root =
     PreviewCardPrimitive.Root;
@@ -62,5 +63,31 @@ export function PreviewCardPopup({
                 />
             </PreviewCardPrimitive.Positioner>
         </PreviewCardPrimitive.Portal>
+    );
+}
+
+export function PreviewCardTitle({
+    className,
+    ...props
+}: React.ComponentProps<"h2">) {
+    return (
+        <h2
+            {...props}
+            className={cn("min-w-0 font-medium text-sm", className)}
+            data-slot="preview-card-title"
+        />
+    );
+}
+
+export function PreviewCardDescription({
+    className,
+    ...props
+}: React.ComponentProps<"p">) {
+    return (
+        <p
+            {...props}
+            className={cn("text-foreground text-xs leading-snug", className)}
+            data-slot="preview-card-description"
+        />
     );
 }

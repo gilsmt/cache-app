@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/attachments";
 import { Button } from "@/components/ui/button";
 import { Command, CommandInput } from "@/components/ui/command";
+import { PreviewCardTitle } from "@/components/ui/preview-card";
 import type { FileAttachment } from "@/lib/common/file";
 import { isSubmitKey } from "@/lib/common/keyboard";
 
@@ -346,9 +347,9 @@ export function ComposerAttachmentChip({
                             </div>
                         ) : null}
                         <div className="space-y-1 px-0.5">
-                            <h4 className="font-semibold text-sm leading-none">
+                            <PreviewCardTitle className="font-semibold">
                                 {label}
-                            </h4>
+                            </PreviewCardTitle>
                             {attachment.mediaType ? (
                                 <p className="font-mono text-muted-foreground text-xs">
                                     {attachment.mediaType}
