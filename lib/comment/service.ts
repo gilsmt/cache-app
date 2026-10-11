@@ -66,10 +66,7 @@ export async function listCommentsForUser({
         },
         orderBy: [{ updatedAt: SORT_DESC }, { id: SORT_DESC }],
         take,
-        where: {
-            libraryItem: { deletedAt: null, userId },
-            userId,
-        },
+        where: getActiveCommentsWhere(userId),
     });
 
     return rows.map((row) => ({
@@ -79,6 +76,17 @@ export async function listCommentsForUser({
         item: toLibraryItemWithCollections(row.libraryItem),
         updatedAt: row.updatedAt,
     }));
+}
+
+/**
+ * Count comments that are visible in the user's comments list.
+ */
+export function countCommentsForUser({
+    userId,
+}: {
+    userId: string;
+}): Promise<number> {
+    return prisma.comment.count({ where: getActiveCommentsWhere(userId) });
 }
 
 /**
@@ -135,4 +143,11 @@ export async function saveCommentForItem({
             where: { libraryItemId: itemId },
         });
     });
+}
+
+function getActiveCommentsWhere(userId: string) {
+    return {
+        libraryItem: { deletedAt: null, userId },
+        userId,
+    };
 }

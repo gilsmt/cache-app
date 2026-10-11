@@ -18,6 +18,8 @@ import {
     UserMenuTrigger,
 } from "@/components/auth/user-menu";
 import { AutomationsCount } from "@/components/automations/count";
+import { CommentsCount } from "@/components/comments/count";
+import { RecentlyDeletedCount } from "@/components/recently-deleted/count";
 import { OfflineBadge } from "@/components/ui/offline";
 import {
     Sidebar,
@@ -93,6 +95,11 @@ export function SidebarPanel({
                                     icon={<MessageSquare />}
                                     label={msg("Comments")}
                                     shortcutKeys={COMMENTS_SHORTCUT_KEYS}
+                                    trailing={
+                                        <Suspense>
+                                            <CommentsCount />
+                                        </Suspense>
+                                    }
                                 >
                                     <T>Comments</T>
                                 </SidebarMenuLinkItem>
@@ -102,6 +109,11 @@ export function SidebarPanel({
                                     label={msg("Recently deleted")}
                                     shortcutKeys={
                                         RECENTLY_DELETED_SHORTCUT_KEYS
+                                    }
+                                    trailing={
+                                        <Suspense>
+                                            <RecentlyDeletedCount />
+                                        </Suspense>
                                     }
                                 >
                                     <T>Recently deleted</T>

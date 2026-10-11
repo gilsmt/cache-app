@@ -1141,6 +1141,36 @@ interface RecentlyDeletedItem {
     item: LibraryItemWithCollections;
 }
 
+function getRecentlyDeletedItemsWhere({
+    now,
+    userId,
+}: {
+    now: Date;
+    userId: string;
+}) {
+    return {
+        deletedAt: {
+            gte: new Date(now.getTime() - LIBRARY_ITEM_TRASH_WINDOW_MS),
+            not: null,
+        },
+        kind: { not: ITEM_KIND_FOLDER },
+        userId,
+    };
+}
+
+/**
+ * Count the user's visible Recently deleted items without loading their data.
+ */
+export function countRecentlyDeletedItems({
+    userId,
+}: {
+    userId: string;
+}): Promise<number> {
+    return prisma.libraryItem.count({
+        where: getRecentlyDeletedItemsWhere({ now: new Date(), userId }),
+    });
+}
+
 /**
  * Loads the calling user's tombstones ordered by `deletedAt desc`. The lazy
  * expiry sweep runs before listing so the user never sees items the next
@@ -1165,11 +1195,7 @@ export async function listRecentlyDeletedItems({
         include: LIBRARY_ITEM_COLLECTIONS_INCLUDE,
         orderBy: [{ deletedAt: SORT_DESC }, { id: SORT_DESC }],
         take,
-        where: {
-            deletedAt: { not: null },
-            kind: { not: ITEM_KIND_FOLDER },
-            userId,
-        },
+        where: getRecentlyDeletedItemsWhere({ now, userId }),
     });
 
     return rows.map((item) => ({
