@@ -1,5 +1,6 @@
 "use client";
 
+import type { BaseUIEvent } from "@base-ui/react";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
 import { T, useGT, Var } from "gt-next";
@@ -13,6 +14,7 @@ import {
     MessageCircle,
     Search,
     Trash2,
+    X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -104,6 +106,7 @@ type ThreadSearchOption =
     | { query: ""; type: "clear" };
 
 interface ThreadsListContext {
+    onClearSearch: () => void;
     textMatchQuery: string;
     threads: ThreadListItem[];
     visibleThreads: ThreadListItem[];
@@ -326,10 +329,12 @@ interface ThreadsProps {
 }
 
 export function Threads({ threads }: ThreadsProps) {
-    const { textMatchQuery, view } = useThreadsListStore();
+    const { setTextMatchQuery, textMatchQuery, view } = useThreadsListStore();
 
     const visibleThreads = getVisibleThreads(threads, view, textMatchQuery);
+    const onClearSearch = useStableCallback(() => setTextMatchQuery(""));
     const contextValue: ThreadsListContext = {
+        onClearSearch,
         textMatchQuery,
         threads,
         visibleThreads,
@@ -346,6 +351,10 @@ export function Threads({ threads }: ThreadsProps) {
                         <T>Recents</T>
                     </ThreadsListTrigger>
                     <ToolbarGroup className="pointer-events-none absolute right-1 justify-end">
+                        <ToolbarButton
+                            className="pointer-events-auto"
+                            render={<ThreadsListClear />}
+                        />
                         <ToolbarButton
                             className="pointer-events-auto"
                             render={<ThreadsListSearch />}
@@ -367,6 +376,39 @@ export function Threads({ threads }: ThreadsProps) {
             </ThreadsList>
             <ThreadsListDeleteDialog />
         </ThreadsListContext>
+    );
+}
+
+function ThreadsListClear({
+    onClick: onClickProp,
+    ...props
+}: React.ComponentProps<typeof Button>) {
+    const gt = useGT();
+    const { onClearSearch, textMatchQuery } = useThreadsListContext();
+
+    const onClick = useStableCallback(onClickProp);
+    const handleClick = useStableCallback(
+        (event: BaseUIEvent<React.MouseEvent<HTMLButtonElement>>) => {
+            onClick?.(event);
+            onClearSearch();
+        }
+    );
+
+    if (textMatchQuery.trim().length === 0) {
+        return null;
+    }
+
+    return (
+        <Button
+            {...props}
+            aria-label={gt("Clear search")}
+            onClick={handleClick}
+            size="icon-xs"
+            title={gt("Clear search")}
+            variant="ghost"
+        >
+            <X aria-hidden className="size-3.5" focusable="false" />
+        </Button>
     );
 }
 
@@ -650,11 +692,11 @@ function ThreadsListGroup({
 }
 
 function ThreadsListEmpty() {
-    const { threads, textMatchQuery, visibleThreads } = useThreadsListContext();
-    const { setTextMatchQuery, setView } = useThreadsListStore();
+    const { onClearSearch, threads, textMatchQuery, visibleThreads } =
+        useThreadsListContext();
+    const { setView } = useThreadsListStore();
 
     const handleShowAll = useStableCallback(() => setView("show-all"));
-    const handleClearSearch = useStableCallback(() => setTextMatchQuery(""));
 
     if (visibleThreads.length > 0) {
         return null;
@@ -678,7 +720,7 @@ function ThreadsListEmpty() {
                     </p>
                     {textMatchQuery.trim().length > 0 ? (
                         <Button
-                            onClick={handleClearSearch}
+                            onClick={onClearSearch}
                             size="xs"
                             variant="outline"
                         >
