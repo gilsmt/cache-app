@@ -55,7 +55,8 @@ enum CollectionPriority {
     archive
 }
 
-/// User-authored or first-party scheduled background behavior.
+/// Whether an automation is scheduled. `paused` holds no pending runs and
+/// claims nothing; `active` is eligible to claim runs.
 enum AutomationStatus {
     active
     paused
@@ -94,8 +95,6 @@ enum AutomationRunStatus {
 
 /// Author of a chat message. Only user questions and assistant answers
 /// persist; tool calls stream without being stored so history stays readable.
-/// A chat may stand alone or link to an automation run, so this enum lives
-/// outside the automation domain.
 enum ChatMessageRole {
     user
     assistant
@@ -111,8 +110,8 @@ model User {
     image                   String?
     createdAt               DateTime               @default(now())
     updatedAt               DateTime               @updatedAt
-    /// Stripe customer id is duplicated here for fast account-level lookups even
-    /// though subscription state lives in the plugin-managed table.
+    /// Stripe customer id maintained by the @better-auth/stripe plugin.
+    /// Entitlement checks read `Subscription` by `referenceId`, not this field.
     stripeCustomerId        String?
     /// Bearer token used by browser extensions to ingest into this user's library
     /// without exposing session cookies.
@@ -142,7 +141,8 @@ model User {
 }
 
 /// Application-owned grouping of library items. A collection is both an
-/// organizational unit and the public sharing boundary when `shareId` is set.
+/// organizational unit and the public sharing boundary when `shareId` and
+/// `sharedAt` are set.
 model Collection {
     id             String                 @id @default(cuid())
     userId         String
@@ -195,7 +195,7 @@ model LibraryItem {
     caption          String?
     /// Sanitized HTML projection of the note payload. Paired with
     /// `noteContentText` by a DB CHECK constraint; all writes must go through
-    /// `normalizeNotePayload` in `lib/integrations/notes/service.ts`.
+    /// `normalizeNotePayload` in `lib/notes/service.ts`.
     noteContentHtml  String?
     /// Editor-native document state when available. `noteContentHtml` and
     /// `noteContentText` are denormalized render/search projections of the
@@ -289,8 +289,10 @@ model Automation {
     @@map("automation")
 }
 
-/// Immutable record of a scheduled automation occurrence. Output can contain
-/// synthesized user content and is deleted with the owning automation.
+/// Durable execution state for a single scheduled automation attempt. Status,
+/// lease, and output advance until a terminal status; snapshot columns are
+/// write-once. Output can contain synthesized user content and is deleted
+/// with the owning automation.
 model AutomationRun {
     id                     String                 @id @default(cuid())
     automationId           String
@@ -329,7 +331,7 @@ model AutomationRun {
 
 /// Assistant conversation owned by a user. A chat may stand alone or extend
 /// an automation run; the optional run link carries the run output and its
-/// library payload into follow-ups. One chat per run keeps the sidebar stable.
+/// library payload into follow-ups. At most one chat exists per run.
 model Chat {
     id              String         @id @default(cuid())
     userId          String
@@ -351,9 +353,10 @@ model Chat {
     @@map("chat")
 }
 
-/// Single persisted exchange inside a chat. Tool calls stream without being
+/// Single persisted message inside a chat. Tool calls stream without being
 /// stored, so only user questions and assistant answers land here. The
-/// database-assigned sequence preserves conversation order when timestamps tie.
+/// table-global autoincrement `sequence` preserves insertion order within a
+/// chat when timestamps tie.
 model ChatMessage {
     id        String         @id @default(cuid())
     chatId    String
@@ -445,12 +448,15 @@ model Subscription {
 }
 
 /// A feed the user follows. Entries from this feed are imported as
-/// LibraryItem rows with source = rss_feed and externalId = the entry guid.
+/// LibraryItem rows with source = rss_feed and externalId = the entry guid,
+/// falling back to link when guid is missing.
 model RssFeed {
     id            String    @id @default(cuid())
     userId        String
     user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
     feedUrl       String
+    /// Normalized feed URL used for per-user dedupe. Store it separately from
+    /// `feedUrl` so the user-entered form remains unchanged.
     urlKey        String
     title         String?
     siteUrl       String?

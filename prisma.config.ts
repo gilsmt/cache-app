@@ -1,5 +1,9 @@
-import "dotenv/config";
+import { existsSync } from "node:fs";
 import { defineConfig, env } from "prisma/config";
+
+if (existsSync(".env")) {
+    process.loadEnvFile(".env");
+}
 
 const DATABASE_URL = new URL(env("DATABASE_URL"));
 

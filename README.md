@@ -113,7 +113,7 @@ See the [environment variables reference](.env.example) for the full list.
 
 ## Cache App MCP
 
-Cache App exposes an [MCP](https://modelcontextprotocol.io/) server so AI agents like Claude, Cursor, and others can read and write your library directly. Search bookmarks, save new items, list collections, and more.
+Cache App exposes an [MCP](https://modelcontextprotocol.io/) server so AI agents like Codex, Claude, Cursor, and others can read and write your library directly. Search bookmarks, save new items, list collections, and more.
 
 Endpoint: `https://www.cachd.app/mcp`
 
@@ -124,7 +124,7 @@ Endpoint: `https://www.cachd.app/mcp`
 
 ## Contributing
 
-Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+Please see the [Contributing Guide](CONTRIBUTING.md) for details.
 
 Open an [issue](https://github.com/gilsmt/cache-app/issues?q=sort%3Aupdated-desc+is%3Aissue+state%3Aopen+) if you believe you've encountered a bug.
 
@@ -132,4 +132,4 @@ Open an [issue](https://github.com/gilsmt/cache-app/issues?q=sort%3Aupdated-desc
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE file](LICENSE) for details.
+Licensed under the Apache License 2.0 - see the [LICENSE file](LICENSE) for details.

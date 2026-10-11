@@ -33,6 +33,8 @@ Follow YAGNI. Prefer the smallest clear unit, not the fewest lines — one-liner
 
 Control flow: Reduce nesting. Avoid else statements. Prefer early returns.
 
+Do not chain multiple array iteration methods (`map`, `filter`, `reduce`, `flatMap`, etc.). Each step makes one intermediate array, one more pass, and more work for the garbage collector.
+
 Handle errors at the appropriate scopes. Never silently swallow exceptions. If you think an error cannot happen, assert that assumption explicitly.
 
 Never compromise type safety: avoid `any`, `!` (non-null assertion), and `as Type` casting as they usually indicate wrong assumptions or bad implementation. A cast is allowed only at a trust boundary (SDK, ORM, framework) when the invariant is runtime-checked or guaranteed by a typed wrapper one layer in. Prefer narrowing (`zod`, predicates, exhaustiveness). If you need a cast deeper than the boundary, fix the model. Validate unknown values once at the boundary that owns them. Pass typed values inward instead of repeating `typeof value === "object"` and property-existence checks. Do not defensively revalidate values already guaranteed by a schema, constructor, or internal type.

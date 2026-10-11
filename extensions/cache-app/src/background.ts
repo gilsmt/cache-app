@@ -194,12 +194,17 @@ const CHROME_KEYS = {
 // read and its subsequent write.
 let queueMutationPromise: Promise<unknown> = Promise.resolve();
 
+async function keepLockChainAlive(promise: Promise<unknown>): Promise<void> {
+    try {
+        await promise;
+    } catch {
+        // Swallow operation errors so the next lock holder still runs.
+    }
+}
+
 function withQueueLock<T>(operation: () => Promise<T> | T): Promise<T> {
     const promise = queueMutationPromise.then(operation) as Promise<T>;
-    queueMutationPromise = promise.then(
-        () => undefined,
-        () => undefined,
-    );
+    queueMutationPromise = keepLockChainAlive(promise);
     return promise;
 }
 
@@ -213,10 +218,7 @@ function withAutoSyncMarkerLock<T>(
     operation: () => Promise<T> | T,
 ): Promise<T> {
     const promise = autoSyncMarkerMutationPromise.then(operation) as Promise<T>;
-    autoSyncMarkerMutationPromise = promise.then(
-        () => undefined,
-        () => undefined,
-    );
+    autoSyncMarkerMutationPromise = keepLockChainAlive(promise);
     return promise;
 }
 

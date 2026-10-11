@@ -29,7 +29,7 @@ export interface ItemsContext {
     pendingDeleteItemId: string | null;
 }
 
-export interface ItemsStateContext {
+interface ItemsStateContext {
     items: LibraryItemWithCollections[];
     setItems: React.Dispatch<
         React.SetStateAction<LibraryItemWithCollections[]>
