@@ -1384,20 +1384,14 @@ export function SidePanelContent() {
         setIsOpen((prev) => !prev);
     });
 
-    const handleClosePreviewShortcut = useStableCallback(() => {
-        setIsOpen(false);
-    });
-
-    useHotkeys("mod+j, mod+i, mod+alt+b", handleToggleShortcut, {
-        description: gt("Open or close preview"),
-        preventDefault: true,
-    });
-
-    useHotkeys("ctrl+enter", handleClosePreviewShortcut, {
-        description: gt("Close preview"),
-        enabled: isOpen,
-        preventDefault: true,
-    });
+    useHotkeys(
+        "mod+j, mod+i, mod+alt+b, mod+enter, ctrl+enter",
+        handleToggleShortcut,
+        {
+            description: gt("Open or close preview"),
+            preventDefault: true,
+        }
+    );
 
     const handleKeyDown = useStableCallback(
         (event: React.KeyboardEvent<HTMLElement>) => {
@@ -2342,25 +2336,28 @@ function EditorRoot({ children, isActive, note, tabId }: EditorRootProps) {
             return;
         }
 
-        const isClosePreviewShortcut =
-            event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
-        const isCloseNoteShortcut =
-            event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
-        if (!(isClosePreviewShortcut || isCloseNoteShortcut)) {
+        const isToggleShortcut =
+            (event.metaKey || event.ctrlKey) &&
+            !event.altKey &&
+            !event.shiftKey;
+
+        if (!isToggleShortcut) {
             return;
         }
 
         event.preventDefault();
-        // Stop modified Enter before Lexical runs its block-splitting handler.
+        // Stop modified Enter before Lexical runs its block-splitting handler
+        // and before the global toggle shortcut sees the same keystroke.
         event.stopPropagation();
-        if (isClosePreviewShortcut) {
-            onClosePreview();
-            return;
-        }
-
-        handleClose().catch((error: unknown) => {
-            log.error("Unexpected note shortcut close failure", error);
-        });
+        saveImmediately().then(
+            () => {
+                onClosePreview();
+            },
+            (error: unknown) => {
+                log.error("Unexpected note shortcut close failure", error);
+                onClosePreview();
+            }
+        );
     });
 
     // The keydown listener lives on the owner document of the editor, so the
