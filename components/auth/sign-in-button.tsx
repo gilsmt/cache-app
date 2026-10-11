@@ -23,13 +23,13 @@ interface SignInButtonProps {
 export function SignInButton({ hasServerSession }: SignInButtonProps) {
     const router = useRouter();
 
-    const handleLibraryShortcut = useStableCallback(() => {
+    const handleShortcut = useStableCallback(() => {
         if (hasServerSession) {
             router.push("/library");
         }
     });
 
-    useHotkeys("p", handleLibraryShortcut, {
+    useHotkeys("p", handleShortcut, {
         description: "Go to library",
     });
 

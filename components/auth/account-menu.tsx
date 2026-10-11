@@ -12,12 +12,11 @@ import {
     UserRoundPlus,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { DeleteAccountDialogTrigger } from "@/components/auth/delete-account-dialog";
-import { LogOutDialogTrigger } from "@/components/auth/logout-dialog";
 import { WithSessionOnly } from "@/components/auth/session";
+import { SessionLogOutDialogTrigger } from "@/components/auth/session-logout-dialog";
 import {
     CloudHostOnly,
     SubscribedOnly,
@@ -29,9 +28,9 @@ import {
 } from "@/components/billing/subscription";
 import { useDesktopDownloads } from "@/components/hooks/queries/use-desktop-downloads";
 import {
-    type DeviceSession,
-    useDeviceSessions,
-} from "@/components/hooks/queries/use-device-sessions";
+    type AccountMenuError,
+    useAccountSwitcher,
+} from "@/components/hooks/use-account-switcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ErrorMessage } from "@/components/ui/error-message";
@@ -53,8 +52,6 @@ import {
 import { KeyboardShortcutsDialogTrigger } from "@/components/ui/shortcuts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeSelector } from "@/components/ui/theme";
-import { authClient, useSession } from "@/lib/auth/client";
-import type { Session } from "@/lib/auth/session";
 import {
     CHANGELOG_URL,
     DOCS_URL,
@@ -62,7 +59,6 @@ import {
     STATUS_URL,
     SUPPORT_ADDRESS,
 } from "@/lib/common/constants";
-import { createLogger } from "@/lib/common/logs/console/logger";
 import { getInitials } from "@/lib/common/string";
 import { DESKTOP_ASSETS } from "@/lib/desktop/constants";
 import { detectDesktopPlatform } from "@/lib/desktop/platform";
@@ -71,147 +67,6 @@ import {
     getDesktopReleasesPageUrl,
     getStaticDesktopDownloads,
 } from "@/lib/desktop/releases";
-
-type AccountMenuError = "add" | "load" | "switch";
-
-const log = createLogger("auth-account-menu");
-
-function useAccountSwitcher() {
-    const router = useRouter();
-    const { data: activeSession, refetch } = useSession();
-
-    const [, startAccountChangeTransition] = React.useTransition();
-    const [isAddingAccount, startAddAccountTransition] = React.useTransition();
-    const [pendingSessionToken, setPendingSessionToken] = React.useState<
-        null | string
-    >(null);
-
-    const [switchAccountError, setSwitchAccountError] =
-        React.useState<unknown>(null);
-    const [addAccountError, setAddAccountError] = React.useState<unknown>(null);
-
-    const {
-        deviceSessions,
-        deviceSessionsError,
-        isLoadingDeviceSessions,
-        refreshDeviceSessions,
-    } = useDeviceSessions(!!activeSession);
-
-    const handleAccountChange = useStableCallback((sessionToken: string) => {
-        if (
-            !activeSession ||
-            pendingSessionToken !== null ||
-            sessionToken === activeSession.session.token
-        ) {
-            return;
-        }
-
-        setPendingSessionToken(sessionToken);
-        setSwitchAccountError(null);
-
-        startAccountChangeTransition(async () => {
-            try {
-                const result = await authClient.multiSession.setActive({
-                    sessionToken,
-                });
-
-                if (result.error) {
-                    log.error("Failed to switch active session", result.error);
-                    setSwitchAccountError(result.error);
-                    return;
-                }
-
-                await Promise.all([refetch(), refreshDeviceSessions()]);
-                router.refresh();
-            } catch (error) {
-                log.error("Failed to switch active session", error);
-                setSwitchAccountError(error);
-            } finally {
-                setPendingSessionToken(null);
-            }
-        });
-    });
-
-    const handleAddAccount = useStableCallback(() => {
-        setAddAccountError(null);
-
-        startAddAccountTransition(async () => {
-            try {
-                const result = await authClient.signIn.social({
-                    callbackURL: "/library",
-                    errorCallbackURL: "/library",
-                    provider: "google",
-                });
-
-                if (result.error) {
-                    log.error("Failed to add account session", result.error);
-                    setAddAccountError(result.error);
-                }
-            } catch (error) {
-                log.error("Failed to add account session", error);
-                setAddAccountError(error);
-            }
-        });
-    });
-
-    const accountMenuError = getAccountMenuError(
-        addAccountError,
-        deviceSessionsError
-    );
-
-    const accountOptions = activeSession
-        ? getAccountOptions(deviceSessions, activeSession)
-        : [];
-
-    return {
-        accountMenuError,
-        accountOptions,
-        activeSession,
-        handleAccountChange,
-        handleAddAccount,
-        isAddingAccount,
-        isLoadingDeviceSessions,
-        pendingSessionToken,
-        switchAccountError,
-    };
-}
-
-function getAccountOptions(
-    deviceSessions: DeviceSession[],
-    activeSession: Session
-): DeviceSession[] {
-    const hasActiveSession = deviceSessions.some(
-        (deviceSession) =>
-            deviceSession.session.token === activeSession.session.token
-    );
-
-    if (hasActiveSession) {
-        return deviceSessions;
-    }
-
-    return [
-        {
-            session: {
-                token: activeSession.session.token,
-            },
-            user: activeSession.user,
-        },
-        ...deviceSessions,
-    ];
-}
-
-function getAccountMenuError(
-    addAccountError: unknown,
-    deviceSessionsError: unknown
-): AccountMenuError | null {
-    if (addAccountError) {
-        return "add";
-    }
-    if (deviceSessionsError) {
-        return "load";
-    }
-    return null;
-}
 
 export function AccountMenu(
     props: Omit<React.ComponentProps<typeof Menu>, "open" | "onOpenChange">
@@ -276,11 +131,19 @@ export function AccountMenuTrigger(
     );
 }
 
+function AccountMenuTriggerSkeleton() {
+    return (
+        <span className="flex min-w-0 items-center gap-2">
+            <Skeleton className="size-5.5 rounded-md" />
+            <Skeleton className="h-4 w-16" />
+        </span>
+    );
+}
+
 export function AccountMenuPopup({
     children,
     align = "start",
     className,
-    side = "top",
     ...props
 }: React.ComponentProps<typeof MenuPopup>) {
     return (
@@ -288,7 +151,6 @@ export function AccountMenuPopup({
             {...props}
             align={align}
             className={cn("min-w-62", className)}
-            side={side}
         >
             <div className="flex flex-col gap-1">{children}</div>
         </MenuPopup>
@@ -349,7 +211,7 @@ export function AccountMenuContent() {
                     </UnsubscribedOnly>
                 </CloudHostOnly>
                 <AccountMenuDesktopDownloadSubMenu />
-                <LogOutDialogTrigger
+                <SessionLogOutDialogTrigger
                     nativeButton={false}
                     render={
                         <MenuItem
@@ -359,7 +221,7 @@ export function AccountMenuContent() {
                     }
                 >
                     <T context="User Log out/Sign out of the app">Log out</T>
-                </LogOutDialogTrigger>
+                </SessionLogOutDialogTrigger>
             </MenuGroup>
         </>
     );
@@ -434,15 +296,6 @@ export function AccountMenuFooter() {
     );
 }
 
-function AccountMenuTriggerSkeleton() {
-    return (
-        <span className="flex min-w-0 items-center gap-2">
-            <Skeleton className="size-5.5 rounded-md" />
-            <Skeleton className="h-4 w-16" />
-        </span>
-    );
-}
-
 function AccountSwitcherSubMenu(
     props: React.ComponentProps<typeof MenuSubTrigger>
 ) {
@@ -454,14 +307,14 @@ function AccountSwitcherSubMenu(
                     <MenuGroupLabel>
                         <T>Your accounts</T>
                     </MenuGroupLabel>
-                    <AccountSwitcherContent />
+                    <AccountSwitcherSubMenuContent />
                 </MenuGroup>
             </MenuSubPopup>
         </MenuSub>
     );
 }
 
-function AccountSwitcherContent() {
+function AccountSwitcherSubMenuContent() {
     const {
         accountMenuError,
         accountOptions,
@@ -490,7 +343,7 @@ function AccountSwitcherContent() {
     if (accountMenuError) {
         return (
             <MenuItem disabled>
-                <AccountMenuErrorMessage error={accountMenuError} />
+                <AccountSwitcherSubMenuErrorMessage error={accountMenuError} />
             </MenuItem>
         );
     }
@@ -555,7 +408,7 @@ function AccountSwitcherContent() {
             </MenuRadioGroup>
             {switchAccountError ? (
                 <MenuItem disabled>
-                    <AccountMenuErrorMessage error="switch" />
+                    <AccountSwitcherSubMenuErrorMessage error="switch" />
                 </MenuItem>
             ) : null}
             <MenuSeparator />
@@ -575,7 +428,11 @@ function AccountSwitcherContent() {
     );
 }
 
-function AccountMenuErrorMessage({ error }: { error: AccountMenuError }) {
+function AccountSwitcherSubMenuErrorMessage({
+    error,
+}: {
+    error: AccountMenuError;
+}) {
     switch (error) {
         case "add":
             return <T>Could not add another account.</T>;
@@ -589,7 +446,7 @@ function AccountMenuErrorMessage({ error }: { error: AccountMenuError }) {
 }
 
 function AccountMenuDesktopDownloadSubMenu() {
-    const recommendedPlatform = detectDesktopPlatform();
+    const platform = detectDesktopPlatform();
     const { data } = useDesktopDownloads();
 
     const downloads = data?.downloads ?? getStaticDesktopDownloads();
@@ -612,9 +469,7 @@ function AccountMenuDesktopDownloadSubMenu() {
                     {downloads.map((download) => (
                         <DesktopDownloadMenuItem
                             download={download}
-                            isRecommended={
-                                download.platform === recommendedPlatform
-                            }
+                            isRecommended={download.platform === platform}
                             key={download.platform}
                         />
                     ))}

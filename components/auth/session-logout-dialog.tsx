@@ -17,7 +17,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function LogOutDialogTrigger(
+export function SessionLogOutDialogTrigger(
     props: React.ComponentProps<typeof DialogTrigger>
 ) {
     const router = useRouter();
