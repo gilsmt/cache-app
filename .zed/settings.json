@@ -31,5 +31,12 @@
                 "source.organizeImports.biome": true
             }
         }
+    },
+    "lsp": {
+        "tailwindcss-language-server": {
+            "settings": {
+                "classFunctions": ["cn", "cva"]
+            }
+        }
     }
 }

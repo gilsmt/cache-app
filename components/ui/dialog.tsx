@@ -54,16 +54,11 @@ export function DialogPopup({
     );
 }
 
-interface DialogPanelProps extends useRender.ComponentProps<"div"> {
-    shouldScrollFade?: boolean;
-}
-
 export function DialogPanel({
     className,
-    shouldScrollFade = true,
     render,
     ...props
-}: DialogPanelProps) {
+}: useRender.ComponentProps<"div">) {
     const defaultProps = {
         className: cn(
             "p-6 in-[[data-slot=dialog-popup]:has([data-slot=dialog-header])]:pt-1 in-[[data-slot=dialog-popup]:has([data-slot=dialog-footer]:not(.border-t))]:pb-1",
@@ -73,7 +68,7 @@ export function DialogPanel({
     };
 
     return (
-        <ScrollArea shouldScrollFade={shouldScrollFade}>
+        <ScrollArea>
             {useRender({
                 defaultTagName: "div",
                 props: mergeProps<"div">(defaultProps, props),

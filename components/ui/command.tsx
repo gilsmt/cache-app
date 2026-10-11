@@ -140,14 +140,12 @@ export function CommandPopup({
 }
 
 interface CommandListProps extends Autocomplete.List.Props {
-    shouldScrollFade?: boolean;
     /** Set to false when a parent scroll area owns scrolling. */
     shouldUseScrollArea?: boolean;
 }
 
 export function CommandList({
     className,
-    shouldScrollFade = false,
     shouldUseScrollArea = true,
     ...props
 }: CommandListProps) {
@@ -168,7 +166,7 @@ export function CommandList({
         return list;
     }
 
-    return <ScrollArea shouldScrollFade={shouldScrollFade}>{list}</ScrollArea>;
+    return <ScrollArea>{list}</ScrollArea>;
 }
 
 export function CommandItem({ className, ...props }: Autocomplete.Item.Props) {

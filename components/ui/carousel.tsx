@@ -137,7 +137,7 @@ export function CarouselPanel({
     const { id } = useCarouselContext();
 
     const handleRef = React.useRef<CarouselHandle>(null);
-    const mergedRef = useMergedRefs(ref, handleRef);
+    const mergedRefs = useMergedRefs(ref, handleRef);
 
     const slides = React.Children.toArray(children);
 
@@ -159,7 +159,7 @@ export function CarouselPanel({
                 className
             )}
             id={id}
-            ref={mergedRef}
+            ref={mergedRefs}
             role="region"
         >
             {slides.map((child, index) => {

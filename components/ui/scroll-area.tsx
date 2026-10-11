@@ -4,40 +4,58 @@ import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 import { cn } from "cn";
 
 interface ScrollAreaProps extends ScrollAreaPrimitive.Root.Props {
-    shouldScrollFade?: boolean;
+    viewportClassName?: string;
 }
 
 export function ScrollArea({
-    className,
     children,
-    shouldScrollFade = false,
+    viewportClassName,
     ...props
 }: ScrollAreaProps) {
+    return (
+        <ScrollAreaRoot {...props}>
+            <ScrollAreaViewport className={viewportClassName}>
+                <ScrollAreaPrimitive.Content
+                    className="size-full min-w-0"
+                    data-slot="scroll-area-content"
+                >
+                    {children}
+                </ScrollAreaPrimitive.Content>
+            </ScrollAreaViewport>
+            <ScrollBar orientation="vertical" />
+            <ScrollBar orientation="horizontal" />
+            <ScrollAreaPrimitive.Corner />
+        </ScrollAreaRoot>
+    );
+}
+
+export function ScrollAreaRoot({
+    className,
+    ...props
+}: ScrollAreaPrimitive.Root.Props) {
     return (
         <ScrollAreaPrimitive.Root
             {...props}
             className={cn("size-full min-h-0", className)}
             data-slot="scroll-area"
-        >
-            <ScrollAreaPrimitive.Viewport
-                className={cn(
-                    "h-full overscroll-none rounded-[inherit] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                    shouldScrollFade &&
-                        "mask-t-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-start)))] mask-b-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-end)))] mask-l-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-start)))] mask-r-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-end)))] [--fade-size:1.5rem]"
-                )}
-                data-slot="scroll-area-viewport"
-            >
-                <ScrollAreaPrimitive.Content
-                    className="size-full"
-                    data-slot="scroll-area-content"
-                >
-                    {children}
-                </ScrollAreaPrimitive.Content>
-            </ScrollAreaPrimitive.Viewport>
-            <ScrollBar orientation="vertical" />
-            <ScrollBar orientation="horizontal" />
-            <ScrollAreaPrimitive.Corner />
-        </ScrollAreaPrimitive.Root>
+        />
+    );
+}
+
+export function ScrollAreaViewport({
+    className,
+    ...props
+}: ScrollAreaPrimitive.Viewport.Props) {
+    return (
+        <ScrollAreaPrimitive.Viewport
+            {...props}
+            className={cn(
+                "h-full overscroll-none rounded-[inherit] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                "mask-t-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-start)))] mask-b-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-end)))] mask-l-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-start)))] mask-r-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-end)))] [--fade-size:1.5rem]",
+                className
+            )}
+            data-slot="scroll-area-viewport"
+        />
     );
 }
 

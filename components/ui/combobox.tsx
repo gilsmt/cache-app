@@ -324,7 +324,7 @@ export function ComboboxList({
     ...props
 }: ComboboxPrimitive.List.Props) {
     return (
-        <ScrollArea shouldScrollFade>
+        <ScrollArea>
             <ComboboxPrimitive.List
                 {...props}
                 className={cn(

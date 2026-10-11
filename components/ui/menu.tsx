@@ -45,7 +45,7 @@ export function MenuPopup({
                 align={align}
                 alignOffset={alignOffset}
                 anchor={anchor}
-                className="z-50"
+                className="z-50 select-none outline-none"
                 collisionAvoidance={collisionAvoidance}
                 data-slot="menu-positioner"
                 positionMethod={positionMethod}

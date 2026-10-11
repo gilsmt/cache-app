@@ -1,6 +1,6 @@
-import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 import type * as React from "react";
+import { cva, type VariantProps } from "@/cva.config";
 
 const ALERT_ROLE_BY_VARIANT = {
     default: undefined,
@@ -10,24 +10,22 @@ const ALERT_ROLE_BY_VARIANT = {
     warning: "alert",
 } as const;
 
-const alertVariants = cva(
-    "relative grid w-full items-center gap-x-2 gap-y-0.5 text-pretty rounded-xl px-3.5 py-2.5 text-foreground text-xs has-[>svg]:has-data-[slot=alert-action]:grid-cols-[calc(var(--spacing)*5)_1fr_auto] has-[>svg]:grid-cols-[calc(var(--spacing)*5)_1fr] has-data-[slot=alert-action]:grid-cols-[1fr_auto] [&>svg]:size-5",
-    {
-        defaultVariants: {
-            variant: "default",
+const alertVariants = cva({
+    base: "relative grid w-full items-center gap-x-2 gap-y-0.5 text-pretty rounded-xl px-3.5 py-2.5 text-foreground text-xs has-[>svg]:has-data-[slot=alert-action]:grid-cols-[calc(var(--spacing)*5)_1fr_auto] has-[>svg]:grid-cols-[calc(var(--spacing)*5)_1fr] has-data-[slot=alert-action]:grid-cols-[1fr_auto] [&>svg]:size-5",
+    defaultVariants: {
+        variant: "default",
+    },
+    variants: {
+        variant: {
+            default:
+                "bg-muted/80 dark:bg-input/32 [&>svg]:text-muted-foreground",
+            error: "bg-destructive/4 [&>svg]:text-destructive",
+            info: "bg-info/4 [&>svg]:text-info",
+            success: "bg-success/4 [&>svg]:text-success",
+            warning: "bg-warning/4 [&>svg]:text-warning",
         },
-        variants: {
-            variant: {
-                default:
-                    "bg-muted/80 dark:bg-input/32 [&>svg]:text-muted-foreground",
-                error: "bg-destructive/4 [&>svg]:text-destructive",
-                info: "bg-info/4 [&>svg]:text-info",
-                success: "bg-success/4 [&>svg]:text-success",
-                warning: "bg-warning/4 [&>svg]:text-warning",
-            },
-        },
-    }
-);
+    },
+});
 
 export function Alert({
     className,

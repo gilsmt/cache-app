@@ -6,7 +6,6 @@ import * as React from "react";
 
 export const HOVER_HOTKEY_REGIONS = {
     collections: "collections",
-    libraryCards: "library-cards",
 } as const;
 
 export type HoverHotkeyRegion =

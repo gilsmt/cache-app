@@ -46,7 +46,7 @@ export function ContextMenuPopup({
                 align={align}
                 alignOffset={alignOffset}
                 anchor={anchor}
-                className="z-50"
+                className="z-50 select-none outline-none"
                 data-slot="context-menu-positioner"
                 positionMethod={positionMethod}
                 side={side}

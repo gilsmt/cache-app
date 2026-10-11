@@ -266,12 +266,10 @@ export function DrawerDescription({
 interface DrawerPanelProps extends useRender.ComponentProps<"div"> {
     allowSelection?: boolean;
     isScrollable?: boolean;
-    shouldScrollFade?: boolean;
 }
 
 export function DrawerPanel({
     className,
-    shouldScrollFade = true,
     isScrollable = true,
     allowSelection = true,
     render,
@@ -294,12 +292,7 @@ export function DrawerPanel({
 
     if (isScrollable) {
         return (
-            <ScrollArea
-                className="touch-auto"
-                shouldScrollFade={shouldScrollFade}
-            >
-                {content}
-            </ScrollArea>
+            <ScrollArea viewportClassName="touch-auto">{content}</ScrollArea>
         );
     }
 

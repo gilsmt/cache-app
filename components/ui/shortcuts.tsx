@@ -264,7 +264,7 @@ export function KeyboardShortcutsDialogTrigger(
                                                     value={item.searchValue}
                                                 >
                                                     <div className="flex w-full min-w-0 items-center justify-between gap-3">
-                                                        <span className="min-w-0 truncate font-normal text-muted-foreground text-sm">
+                                                        <span className="min-w-0 truncate font-medium text-muted-foreground text-sm">
                                                             {item.description}
                                                         </span>
                                                         <ShortcutKeys

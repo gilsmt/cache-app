@@ -37,7 +37,7 @@ export function Ticker({
     const [contentWidthPx, setContentWidthPx] = React.useState(0);
 
     const containerRef = React.useRef<HTMLSpanElement | null>(null);
-    const mergedRef = useMergedRefs(ref, containerRef);
+    const mergedRefs = useMergedRefs(ref, containerRef);
 
     useIsoLayoutEffect(() => {
         const container = containerRef.current;
@@ -93,7 +93,7 @@ export function Ticker({
                 "group inline-flex w-full min-w-0 overflow-clip",
                 className
             )}
-            ref={mergedRef}
+            ref={mergedRefs}
         >
             <span
                 className={cn(

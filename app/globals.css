@@ -1,8 +1,11 @@
 @charset "utf-8";
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "shadcn/tailwind.css";
+
+/* ── React-medium-image-zoom ── */
 @import "react-medium-image-zoom/dist/styles.css";
+
+/* ── Streamdown ── */
 @source "../node_modules/streamdown/dist/*.js";
 
 /* ── Dark-mode variant ── */
@@ -73,8 +76,8 @@
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.55 0.22 27);
     --destructive-foreground: oklch(0.45 0.18 27);
-    --border: oklch(0.9 0 0);
-    --input: oklch(0.9 0 0);
+    --border: oklch(0.92 0 0);
+    --input: oklch(0.92 0 0);
     --ring: oklch(0.55 0.2 262);
     --radius: 0.625rem;
     --info: oklch(0.62 0.19 255);
@@ -357,7 +360,7 @@
     app-region: no-drag;
 }
 
-/* Suppress transitions during theme flips (applied by hooks/use-theme.ts). */
+/* Suppress transitions during theme flips (applied by use-theme.ts). */
 html.no-transitions,
 html.no-transitions *,
 html.no-transitions *::before,

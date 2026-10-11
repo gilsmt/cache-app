@@ -86,6 +86,7 @@ interface SidebarMenuPromotedLink {
     icon: React.ReactNode;
     label: string;
     shortcutKeys?: string;
+    trailing?: React.ReactNode;
 }
 
 function useSidebarNavigationHotkey(
@@ -164,12 +165,14 @@ function findActiveSidebarMenuLink(
                 icon?: React.ReactNode;
                 label?: unknown;
                 shortcutKeys?: unknown;
+                trailing?: React.ReactNode;
                 children?: React.ReactNode;
             }>(element)
         ) {
             continue;
         }
-        const { href, icon, label, shortcutKeys, children } = element.props;
+        const { href, icon, label, shortcutKeys, trailing, children } =
+            element.props;
         if (typeof href !== "string") {
             continue;
         }
@@ -186,6 +189,7 @@ function findActiveSidebarMenuLink(
             label,
             shortcutKeys:
                 typeof shortcutKeys === "string" ? shortcutKeys : undefined,
+            trailing,
         };
     }
     return null;
@@ -511,6 +515,7 @@ export function SidebarMenu({
                 icon={promoted.icon}
                 label={promoted.label}
                 shortcutKeys={promoted.shortcutKeys}
+                trailing={promoted.trailing}
             >
                 {promoted.content}
             </SidebarNavigationItem>
@@ -533,6 +538,7 @@ export function SidebarMenu({
                 icon={promoted.icon}
                 label={promoted.label}
                 shortcutKeys={promoted.shortcutKeys}
+                trailing={promoted.trailing}
             >
                 {promoted.content}
             </SidebarNavigationItem>
@@ -603,6 +609,7 @@ interface SidebarMenuLinkItemProps
     icon: React.ReactNode;
     label: string;
     shortcutKeys?: string;
+    trailing?: React.ReactNode;
 }
 
 export function SidebarMenuLinkItem({
@@ -611,6 +618,7 @@ export function SidebarMenuLinkItem({
     icon,
     label,
     shortcutKeys,
+    trailing,
     children,
     "aria-label": ariaLabelProp,
     title: titleProp,
@@ -622,6 +630,12 @@ export function SidebarMenuLinkItem({
 
     const ariaLabel = ariaLabelProp ?? m(label);
     const title = titleProp ?? ariaLabel;
+    const inlineShortcut = shortcutKeys ? (
+        <SidebarMenuShortcut keys={shortcutKeys} />
+    ) : null;
+    const overlayShortcut = shortcutKeys ? (
+        <SidebarMenuShortcut className="[grid-area:1/1]" keys={shortcutKeys} />
+    ) : null;
 
     return (
         <MenuLinkItem
@@ -633,7 +647,25 @@ export function SidebarMenuLinkItem({
         >
             <SidebarItemIcon>{icon}</SidebarItemIcon>
             <span className="truncate">{children}</span>
-            {shortcutKeys ? <SidebarMenuShortcut keys={shortcutKeys} /> : null}
+            {trailing ? (
+                <span
+                    className="ml-auto grid shrink-0 items-center justify-items-end *:col-start-1 *:row-start-1"
+                    data-sidebar-label=""
+                >
+                    <span
+                        className={cn(
+                            "min-w-0 shrink-0 [grid-area:1/1]",
+                            shortcutKeys &&
+                                "sm:group-focus-visible:hidden sm:group-hover:hidden"
+                        )}
+                    >
+                        {trailing}
+                    </span>
+                    {overlayShortcut}
+                </span>
+            ) : (
+                inlineShortcut
+            )}
         </MenuLinkItem>
     );
 }
