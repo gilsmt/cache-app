@@ -59,6 +59,7 @@ import {
     CHANGELOG_URL,
     DOCS_URL,
     GITHUB_URL,
+    STATUS_URL,
     SUPPORT_ADDRESS,
 } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
@@ -671,6 +672,51 @@ function DesktopDownloadMenuItem({
     );
 }
 
+function AccountMenuUpgradeItem() {
+    const { errorMessage, execute, isPending } = useSubscriptionUpgradeAction();
+
+    return (
+        <>
+            <MenuItem
+                closeOnClick={false}
+                disabled={isPending}
+                onClick={execute}
+            >
+                <T>Upgrade to Pro</T>
+                {isPending ? (
+                    <LoaderCircle className="ml-auto size-4 animate-spin text-muted-foreground" />
+                ) : (
+                    <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
+                )}
+            </MenuItem>
+            <ErrorMessage className="px-2">{errorMessage}</ErrorMessage>
+        </>
+    );
+}
+
+function AccountMenuBillingItem() {
+    const { errorMessage, execute, isPending } =
+        useSubscriptionBillingPortalAction();
+
+    return (
+        <>
+            <MenuItem
+                closeOnClick={false}
+                disabled={isPending}
+                onClick={execute}
+            >
+                <T>Billing</T>
+                {isPending ? (
+                    <LoaderCircle className="ml-auto size-4 animate-spin text-muted-foreground" />
+                ) : (
+                    <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
+                )}
+            </MenuItem>
+            <ErrorMessage className="px-2">{errorMessage}</ErrorMessage>
+        </>
+    );
+}
+
 function AccountActionsSubMenu(
     props: React.ComponentProps<typeof MenuSubTrigger>
 ) {
@@ -731,6 +777,19 @@ function AccountActionsSubMenu(
                         className="justify-between"
                         render={
                             <Link
+                                href={STATUS_URL}
+                                rel="noopener noreferrer"
+                                target="_blank"
+                            />
+                        }
+                    >
+                        <T>Cache App status</T>
+                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
+                    </MenuItem>
+                    <MenuItem
+                        className="justify-between"
+                        render={
+                            <Link
                                 href={GITHUB_URL}
                                 rel="noopener noreferrer"
                                 target="_blank"
@@ -770,50 +829,5 @@ function AccountActionsSubMenu(
                 </MenuGroup>
             </MenuSubPopup>
         </MenuSub>
-    );
-}
-
-function AccountMenuBillingItem() {
-    const { errorMessage, execute, isPending } =
-        useSubscriptionBillingPortalAction();
-
-    return (
-        <>
-            <MenuItem
-                closeOnClick={false}
-                disabled={isPending}
-                onClick={execute}
-            >
-                <T>Billing</T>
-                {isPending ? (
-                    <LoaderCircle className="ml-auto size-4 animate-spin text-muted-foreground" />
-                ) : (
-                    <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
-                )}
-            </MenuItem>
-            <ErrorMessage className="px-2">{errorMessage}</ErrorMessage>
-        </>
-    );
-}
-
-function AccountMenuUpgradeItem() {
-    const { errorMessage, execute, isPending } = useSubscriptionUpgradeAction();
-
-    return (
-        <>
-            <MenuItem
-                closeOnClick={false}
-                disabled={isPending}
-                onClick={execute}
-            >
-                <T>Upgrade to Pro</T>
-                {isPending ? (
-                    <LoaderCircle className="ml-auto size-4 animate-spin text-muted-foreground" />
-                ) : (
-                    <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
-                )}
-            </MenuItem>
-            <ErrorMessage className="px-2">{errorMessage}</ErrorMessage>
-        </>
     );
 }
