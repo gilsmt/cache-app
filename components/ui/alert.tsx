@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import type * as React from "react";
-import { cva, type VariantProps } from "@/cva.config";
+import { cva, type VariantProps } from "@/components/ui/cva";
 
 const ALERT_ROLE_BY_VARIANT = {
     default: undefined,
