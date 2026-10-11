@@ -1,6 +1,5 @@
 "use client";
 
-import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { Calligraph } from "calligraph";
 import { cn } from "cn";
 import * as HeatGraph from "heat-graph";
@@ -14,7 +13,6 @@ import {
     Star,
 } from "lucide-react";
 import type * as React from "react";
-import { useState } from "react";
 import {
     DataList,
     DataListChart,
@@ -274,29 +272,23 @@ interface ActivityHeatmapProps {
 }
 
 function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
-    const [activeLabel, setActiveLabel] = useState<string | null>(null);
-
-    const clearActiveLabel = useStableCallback(() => {
-        setActiveLabel(null);
-    });
-
     return (
-        <div className="col-span-full grid w-fit min-w-0 gap-3">
+        <div className="col-span-full grid w-full min-w-0 gap-2">
             <HeatGraph.Root
                 aria-label="Daily item additions over the past year. Focus a filled day to see its count."
-                className="grid w-fit min-w-0 gap-2"
+                className="grid gap-2"
                 colorScale={ACTIVITY_COLOR_SCALE}
                 data={[...activity]}
                 role="group"
                 weekStart="monday"
             >
-                <div className="relative h-3 overflow-clip text-[10px] text-muted-foreground/80">
+                <div className="relative h-3 text-[10px] text-muted-foreground/80">
                     <HeatGraph.MonthLabels>
                         {({ label, totalWeeks }) =>
                             label.month % 3 === 0 ? (
                                 <span
                                     className={cn(
-                                        "absolute",
+                                        "absolute text-nowrap",
                                         label.column === totalWeeks - 1 &&
                                             "-translate-x-full"
                                     )}
@@ -310,7 +302,7 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                         }
                     </HeatGraph.MonthLabels>
                 </div>
-                <HeatGraph.Grid className="w-fit gap-px">
+                <HeatGraph.Grid className="gap-px">
                     {({ cell }) => {
                         const isActiveDay = cell.count > 0;
                         const label = isActiveDay
@@ -321,13 +313,7 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                             <HeatGraph.Cell
                                 aria-hidden={!isActiveDay}
                                 aria-label={label}
-                                className="aspect-square size-[3px] rounded-[1px] focus-visible:ring-2 focus-visible:ring-ring"
-                                onBlur={clearActiveLabel}
-                                onFocus={
-                                    label
-                                        ? () => setActiveLabel(label)
-                                        : undefined
-                                }
+                                className="aspect-square rounded-[1px]"
                                 role={isActiveDay ? "img" : undefined}
                                 tabIndex={isActiveDay ? 0 : undefined}
                             />
@@ -342,15 +328,10 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                         </>
                     )}
                 </HeatGraph.Tooltip>
-                {activeLabel ? (
-                    <p className="text-[11px] text-muted-foreground">
-                        {activeLabel}
-                    </p>
-                ) : null}
             </HeatGraph.Root>
             <div
                 aria-hidden="true"
-                className="flex items-center justify-end gap-1 text-[9px] text-muted-foreground"
+                className="flex items-center justify-end gap-0.75 text-[10px] text-muted-foreground"
             >
                 <span>Less</span>
                 {ACTIVITY_COLOR_SCALE.map((color) => (

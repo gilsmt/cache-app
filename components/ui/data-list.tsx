@@ -118,7 +118,7 @@ export function DataListSectionContent({
         <CollapsiblePanel
             {...props}
             className={cn(
-                "col-span-2 grid min-w-0 grid-cols-subgrid gap-3",
+                "col-span-full grid min-w-0 grid-cols-subgrid gap-3",
                 className
             )}
         />
