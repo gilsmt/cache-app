@@ -1,5 +1,5 @@
 import { requireRouteUserId } from "@/lib/auth/session";
-import { extensionTokenCorsHeaders } from "@/lib/extension/ingest/route";
+import { extensionTokenCorsHeaders } from "@/lib/extension/ingest/adapter";
 import {
     getOrCreateExtensionIngestToken,
     rotateExtensionIngestToken,

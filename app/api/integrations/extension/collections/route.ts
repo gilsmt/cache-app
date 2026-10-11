@@ -9,7 +9,7 @@ import {
 import {
     authenticateExtensionIngest,
     extensionIngestCorsHeaders,
-} from "@/lib/extension/ingest/route";
+} from "@/lib/extension/ingest/adapter";
 
 const log = createLogger("api:integrations:extension:collections");
 

@@ -5,7 +5,7 @@ import { createLogger } from "@/lib/common/logs/console/logger";
 import {
     authenticateExtensionIngest,
     extensionIngestCorsHeaders,
-} from "@/lib/extension/ingest/route";
+} from "@/lib/extension/ingest/adapter";
 import {
     applyChromeBookmarkSyncEvents,
     chromeBookmarkSyncBodySchema,

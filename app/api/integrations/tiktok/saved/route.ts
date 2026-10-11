@@ -1,7 +1,7 @@
 import {
     extensionIngestCorsHeaders,
     runExtensionIngestImport,
-} from "@/lib/extension/ingest/route";
+} from "@/lib/extension/ingest/adapter";
 import {
     importTiktokSaved,
     tiktokSavedBodySchema,

@@ -1,5 +1,12 @@
 import "server-only";
 
+/**
+ * Shared HTTP adapter for the extension ingest endpoints. This module is
+ * not a Next.js route; only `app/api/.../route.ts` files define routes.
+ * It centralizes CORS, Bearer auth, and validation so the ingest routes
+ * share one behavior.
+ */
+
 import * as z from "zod";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
