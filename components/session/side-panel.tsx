@@ -1868,7 +1868,7 @@ function SidePanelTabsListItem({
     if (entryTitle !== null) {
         title = truncateLabel(entryTitle);
     } else if (item.type === "note") {
-        title = item.note ? gt("Untitled note") : gt("New note");
+        title = item.note ? gt("Untitled") : gt("New");
     } else {
         title = gt("Preview");
     }
