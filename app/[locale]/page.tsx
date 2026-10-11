@@ -356,7 +356,7 @@ export default async function Home() {
                                 <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
                                     Curate a library of all the content you love
                                 </h2>
-                                <p className="text-pretty font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
+                                <p className="font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
                                     Get inspired, find that lesson, recipe, or
                                     idea you've been looking for, all in the
                                     span of a coffee break.
@@ -401,7 +401,7 @@ export default async function Home() {
                                 <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
                                     Bring in everything you've already saved
                                 </h2>
-                                <p className="text-pretty font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
+                                <p className="font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
                                     Bring together bookmarks from your browser,
                                     socials, and videos automatically. Ditch the
                                     endless scrolling and tabbing through
@@ -507,7 +507,7 @@ export default async function Home() {
                                 <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
                                     Stop leaving it for later
                                 </h2>
-                                <p className="text-pretty font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
+                                <p className="font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
                                     We all save things with good intentions,
                                     only to let them fade into a forgotten list.
                                     Cache brings your best saved content back to
@@ -553,7 +553,7 @@ export default async function Home() {
                                 <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
                                     Search and explore from a single, fast feed
                                 </h2>
-                                <p className="text-pretty font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
+                                <p className="font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
                                     Streamline the way you revisit your saved
                                     content through a modern and powerful
                                     interface.
@@ -597,7 +597,7 @@ export default async function Home() {
                                 <h2 className="font-medium text-[28px] text-foreground leading-[1.1] tracking-[-1.28px] lg:text-[32px]">
                                     Spot the stale, keep the useful
                                 </h2>
-                                <p className="text-pretty font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
+                                <p className="font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
                                     Build a knowledge base from the saved
                                     content you've already marked as important
                                     to you. Import once and Cache organizes them
@@ -749,7 +749,8 @@ export default async function Home() {
                                         and AI agents do the rest
                                     </span>
                                 </h2>
-                                <p className="text-pretty font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
+                                <p className="max-w-md font-medium text-base text-foreground leading-[1.2] tracking-[-3%] opacity-50">
+                                    Integrate Cache into your day-to-day.
                                     Summarize, research, compare, or draft with
                                     the relevant bookmarks already in context.
                                 </p>
@@ -812,7 +813,7 @@ export default async function Home() {
                                 <div className="flex h-[270px] flex-col justify-between rounded-[1.25rem] border-4 border-background bg-card p-3 shadow-[0_8px_40px_-12px_rgb(0_0_0/0.35)] sm:h-[330px] sm:rounded-[1.75rem] sm:border-8 sm:p-5 md:h-[380px] md:rounded-[2rem] md:p-7">
                                     <T context="AI agents demo on homepage">
                                         <div className="ml-auto w-fit max-w-[92%] rounded-xl bg-muted px-3 py-2.5 sm:rounded-2xl sm:px-5 sm:py-3.5">
-                                            <p className="text-pretty text-left font-medium text-[12px] text-foreground leading-[1.35] tracking-[-0.2px] sm:text-[13px] md:text-[15px]">
+                                            <p className="text-left font-medium text-[12px] text-foreground leading-[1.35] tracking-[-0.2px] sm:text-[13px] md:text-[15px]">
                                                 What do my bookmarks say about
                                                 living a better life?
                                             </p>
@@ -821,7 +822,7 @@ export default async function Home() {
                                             <p className="font-medium text-[11px] text-muted-foreground tracking-[-0.2px] sm:text-xs md:text-sm">
                                                 Cache AI
                                             </p>
-                                            <p className="text-pretty font-medium text-[13px] text-foreground leading-[1.3] tracking-[-0.4px] sm:text-base md:text-lg md:leading-[1.28]">
+                                            <p className="font-medium text-[13px] text-foreground leading-[1.3] tracking-[-0.4px] sm:text-base md:text-lg md:leading-[1.28]">
                                                 Your bookmarks suggest a
                                                 philosophy of life centered on
                                                 deliberate, high-leverage action
@@ -864,7 +865,7 @@ export default async function Home() {
                                     <h3 className="font-medium text-foreground text-lg tracking-[-0.5px]">
                                         <T>Curious readers</T>
                                     </h3>
-                                    <p className="text-pretty font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
+                                    <p className="font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
                                         <T>
                                             Articles, essays, newsletters. A
                                             living library instead of a
@@ -876,7 +877,7 @@ export default async function Home() {
                                     <h3 className="font-medium text-foreground text-lg tracking-[-0.5px]">
                                         <T>Writers and thinkers</T>
                                     </h3>
-                                    <p className="text-pretty font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
+                                    <p className="font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
                                         <T>
                                             References, quotes, snippets. A
                                             searchable research stack for raw
@@ -888,7 +889,7 @@ export default async function Home() {
                                     <h3 className="font-medium text-foreground text-lg tracking-[-0.5px]">
                                         <T>Builders and developers</T>
                                     </h3>
-                                    <p className="text-pretty font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
+                                    <p className="font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
                                         <T>
                                             Docs, issues, code, tutorials. Find
                                             that one link when you need it.
@@ -899,7 +900,7 @@ export default async function Home() {
                                     <h3 className="font-medium text-foreground text-lg tracking-[-0.5px]">
                                         <T>Creators and curators</T>
                                     </h3>
-                                    <p className="text-pretty font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
+                                    <p className="font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
                                         <T>
                                             Threads, videos, inspiration. Group
                                             ideas into collections and share
@@ -911,7 +912,7 @@ export default async function Home() {
                                     <h3 className="font-medium text-foreground text-lg tracking-[-0.5px]">
                                         <T>Productivity</T>
                                     </h3>
-                                    <p className="text-pretty font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
+                                    <p className="font-medium text-[15px] text-foreground leading-[1.4] opacity-50">
                                         <T>
                                             The missing step between bookmarking
                                             and note-taking. Structured,
@@ -944,7 +945,7 @@ export default async function Home() {
                                             }
                                         />
                                         <PopoverPopup side="top">
-                                            <div className="max-w-xs text-pretty text-sm">
+                                            <div className="max-w-xs text-sm">
                                                 MCP is a universal connector —
                                                 similar to a "USB port" for AI,
                                                 but for software. It lets your
