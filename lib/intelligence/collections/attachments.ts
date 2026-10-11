@@ -200,6 +200,9 @@ async function downloadRemoteAsset(
     // deadline across redirects instead of bounding the total walk.
     const deadline = abortAfter(ATTACHMENT_FETCH_TIMEOUT_MS);
     let filePath: string | null = null;
+    let responseBody: ReadableStream<Uint8Array> | null = null;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    let responseBodyIsSettled = false;
     let shouldKeepFile = false;
 
     try {
@@ -216,12 +219,14 @@ async function downloadRemoteAsset(
         }
 
         const { response } = result;
-        if (!(response.ok && response.body)) {
+        const body = response.body;
+        if (!(response.ok && body)) {
             // Release the connection on the reject path too, matching the
             // sibling preview/link-preview fetchers.
-            await response.body?.cancel().catch(() => undefined);
+            await body?.cancel().catch(() => undefined);
             return null;
         }
+        responseBody = body;
 
         const resolvedUrl = response.url || url;
         const { extension, mimeType } = inferDownloadAssetType(
@@ -237,13 +242,16 @@ async function downloadRemoteAsset(
             "wx"
         );
         filePath = candidatePath;
-        const reader = response.body.getReader();
-        let downloadedBytes = 0;
 
         try {
+            const bodyReader = body.getReader();
+            reader = bodyReader;
+            let downloadedBytes = 0;
+
             for (;;) {
-                const { done, value } = await reader.read();
+                const { done, value } = await bodyReader.read();
                 if (done) {
+                    responseBodyIsSettled = true;
                     break;
                 }
 
@@ -253,9 +261,10 @@ async function downloadRemoteAsset(
 
                 downloadedBytes += value.byteLength;
                 if (downloadedBytes > ATTACHMENT_DOWNLOAD_BYTES_MAX) {
-                    await reader.cancel(
+                    await bodyReader.cancel(
                         "Smart collections asset exceeded the maximum download size."
                     );
+                    responseBodyIsSettled = true;
                     return null;
                 }
 
@@ -284,6 +293,14 @@ async function downloadRemoteAsset(
     } catch {
         return null;
     } finally {
+        if (!responseBodyIsSettled) {
+            if (reader) {
+                await reader.cancel().catch(() => undefined);
+            } else {
+                await responseBody?.cancel().catch(() => undefined);
+            }
+        }
+        reader?.releaseLock();
         deadline.clearTimeout();
         if (!(shouldKeepFile || filePath === null)) {
             await rm(/* turbopackIgnore: true */ filePath, {

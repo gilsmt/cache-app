@@ -565,6 +565,7 @@ async function resolveImagePreview(
             status: pageResponse.status,
             targetUrl: targetHref,
         });
+        await pageResponse.body?.cancel().catch(() => undefined);
         if (pageResponse.status === 404 || pageResponse.status === 410) {
             return null;
         }
@@ -588,13 +589,18 @@ async function resolveImagePreview(
 
     const previewContentType =
         normalizePreviewContentType(pageContentType) || pageContentType;
-    const previewBody = shouldReadPreviewResponseBody(previewContentType)
+    const shouldReadResponseBody =
+        shouldReadPreviewResponseBody(previewContentType);
+    const previewBody = shouldReadResponseBody
         ? await readTextBodyWithLimit(
               pageResponse,
               MAX_PREVIEW_METADATA_BODY_BYTES,
               signal
           )
         : "";
+    if (!shouldReadResponseBody) {
+        await pageResponse.body?.cancel().catch(() => undefined);
+    }
     if (previewBody === null) {
         if (signal?.aborted) {
             throw new DOMException("Aborted", "AbortError");
@@ -718,6 +724,7 @@ async function resolveTikTokImagePreview(
             status: response.status,
             targetUrl,
         });
+        await response.body?.cancel().catch(() => undefined);
         if (response.status === 404 || response.status === 410) {
             return null;
         }
@@ -757,12 +764,13 @@ async function proxyImageResponse(
     return streamImageResponse(imageResponse, targetUrl.href, preview);
 }
 
-function streamImageResponse(
+async function streamImageResponse(
     imageResponse: Response,
     targetHref: string,
     preview: ResolvedImage
-): Response {
+): Promise<Response> {
     if (!imageResponse.ok) {
+        await imageResponse.body?.cancel().catch(() => undefined);
         if (imageResponse.status === 404 || imageResponse.status === 410) {
             deleteCachedImagePreview(targetHref, preview);
             writeCachedNegativePreview(targetHref, "image").catch(
@@ -778,6 +786,7 @@ function streamImageResponse(
 
     const imageContentType = imageResponse.headers.get("content-type") ?? "";
     if (!isSupportedPreviewImageContentType(imageContentType)) {
+        await imageResponse.body?.cancel().catch(() => undefined);
         return textResponse("Unsupported preview", 415);
     }
 
@@ -787,6 +796,7 @@ function streamImageResponse(
             MAX_IMAGE_CONTENT_LENGTH_BYTES
         )
     ) {
+        await imageResponse.body?.cancel().catch(() => undefined);
         return textResponse("Preview too large", 413);
     }
 
@@ -1024,6 +1034,7 @@ async function proxyVideoResponse(
         );
 
         if (!tunnelResponse.ok) {
+            await tunnelResponse.body?.cancel().catch(() => undefined);
             return textResponse(
                 "Video not available",
                 toSafeUpstreamStatus(tunnelResponse.status)
@@ -1032,6 +1043,7 @@ async function proxyVideoResponse(
 
         const contentType = tunnelResponse.headers.get("content-type") ?? "";
         if (!isSupportedVideoContentType(contentType)) {
+            await tunnelResponse.body?.cancel().catch(() => undefined);
             return textResponse("Unsupported video preview", 415);
         }
 
@@ -1041,6 +1053,7 @@ async function proxyVideoResponse(
                 MAX_VIDEO_CONTENT_LENGTH_BYTES
             )
         ) {
+            await tunnelResponse.body?.cancel().catch(() => undefined);
             return textResponse("Video preview too large", 413);
         }
 
@@ -1225,6 +1238,7 @@ async function readTextBodyWithLimit(
     externalSignal?: AbortSignal
 ): Promise<string | null> {
     if (isContentLengthOverLimit(response.headers, maxBodyBytes)) {
+        await response.body?.cancel().catch(() => undefined);
         return null;
     }
 

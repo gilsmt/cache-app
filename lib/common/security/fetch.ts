@@ -116,9 +116,9 @@ export async function resolvePublicHttpUrl(
 /**
  * A dispatcher whose lookup hands Node only the validated address, so the
  * socket connects to that address while TLS SNI and the Host header keep the
- * public hostname. Each (host, pinned address) pair needs its own pool; an
- * Agent is intentionally kept unreferenced after its request so undici's
- * WeakRef bookkeeping reclaims it once the response stream is done.
+ * public hostname. Each (host, pinned address) pair needs its own pool; the
+ * Agent has an explicit owner (the hop that created it) which closes it when
+ * the response body settles.
  */
 export function createPinnedAgent(host: PublicHttpUrl): Agent {
     const hostname = host.url.hostname;
@@ -161,16 +161,48 @@ export function createPinnedAgent(host: PublicHttpUrl): Agent {
 }
 
 /**
+ * Closes a pinned Agent without ever throwing. The shape is checked at
+ * runtime because the Bun test runtime exposes an Agent without
+ * close/destroy while Node provides both.
+ */
+function closePinnedAgent(agent: Agent): void {
+    const candidate = agent as unknown as {
+        close?: () => Promise<void>;
+        closed?: boolean;
+        destroy?: () => Promise<void>;
+        destroyed?: boolean;
+    };
+    if (candidate.closed || candidate.destroyed) {
+        return;
+    }
+    const close = candidate.close;
+    const destroy = candidate.destroy;
+    if (typeof close !== "function") {
+        if (typeof destroy === "function") {
+            destroy.call(agent).catch(() => undefined);
+        }
+        return;
+    }
+    close
+        .call(agent)
+        .catch(() => destroy?.call(agent))
+        .catch(() => undefined);
+}
+
+/**
  * Runs a single, manually-controlled request against a pinned agent. Unlike
  * {@link fetchPublicRedirect}, redirects are not followed — the caller owns
  * the redirect walk (e.g. to apply per-hop retries/backoff).
  *
+ * This hop owns its Agent: the Agent closes exactly once when the response
+ * body is consumed, cancelled, or errors, or when the fetch itself throws.
  * The operation budget (`timeoutMs` and the caller's signal) covers the body
  * read as well as the headers: a host that stalls after its headers aborts
- * the read instead of hanging it. The budget is released exactly when the
- * body is consumed, cancelled, or errors; a body handed to a downstream
- * consumer (e.g. streamed to a client) outlives the request and must be
- * released explicitly with {@link releaseResponseBodyBudget}.
+ * the read instead of hanging it. The budget releases exactly when the body
+ * is consumed, cancelled, or errors; a body handed to a downstream consumer
+ * (e.g. streamed to a client) outlives the request and must be released
+ * explicitly with {@link releaseResponseBodyBudget}. Budget release never
+ * closes the Agent, so a streamed body stays usable after the release.
  */
 export async function fetchPublicHop(
     host: PublicHttpUrl,
@@ -186,64 +218,120 @@ export async function fetchPublicHop(
         options.timeoutMs,
         ...(options.signal ? [options.signal] : [])
     );
+    const agent = createPinnedAgent(host);
+    let budgetSettled = false;
+    const releaseBudget = () => {
+        if (!budgetSettled) {
+            budgetSettled = true;
+            clearTimeout();
+        }
+    };
+    let agentSettled = false;
+    const releaseAgent = () => {
+        if (agentSettled) {
+            return;
+        }
+        agentSettled = true;
+        closePinnedAgent(agent);
+    };
     try {
         const response = (await undici.fetch(host.url.href, {
-            dispatcher: createPinnedAgent(host),
+            dispatcher: agent,
             headers: options.headers,
             method: options.method,
             redirect: options.redirect ?? "manual",
             signal,
         })) as unknown as Response;
-        return budgetResponseBody(response, clearTimeout);
+        return budgetResponseBody(response, releaseBudget, releaseAgent);
     } catch (error) {
-        clearTimeout();
+        releaseBudget();
+        releaseAgent();
         log.debug("Pinned fetch failed", { host: host.url.hostname });
         throw error;
     }
 }
 
 /**
- * The DOM lib's `Transformer` type omits the spec's `cancel` hook, which
- * streams call when the readable side is cancelled (a body discarded without
- * being read); the budget must release on that path too.
- */
-type ResponseBodyTransformer = Transformer<
-    Uint8Array<ArrayBuffer>,
-    Uint8Array<ArrayBuffer>
-> & {
-    cancel?: () => void;
-};
-
-/**
- * Keeps the operation budget armed until the response body settles by
- * wrapping it so the timer clears exactly when the body is consumed,
- * cancelled, or errors. `url` cannot be set through the Response constructor,
- * so it is copied over — callers resolve relative links against it.
+ * Keeps the operation budget armed until the response body settles and ties
+ * the hop's Agent to the same body lifecycle on a separate release path.
+ * The wrapped body releases the budget and closes the Agent exactly once
+ * when fully consumed, cancelled, or errored. `url` cannot be set through
+ * the Response constructor, so it is copied over — callers resolve relative
+ * links against it.
  */
 function budgetResponseBody(
     response: Response,
-    clearTimeout: () => void
+    releaseBudget: () => void,
+    releaseAgent: () => void
 ): Response {
+    const releaseBoth = () => {
+        releaseBudget();
+        releaseAgent();
+    };
     const body = response.body;
     if (body === null) {
-        clearTimeout();
+        releaseBoth();
         return response;
     }
 
-    const budgetTransformer: ResponseBodyTransformer = {
-        cancel: clearTimeout,
-        flush: clearTimeout,
+    const reader = body.getReader();
+    const releaseReader = () => {
+        try {
+            reader.releaseLock();
+        } catch {
+            // Reader already released or the stream errored.
+        }
     };
-    const budgetedBody = body.pipeThrough(
-        new TransformStream(budgetTransformer)
-    );
-    const budgeted = new Response(budgetedBody, {
+    const trackedBody = new ReadableStream<Uint8Array>({
+        async cancel(reason) {
+            releaseBudget();
+            try {
+                await reader.cancel(reason).catch(() => undefined);
+            } finally {
+                releaseReader();
+                releaseAgent();
+            }
+        },
+        async pull(controller) {
+            let next: Awaited<ReturnType<typeof reader.read>>;
+            try {
+                next = await reader.read();
+            } catch (error) {
+                releaseBoth();
+                releaseReader();
+                try {
+                    controller.error(error);
+                } catch {
+                    // Downstream already cancelled; release is done.
+                }
+                return;
+            }
+            if (next.done) {
+                releaseBoth();
+                releaseReader();
+                try {
+                    controller.close();
+                } catch {
+                    // Downstream already cancelled; release is done.
+                }
+                return;
+            }
+            if (next.value !== undefined) {
+                try {
+                    controller.enqueue(next.value);
+                } catch {
+                    // Downstream already cancelled; release is done.
+                }
+            }
+        },
+    });
+    const budgeted = new Response(trackedBody, {
         headers: response.headers,
         status: response.status,
         statusText: response.statusText,
     });
     Object.defineProperty(budgeted, "url", { value: response.url });
-    setResponseBodyBudgetReleaser(budgeted, clearTimeout);
+    setResponseBodyBudgetReleaser(budgeted, releaseBudget);
     return budgeted;
 }
 

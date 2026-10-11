@@ -53,6 +53,7 @@ export async function parseFeed(url: string): Promise<ParsedFeed> {
         response = result.response;
 
         if (!response.ok) {
+            await response.body?.cancel().catch(() => undefined);
             throw new RssFeedError({
                 kind: "fetch_failed",
                 message: `Feed returned HTTP ${response.status}`,
