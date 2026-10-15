@@ -20,9 +20,6 @@ export const authClient = createAuthClient({
             ? [oneTapClient({ clientId: GOOGLE_ONE_TAP_CLIENT_ID })]
             : []),
     ],
-    sessionOptions: {
-        refetchOnWindowFocus: false,
-    },
 });
 
 export const { signIn, signOut, useSession } = authClient;
