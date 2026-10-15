@@ -135,6 +135,15 @@ export async function POST(request: Request, { params }: ThreadRouteParams) {
     } catch (error) {
         if (
             ThreadError.isInstance(error) &&
+            error.data.code === "invalid_input"
+        ) {
+            return Response.json(
+                { error: error.data.message },
+                { status: 400 }
+            );
+        }
+        if (
+            ThreadError.isInstance(error) &&
             error.data.code === "turn_in_progress"
         ) {
             return Response.json(

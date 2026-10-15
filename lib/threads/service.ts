@@ -504,6 +504,14 @@ export async function startThreadTurn(args: {
                 ? saved[retriedIndex]
                 : undefined;
         if (retried?.role === ChatMessageRole.user) {
+            if (retried.content !== args.message.content) {
+                throw new ThreadError({
+                    code: "invalid_input",
+                    message:
+                        "This message differs from the saved version. Send it as a new message.",
+                    operation: "startThreadTurn",
+                });
+            }
             // Idempotent retry: the turn is already saved (e.g. after a
             // mid-stream failure released the claim). Reuse the trailing
             // user row instead of creating a duplicate. Anything else
