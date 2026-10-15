@@ -6,33 +6,47 @@ export const getSystemAltKey = () => (platform.os.apple ? "⌥" : "Alt");
 
 export const getSystemShiftKey = () => (platform.os.apple ? "⇧" : "Shift");
 
-export interface KeyEventLike {
+const IME_KEY_CODE = 229;
+
+export interface KeyEventTarget {
+    isComposing?: boolean;
+    key?: string;
+    keyCode?: number;
+    which?: number;
+}
+
+export interface KeyEventLike extends KeyEventTarget {
     altKey?: boolean;
     code?: string;
     ctrlKey?: boolean;
-    isComposing?: boolean;
     key: string;
     metaKey?: boolean;
-    nativeEvent?: { isComposing?: boolean };
+    nativeEvent?: KeyEventTarget;
     shiftKey?: boolean;
 }
 
+export function getKeyEventTarget(event: KeyEventLike): KeyEventTarget {
+    // React copies fields at wrap time, so the native event holds the
+    // truth when present.
+    return event.nativeEvent ?? event;
+}
+
 export function isComposingEvent(event: KeyEventLike): boolean {
-    // DOM events carry isComposing on the event. React and Base UI wrap the
-    // native event, so read both shapes.
-    return event.isComposing ?? event.nativeEvent?.isComposing ?? false;
+    // Some IMEs send keyCode 229 or Process key without isComposing.
+    const target = getKeyEventTarget(event);
+    return (
+        target.isComposing === true ||
+        target.keyCode === IME_KEY_CODE ||
+        target.which === IME_KEY_CODE ||
+        target.key === "Process"
+    );
 }
 
 export function isActivationKey(event: KeyEventLike): boolean {
     if (isComposingEvent(event)) {
         return false;
     }
-    return (
-        event.key === "Enter" ||
-        event.key === "Process" ||
-        event.key === " " ||
-        event.code === "Space"
-    );
+    return event.key === "Enter" || event.key === " " || event.code === "Space";
 }
 
 export function isSubmitKey(event: KeyEventLike): boolean {

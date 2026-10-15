@@ -41,8 +41,8 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 type SidebarState = "expanded" | "collapsed";
 
 interface SidebarContext {
-    open: boolean;
-    setOpen: (open: boolean) => void;
+    isOpen: boolean;
+    setIsOpen: (open: boolean) => void;
     state: SidebarState;
     toggleSidebar: () => void;
 }
@@ -197,7 +197,7 @@ function findActiveSidebarMenuLink(
 
 export function SidebarProvider({
     defaultOpen = true,
-    open: openProp,
+    open: isOpenProp,
     onOpenChange,
     children,
 }: {
@@ -208,24 +208,24 @@ export function SidebarProvider({
 }) {
     const gt = useGT();
     const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen);
-    const open = openProp ?? uncontrolledOpen;
-    const hasAppliedCookieDefaultRef = React.useRef(openProp !== undefined);
+    const isOpen = isOpenProp ?? uncontrolledOpen;
+    const hasAppliedCookieDefaultRef = React.useRef(isOpenProp !== undefined);
 
     useIsoLayoutEffect(() => {
-        if (hasAppliedCookieDefaultRef.current || openProp !== undefined) {
+        if (hasAppliedCookieDefaultRef.current || isOpenProp !== undefined) {
             return;
         }
         hasAppliedCookieDefaultRef.current = true;
         setUncontrolledOpen(readSidebarCookieOpen());
-    }, [openProp]);
+    }, [isOpenProp]);
 
-    const setOpen = useStableCallback(
+    const setIsOpen = useStableCallback(
         (nextValue: boolean | ((prev: boolean) => boolean)) => {
             const nextOpen =
-                typeof nextValue === "function" ? nextValue(open) : nextValue;
+                typeof nextValue === "function" ? nextValue(isOpen) : nextValue;
             onOpenChange?.(nextOpen);
 
-            if (openProp === undefined) {
+            if (isOpenProp === undefined) {
                 setUncontrolledOpen(nextOpen);
             }
 
@@ -234,7 +234,7 @@ export function SidebarProvider({
     );
 
     const toggleSidebar = useStableCallback(() => {
-        setOpen((prev) => !prev);
+        setIsOpen((prev) => !prev);
     });
 
     const handleKeyDown = useStableCallback((event: KeyboardEvent) => {
@@ -262,10 +262,10 @@ export function SidebarProvider({
         description: gt("Expand or collapse sidebar"),
     });
 
-    const state = open ? "expanded" : "collapsed";
+    const state = isOpen ? "expanded" : "collapsed";
     const contextValue = {
-        open,
-        setOpen,
+        isOpen,
+        setIsOpen,
         state,
         toggleSidebar,
     } satisfies SidebarContext;
@@ -319,7 +319,7 @@ export function SidebarToggle({
     ...props
 }: React.ComponentProps<typeof Button>) {
     const gt = useGT();
-    const { open, toggleSidebar } = useSidebarContext();
+    const { isOpen, toggleSidebar } = useSidebarContext();
 
     const handleClick = useStableCallback(
         (event: BaseUIEvent<React.MouseEvent<HTMLButtonElement>>) => {
@@ -334,20 +334,19 @@ export function SidebarToggle({
     return (
         <Button
             {...props}
-            aria-label={open ? gt("Close sidebar") : gt("Open sidebar")}
             className={cn(
-                "hidden h-8 min-h-8 min-w-8 shrink-0 opacity-50 hover:opacity-100 lg:inline-flex",
-                open ? "cursor-w-resize" : "cursor-e-resize",
+                "hidden h-8 min-h-8 min-w-8 opacity-80 hover:opacity-100 lg:inline-flex",
+                isOpen ? "cursor-w-resize" : "cursor-e-resize",
                 className
             )}
             data-sidebar="trigger"
             data-slot="sidebar-trigger"
             onClick={handleClick}
             size="icon-sm"
-            title={getSidebarToggleTitle(gt, open)}
+            title={getSidebarToggleTitle(gt, isOpen)}
             variant="ghost"
         >
-            {open ? (
+            {isOpen ? (
                 <PanelLeft
                     aria-hidden
                     className="inline-block size-4 shrink-0"
@@ -419,13 +418,18 @@ export function SidebarItem({
     });
 }
 
-export function SidebarItemValue({ children }: React.PropsWithChildren) {
+export function SidebarItemValue({
+    children,
+    className,
+    ...props
+}: React.ComponentProps<"div">) {
     return (
         <div
-            className="flex min-w-0 flex-1 grow items-center"
+            {...props}
+            className={cn("flex min-w-0 flex-1 grow items-center", className)}
             data-sidebar-label=""
         >
-            <span className="truncate">{children}</span>
+            <span className="min-w-0 truncate">{children}</span>
         </div>
     );
 }
@@ -435,7 +439,7 @@ export function SidebarRail({
     ...props
 }: React.ComponentProps<"button">) {
     const gt = useGT();
-    const { toggleSidebar, open } = useSidebarContext();
+    const { toggleSidebar, isOpen } = useSidebarContext();
 
     return (
         <button
@@ -450,7 +454,7 @@ export function SidebarRail({
             data-slot="sidebar-rail"
             onClick={toggleSidebar}
             tabIndex={-1}
-            title={getSidebarToggleTitle(gt, open)}
+            title={getSidebarToggleTitle(gt, isOpen)}
         />
     );
 }

@@ -90,7 +90,7 @@ export function Ticker({
         <span
             {...props}
             className={cn(
-                "group inline-flex w-full min-w-0 overflow-clip",
+                "group inline-flex w-full min-w-0 shrink-0 overflow-clip",
                 className
             )}
             ref={mergedRefs}

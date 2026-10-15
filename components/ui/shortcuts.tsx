@@ -1,30 +1,29 @@
 "use client";
 
-import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T, useGT } from "gt-next";
 import { SearchIcon } from "lucide-react";
 import * as React from "react";
 import { useHotkeys, useHotkeysContext } from "react-hotkeys-hook";
 import {
-    Command,
-    CommandCollection,
-    CommandEmpty,
-    CommandGroup,
-    CommandGroupLabel,
-    CommandInput,
-    CommandItem,
-    CommandList,
-    useCommandFilter,
-} from "@/components/ui/command";
+    Autocomplete,
+    AutocompleteCollection,
+    AutocompleteEmpty,
+    AutocompleteGroup,
+    AutocompleteGroupLabel,
+    AutocompleteInput,
+    AutocompleteInputGroup,
+    AutocompleteItem,
+    AutocompleteList,
+    AutocompleteStartAddon,
+} from "@/components/ui/autocomplete";
 import {
-    Drawer,
-    DrawerHeader,
-    DrawerPanel,
-    DrawerPopup,
-    DrawerTitle,
-    DrawerTrigger,
-    DrawerViewport,
-} from "@/components/ui/drawer";
+    Dialog,
+    DialogHeader,
+    DialogPanel,
+    DialogPopup,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import { Kbd, KbdCombo, KbdGroup } from "@/components/ui/kbd";
 import { stopPropagationForPrintableKeys } from "@/lib/common/dom";
 
@@ -39,7 +38,7 @@ const NAVIGATION_CONTROL_DESCRIPTION_PATTERN = /(?:sidebar|panel|preview)$/;
 interface ShortcutItem {
     description: string;
     hotkeys: string[];
-    searchValue: string;
+    label: string;
 }
 
 type ShortcutGroupName = "general" | "navigation";
@@ -112,14 +111,13 @@ function formatShortcutKey(key: string): string {
     }
 }
 
-export function KeyboardShortcutsDialogTrigger(
-    props: React.ComponentProps<typeof DrawerTrigger>
+export function ShortcutsDialogTrigger(
+    props: React.ComponentProps<typeof DialogTrigger>
 ) {
     const gt = useGT();
-    const [isOpen, setIsOpen] = React.useState(false);
-    const [searchQuery, setSearchQuery] = React.useState("");
-    const filter = useCommandFilter();
     const { hotkeys } = useHotkeysContext();
+    const [isOpen, setIsOpen] = React.useState(false);
+
     const navigationDescriptionPrefix = gt("Navigate to {label}", {
         label: "",
     }).trim();
@@ -134,28 +132,14 @@ export function KeyboardShortcutsDialogTrigger(
         useKey: true,
     });
 
-    const handleOpenChange = useStableCallback((shouldOpen: boolean) => {
-        setIsOpen(shouldOpen);
-        if (!shouldOpen) {
-            setSearchQuery("");
-        }
-    });
-
-    const handleSearchQueryChange = useStableCallback((nextQuery: string) => {
-        if (!isOpen) {
-            return;
-        }
-        setSearchQuery(nextQuery);
-    });
-
-    const shortcutHotkeysByDescription = new Map<string, string[]>();
+    const hotkeysByDescription = new Map<string, string[]>();
     for (const shortcut of hotkeys) {
         const description = shortcut.description?.trim();
         if (!description) {
             continue;
         }
 
-        const existingHotkeys = shortcutHotkeysByDescription.get(description);
+        const existingHotkeys = hotkeysByDescription.get(description);
         if (existingHotkeys) {
             if (!existingHotkeys.includes(shortcut.hotkey)) {
                 existingHotkeys.push(shortcut.hotkey);
@@ -163,24 +147,24 @@ export function KeyboardShortcutsDialogTrigger(
             continue;
         }
 
-        shortcutHotkeysByDescription.set(description, [shortcut.hotkey]);
+        hotkeysByDescription.set(description, [shortcut.hotkey]);
     }
 
-    const shortcutItems: ShortcutItem[] = Array.from(
-        shortcutHotkeysByDescription,
+    const items: ShortcutItem[] = Array.from(
+        hotkeysByDescription,
         ([description, shortcutHotkeys]) => ({
             description,
             hotkeys: shortcutHotkeys,
-            searchValue: `${description} ${shortcutHotkeys.join(" ")}`,
+            label: `${description} ${shortcutHotkeys.join(" ")}`,
         })
     );
 
-    const shortcutGroups: ShortcutGroup[] = [
+    const groups: ShortcutGroup[] = [
         { items: [], label: gt("General"), name: "general" },
         { items: [], label: gt("Navigation"), name: "navigation" },
     ];
 
-    for (const item of shortcutItems) {
+    for (const item of items) {
         const shortcutGroupName = getShortcutGroupName(
             item.description,
             navigationDescriptionPrefix,
@@ -188,119 +172,100 @@ export function KeyboardShortcutsDialogTrigger(
             navigationDescriptions
         );
         const shortcutGroup =
-            shortcutGroupName === "navigation"
-                ? shortcutGroups[1]
-                : shortcutGroups[0];
+            shortcutGroupName === "navigation" ? groups[1] : groups[0];
         shortcutGroup.items.push(item);
     }
 
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    const visibleShortcutGroups = shortcutGroups
-        .map((group) => ({
-            ...group,
-            items: normalizedQuery
-                ? group.items.filter((item) =>
-                      filter.contains(
-                          item.searchValue.toLowerCase(),
-                          normalizedQuery
-                      )
-                  )
-                : group.items,
-        }))
-        .filter((group) => group.items.length > 0);
-
     return (
-        <Drawer onOpenChange={handleOpenChange} open={isOpen} position="right">
-            <DrawerTrigger {...props} />
-            <DrawerViewport>
-                <DrawerPopup shouldShowCloseButton>
-                    <DrawerHeader>
-                        <DrawerTitle className="text-base">
-                            <T>Keyboard Shortcuts</T>
-                        </DrawerTitle>
-                    </DrawerHeader>
-                    <DrawerPanel
-                        className="px-5"
-                        onKeyDown={stopPropagationForPrintableKeys}
+        <Dialog onOpenChange={setIsOpen} open={isOpen}>
+            <DialogTrigger {...props} />
+            <DialogPopup
+                className="w-[calc(100%-(--spacing(12)))] max-w-md rounded-none rounded-s-2xl border-s transition-[translate,opacity,box-shadow] ease-[cubic-bezier(0.32,0.72,0,1)] before:rounded-none before:rounded-s-[calc(var(--radius-2xl)-1px)] data-ending-style:translate-x-6 data-starting-style:translate-x-6 data-ending-style:translate-y-0 data-starting-style:translate-y-0 data-ending-style:shadow-transparent data-starting-style:shadow-transparent data-ending-style:ease-[cubic-bezier(0.32,0.72,0,1)]"
+                viewportClassName="flex justify-end p-0"
+            >
+                <DialogHeader className="p-5">
+                    <DialogTitle className="text-base">
+                        <T>Keyboard Shortcuts</T>
+                    </DialogTitle>
+                </DialogHeader>
+                <DialogPanel
+                    className="flex-1 flex-col gap-4 px-5"
+                    onKeyDown={stopPropagationForPrintableKeys}
+                >
+                    <Autocomplete
+                        autoHighlight={false}
+                        inline
+                        items={groups}
+                        open
                     >
-                        <Command
-                            autoHighlight={false}
-                            filteredItems={visibleShortcutGroups}
-                            inline
-                            items={shortcutGroups}
-                            onValueChange={handleSearchQueryChange}
-                            open
-                            value={searchQuery}
-                        >
-                            <CommandInput
+                        <AutocompleteInputGroup>
+                            <AutocompleteStartAddon>
+                                <SearchIcon
+                                    aria-hidden
+                                    className="size-4 text-muted-foreground"
+                                />
+                            </AutocompleteStartAddon>
+                            <AutocompleteInput
                                 aria-label={gt("Search shortcuts")}
                                 placeholder={gt("Search shortcuts")}
-                                startAddon={
-                                    <SearchIcon
-                                        aria-hidden
-                                        className="size-4 text-muted-foreground"
-                                    />
-                                }
                             />
-                            <CommandEmpty>
-                                <T>No shortcuts found</T>
-                            </CommandEmpty>
-                            <CommandList
-                                className="not-empty:px-0"
-                                shouldUseScrollArea={false}
-                            >
-                                {(group: ShortcutGroup) => (
-                                    <CommandGroup
-                                        items={group.items}
-                                        key={group.name}
-                                    >
-                                        <CommandGroupLabel className="px-2 pt-3 pb-2 font-medium text-foreground text-sm">
-                                            {group.label}
-                                        </CommandGroupLabel>
-                                        <CommandCollection>
-                                            {(item: ShortcutItem) => (
-                                                <CommandItem
-                                                    key={item.description}
-                                                    value={item.searchValue}
-                                                >
-                                                    <div className="flex w-full min-w-0 items-center justify-between gap-3">
-                                                        <span className="min-w-0 truncate font-medium text-muted-foreground text-sm">
-                                                            {item.description}
-                                                        </span>
-                                                        <ShortcutKeys
-                                                            hotkeys={
-                                                                item.hotkeys
-                                                            }
-                                                        />
-                                                    </div>
-                                                </CommandItem>
-                                            )}
-                                        </CommandCollection>
-                                    </CommandGroup>
-                                )}
-                            </CommandList>
-                        </Command>
-                    </DrawerPanel>
-                </DrawerPopup>
-            </DrawerViewport>
-        </Drawer>
+                        </AutocompleteInputGroup>
+                        <AutocompleteEmpty>
+                            <T>No shortcuts found</T>
+                        </AutocompleteEmpty>
+                        <AutocompleteList
+                            className="not-empty:px-0"
+                            shouldUseScrollArea={false}
+                        >
+                            {(group: ShortcutGroup) => (
+                                <AutocompleteGroup
+                                    items={group.items}
+                                    key={group.name}
+                                >
+                                    <AutocompleteGroupLabel className="px-2 pt-3 pb-2 font-medium text-foreground text-sm">
+                                        {group.label}
+                                    </AutocompleteGroupLabel>
+                                    <AutocompleteCollection>
+                                        {(item: ShortcutItem) => (
+                                            <AutocompleteItem
+                                                key={item.description}
+                                                value={item.label}
+                                            >
+                                                <div className="flex w-full min-w-0 items-center justify-between gap-3">
+                                                    <span className="min-w-0 truncate font-medium text-muted-foreground text-sm">
+                                                        {item.description}
+                                                    </span>
+                                                    <ShortcutHotkeys
+                                                        hotkeys={item.hotkeys}
+                                                    />
+                                                </div>
+                                            </AutocompleteItem>
+                                        )}
+                                    </AutocompleteCollection>
+                                </AutocompleteGroup>
+                            )}
+                        </AutocompleteList>
+                    </Autocomplete>
+                </DialogPanel>
+            </DialogPopup>
+        </Dialog>
     );
 }
 
-interface ShortcutKeysProps {
+interface ShortcutHotkeysProps {
     hotkeys: string[];
 }
 
-function ShortcutKeys({ hotkeys }: ShortcutKeysProps) {
+function ShortcutHotkeys({ hotkeys }: ShortcutHotkeysProps) {
     return (
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
             {hotkeys.map((hotkey, hotkeyIndex) => (
                 <React.Fragment key={hotkey}>
-                    {hotkeyIndex > 0 && (
-                        <span className="text-muted-foreground text-xs">
+                    {hotkeyIndex > 0 ? (
+                        <span className="text-nowrap text-muted-foreground text-xs">
                             <T>or</T>
                         </span>
-                    )}
+                    ) : null}
                     <KbdGroup className="gap-1">
                         {hotkey.split("+").map((key) => (
                             <Kbd

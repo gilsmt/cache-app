@@ -16,7 +16,7 @@ import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { DeleteAccountDialogTrigger } from "@/components/auth/delete-account-dialog";
 import { WithSessionOnly } from "@/components/auth/session";
-import { SessionLogOutDialogTrigger } from "@/components/auth/session-logout-dialog";
+import { SignOutDialogTrigger } from "@/components/auth/sign-out-dialog";
 import {
     CloudHostOnly,
     SubscribedOnly,
@@ -49,7 +49,7 @@ import {
     MenuSubTrigger,
     MenuTrigger,
 } from "@/components/ui/menu";
-import { KeyboardShortcutsDialogTrigger } from "@/components/ui/shortcuts";
+import { ShortcutsDialogTrigger } from "@/components/ui/shortcuts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeSelector } from "@/components/ui/theme";
 import {
@@ -67,6 +67,7 @@ import {
     getDesktopReleasesPageUrl,
     getStaticDesktopDownloads,
 } from "@/lib/desktop/releases";
+import { useDesktopApp } from "@/lib/desktop/use-desktop-platform";
 
 export function AccountMenu(
     props: Omit<React.ComponentProps<typeof Menu>, "open" | "onOpenChange">
@@ -184,6 +185,8 @@ export function AccountMenuHeader() {
 }
 
 export function AccountMenuContent() {
+    const { isDesktopApp } = useDesktopApp();
+
     return (
         <>
             <MenuGroup>
@@ -210,8 +213,8 @@ export function AccountMenuContent() {
                         <AccountMenuUpgradeItem />
                     </UnsubscribedOnly>
                 </CloudHostOnly>
-                <AccountMenuDesktopDownloadSubMenu />
-                <SessionLogOutDialogTrigger
+                {isDesktopApp ? null : <AccountMenuDesktopDownloadSubMenu />}
+                <SignOutDialogTrigger
                     nativeButton={false}
                     render={
                         <MenuItem
@@ -220,8 +223,8 @@ export function AccountMenuContent() {
                         />
                     }
                 >
-                    <T context="User Log out/Sign out of the app">Log out</T>
-                </SessionLogOutDialogTrigger>
+                    <T context="User Sign out of the app">Sign out</T>
+                </SignOutDialogTrigger>
             </MenuGroup>
         </>
     );
@@ -654,7 +657,7 @@ function AccountActionsSubMenu(
                         <T>GitHub</T>
                         <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
                     </MenuItem>
-                    <KeyboardShortcutsDialogTrigger
+                    <ShortcutsDialogTrigger
                         nativeButton={false}
                         render={
                             <MenuItem

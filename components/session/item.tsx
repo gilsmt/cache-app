@@ -233,7 +233,6 @@ export interface ItemPeekPlaceholder {
 }
 
 export interface ItemCardEnvironmentContext {
-    favoriteItemIdSet: ReadonlySet<string>;
     hoveredItemIdRef: React.RefObject<string | null>;
     hoverPinnedItemIdRef: React.RefObject<string | null>;
     markVisited: (itemId: string) => void;
@@ -243,14 +242,15 @@ export interface ItemCardEnvironmentContext {
     onItemFavoriteToggle: (item: LibraryItemWithCollections) => void;
     onOpenInNewTab: (item: LibraryItemWithCollections) => void;
     onOpenNote: (item: LibraryItemWithCollections) => void;
-    openPickerItemId: string | null;
-    pendingDeleteItemId: string | null;
     setOpenPickerItemId: (id: string | null) => void;
 }
 
 interface ItemCardDataContext {
     displayTitle: string;
+    isDeletePending: boolean;
+    isFavorite: boolean;
     isNote: boolean;
+    isPickerOpen: boolean;
     item: LibraryItemWithCollections;
     previewImageUrl: string | null;
 }
@@ -734,6 +734,8 @@ export function ItemPreview({
                     crossOrigin="use-credentials"
                     draggable="false"
                     key={videoSrc}
+                    // @ts-expect-error missing from react dom types
+                    loading="lazy"
                     loop
                     muted={!hover.isSoundEnabled}
                     onCanPlay={hover.handleCanPlay}
@@ -760,7 +762,7 @@ export function ItemNotePreview({
     const isQuoted = hasWrappingQuotes(contentText);
 
     return (
-        <div className="mask-b-from-[calc(100%-var(--fade-size))] size-full max-h-60 select-none p-4 [--fade-size:1rem]">
+        <div className="mask-b-from-75% size-full max-h-60 select-none p-4">
             {isQuoted && <Quote className="mx-auto mb-2 size-4" />}
             <Streamdown
                 className={cn(
@@ -775,13 +777,24 @@ export function ItemNotePreview({
     );
 }
 
+interface ItemCardProviderProps extends React.PropsWithChildren {
+    isDeletePending?: boolean;
+    isPickerOpen?: boolean;
+    value: LibraryItemWithCollections;
+}
+
 export function ItemCardProvider({
     children,
+    isDeletePending = false,
+    isPickerOpen = false,
     value,
-}: React.PropsWithChildren<{ value: LibraryItemWithCollections }>) {
+}: ItemCardProviderProps) {
     const contextValue: ItemCardDataContext = {
         displayTitle: getLibraryItemPrimaryText(value),
+        isDeletePending,
+        isFavorite: value.favoritedAt !== null,
         isNote: value.kind === ITEM_KIND_NOTE,
+        isPickerOpen,
         item: value,
         previewImageUrl: itemPreviewImageUrl(value),
     };
@@ -868,15 +881,14 @@ export function ItemCardDownloadProvider({
 }
 
 export function ItemCardSurface({ children }: React.PropsWithChildren) {
-    const { item } = useItemCardDataContext();
-    const { hoveredItemIdRef, hoverPinnedItemIdRef, openPickerItemId } =
+    const { isPickerOpen, item } = useItemCardDataContext();
+    const { hoveredItemIdRef, hoverPinnedItemIdRef } =
         useItemCardEnvironmentContext();
 
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [isContextMenuOpen, setIsContextMenuOpen] = React.useState(false);
 
     const isPointerOverCardRef = React.useRef(false);
-    const isPickerOpen = openPickerItemId === item.id;
     const isHoverPinned = isMenuOpen || isContextMenuOpen || isPickerOpen;
 
     React.useEffect(
@@ -935,7 +947,7 @@ export function ItemCardSurface({ children }: React.PropsWithChildren) {
         <ItemCardSurfaceContext value={contextValue}>
             <ContextMenu onOpenChange={setIsContextMenuOpen}>
                 <ContextMenuTrigger
-                    className="group relative flex shrink-0 flex-col ease-out before:absolute before:-inset-x-2 before:-top-2 before:bottom-0 before:-z-10 before:rounded-xl before:bg-muted/50 before:opacity-0 before:transition-transform before:ease-out hover:before:opacity-100 focus-visible:outline-none active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80!"
+                    className="group relative flex shrink-0 flex-col ease-out before:absolute before:-inset-x-2 before:-top-2 before:bottom-0 before:-z-10 before:rounded-xl before:bg-muted/50 before:opacity-0 before:transition-transform before:ease-out hover:before:opacity-100 focus-visible:outline-none active:before:opacity-80!"
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
                     role="group"
@@ -951,17 +963,12 @@ export function ItemCardSurface({ children }: React.PropsWithChildren) {
 }
 
 export function ItemCardTarget() {
-    const { isNote, item, previewImageUrl } = useItemCardDataContext();
-    const {
-        favoriteItemIdSet,
-        markVisited,
-        onItemFavoriteToggle,
-        onOpenInNewTab,
-        onOpenNote,
-    } = useItemCardEnvironmentContext();
+    const { isFavorite, isNote, item, previewImageUrl } =
+        useItemCardDataContext();
+    const { markVisited, onItemFavoriteToggle, onOpenInNewTab, onOpenNote } =
+        useItemCardEnvironmentContext();
     const { isZoomed, onZoomChange } = useItemCardZoomContext();
 
-    const isFavorite = favoriteItemIdSet.has(item.id);
     const hasNoteContent = (item.noteContentText ?? "").trim().length > 0;
     const previewVideoUrl = itemPreviewVideoUrl(item);
 
@@ -1062,11 +1069,9 @@ export function ItemCardTarget() {
 }
 
 export function ItemCardFooter() {
-    const { item } = useItemCardDataContext();
-    const { openPickerItemId, setOpenPickerItemId } =
-        useItemCardEnvironmentContext();
+    const { isPickerOpen, item } = useItemCardDataContext();
+    const { setOpenPickerItemId } = useItemCardEnvironmentContext();
 
-    const isPickerOpen = openPickerItemId === item.id;
     const showSmartCollectionsIndicator =
         item.collections.length > 0 &&
         isRecentlySmartCollected(item.smartCollectedAt);
@@ -1225,7 +1230,7 @@ function ItemCardToolbar({
         <Toolbar
             aria-label="Preview actions"
             className={cn(
-                "squircle absolute right-2 bottom-2 z-10 w-auto justify-end gap-px overflow-hidden rounded-lg bg-black/55 p-0.5 text-white shadow-lg transition-opacity",
+                "squircle absolute right-2 bottom-2 z-10 w-auto justify-end gap-px overflow-hidden rounded-lg bg-black/55 p-0.5 text-white shadow-lg transition-opacity group-hover/preview:transition-none",
                 !isPinned &&
                     "opacity-0 focus-within:opacity-100 group-hover/preview:opacity-100"
             )}
@@ -1248,7 +1253,7 @@ function ItemCardToolbar({
                     >
                         <Spinner
                             aria-hidden
-                            className="ml-1 size-3.5"
+                            className="mx-1 size-3.5"
                             focusable="false"
                         />
                     </ItemCardToolbarSlot>
@@ -1436,7 +1441,7 @@ function ItemCardDetails() {
             <CollapsibleTrigger
                 render={
                     <Button
-                        className="max-w-60 justify-between rounded-xl"
+                        className="squircle max-w-60 justify-between rounded-lg"
                         variant="ghost"
                     />
                 }
@@ -1485,11 +1490,16 @@ function ItemCardActions({ surface }: { surface: ItemCardActionVariant }) {
 
     const Separator = surface === "menu" ? MenuSeparator : ContextMenuSeparator;
 
+    const availableActions: typeof ITEM_CARD_ACTIONS = [];
+    for (const action of ITEM_CARD_ACTIONS) {
+        if (action.isAvailable?.(data) ?? true) {
+            availableActions.push(action);
+        }
+    }
+
     return (
         <>
-            {ITEM_CARD_ACTIONS.filter(
-                (action) => action.isAvailable?.(data) ?? true
-            ).map((action) => (
+            {availableActions.map((action) => (
                 <React.Fragment key={action.id}>
                     {action.separatorBefore ? <Separator /> : null}
                     <action.Component surface={surface} />
@@ -1541,7 +1551,7 @@ function ItemCardTitleMenu() {
             <MenuTrigger
                 render={
                     <Button
-                        className="w-full min-w-0 flex-1 justify-start overflow-clip text-nowrap px-0 text-left text-xs!"
+                        className="*:mask-r-to-95% *:mask-r-from-80% min-w-0 flex-1 justify-start px-0 text-xs! *:w-full *:flex-1"
                         size="xs"
                         title={displayTitle}
                         type="button"
@@ -1549,7 +1559,7 @@ function ItemCardTitleMenu() {
                     />
                 }
             >
-                <Ticker className="pt-px">{displayTitle}</Ticker>
+                <Ticker>{displayTitle}</Ticker>
             </MenuTrigger>
             <MenuPopup>
                 <ItemCardPopupContent surface="menu" />
@@ -1563,11 +1573,8 @@ function ItemCardFavoriteAction({
 }: {
     surface: ItemCardActionVariant;
 }) {
-    const { item } = useItemCardDataContext();
-    const { favoriteItemIdSet, onItemFavoriteToggle } =
-        useItemCardEnvironmentContext();
-
-    const isFavorite = favoriteItemIdSet.has(item.id);
+    const { isFavorite, item } = useItemCardDataContext();
+    const { onItemFavoriteToggle } = useItemCardEnvironmentContext();
 
     const handleToggle = useStableCallback(() => onItemFavoriteToggle(item));
 
@@ -1804,10 +1811,8 @@ function ItemCardWaybackSnapshotItem({
 }
 
 function ItemCardDeleteAction({ surface }: { surface: ItemCardActionVariant }) {
-    const { item } = useItemCardDataContext();
-    const { onDelete, pendingDeleteItemId } = useItemCardEnvironmentContext();
-
-    const isDeletePending = pendingDeleteItemId === item.id;
+    const { isDeletePending, item } = useItemCardDataContext();
+    const { onDelete } = useItemCardEnvironmentContext();
 
     const handleDelete = useStableCallback(() => onDelete(item));
 

@@ -4,7 +4,6 @@ import type {
     AutocompleteRootChangeEventDetails,
     BaseUIEvent,
 } from "@base-ui/react";
-import { Toolbar } from "@base-ui/react/toolbar";
 import { areArraysEqual } from "@base-ui/utils/areArraysEqual";
 import { getTarget } from "@base-ui/utils/shadowDom";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
@@ -94,16 +93,12 @@ import {
     type ItemPeekPlaceholder,
 } from "@/components/session/item";
 import {
+    ItemsActionsContext,
     ItemsContext,
-    useItemsContext,
+    useItemsActionsContext,
     useItemsStateContext,
 } from "@/components/session/items";
-import {
-    AssistantMessageActions,
-    AssistantMessageBody,
-} from "@/components/session/message";
 import { OnboardingMenu } from "@/components/session/onboarding";
-
 import {
     type EditorDraft,
     openSideNote,
@@ -117,23 +112,27 @@ import {
     SummaryPopup,
     SummaryTrigger,
 } from "@/components/session/summary";
+import {
+    AssistantMessageActions,
+    AssistantMessageBody,
+} from "@/components/session/thread";
+import {
+    AutocompleteCollection,
+    AutocompleteEmpty,
+    AutocompleteEndAddon,
+    AutocompleteGroup,
+    AutocompleteGroupLabel,
+    AutocompleteItem,
+    AutocompleteList,
+    AutocompletePopup,
+    AutocompleteShortcut,
+    useAutocompleteFilter,
+} from "@/components/ui/autocomplete";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent, BubbleGroup } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsiblePanel } from "@/components/ui/collapsible";
 import { CollapsibleListHorizontal } from "@/components/ui/collapsible-list";
-import {
-    CommandCollection,
-    CommandEmpty,
-    CommandGroup,
-    CommandGroupLabel,
-    CommandItem,
-    CommandList,
-    CommandPopup,
-    CommandRow,
-    CommandShortcut,
-    useCommandFilter,
-} from "@/components/ui/command";
 import {
     ContextMenu,
     ContextMenuItem,
@@ -209,6 +208,7 @@ import {
     getLibraryItemTitle,
     getNoteExcerpt,
     type LibraryCollectionSummary,
+    type LibraryCollectionTag,
     type LibraryItemWithCollections,
     truncateLabel,
 } from "@/lib/collections/utils";
@@ -284,7 +284,6 @@ import {
 import { createThreadFromAssistant } from "@/lib/threads/actions";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
-import { ToolbarGroup } from "../ui/toolbar";
 
 const DOMAIN_RELATED_SOURCES = new Set<LibraryItemSource>([
     LibraryItemSource.chrome_bookmarks,
@@ -707,7 +706,7 @@ interface RankedComposerCommand {
     rank: ComposerCommandRank;
 }
 
-interface PaletteActionsContext {
+interface ComposerActionsContext {
     duplicatesFilterEnabled: boolean;
     onCreateNote: () => void;
     onRemoveDuplicates: () => void;
@@ -740,12 +739,11 @@ function useItemsGroupContext(): ItemsGroupContext {
     return context;
 }
 
-const PaletteActionsContext = React.createContext<PaletteActionsContext | null>(
-    null
-);
+const ComposerActionsContext =
+    React.createContext<ComposerActionsContext | null>(null);
 
-function usePaletteActionsContext(): PaletteActionsContext {
-    const context = React.use(PaletteActionsContext);
+function usePaletteActionsContext(): ComposerActionsContext {
+    const context = React.use(ComposerActionsContext);
     if (!context) {
         throw new Error(
             "Palette action components must be used inside <PaletteActionsList>."
@@ -1218,25 +1216,26 @@ function useCollectionMutations({
                     )
                 );
             } else {
+                const reconciledItemCollections: Array<{
+                    collections: LibraryCollectionTag[];
+                    itemId: string;
+                }> = [];
+                for (const entry of previousItemCollections) {
+                    if (!currentItemIdSet.has(entry.itemId)) {
+                        continue;
+                    }
+                    reconciledItemCollections.push({
+                        collections: reconcileCollectionTags(
+                            allCollections,
+                            entry.collections
+                        ),
+                        itemId: entry.itemId,
+                    });
+                }
                 setItems((current) =>
                     replaceMultipleItemCollections(
                         current,
-                        previousItemCollections
-                            .filter(({ itemId }) =>
-                                currentItemIdSet.has(itemId)
-                            )
-                            .map(
-                                ({
-                                    collections: previousCollections,
-                                    itemId,
-                                }) => ({
-                                    collections: reconcileCollectionTags(
-                                        allCollections,
-                                        previousCollections
-                                    ),
-                                    itemId,
-                                })
-                            )
+                        reconciledItemCollections
                     )
                 );
             }
@@ -1872,9 +1871,13 @@ function updateItemsWithProbeSuccess(
 }
 
 function buildResultsCollectionName(searchTerms: string[]): string {
-    const normalizedTerms = searchTerms
-        .map((term) => term.trim())
-        .filter((term) => term.length > 0);
+    const normalizedTerms: string[] = [];
+    for (const term of searchTerms) {
+        const trimmedTerm = term.trim();
+        if (trimmedTerm.length > 0) {
+            normalizedTerms.push(trimmedTerm);
+        }
+    }
 
     if (normalizedTerms.length === 0) {
         return "";
@@ -2381,7 +2384,7 @@ function useVisibleCommands({
     groups,
     query,
 }: UseVisibleCommandsProps): ComposerCommandGroup[] {
-    const filter = useCommandFilter();
+    const filter = useAutocompleteFilter();
     const normalizedQuery = query.trim();
 
     if (normalizedQuery.length === 0) {
@@ -2436,7 +2439,7 @@ function getComposerCommandSearchFields(
 }
 
 function getComposerCommandScore(
-    filter: ReturnType<typeof useCommandFilter>,
+    filter: ReturnType<typeof useAutocompleteFilter>,
     item: ComposerCommand,
     lowerQuery: string
 ): number | null {
@@ -3699,7 +3702,6 @@ export function ItemsList({
     } = useCollectionsContext();
     const {
         collectionPreviewThumbnailUrlsById,
-        favoriteItemIdSet,
         favoriteItems,
         itemsByCollectionId,
         itemsById,
@@ -3767,7 +3769,7 @@ export function ItemsList({
     const [isCreateResultsDialogOpen, setIsCreateResultsDialogOpen] =
         React.useState(false);
 
-    const inputRef = React.useRef<HTMLTextAreaElement>(null);
+    const composerRef = React.useRef<HTMLTextAreaElement>(null);
     const [isComposerOpen, setIsComposerOpen] = React.useState(false);
     const composerAttachmentsRef = React.useRef<ComposerAttachment[]>([]);
     const assistantRequestVersionRef = React.useRef(0);
@@ -4039,16 +4041,16 @@ export function ItemsList({
         setIsComposerOpen(true);
         queueMicrotask(() => {
             if (select) {
-                inputRef.current?.select();
+                composerRef.current?.select();
             }
-            inputRef.current?.focus();
+            composerRef.current?.focus();
         });
     });
 
     const placePaletteCaretAtEnd = useStableCallback((value: string) => {
         const length = value.length;
         const placeCaret = () => {
-            inputRef.current?.setSelectionRange(length, length);
+            composerRef.current?.setSelectionRange(length, length);
         };
         queueMicrotask(placeCaret);
         paletteCaretTimeout.start(0, placeCaret);
@@ -4112,7 +4114,7 @@ export function ItemsList({
         isRemoving: isRemovingDuplicates,
         onConfirm: handleConfirmRemoveDuplicates,
         onOpenChange: handleRemoveDuplicatesDialogOpenChange,
-        onRequestRemoval: handleRequestRemoveDuplicates,
+        onRequestRemoval: handleRemoveDuplicates,
     } = useDuplicateRemoval({
         mergeCollectionSummaries,
         removableItemIds: removableDuplicateIds,
@@ -4663,9 +4665,11 @@ export function ItemsList({
 
     const itemsContextValue: ItemsContext = {
         collectionPreviewThumbnailUrlsById,
-        favoriteItemIdSet,
         favoriteItems,
         itemsByCollectionId,
+    };
+
+    const itemsActionsContextValue: ItemsActionsContext = {
         mergeImportedItems: mergeImportedLibraryItems,
         onCopyLink: handleCopyLink,
         onDelete: handleRequestDelete,
@@ -4675,7 +4679,6 @@ export function ItemsList({
         onOpenInNewTab: handleOpenInNewTab,
         onOpenNote: handleOpenNote,
         onUpdateItemCollections: handleUpdateItemCollections,
-        pendingDeleteItemId: pendingDeleteItem?.id ?? null,
     };
 
     const itemsListContextValue: ItemsListContext = {
@@ -4707,116 +4710,88 @@ export function ItemsList({
             onUrlPaste={handlePasteUrlIntoLibrary}
         >
             <ItemsContext value={itemsContextValue}>
-                <ItemsListContext value={itemsListContextValue}>
-                    {children}
-                    <div className="z-0 flex min-h-0 w-full min-w-0 flex-1 items-stretch">
-                        <div
-                            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-8"
-                            style={
-                                {
-                                    "--library-section-sticky-top": "108px",
-                                } as React.CSSProperties
-                            }
-                        >
-                            <Composer
-                                isBusy={isAssistantLoading}
-                                onStop={handleCancelAssistant}
-                                onSubmit={handleAssistantSubmit}
-                                onValueChange={setQuery}
-                                value={query}
+                <ItemsActionsContext value={itemsActionsContextValue}>
+                    <ItemsListContext value={itemsListContextValue}>
+                        {children}
+                        <div className="z-0 flex min-h-0 w-full min-w-0 flex-1 items-stretch">
+                            <div
+                                className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 p-8"
+                                style={
+                                    {
+                                        "--library-section-sticky-top": "108px",
+                                    } as React.CSSProperties
+                                }
                             >
-                                <Palette>
-                                    <Toolbar.Input
-                                        render={
-                                            <ComposerInput
-                                                endAddon={
-                                                    <PaletteInputEndAddon
-                                                        stackEntries={
-                                                            stackEntries
-                                                        }
-                                                    />
-                                                }
-                                                filteredItems={
-                                                    visibleCommandGroups
-                                                }
-                                                items={commandGroups}
-                                                onKeyDown={
-                                                    handlePaletteInputKeyDown
-                                                }
-                                                onOpenChange={
-                                                    handleComposerOpenChange
-                                                }
-                                                onValueChange={
-                                                    handleComposerInputChange
-                                                }
-                                                open={isComposerOpen}
-                                                render={
-                                                    <Textarea
-                                                        aria-label={placeholder}
-                                                        className="block w-full pe-8 text-base sm:text-sm"
-                                                        isUnstyled
-                                                        placeholder={
-                                                            placeholder
-                                                        }
-                                                        ref={inputRef}
-                                                        style={{
-                                                            minHeight: "2.5rem",
-                                                        }}
-                                                    />
-                                                }
-                                                submitOnEnter={false}
-                                            >
-                                                <CommandPopup sideOffset={40}>
-                                                    <CommandEmpty>
-                                                        <T>
-                                                            No matching commands
-                                                        </T>
-                                                    </CommandEmpty>
-                                                    <CommandList className="max-w-2xl">
-                                                        {(
-                                                            group: ComposerCommandGroup,
-                                                            index: number
-                                                        ) => (
-                                                            <CommandGroup
-                                                                items={
-                                                                    group.items
-                                                                }
-                                                                key={
-                                                                    group.label ??
-                                                                    `composer-group-${index}`
-                                                                }
-                                                            >
-                                                                {group.label ? (
-                                                                    <CommandGroupLabel>
-                                                                        {
-                                                                            group.label
-                                                                        }
-                                                                    </CommandGroupLabel>
-                                                                ) : null}
-                                                                {group.layout ===
-                                                                "horizontal" ? (
-                                                                    <CommandRow className="grid grid-cols-2 gap-2 pt-1 pr-2 pb-4 md:grid-cols-3 lg:grid-cols-4">
-                                                                        <CommandCollection>
-                                                                            {(
-                                                                                item: ComposerCommand
-                                                                            ) => (
-                                                                                <ComposerCollectionCommandCard
-                                                                                    item={
-                                                                                        item
-                                                                                    }
-                                                                                    key={
-                                                                                        item.value
-                                                                                    }
-                                                                                />
-                                                                            )}
-                                                                        </CommandCollection>
-                                                                    </CommandRow>
-                                                                ) : (
-                                                                    <CommandCollection>
+                                <Composer
+                                    isBusy={isAssistantLoading}
+                                    onStop={handleCancelAssistant}
+                                    onSubmit={handleAssistantSubmit}
+                                    onValueChange={setQuery}
+                                    value={query}
+                                >
+                                    <div className="sticky top-1 z-50 w-full max-w-2xl">
+                                        <ComposerInput
+                                            filteredItems={visibleCommandGroups}
+                                            items={commandGroups}
+                                            onKeyDown={
+                                                handlePaletteInputKeyDown
+                                            }
+                                            onOpenChange={
+                                                handleComposerOpenChange
+                                            }
+                                            onValueChange={
+                                                handleComposerInputChange
+                                            }
+                                            open={isComposerOpen}
+                                            render={
+                                                <Textarea
+                                                    aria-label={placeholder}
+                                                    className="block w-full pe-8 text-base sm:text-sm"
+                                                    isUnstyled
+                                                    placeholder={placeholder}
+                                                    ref={composerRef}
+                                                    style={{
+                                                        minHeight: "2.5rem",
+                                                    }}
+                                                />
+                                            }
+                                        >
+                                            <AutocompleteEndAddon>
+                                                <PaletteInputEndAddon
+                                                    stackEntries={stackEntries}
+                                                />
+                                            </AutocompleteEndAddon>
+                                            <AutocompletePopup>
+                                                <AutocompleteEmpty>
+                                                    <T>No matching commands</T>
+                                                </AutocompleteEmpty>
+                                                <AutocompleteList className="max-w-2xl">
+                                                    {(
+                                                        group: ComposerCommandGroup,
+                                                        index: number
+                                                    ) => (
+                                                        <AutocompleteGroup
+                                                            items={group.items}
+                                                            key={
+                                                                group.label ??
+                                                                `composer-group-${index}`
+                                                            }
+                                                        >
+                                                            {group.label ? (
+                                                                <AutocompleteGroupLabel>
+                                                                    {
+                                                                        group.label
+                                                                    }
+                                                                </AutocompleteGroupLabel>
+                                                            ) : null}
+                                                            {group.layout ===
+                                                            "horizontal" ? (
+                                                                <div className="grid grid-cols-2 gap-2 pt-1 pr-2 pb-4 md:grid-cols-3 lg:grid-cols-4">
+                                                                    <AutocompleteCollection>
                                                                         {(
                                                                             item: ComposerCommand
                                                                         ) => (
-                                                                            <ComposerCommandRow
+                                                                            <ComposerCollectionCommandCard
                                                                                 item={
                                                                                     item
                                                                                 }
@@ -4825,184 +4800,216 @@ export function ItemsList({
                                                                                 }
                                                                             />
                                                                         )}
-                                                                    </CommandCollection>
-                                                                )}
-                                                            </CommandGroup>
+                                                                    </AutocompleteCollection>
+                                                                </div>
+                                                            ) : (
+                                                                <AutocompleteCollection>
+                                                                    {(
+                                                                        item: ComposerCommand
+                                                                    ) => (
+                                                                        <ComposerCommandRow
+                                                                            item={
+                                                                                item
+                                                                            }
+                                                                            key={
+                                                                                item.value
+                                                                            }
+                                                                        />
+                                                                    )}
+                                                                </AutocompleteCollection>
+                                                            )}
+                                                        </AutocompleteGroup>
+                                                    )}
+                                                </AutocompleteList>
+                                            </AutocompletePopup>
+                                            <ComposerActionsList
+                                                duplicatesFilterEnabled={
+                                                    duplicatesFilterEnabled
+                                                }
+                                                onCreateNote={handleCreateNote}
+                                                onRemoveDuplicates={
+                                                    handleRemoveDuplicates
+                                                }
+                                                removableDuplicateCount={
+                                                    removableDuplicateIds.length
+                                                }
+                                            >
+                                                <PaletteActionNew />
+                                                <Summary>
+                                                    <SummaryTrigger
+                                                        render={
+                                                            <Button
+                                                                size="xs"
+                                                                variant="ghost"
+                                                            />
+                                                        }
+                                                        resultsSummary={
+                                                            resultsSummary
+                                                        }
+                                                        sectionCount={
+                                                            groups.length
+                                                        }
+                                                        showSectionCount={
+                                                            effectiveGroupBy !==
+                                                            "none"
+                                                        }
+                                                    />
+                                                    <SummaryPopup
+                                                        metrics={buildComposerMetrics(
+                                                            {
+                                                                getSourceLabel,
+                                                                items: filteredItems,
+                                                            }
                                                         )}
-                                                    </CommandList>
-                                                </CommandPopup>
-                                                <PaletteActionsList
-                                                    duplicatesFilterEnabled={
-                                                        duplicatesFilterEnabled
+                                                        onClearFilters={
+                                                            canClear
+                                                                ? clearLibraryPalette
+                                                                : undefined
+                                                        }
+                                                    />
+                                                </Summary>
+                                                <OnboardingMenu
+                                                    connectedIntegrationCount={
+                                                        connectedIntegrationCount
+                                                    }
+                                                    onCreateCollection={
+                                                        requestCreate
                                                     }
                                                     onCreateNote={
                                                         handleCreateNote
                                                     }
-                                                    onRemoveDuplicates={
-                                                        handleRequestRemoveDuplicates
+                                                    onOpenComposer={
+                                                        handleOpenComposerFromOnboarding
                                                     }
-                                                    removableDuplicateCount={
-                                                        removableDuplicateIds.length
+                                                    render={
+                                                        <Button
+                                                            size="xs"
+                                                            variant="ghost"
+                                                        />
                                                     }
-                                                >
-                                                    <PaletteActionNew />
-                                                    <Summary>
-                                                        <SummaryTrigger
-                                                            hasActiveFilters={
-                                                                canClear
+                                                />
+                                                <PaletteActionRemoveDuplicates />
+                                            </ComposerActionsList>
+                                        </ComposerInput>
+                                    </div>
+                                </Composer>
+                                <PaletteSuggestionsList
+                                    isOpen={isSuggestionsOpen}
+                                    onOpenChange={setIsSuggestionsOpen}
+                                    suggestions={suggestions}
+                                >
+                                    {(suggestion, index) => (
+                                        <PaletteSuggestionsListButton
+                                            index={index}
+                                            suggestion={suggestion}
+                                        />
+                                    )}
+                                </PaletteSuggestionsList>
+                                {isPreviewOnly ? <InlinePaywallBanner /> : null}
+                                <AgentViewBar
+                                    key={
+                                        agentView
+                                            ? getAgentViewKey(agentView)
+                                            : "no-view"
+                                    }
+                                    missingCount={agentViewMissingCount}
+                                    onAppendPage={handleAppendAgentViewPage}
+                                    resolvedCount={
+                                        resolvedAgentViewItems.length
+                                    }
+                                    view={agentView}
+                                />
+                                <ItemsListEmpty />
+                                <ItemsListEmptyWithFilters />
+                                <ItemsListLinkCheckPending />
+                                <ItemsGroupList groups={groups}>
+                                    {(group) => (
+                                        <ItemsGroup>
+                                            {enableSectionCollapse ? (
+                                                <>
+                                                    <ItemsGroupResults />
+                                                    {group.title ? null : (
+                                                        <ItemsGroupOverview>
+                                                            <ItemsGroupOverviewContent />
+                                                        </ItemsGroupOverview>
+                                                    )}
+                                                    <ItemsGroupEmpty>
+                                                        No items were found in
+                                                        this section.
+                                                    </ItemsGroupEmpty>
+                                                </>
+                                            ) : null}
+                                            <ItemsMasonry>
+                                                {(item) => (
+                                                    <MasonryItem key={item.id}>
+                                                        <ItemCardProvider
+                                                            isDeletePending={
+                                                                pendingDeleteItem?.id ===
+                                                                item.id
                                                             }
-                                                            render={
-                                                                <PaletteActionButton />
+                                                            isPickerOpen={
+                                                                openPickerItemId ===
+                                                                item.id
                                                             }
-                                                            resultsSummary={
-                                                                resultsSummary
-                                                            }
-                                                            sectionCount={
-                                                                groups.length
-                                                            }
-                                                            showSectionCount={
-                                                                effectiveGroupBy !==
-                                                                "none"
-                                                            }
-                                                        />
-                                                        <SummaryPopup
-                                                            metrics={buildComposerMetrics(
-                                                                {
-                                                                    getSourceLabel,
-                                                                    items: filteredItems,
-                                                                }
-                                                            )}
-                                                            onClearFilters={
-                                                                canClear
-                                                                    ? clearLibraryPalette
-                                                                    : undefined
-                                                            }
-                                                        />
-                                                    </Summary>
-                                                    <OnboardingMenu
-                                                        connectedIntegrationCount={
-                                                            connectedIntegrationCount
-                                                        }
-                                                        onCreateCollection={
-                                                            requestCreate
-                                                        }
-                                                        onCreateNote={
-                                                            handleCreateNote
-                                                        }
-                                                        onOpenComposer={
-                                                            handleOpenComposerFromOnboarding
-                                                        }
-                                                        render={
-                                                            <PaletteActionButton />
-                                                        }
-                                                    />
-                                                    <PaletteActionRemoveDuplicates />
-                                                </PaletteActionsList>
-                                            </ComposerInput>
-                                        }
-                                    />
-                                </Palette>
-                            </Composer>
-                            <PaletteSuggestionsList
-                                isOpen={isSuggestionsOpen}
-                                onOpenChange={setIsSuggestionsOpen}
-                                suggestions={suggestions}
-                            >
-                                {(suggestion, index) => (
-                                    <PaletteSuggestionsListButton
-                                        index={index}
-                                        suggestion={suggestion}
-                                    />
-                                )}
-                            </PaletteSuggestionsList>
-                            {isPreviewOnly ? <InlinePaywallBanner /> : null}
-                            <AgentViewBar
-                                key={
-                                    agentView
-                                        ? getAgentViewKey(agentView)
-                                        : "no-view"
-                                }
-                                missingCount={agentViewMissingCount}
-                                onAppendPage={handleAppendAgentViewPage}
-                                resolvedCount={resolvedAgentViewItems.length}
-                                view={agentView}
-                            />
-                            <ItemsListEmpty />
-                            <ItemsListEmptyWithFilters />
-                            <ItemsListLinkCheckPending />
-                            <ItemsGroupList groups={groups}>
-                                {(group) => (
-                                    <ItemsGroup>
-                                        {enableSectionCollapse ? (
-                                            <>
-                                                <ItemsGroupResults />
-                                                {group.title ? null : (
-                                                    <ItemsGroupOverview>
-                                                        <ItemsGroupOverviewContent />
-                                                    </ItemsGroupOverview>
+                                                            value={item}
+                                                        >
+                                                            <ItemCardZoomProvider>
+                                                                <ItemCardDownloadProvider>
+                                                                    <ItemCardSurface>
+                                                                        <ItemCardTarget />
+                                                                        <ItemCardFooter />
+                                                                    </ItemCardSurface>
+                                                                </ItemCardDownloadProvider>
+                                                            </ItemCardZoomProvider>
+                                                        </ItemCardProvider>
+                                                    </MasonryItem>
                                                 )}
-                                                <ItemsGroupEmpty>
-                                                    No items were found in this
-                                                    section.
-                                                </ItemsGroupEmpty>
-                                            </>
-                                        ) : null}
-                                        <ItemsMasonry>
-                                            {(item) => (
-                                                <MasonryItem key={item.id}>
-                                                    <ItemCardProvider
-                                                        value={item}
-                                                    >
-                                                        <ItemCardZoomProvider>
-                                                            <ItemCardDownloadProvider>
-                                                                <ItemCardSurface>
-                                                                    <ItemCardTarget />
-                                                                    <ItemCardFooter />
-                                                                </ItemCardSurface>
-                                                            </ItemCardDownloadProvider>
-                                                        </ItemCardZoomProvider>
-                                                    </ItemCardProvider>
-                                                </MasonryItem>
-                                            )}
-                                        </ItemsMasonry>
-                                    </ItemsGroup>
-                                )}
-                            </ItemsGroupList>
-                            <ItemsListLocked
-                                length={totalItemCount}
-                                lockedItemCount={lockedItemCount}
-                            />
+                                            </ItemsMasonry>
+                                        </ItemsGroup>
+                                    )}
+                                </ItemsGroupList>
+                                <ItemsListLocked
+                                    length={totalItemCount}
+                                    lockedItemCount={lockedItemCount}
+                                />
+                            </div>
+                            <SidePanelContent />
+                            <SidePanelToggle />
                         </div>
-                        <SidePanelContent />
-                        <SidePanelToggle />
-                    </div>
-                    <DeleteItemDialog
-                        deleteErrorMessage={deleteErrorMessage}
-                        onConfirmDelete={handleConfirmDelete}
-                        onOpenChange={handleDeleteDialogOpenChange}
-                        open={pendingDeleteItem !== null}
-                        pendingDeleteItem={pendingDeleteItem}
-                    />
-                    <RemoveDuplicatesDialog
-                        count={pendingRemoveDuplicateCount}
-                        isRemoving={isRemovingDuplicates}
-                        onConfirm={handleConfirmRemoveDuplicates}
-                        onOpenChange={handleRemoveDuplicatesDialogOpenChange}
-                        open={isRemoveDuplicatesDialogOpen}
-                    />
-                    <CreateFromResultsCollectionDialog
-                        initialName={getAgentViewCollectionDialogName(
-                            agentView,
-                            searchTerms
-                        )}
-                        onCreateCollection={handleCreateCollectionFromResults}
-                        onOpenChange={setIsCreateResultsDialogOpen}
-                        onUpdateItemsCollections={handleUpdateItemsCollections}
-                        open={isCreateResultsDialogOpen}
-                        resultItems={sortedItems}
-                    />
-                    <SuccessfulUpgradeDialog />
-                </ItemsListContext>
+                        <DeleteItemDialog
+                            deleteErrorMessage={deleteErrorMessage}
+                            onConfirmDelete={handleConfirmDelete}
+                            onOpenChange={handleDeleteDialogOpenChange}
+                            open={pendingDeleteItem !== null}
+                            pendingDeleteItem={pendingDeleteItem}
+                        />
+                        <RemoveDuplicatesDialog
+                            count={pendingRemoveDuplicateCount}
+                            isRemoving={isRemovingDuplicates}
+                            onConfirm={handleConfirmRemoveDuplicates}
+                            onOpenChange={
+                                handleRemoveDuplicatesDialogOpenChange
+                            }
+                            open={isRemoveDuplicatesDialogOpen}
+                        />
+                        <CreateFromResultsCollectionDialog
+                            initialName={getAgentViewCollectionDialogName(
+                                agentView,
+                                searchTerms
+                            )}
+                            onCreateCollection={
+                                handleCreateCollectionFromResults
+                            }
+                            onOpenChange={setIsCreateResultsDialogOpen}
+                            onUpdateItemsCollections={
+                                handleUpdateItemsCollections
+                            }
+                            open={isCreateResultsDialogOpen}
+                            resultItems={sortedItems}
+                        />
+                        <SuccessfulUpgradeDialog />
+                    </ItemsListContext>
+                </ItemsActionsContext>
             </ItemsContext>
         </SidePanel>
     );
@@ -5623,22 +5630,18 @@ function ItemsMasonry({ children }: ItemsMasonryProps) {
         hoveredItemIdRef,
         hoverPinnedItemIdRef,
         markVisited,
-        openPickerItemId,
         setOpenPickerItemId,
     } = useItemsListContext();
     const {
-        favoriteItemIdSet,
         onCopyLink,
         onDelete,
         onFindSimilar,
+        onItemFavoriteToggle,
         onOpenInNewTab,
         onOpenNote,
-        onItemFavoriteToggle,
-        pendingDeleteItemId,
-    } = useItemsContext();
+    } = useItemsActionsContext();
 
     const contextValue: ItemCardEnvironmentContext = {
-        favoriteItemIdSet,
         hoveredItemIdRef,
         hoverPinnedItemIdRef,
         markVisited,
@@ -5648,8 +5651,6 @@ function ItemsMasonry({ children }: ItemsMasonryProps) {
         onItemFavoriteToggle,
         onOpenInNewTab,
         onOpenNote,
-        openPickerItemId,
-        pendingDeleteItemId,
         setOpenPickerItemId,
     };
 
@@ -6096,18 +6097,6 @@ function AssistantResponsePanel({
     );
 }
 
-function Palette({
-    className,
-    ...props
-}: React.ComponentProps<typeof Toolbar.Root>) {
-    return (
-        <Toolbar.Root
-            {...props}
-            className={cn("sticky top-1 z-50 w-full max-w-2xl", className)}
-        />
-    );
-}
-
 interface PaletteInputEndAddonProps {
     stackEntries: ComposerStackEntry[];
 }
@@ -6168,19 +6157,19 @@ function PaletteInputEndAddonShortcut() {
     );
 }
 
-interface PaletteActionsListProps
-    extends React.ComponentProps<typeof Toolbar.Group>,
-        PaletteActionsContext {}
+interface ComposerActionsListProps
+    extends React.ComponentProps<"div">,
+        ComposerActionsContext {}
 
-function PaletteActionsList({
+function ComposerActionsList({
     className,
     duplicatesFilterEnabled,
     onCreateNote,
     onRemoveDuplicates,
     removableDuplicateCount,
     ...props
-}: PaletteActionsListProps) {
-    const contextValue: PaletteActionsContext = {
+}: ComposerActionsListProps) {
+    const contextValue: ComposerActionsContext = {
         duplicatesFilterEnabled,
         onCreateNote,
         onRemoveDuplicates,
@@ -6188,14 +6177,17 @@ function PaletteActionsList({
     };
 
     return (
-        <PaletteActionsContext value={contextValue}>
+        <ComposerActionsContext value={contextValue}>
             <ScrollArea className="h-fit">
-                <ToolbarGroup
+                <div
                     {...props}
-                    className={cn("gap-2 px-3", className)}
+                    className={cn(
+                        "flex items-center gap-2 text-nowrap px-3",
+                        className
+                    )}
                 />
             </ScrollArea>
-        </PaletteActionsContext>
+        </ComposerActionsContext>
     );
 }
 
@@ -6203,10 +6195,15 @@ function PaletteActionNew() {
     const { onCreateNote } = usePaletteActionsContext();
 
     return (
-        <PaletteActionButton onClick={onCreateNote} title="Add new">
+        <Button
+            onClick={onCreateNote}
+            size="xs"
+            title="Add new"
+            variant="ghost"
+        >
             <SquarePen className="inline-block size-3.5" />
             &nbsp;Add new
-        </PaletteActionButton>
+        </Button>
     );
 }
 
@@ -6224,18 +6221,20 @@ function PaletteActionRemoveDuplicates() {
     }
 
     return (
-        <PaletteActionButton
+        <Button
             disabled={!canRemove}
             onClick={onRemoveDuplicates}
+            size="xs"
             title={
                 canRemove
                     ? "Remove duplicate bookmarks"
                     : "No duplicates to remove"
             }
+            variant="ghost"
         >
             <CopyX className="inline-block size-3.5" />
             &nbsp;Remove duplicates
-        </PaletteActionButton>
+        </Button>
     );
 }
 
@@ -6277,7 +6276,7 @@ function ComposerCommandContent({ item }: { item: ComposerCommand }) {
             ) : null}
             {item.isActive ? <Badge variant="secondary">Active</Badge> : null}
             {item.shortcut ? (
-                <CommandShortcut>{item.shortcut}</CommandShortcut>
+                <AutocompleteShortcut>{item.shortcut}</AutocompleteShortcut>
             ) : null}
         </div>
     );
@@ -6287,13 +6286,13 @@ function ComposerCommandRow({ item }: ComposerCommandRowProps) {
     const handleSelect = useComposerCommandSelect(item);
 
     return (
-        <CommandItem
+        <AutocompleteItem
             disabled={item.disabled}
             onClick={handleSelect}
             value={item.value}
         >
             <ComposerCommandContent item={item} />
-        </CommandItem>
+        </AutocompleteItem>
     );
 }
 
@@ -6301,26 +6300,14 @@ function ComposerCollectionCommandCard({ item }: ComposerCommandRowProps) {
     const handleSelect = useComposerCommandSelect(item);
 
     return (
-        <CommandItem
+        <AutocompleteItem
             className="group squircle relative flex-1 overflow-hidden rounded-xl bg-accent text-accent-foreground shadow-xs"
             disabled={item.disabled}
             onClick={handleSelect}
             value={item.value}
         >
             <ComposerCommandContent item={item} />
-        </CommandItem>
-    );
-}
-
-function PaletteActionButton({
-    render,
-    ...props
-}: React.ComponentProps<typeof Toolbar.Button>) {
-    return (
-        <Toolbar.Button
-            {...props}
-            render={render ?? <Button size="xs" variant="ghost" />}
-        />
+        </AutocompleteItem>
     );
 }
 

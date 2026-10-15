@@ -55,7 +55,7 @@ export function MenuPopup({
                 <MenuPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative min-w-52 origin-(--transform-origin) overflow-hidden rounded-2xl border bg-popover not-dark:bg-clip-padding text-popover-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-2xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 data-instant:transition-none dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle relative min-w-52 origin-(--transform-origin) overflow-hidden rounded-xl border bg-popover not-dark:bg-clip-padding text-popover-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot={dataSlot}
@@ -128,7 +128,7 @@ export function MenuItem({
         <MenuPrimitive.Item
             {...props}
             className={cn(
-                "flex cursor-default select-none items-center gap-2 rounded-xl px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
+                "squircle flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
                 variant === "default" &&
                     "data-highlighted:text-accent-foreground",
                 variant === "destructive" &&
@@ -156,7 +156,7 @@ export function MenuLinkItem({
         <MenuPrimitive.LinkItem
             {...props}
             className={cn(
-                "flex cursor-default select-none items-center gap-2 rounded-xl px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
+                "squircle flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
                 variant === "default" &&
                     "data-highlighted:text-accent-foreground",
                 variant === "destructive" &&
@@ -179,7 +179,7 @@ export function MenuRadioItem({
         <MenuPrimitive.RadioItem
             {...props}
             className={cn(
-                "grid min-h-8 cursor-default select-none grid-cols-[1fr_1rem] items-center gap-5 rounded-xl px-2.5 py-1.5 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
+                "squircle grid min-h-8 cursor-default select-none grid-cols-[1fr_1rem] items-center gap-5 rounded-lg px-2.5 py-1.5 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
                 className
             )}
             data-slot="menu-radio-item"
@@ -218,7 +218,7 @@ export function MenuSubTrigger({
         <MenuPrimitive.SubmenuTrigger
             {...props}
             className={cn(
-                "group/trigger flex min-h-8 cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
+                "squircle group/trigger flex min-h-8 cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
                 className
             )}
             data-slot="menu-sub-trigger"
@@ -289,7 +289,7 @@ export function MenuCheckboxItem({
             {...props}
             checked={checked}
             className={cn(
-                "grid min-h-8 cursor-default items-center gap-2 rounded-sm py-1 ps-2 text-base text-foreground outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+                "squircle grid min-h-8 cursor-default items-center gap-2 rounded-lg py-1 ps-2 text-base text-foreground outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
                 variant === "switch"
                     ? "grid-cols-[1fr_auto] gap-4 pe-1.5"
                     : "grid-cols-[.75rem_1fr] pe-2",

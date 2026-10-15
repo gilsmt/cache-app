@@ -10,22 +10,27 @@ const log = createLogger("use-autosave");
 const MIN_SAVING_DISPLAY_MS = 600;
 const SAVE_STATUS_IDLE_DELAY_MS = 2000;
 
-export type SaveStatus = "idle" | "saving" | "saved" | "error";
+export type AutosaveStatus = "idle" | "saving" | "saved" | "error";
 
-type SaveResult = boolean | string;
+/**
+ * Result of an `onSave` call.
+ * - `false` marks failure.
+ * - `string` marks success and becomes the new saved baseline.
+ */
+type AutosaveResult = string | false;
 
 interface UseAutosaveOptions {
     content: string;
     delay?: number;
     enabled?: boolean;
-    onSave: () => Promise<SaveResult> | SaveResult;
+    onSave: () => Promise<AutosaveResult> | AutosaveResult;
     savedContent: string;
 }
 
 interface UseAutosaveReturn {
     isDirty: boolean;
     saveImmediately: () => Promise<boolean>;
-    saveStatus: SaveStatus;
+    status: AutosaveStatus;
 }
 
 /**
@@ -40,7 +45,7 @@ export function useAutosave({
     delay = 1500,
     enabled = true,
 }: UseAutosaveOptions): UseAutosaveReturn {
-    const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+    const [status, setSaveStatus] = useState<AutosaveStatus>("idle");
     const debounceTimeout = useTimeout();
     const idleTimeout = useTimeout();
 
@@ -51,7 +56,6 @@ export function useAutosave({
     const enabledRef = useValueAsRef(enabled);
 
     const activeSaveRef = useRef<Promise<boolean> | null>(null);
-    const isMountedRef = useRef(false);
     const latestContentChangeMsRef = useRef(0);
     const savingStartMsRef = useRef(0);
 
@@ -64,11 +68,7 @@ export function useAutosave({
     usePreventWindowUnload(checkShouldPreventUnload);
 
     const scheduleSettledStatus = useStableCallback(
-        (nextStatus: SaveStatus) => {
-            if (!isMountedRef.current) {
-                return;
-            }
-
+        (nextStatus: AutosaveStatus) => {
             const elapsedMs = Date.now() - savingStartMsRef.current;
             const remainingMs = Math.max(0, MIN_SAVING_DISPLAY_MS - elapsedMs);
 
@@ -84,13 +84,6 @@ export function useAutosave({
     useIsoLayoutEffect(() => {
         latestContentChangeMsRef.current = Date.now();
     }, [content]);
-
-    useIsoLayoutEffect(() => {
-        isMountedRef.current = true;
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, []);
 
     const saveRef = useRef<(shouldFlushQueued?: boolean) => Promise<boolean>>(
         () => Promise.resolve(true)
@@ -121,20 +114,17 @@ export function useAutosave({
                 });
             }
 
-            if (isMountedRef.current) {
-                idleTimeout.clear();
-                savingStartMsRef.current = Date.now();
-                setSaveStatus("saving");
-            }
+            idleTimeout.clear();
+            savingStartMsRef.current = Date.now();
+            setSaveStatus("saving");
 
             const savePromise = (async () => {
                 let didSave = false;
                 try {
                     const result = await onSave();
-                    didSave = result !== false;
-                    if (didSave) {
-                        savedContentRef.current =
-                            typeof result === "string" ? result : contentToSave;
+                    if (result !== false) {
+                        didSave = true;
+                        savedContentRef.current = result;
                     }
                 } catch (error) {
                     log.error("Save failed", error);
@@ -202,5 +192,5 @@ export function useAutosave({
         return await save(true);
     });
 
-    return { isDirty, saveImmediately, saveStatus };
+    return { isDirty, saveImmediately, status };
 }

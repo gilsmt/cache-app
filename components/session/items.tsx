@@ -9,9 +9,11 @@ import type { LibraryItemWithCollections } from "@/lib/collections/utils";
 
 export interface ItemsContext {
     collectionPreviewThumbnailUrlsById: Map<string, string[]>;
-    favoriteItemIdSet: ReadonlySet<string>;
     favoriteItems: LibraryItemWithCollections[];
     itemsByCollectionId: Map<string, LibraryItemWithCollections[]>;
+}
+
+export interface ItemsActionsContext {
     mergeImportedItems: (items: LibraryItemWithCollections[]) => void;
     onCopyLink: (item: LibraryItemWithCollections) => void;
     onDelete: (item: LibraryItemWithCollections) => void;
@@ -26,7 +28,6 @@ export interface ItemsContext {
         itemId: string,
         collectionIds: string[]
     ) => Promise<LibraryItemCollectionsUpdateResult>;
-    pendingDeleteItemId: string | null;
 }
 
 interface ItemsStateContext {
@@ -38,6 +39,9 @@ interface ItemsStateContext {
 
 export const ItemsContext = React.createContext<ItemsContext | null>(null);
 
+export const ItemsActionsContext =
+    React.createContext<ItemsActionsContext | null>(null);
+
 export const ItemsStateContext = React.createContext<ItemsStateContext | null>(
     null
 );
@@ -47,6 +51,16 @@ export function useItemsContext(): ItemsContext {
     if (!context) {
         throw new Error(
             "Library items context is required for library item controls."
+        );
+    }
+    return context;
+}
+
+export function useItemsActionsContext(): ItemsActionsContext {
+    const context = React.use(ItemsActionsContext);
+    if (!context) {
+        throw new Error(
+            "Library items actions are required for library item controls."
         );
     }
     return context;

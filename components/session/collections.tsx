@@ -7,7 +7,6 @@ import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
 import { useValueAsRef } from "@base-ui/utils/useValueAsRef";
-import { Calligraph } from "calligraph";
 import { cn } from "cn";
 import { T } from "gt-next";
 import {
@@ -53,11 +52,13 @@ import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
+import { TextMorph } from "torph/react";
 import { useSubscriptionAccess } from "@/components/billing/subscription";
 import { useCollectionsSuggestions } from "@/components/hooks/queries/use-collections-suggestions";
 import { useSmartCollectionsPreference } from "@/components/hooks/queries/use-smart-collections-preference";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import {
+    useItemsActionsContext,
     useItemsContext,
     useItemsStateContext,
 } from "@/components/session/items";
@@ -181,6 +182,7 @@ import {
     type CollectionSortField,
     getNoteExcerpt,
     itemPreviewImageUrl,
+    itemPreviewVideoUrl,
     type LibraryCollectionSummary,
     type LibraryCollectionTag,
     type LibraryItemWithCollections,
@@ -835,7 +837,7 @@ function useSubmissionDialog({
     return { handleOpenChange, isSubmitting, runSubmission };
 }
 
-function useSmartCollectionsToggle() {
+export function useSmartCollectionsToggle() {
     const { showError } = useCollectionStatus();
     const {
         disabled,
@@ -2666,9 +2668,7 @@ function CollectionsListGroupTrigger({
             >
                 <span className="min-w-0 text-xs">
                     {children}&nbsp;
-                    <Calligraph className="mx-0.5 opacity-80">
-                        {count}
-                    </Calligraph>
+                    <TextMorph className="mx-0.5 opacity-80">{count}</TextMorph>
                 </span>
                 <ChevronDownFilledIcon
                     aria-hidden
@@ -2824,13 +2824,23 @@ function CollectionsListFavoritesItem({
     item,
 }: CollectionsListFavoritesItemProps) {
     const { onOpenFavoriteItem, onItemFavoriteToggle: onToggleItemFavorite } =
-        useItemsContext();
+        useItemsActionsContext();
     const { showError } = useCollectionStatus();
 
     const isNote = item.kind === ITEM_KIND_NOTE;
     const previewImageUrl = itemPreviewImageUrl(item);
+    const previewVideoUrl = itemPreviewVideoUrl(item);
     const noteExcerpt = getNoteExcerpt(item.noteContentText);
     const label = getFavoriteItemLabel(item);
+    const [isPointerOver, setIsPointerOver] = React.useState(false);
+
+    const handlePointerEnter = useStableCallback(() => {
+        setIsPointerOver(true);
+    });
+
+    const handlePointerLeave = useStableCallback(() => {
+        setIsPointerOver(false);
+    });
 
     const handleClick = useStableCallback((event: React.SyntheticEvent) => {
         event.preventDefault();
@@ -2850,19 +2860,17 @@ function CollectionsListFavoritesItem({
     });
 
     return (
-        <div className="group relative flex select-none items-center">
+        <div
+            className="group relative flex select-none items-center"
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+        >
             <div className="pointer-events-none absolute top-1/2 left-1.25 z-10 size-6 -translate-y-1/2 overflow-hidden rounded-md">
                 {isNote ? null : (
-                    <>
-                        <CollectionsListFavoritesItemPreview
-                            className="size-full object-cover"
-                            src={previewImageUrl ?? undefined}
-                        />
-                        <div
-                            aria-hidden
-                            className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/5 ring-inset"
-                        />
-                    </>
+                    <CollectionsListFavoritesItemPreview
+                        className="size-full object-cover"
+                        src={previewImageUrl ?? undefined}
+                    />
                 )}
             </div>
             <PreviewCard>
@@ -2880,27 +2888,20 @@ function CollectionsListFavoritesItem({
                     </span>
                 </PreviewCardTrigger>
                 <PreviewCardPopup
-                    className="pointer-events-none p-0"
+                    className="p-0"
                     positionMethod="fixed"
                     side="right"
                 >
                     {isNote ? (
-                        <div className="overflow-hidden bg-muted p-3">
-                            <p className="line-clamp-6 whitespace-pre-wrap text-left text-foreground text-xs leading-snug">
-                                {noteExcerpt || "Empty note"}
-                            </p>
-                        </div>
+                        <p className="line-clamp-6 whitespace-pre-wrap text-left text-foreground text-xs leading-snug">
+                            {noteExcerpt || "Empty note"}
+                        </p>
                     ) : (
-                        <CollectionsListFavoritesItemPreview
-                            alt=""
-                            className="aspect-auto h-auto w-full"
-                            src={previewImageUrl ?? undefined}
+                        <CollectionsListFavoritesItemPreviewContent
+                            imageSrc={previewImageUrl ?? undefined}
+                            videoSrc={isPointerOver ? previewVideoUrl : null}
                         />
                     )}
-                    <div
-                        aria-hidden
-                        className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/5 ring-inset"
-                    />
                 </PreviewCardPopup>
             </PreviewCard>
             <Button
@@ -2947,6 +2948,82 @@ function CollectionsListFavoritesItemPreview({
             decoding="async"
             loading="lazy"
             onError={handleError}
+            src={src}
+        />
+    );
+}
+
+interface CollectionsListFavoritesItemPreviewMediaProps {
+    imageSrc: string | undefined;
+    videoSrc: string | null;
+}
+
+function CollectionsListFavoritesItemPreviewContent({
+    imageSrc,
+    videoSrc,
+}: CollectionsListFavoritesItemPreviewMediaProps): React.ReactElement {
+    return (
+        <div className="relative min-h-32 w-full bg-background">
+            <CollectionsListFavoritesItemPreview
+                alt=""
+                className="aspect-auto h-auto w-full"
+                src={imageSrc}
+            />
+            <CollectionsListFavoritesItemPreviewVideo src={videoSrc} />
+        </div>
+    );
+}
+
+interface CollectionsListFavoritesItemPreviewVideoProps {
+    src: string | null;
+}
+
+function CollectionsListFavoritesItemPreviewVideo({
+    src,
+}: CollectionsListFavoritesItemPreviewVideoProps): React.ReactElement | null {
+    const shouldReduceMotion = useReducedMotion();
+    const videoRef = React.useRef<HTMLVideoElement | null>(null);
+    const [hasFailed, setHasFailed] = React.useState(false);
+    const [prevSrc, setPrevSrc] = React.useState(src);
+
+    if (src !== prevSrc) {
+        setPrevSrc(src);
+        setHasFailed(false);
+    }
+
+    const handleError = useStableCallback(() => {
+        log.debug("Favorites preview video failed to load", {
+            videoSrc: src,
+        });
+        setHasFailed(true);
+    });
+
+    React.useEffect(() => {
+        const video = videoRef.current;
+        if (!(video && src && !hasFailed)) {
+            return;
+        }
+        video.play().catch((error: unknown) => {
+            log.debug("Failed to autoplay favorites preview", { error });
+        });
+    }, [hasFailed, src]);
+
+    if (!src || hasFailed || shouldReduceMotion) {
+        return null;
+    }
+
+    return (
+        <video
+            aria-hidden
+            className="pointer-events-none absolute inset-0 size-full object-contain"
+            draggable="false"
+            key={src}
+            loop
+            muted
+            onError={handleError}
+            playsInline
+            preload="auto"
+            ref={videoRef}
             src={src}
         />
     );
@@ -3347,7 +3424,7 @@ function CollectionsListSmartCollectionsPopover() {
             <div className="flex items-center gap-0.5 text-nowrap font-medium text-[11px] opacity-40">
                 Smart Collections
                 <span>is</span>
-                <Skeleton className="h-4 w-18" />
+                <Skeleton className="h-4 w-15" />
             </div>
         );
     }
@@ -3384,7 +3461,7 @@ function CollectionsListSmartCollectionsPopover() {
                     alt=""
                     aria-hidden
                     className="-mx-(--viewport-inline-padding) -mt-4 aspect-32/9 h-auto max-h-24 w-(--positioner-width) min-w-0 max-w-(--positioner-width) rounded-t-lg"
-                    priority
+                    placeholder="blur"
                     sizes="auto,288px"
                     src={SmartCollectionsBackgroundImg}
                 />
@@ -3780,10 +3857,6 @@ function CollectionsListItemPreview({
                     }}
                 />
             </AnimatePresence>
-            <div
-                aria-hidden
-                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/5 ring-inset"
-            />
         </div>
     );
 }
@@ -3953,7 +4026,7 @@ function CollectionsListItemControls({
                     className
                 )}
             >
-                {children}
+                {children}&nbsp;
             </span>
             <Menu>
                 <MenuTrigger
@@ -4339,7 +4412,7 @@ export function ItemCollectionsCombobox({
     ...props
 }: ItemCollectionsComboboxProps) {
     const { collections } = useCollectionsContext();
-    const { onUpdateItemCollections } = useItemsContext();
+    const { onUpdateItemCollections } = useItemsActionsContext();
     const { showError } = useCollectionStatus();
     const [, startTransition] = React.useTransition();
 

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { createStore } from "stan-js";
 import { useCollectionsContext } from "@/components/session/collections";
-import { useItemsContext } from "@/components/session/items";
+import { useItemsActionsContext } from "@/components/session/items";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -266,7 +266,7 @@ export function MarkdownImportDialog() {
     const [isLoading, startLoading] = React.useTransition();
     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
     const { replaceCollections } = useCollectionsContext();
-    const { mergeImportedItems: mergeLibraryItems } = useItemsContext();
+    const { mergeImportedItems } = useItemsActionsContext();
     const router = useRouter();
     // Guards the import completion update against a close/reset mid-import.
     const importSessionIdRef = React.useRef(0);
@@ -458,7 +458,7 @@ export function MarkdownImportDialog() {
             }
 
             if (aggregatedResult.items.length > 0) {
-                mergeLibraryItems(aggregatedResult.items);
+                mergeImportedItems(aggregatedResult.items);
             }
             if (collectionsFromImport !== null) {
                 replaceCollections(collectionsFromImport);

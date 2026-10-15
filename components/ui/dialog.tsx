@@ -16,38 +16,36 @@ export function DialogTrigger(props: DialogPrimitive.Trigger.Props) {
 
 interface DialogPopupProps extends DialogPrimitive.Popup.Props {
     portalProps?: DialogPrimitive.Portal.Props;
-    shouldShowCloseButton?: boolean;
+    viewportClassName?: DialogPrimitive.Viewport.Props["className"];
 }
 
 export function DialogPopup({
     className,
     children,
-    shouldShowCloseButton = true,
     portalProps,
+    viewportClassName,
     ...props
 }: DialogPopupProps) {
     return (
         <DialogPrimitive.Portal {...portalProps}>
             <DialogBackdrop />
-            <DialogViewport>
+            <DialogViewport className={viewportClassName}>
                 <DialogPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative row-start-2 flex max-h-full min-h-0 w-full min-w-0 max-w-lg flex-col rounded-xl bg-popover not-dark:bg-clip-padding text-popover-foreground opacity-[calc(1-var(--nested-dialogs))] shadow-lg/5 outline-none transition-[translate,opacity] duration-200 ease-out will-change-transform before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:translate-y-5 data-starting-style:translate-y-4 data-open:animate-dialog-select-guard data-ending-style:select-none data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-100 data-ending-style:ease-in dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle relative row-start-2 flex max-h-full min-h-0 w-full min-w-0 max-w-lg flex-col rounded-xl bg-popover not-dark:bg-clip-padding text-popover-foreground opacity-[calc(1-var(--nested-dialogs))] shadow-lg/5 outline-none transition-[translate,opacity] duration-200 ease-out will-change-transform before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:pointer-events-none data-ending-style:translate-y-5 data-starting-style:translate-y-4 data-ending-style:select-none data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-100 data-ending-style:ease-in dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot="dialog-popup"
                 >
                     {children}
-                    {shouldShowCloseButton ? (
-                        <DialogPrimitive.Close
-                            aria-label="Close"
-                            className="absolute inset-e-2 top-2"
-                            render={<Button size="icon" variant="ghost" />}
-                        >
-                            <XIcon />
-                        </DialogPrimitive.Close>
-                    ) : null}
+                    <DialogPrimitive.Close
+                        aria-label="Close"
+                        className="absolute inset-e-2 top-2"
+                        render={<Button size="icon" variant="ghost" />}
+                    >
+                        <XIcon />
+                    </DialogPrimitive.Close>
                 </DialogPrimitive.Popup>
             </DialogViewport>
         </DialogPrimitive.Portal>
@@ -61,7 +59,7 @@ export function DialogPanel({
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
         className: cn(
-            "p-6 in-[[data-slot=dialog-popup]:has([data-slot=dialog-header])]:pt-1 in-[[data-slot=dialog-popup]:has([data-slot=dialog-footer]:not(.border-t))]:pb-1",
+            "min-h-0 p-6 in-[[data-slot=dialog-popup]:has([data-slot=dialog-header])]:pt-1 in-[[data-slot=dialog-popup]:has([data-slot=dialog-footer]:not(.border-t))]:pb-1",
             className
         ),
         "data-slot": "dialog-panel",
@@ -105,7 +103,7 @@ export function DialogTitle({
     return (
         <DialogPrimitive.Title
             {...props}
-            className={cn("font-semibold text-lg leading-none", className)}
+            className={cn("font-semibold text-lg", className)}
             data-slot="dialog-title"
         />
     );

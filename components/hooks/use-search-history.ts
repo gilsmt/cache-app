@@ -48,11 +48,20 @@ function readSearchHistory(): string[] {
         if (!Array.isArray(parsed)) {
             return EMPTY_HISTORY;
         }
-        const terms = parsed
-            .filter((entry): entry is string => typeof entry === "string")
-            .map(normalizeTerm)
-            .filter((term) => term.length > 0)
-            .slice(0, HISTORY_LIMIT);
+        const terms: string[] = [];
+        for (const entry of parsed) {
+            if (typeof entry !== "string") {
+                continue;
+            }
+            const term = normalizeTerm(entry);
+            if (term.length === 0) {
+                continue;
+            }
+            if (terms.length === HISTORY_LIMIT) {
+                break;
+            }
+            terms.push(term);
+        }
         return terms.length > 0 ? terms : EMPTY_HISTORY;
     } catch {
         return EMPTY_HISTORY;

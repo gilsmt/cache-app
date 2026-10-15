@@ -16,7 +16,6 @@ interface PopoverPopupProps extends PopoverPrimitive.Popup.Props {
     portalProps?: PopoverPrimitive.Portal.Props;
     positionerClassName?: string;
     positionMethod?: PopoverPrimitive.Positioner.Props["positionMethod"];
-    shouldUseTooltipStyle?: boolean;
     side?: PopoverPrimitive.Positioner.Props["side"];
     sideOffset?: PopoverPrimitive.Positioner.Props["sideOffset"];
 }
@@ -30,7 +29,6 @@ export function PopoverPopup({
     positionMethod,
     side = "bottom",
     sideOffset = 4,
-    shouldUseTooltipStyle = false,
     positionerClassName,
     portalProps,
     ...props
@@ -53,24 +51,12 @@ export function PopoverPopup({
                 <PopoverPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative flex h-(--popup-height,auto) w-(--popup-width,auto) origin-(--transform-origin) overflow-clip rounded-xl border bg-popover not-dark:bg-clip-padding text-popover-foreground shadow-lg/5 outline-none transition-[width,height,scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] has-data-[slot=calendar]:rounded-xl has-data-[slot=calendar]:before:rounded-[calc(var(--radius-xl)-1px)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 data-instant:transition-none dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
-                        shouldUseTooltipStyle &&
-                            "w-fit text-balance rounded-lg text-xs shadow-md/5 before:rounded-[calc(var(--radius-lg)-1px)]",
+                        "squircle before:squircle relative flex h-(--popup-height,auto) max-h-(--available-height) w-(--popup-width,auto) max-w-72 origin-(--transform-origin) flex-col overflow-y-auto overflow-x-clip rounded-xl border bg-popover not-dark:bg-clip-padding px-(--viewport-inline-padding) py-4 text-popover-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 [--viewport-inline-padding:--spacing(4)] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot="popover-popup"
                 >
-                    <PopoverPrimitive.Viewport
-                        className={cn(
-                            "relative size-full max-h-(--available-height) overflow-clip px-(--viewport-inline-padding) py-4 [--viewport-inline-padding:--spacing(4)] has-data-[slot=calendar]:p-2 data-instant:transition-none **:data-current:data-ending-style:opacity-0 **:data-current:data-starting-style:opacity-0 **:data-previous:data-ending-style:opacity-0 **:data-previous:data-starting-style:opacity-0 **:data-current:w-[calc(var(--popup-width)-2*var(--viewport-inline-padding)-2px)] **:data-previous:w-[calc(var(--popup-width)-2*var(--viewport-inline-padding)-2px)] **:data-current:opacity-100 **:data-previous:opacity-100 **:data-current:transition-opacity **:data-previous:transition-opacity",
-                            shouldUseTooltipStyle
-                                ? "max-w-64 text-pretty py-1.5 [--viewport-inline-padding:--spacing(2)]"
-                                : "max-w-72 not-data-transitioning:overflow-y-auto"
-                        )}
-                        data-slot="popover-viewport"
-                    >
-                        {children}
-                    </PopoverPrimitive.Viewport>
+                    {children}
                 </PopoverPrimitive.Popup>
             </PopoverPrimitive.Positioner>
         </PopoverPrimitive.Portal>

@@ -113,8 +113,8 @@ export function ComboboxInput({
                 render={
                     <Input
                         className="rounded-b-none before:rounded-b-none has-disabled:opacity-100"
-                        shouldUseNativeInput
                         size={size}
+                        useNativeInput
                     />
                 }
             />
@@ -190,7 +190,7 @@ export function ComboboxPopup({
                 <ComboboxPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative flex min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) flex-col rounded-[calc(var(--radius-lg)+1px)] border bg-popover not-dark:bg-clip-padding text-foreground shadow-lg/5 transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 data-instant:transition-none dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle relative flex min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) flex-col rounded-xl border bg-popover not-dark:bg-clip-padding text-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot="combobox-popup"
@@ -214,7 +214,7 @@ export function ComboboxItem({
         <ComboboxPrimitive.Item
             {...props}
             className={cn(
-                "grid min-h-8 cursor-default grid-cols-[1rem_1fr] items-center gap-2 rounded-sm py-1 ps-2 pe-2 text-base outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+                "squircle grid min-h-8 cursor-default grid-cols-[1rem_1fr] items-center gap-2 rounded-lg py-1 ps-2 pe-2 text-base outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
                 shouldShowIndicatorLast && "grid-cols-[1fr_1rem]",
                 className
             )}

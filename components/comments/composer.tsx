@@ -9,11 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
     getLibraryItemComment,
     updateLibraryItemComment,
-} from "@/lib/comment/actions";
+} from "@/lib/comments/actions";
 import {
     COMMENT_TEXT_MAX_LENGTH,
     normalizeCommentText,
-} from "@/lib/comment/utils";
+} from "@/lib/comments/utils";
 import { ACTION_STATUS } from "@/lib/common/constants";
 import { stopPropagationForMenuTextInputKeys } from "@/lib/common/dom";
 
@@ -77,11 +77,11 @@ function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
 
         await mutate(result.contentText, { revalidate: false });
 
+        const saved = result.contentText ?? "";
         if (editVersionRef.current === saveVersion) {
-            setContent(next);
-            return next;
+            setContent(saved);
         }
-        return true;
+        return saved;
     }
 
     const handleChange = useStableCallback(
@@ -91,7 +91,7 @@ function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
         }
     );
 
-    const { saveStatus } = useAutosave({
+    const { status: saveStatus } = useAutosave({
         content,
         enabled: !isLoading,
         onSave: handleSave,

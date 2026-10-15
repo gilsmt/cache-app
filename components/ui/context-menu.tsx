@@ -55,7 +55,7 @@ export function ContextMenuPopup({
                 <ContextMenuPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative not-[class*='w-']:min-w-52 origin-(--transform-origin) overflow-hidden rounded-2xl border bg-popover not-dark:bg-clip-padding text-popover-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-2xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 data-instant:transition-none dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle relative not-[class*='w-']:min-w-52 origin-(--transform-origin) overflow-hidden rounded-xl border bg-popover not-dark:bg-clip-padding text-popover-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot={dataSlot}
@@ -82,7 +82,7 @@ export function ContextMenuItem({
         <ContextMenuPrimitive.Item
             {...props}
             className={cn(
-                "flex cursor-default select-none items-center gap-2 rounded-xl px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
+                "squircle flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
                 variant === "default" &&
                     "data-highlighted:text-accent-foreground",
                 variant === "destructive" &&
@@ -154,7 +154,7 @@ export function ContextMenuSubTrigger({
         <ContextMenuPrimitive.SubmenuTrigger
             {...props}
             className={cn(
-                "group/trigger flex min-h-8 cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
+                "squircle group/trigger flex min-h-8 cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
                 className
             )}
             data-slot="context-menu-sub-trigger"

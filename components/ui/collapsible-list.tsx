@@ -1,10 +1,10 @@
 "use client";
 
-import { Calligraph } from "calligraph";
 import { cn } from "cn";
 import { T, Var } from "gt-next";
 import { ChevronUp } from "lucide-react";
 import * as React from "react";
+import { TextMorph } from "torph/react";
 import {
     Collapsible,
     CollapsiblePanel,
@@ -106,13 +106,13 @@ export function CollapsibleListHorizontal({
                         <T>
                             +
                             <Var>
-                                <Calligraph
+                                <TextMorph
                                     className={
                                         badgeRender ? "-mx-0.5" : undefined
                                     }
                                 >
                                     {hidden.length}
-                                </Calligraph>
+                                </TextMorph>
                             </Var>
                             &nbsp;more
                         </T>
@@ -148,7 +148,7 @@ function CollapsibleListOverflowTrigger({
                 {...props}
                 className={cn(
                     "flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground",
-                    collapsedPreview && "gap-2",
+                    collapsedPreview && !isOpen && "gap-2",
                     className
                 )}
             >

@@ -510,7 +510,7 @@ function IntegrationsListTrigger({
                 <Image
                     alt=""
                     aria-hidden
-                    priority
+                    placeholder="blur"
                     sizes="400px"
                     src={IntegrationsPreviewImage}
                 />

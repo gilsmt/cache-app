@@ -135,7 +135,7 @@ function PublicShareGridCard({
                 className="block w-full min-w-0 truncate text-left text-foreground text-xs"
                 title={data.title}
             >
-                <Ticker className="pt-px">{data.title}</Ticker>
+                <Ticker>{data.title}</Ticker>
             </span>
         </div>
     );

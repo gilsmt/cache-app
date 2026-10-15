@@ -1,9 +1,6 @@
 "use client";
 
-import type {
-    AutocompleteRootChangeEventDetails,
-    BaseUIEvent,
-} from "@base-ui/react";
+import type { AutocompleteRootChangeEventDetails } from "@base-ui/react";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
 import { useGT } from "gt-next";
@@ -23,11 +20,14 @@ import {
     getAttachmentLabel,
     getMediaCategory,
 } from "@/components/ui/attachments";
+import {
+    Autocomplete,
+    AutocompleteInput,
+    AutocompleteInputGroup,
+} from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
-import { Command, CommandInput } from "@/components/ui/command";
 import { PreviewCardTitle } from "@/components/ui/preview-card";
 import type { FileAttachment } from "@/lib/common/file";
-import { isSubmitKey } from "@/lib/common/keyboard";
 
 const MARKDOWN_CODE_FENCE_PATTERN = /```[\s\S]*?(?:```|$)/g;
 const MARKDOWN_IMAGE_PATTERN = /!\[([^\]]*)\]\([^)]*\)/g;
@@ -44,6 +44,10 @@ const MARKDOWN_TABLE_PIPE_PATTERN = /\|/g;
 const MARKDOWN_EMPHASIS_PATTERN = /(\*\*|__|\*|~~)(.+?)\1/g;
 const WHITESPACE_COLLAPSE_PATTERN = /\s+/g;
 
+export interface ComposerAttachment extends FileAttachment {
+    id: string;
+}
+
 interface ComposerContext {
     input: string;
     isBusy: boolean;
@@ -52,13 +56,9 @@ interface ComposerContext {
     submit: () => void;
 }
 
-export interface ComposerAttachment extends FileAttachment {
-    id: string;
-}
-
 const ComposerContext = React.createContext<ComposerContext | null>(null);
 
-function useComposerContext(): ComposerContext {
+export function useComposerContext(): ComposerContext {
     const context = React.use(ComposerContext);
     if (!context) {
         throw new Error(
@@ -132,7 +132,7 @@ export function Composer({
         setInput("");
     });
 
-    const handleFormSubmit = useStableCallback(
+    const handleSubmit = useStableCallback(
         (event: React.SubmitEvent<HTMLFormElement>) => {
             event.preventDefault();
             submit();
@@ -143,47 +143,43 @@ export function Composer({
 
     return (
         <ComposerContext value={contextValue}>
-            <form className="contents" onSubmit={handleFormSubmit}>
+            <form className="contents" onSubmit={handleSubmit}>
                 {children}
             </form>
         </ComposerContext>
     );
 }
 
-const EMPTY_COMPOSER_ITEMS: readonly never[] = [];
-
 interface ComposerInputProps
     extends Omit<
-        React.ComponentProps<typeof CommandInput>,
+        React.ComponentProps<typeof AutocompleteInput>,
         "className" | "render" | "value"
     > {
     children?: React.ReactNode;
     className?: string;
-    filteredItems?: React.ComponentProps<typeof Command>["filteredItems"];
-    items?: React.ComponentProps<typeof Command>["items"];
-    onOpenChange?: React.ComponentProps<typeof Command>["onOpenChange"];
-    onValueChange?: React.ComponentProps<typeof Command>["onValueChange"];
-    open?: React.ComponentProps<typeof Command>["open"];
-    openOnInputClick?: React.ComponentProps<typeof Command>["openOnInputClick"];
+    filteredItems?: React.ComponentProps<typeof Autocomplete>["filteredItems"];
+    items?: React.ComponentProps<typeof Autocomplete>["items"];
+    onOpenChange?: React.ComponentProps<typeof Autocomplete>["onOpenChange"];
+    onValueChange?: React.ComponentProps<typeof Autocomplete>["onValueChange"];
+    open?: React.ComponentProps<typeof Autocomplete>["open"];
+    openOnInputClick?: React.ComponentProps<
+        typeof Autocomplete
+    >["openOnInputClick"];
     render: React.ReactElement;
-    submitOnEnter?: boolean;
 }
 
 export function ComposerInput({
     children,
     className,
     filteredItems,
-    items = EMPTY_COMPOSER_ITEMS,
-    onKeyDown,
+    items = [],
     onOpenChange,
     onValueChange,
     open,
     openOnInputClick,
-    render,
-    submitOnEnter = false,
     ...props
 }: ComposerInputProps) {
-    const { input, setInput, submit } = useComposerContext();
+    const { input, setInput } = useComposerContext();
 
     const handleValueChange = useStableCallback(
         (next: string, eventDetails: AutocompleteRootChangeEventDetails) => {
@@ -195,49 +191,33 @@ export function ComposerInput({
         }
     );
 
-    const handleInputKeyDown = useStableCallback(
-        (event: BaseUIEvent<React.KeyboardEvent<HTMLInputElement>>) => {
-            onKeyDown?.(event);
-            if (event.defaultPrevented || !submitOnEnter) {
-                return;
-            }
-            if (!isSubmitKey(event)) {
-                return;
-            }
-            event.preventDefault();
-            submit();
-        }
-    );
-
     return (
-        <div
-            className={cn(
-                "squircle relative overflow-clip rounded-3xl bg-popover py-2.5 shadow-xs/10 dark:bg-muted",
-                className
-            )}
+        <Autocomplete
+            filteredItems={filteredItems}
+            items={items}
+            onOpenChange={onOpenChange}
+            onValueChange={handleValueChange}
+            open={open}
+            openOnInputClick={openOnInputClick}
+            value={input}
         >
-            <Command
-                filteredItems={filteredItems}
-                items={items}
-                onOpenChange={onOpenChange}
-                onValueChange={handleValueChange}
-                open={open}
-                openOnInputClick={openOnInputClick}
-                value={input}
+            <AutocompleteInputGroup
+                className={cn(
+                    "squircle rounded-3xl bg-background pt-1.5 pb-2.5 shadow-xs/10 dark:bg-muted",
+                    className
+                )}
             >
-                <CommandInput
+                <AutocompleteInput
                     {...props}
-                    className="px-2"
-                    onKeyDown={handleInputKeyDown}
-                    render={render}
+                    className="bg-transparent shadow-none"
                 />
                 {children}
-            </Command>
-            <div
-                aria-hidden
-                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/10 ring-inset"
-            />
-        </div>
+                <div
+                    aria-hidden
+                    className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/10 ring-inset"
+                />
+            </AutocompleteInputGroup>
+        </Autocomplete>
     );
 }
 
@@ -255,7 +235,7 @@ export function ComposerSubmitButton() {
                     size="icon"
                     type="button"
                 >
-                    <Square aria-hidden className="size-4.5" />
+                    <Square aria-hidden className="size-4 fill-current" />
                 </Button>
             ) : (
                 <Button
@@ -428,7 +408,6 @@ export function ReadAloudResponseButton({
 
     return (
         <Button
-            aria-label={label}
             aria-pressed={isSpeaking}
             disabled={speakable.length === 0}
             onClick={handleToggle}

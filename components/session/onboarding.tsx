@@ -4,7 +4,7 @@ import { Checkbox } from "@base-ui/react/checkbox";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
 import { T, useGT } from "gt-next";
-import { Check, ChevronRight, Component, LibraryBig } from "lucide-react";
+import { Check, ChevronRight, LibraryBig } from "lucide-react";
 import * as React from "react";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
@@ -16,6 +16,7 @@ import {
     useCollectionActionRunner,
     useCollectionsContext,
     useCollectionsPendingActionsContext,
+    useSmartCollectionsToggle,
 } from "@/components/session/collections";
 import { useItemsStateContext } from "@/components/session/items";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,10 @@ const ONBOARDING_TASK_META = [
     {
         id: "collection",
         label: "Create your first collection",
+    },
+    {
+        id: "smart-collections",
+        label: "Enable Smart Collections",
     },
     {
         id: "note",
@@ -132,18 +137,12 @@ type StoredOnboardingTaskId = Extract<
     "composer" | "pain-point-survey"
 >;
 
-interface OnboardingTask {
-    id: OnboardingTaskId;
-    isCompleted: boolean;
-    label: string;
-    onSelect: () => void | Promise<void>;
-}
-
 interface CompletedTaskInput {
     collections: LibraryCollectionSummary[];
     completedOnboardingTaskIds: StoredOnboardingTaskId[];
     connectedIntegrationCount: number;
     items: LibraryItemWithCollections[];
+    smartCollectionsEnabled: boolean;
 }
 
 const { useStore: useLibraryOnboardingStore } = createStore({
@@ -155,6 +154,7 @@ function getCompletedTaskIdSet({
     collections,
     connectedIntegrationCount,
     items,
+    smartCollectionsEnabled,
 }: CompletedTaskInput): Set<OnboardingTaskId> {
     const completed = new Set<OnboardingTaskId>();
 
@@ -176,6 +176,9 @@ function getCompletedTaskIdSet({
     if (collections.some(isSharedCollection)) {
         completed.add("share");
     }
+    if (smartCollectionsEnabled) {
+        completed.add("smart-collections");
+    }
 
     return completed;
 }
@@ -186,15 +189,12 @@ function isSharedCollection(
     return !!(collection.shareId && collection.sharedAt);
 }
 
-interface OnboardingMenuProps
-    extends Omit<
-        React.ComponentProps<typeof MenuTrigger>,
-        "children" | "aria-label"
-    > {
+interface OnboardingMenuProps {
     connectedIntegrationCount: number;
     onCreateCollection: () => void;
     onCreateNote: () => void;
     onOpenComposer: () => void;
+    render?: React.ComponentProps<typeof MenuTrigger>["render"];
 }
 
 export function OnboardingMenu({
@@ -202,20 +202,23 @@ export function OnboardingMenu({
     onCreateCollection,
     onCreateNote,
     onOpenComposer,
-    openOnHover = true,
-    ...props
+    render,
 }: OnboardingMenuProps) {
     const gt = useGT();
     const { isCollectionActionPending } = useCollectionsPendingActionsContext();
     const { collections, syncCollectionShare } = useCollectionsContext();
     const { items } = useItemsStateContext();
-    const { setOpen: setIsSidebarOpen } = useSidebarContext();
+    const { setIsOpen: setIsSidebarOpen } = useSidebarContext();
     const { copyToClipboard } = useCopyToClipboard();
     const ensureAccess = useCollectionAccessGate();
-    const { isPending: isSharePending, runCollectionAction } =
-        useCollectionActionRunner();
+    const { runCollectionAction } = useCollectionActionRunner();
     const { completedOnboardingTaskIds, setCompletedOnboardingTaskIds } =
         useLibraryOnboardingStore();
+    const {
+        isEnabled: isSmartCollectionsEnabled,
+        isLoading: isSmartCollectionsLoading,
+        setEnabled: setSmartCollectionsEnabled,
+    } = useSmartCollectionsToggle();
 
     const [pendingShareCollection, setPendingShareCollection] =
         React.useState<LibraryCollectionSummary | null>(null);
@@ -230,15 +233,15 @@ export function OnboardingMenu({
     >(() => new Set());
 
     const isShareActionPending =
-        isSharePending ||
-        (pendingShareCollection !== null &&
-            isCollectionActionPending("share", pendingShareCollection.id));
+        pendingShareCollection !== null &&
+        isCollectionActionPending("share", pendingShareCollection.id);
 
     const completedTaskIdSet = getCompletedTaskIdSet({
         collections,
         completedOnboardingTaskIds,
         connectedIntegrationCount,
         items,
+        smartCollectionsEnabled: isSmartCollectionsEnabled ?? false,
     });
     const completedTaskCount = completedTaskIdSet.size;
     const isOnboardingCompleted = completedTaskCount === ONBOARDING_TASK_COUNT;
@@ -260,6 +263,13 @@ export function OnboardingMenu({
     const handleOpenIntegrations = useStableCallback(() => {
         setIsSidebarOpen(true);
         openIntegrationsList();
+    });
+
+    const handleEnableSmartCollections = useStableCallback(async () => {
+        if (isSmartCollectionsLoading || isSmartCollectionsEnabled) {
+            return;
+        }
+        await setSmartCollectionsEnabled(true);
     });
 
     const handleRequestShare = useStableCallback(async () => {
@@ -285,12 +295,15 @@ export function OnboardingMenu({
         setIsShareDialogOpen(true);
     });
 
-    const handleShareDialogOpenChange = useStableCallback((open: boolean) => {
-        if (!(open || isShareActionPending)) {
+    const handleShareDialogOpenChange = useStableCallback(
+        (nextOpen: boolean) => {
+            if (nextOpen || isShareActionPending) {
+                return;
+            }
             setShareErrorMessage(null);
             setIsShareDialogOpen(false);
         }
-    });
+    );
 
     const handleConfirmShare = useStableCallback(() => {
         const collection = pendingShareCollection;
@@ -324,19 +337,13 @@ export function OnboardingMenu({
     const handleSelectShareCollection = useStableCallback(
         (collection: LibraryCollectionSummary) => {
             setShareErrorMessage(null);
-            setPendingShareCollection((current) =>
-                current?.id === collection.id ? current : collection
-            );
+            setPendingShareCollection(collection);
         }
     );
 
-    const resetSurveyDialogState = useStableCallback(() => {
+    const handleOpenSurveyDialog = useStableCallback(() => {
         setSurveyDialogSelections(new Set());
         setIsSurveySubmitted(false);
-    });
-
-    const handleOpenSurveyDialog = useStableCallback(() => {
-        resetSurveyDialogState();
         setIsSurveyDialogOpen(true);
     });
 
@@ -367,23 +374,25 @@ export function OnboardingMenu({
             note: onCreateNote,
             "pain-point-survey": handleOpenSurveyDialog,
             share: handleRequestShare,
+            "smart-collections": handleEnableSmartCollections,
         };
 
     const triggerLabel = gt(
         "Get to know Cache, {completedTaskCount} of {totalTasks} checklist items complete",
         {
-            completedTaskCount: String(completedTaskCount),
-            totalTasks: String(ONBOARDING_TASK_COUNT),
+            completedTaskCount,
+            totalTasks: ONBOARDING_TASK_COUNT,
         }
     );
+    // The dialogs stay mounted after completion so the survey answers remain visible as the final step.
     return (
         <>
             {isOnboardingCompleted ? null : (
                 <Menu>
                     <MenuTrigger
-                        {...props}
                         aria-label={triggerLabel}
-                        openOnHover={openOnHover}
+                        openOnHover
+                        render={render}
                     >
                         <RadialIcon
                             aria-hidden
@@ -391,7 +400,7 @@ export function OnboardingMenu({
                             size={9}
                             value={progressValue}
                         />
-                        &nbsp;<T>Get to know Cache</T>
+                        <T>Get to know Cache</T>
                     </MenuTrigger>
                     <MenuPopup align="start" className="min-w-72">
                         <MenuGroup>
@@ -400,30 +409,30 @@ export function OnboardingMenu({
                             </MenuGroupLabel>
                             {ONBOARDING_TASK_META.map((meta) => (
                                 <OnboardingMenuItem
+                                    isCompleted={completedTaskIdSet.has(
+                                        meta.id
+                                    )}
                                     key={meta.id}
-                                    task={{
-                                        ...meta,
-                                        isCompleted: completedTaskIdSet.has(
-                                            meta.id
-                                        ),
-                                        onSelect: taskHandlerMap[meta.id],
-                                    }}
+                                    label={meta.label}
+                                    onSelect={taskHandlerMap[meta.id]}
                                 />
                             ))}
                         </MenuGroup>
                     </MenuPopup>
                 </Menu>
             )}
-            <ShareDialog
-                collections={collections}
-                isShareActionPending={isShareActionPending}
-                onConfirm={handleConfirmShare}
-                onOpenChange={handleShareDialogOpenChange}
-                onSelectShareCollection={handleSelectShareCollection}
-                open={isShareDialogOpen}
-                pendingShareCollection={pendingShareCollection}
-                shareErrorMessage={shareErrorMessage}
-            />
+            {pendingShareCollection ? (
+                <ShareDialog
+                    collection={pendingShareCollection}
+                    collections={collections}
+                    isShareActionPending={isShareActionPending}
+                    onConfirm={handleConfirmShare}
+                    onOpenChange={handleShareDialogOpenChange}
+                    onSelectShareCollection={handleSelectShareCollection}
+                    open={isShareDialogOpen}
+                    shareErrorMessage={shareErrorMessage}
+                />
+            ) : null}
             <SurveyDialog
                 isResponseStep={isSurveySubmitted}
                 onCheckedChange={handleTogglePainPoint}
@@ -436,11 +445,21 @@ export function OnboardingMenu({
     );
 }
 
-function OnboardingMenuItem({ task }: { task: OnboardingTask }) {
+interface OnboardingMenuItemProps {
+    isCompleted: boolean;
+    label: string;
+    onSelect: () => void | Promise<void>;
+}
+
+function OnboardingMenuItem({
+    isCompleted,
+    label,
+    onSelect,
+}: OnboardingMenuItemProps) {
     return (
-        <MenuItem onClick={task.onSelect}>
-            <OnboardingTaskStateIcon isCompleted={task.isCompleted} />
-            <span className="mr-2 min-w-0 flex-1 truncate">{task.label}</span>
+        <MenuItem onClick={onSelect}>
+            <OnboardingTaskStateIcon isCompleted={isCompleted} />
+            <span className="mr-2 min-w-0 flex-1 truncate">{label}</span>
             <ChevronRight className="ml-auto inline-block size-3.5 shrink-0 opacity-50" />
         </MenuItem>
     );
@@ -459,83 +478,74 @@ function OnboardingTaskStateIcon({ isCompleted }: { isCompleted: boolean }) {
         <RadialIcon
             aria-hidden
             className="inline-block size-4 shrink-0"
-            size={10}
             value={0}
         />
     );
 }
 
 interface ShareDialogProps {
+    collection: LibraryCollectionSummary;
     collections: LibraryCollectionSummary[];
     isShareActionPending: boolean;
     onConfirm: () => void;
     onOpenChange: (open: boolean) => void;
     onSelectShareCollection: (collection: LibraryCollectionSummary) => void;
     open: boolean;
-    pendingShareCollection: LibraryCollectionSummary | null;
     shareErrorMessage: string | null;
 }
 
 function ShareDialog({
+    collection,
     collections,
     isShareActionPending,
     onConfirm,
     onOpenChange,
     onSelectShareCollection,
     open,
-    pendingShareCollection,
     shareErrorMessage,
 }: ShareDialogProps) {
     return (
         <Dialog onOpenChange={onOpenChange} open={open}>
             <DialogPopup>
-                {pendingShareCollection ? (
-                    <>
-                        <DialogHeader>
-                            <div className="flex items-center gap-1.5">
-                                <LibraryBig className="size-4 text-muted-foreground" />
-                                <DialogTitle>Share collection?</DialogTitle>
-                            </div>
-                            <DialogDescription>
-                                Create a public, read-only link for{" "}
-                                {pendingShareCollection.name}.
-                            </DialogDescription>
-                        </DialogHeader>
-                        {collections.length > 1 ? (
-                            <DialogPanel className="grid gap-1">
-                                {collections.map((collection) => (
-                                    <ShareCollectionButton
-                                        collection={collection}
-                                        key={collection.id}
-                                        onSelect={onSelectShareCollection}
-                                        selectedId={pendingShareCollection.id}
-                                    />
-                                ))}
-                            </DialogPanel>
-                        ) : null}
-                        {shareErrorMessage ? (
-                            <ErrorMessage className="px-1 italic leading-tight">
-                                {shareErrorMessage}
-                            </ErrorMessage>
-                        ) : null}
-                        <DialogFooter>
-                            <DialogClose
-                                disabled={isShareActionPending}
-                                render={<Button size="sm" variant="ghost" />}
-                            >
-                                Cancel
-                            </DialogClose>
-                            <Button
-                                disabled={isShareActionPending}
-                                isLoading={isShareActionPending}
-                                onClick={onConfirm}
-                                size="sm"
-                            >
-                                Share and copy link
-                            </Button>
-                        </DialogFooter>
-                    </>
+                <DialogHeader>
+                    <div className="flex items-center gap-1.5">
+                        <LibraryBig className="size-4 text-muted-foreground" />
+                        <DialogTitle>Share collection?</DialogTitle>
+                    </div>
+                    <DialogDescription>
+                        Create a public, read-only link for {collection.name}.
+                    </DialogDescription>
+                </DialogHeader>
+                {collections.length > 1 ? (
+                    <DialogPanel className="grid gap-1">
+                        {collections.map((entry) => (
+                            <ShareCollectionButton
+                                collection={entry}
+                                key={entry.id}
+                                onSelect={onSelectShareCollection}
+                                selectedId={collection.id}
+                            />
+                        ))}
+                    </DialogPanel>
                 ) : null}
+                <ErrorMessage className="px-1 italic leading-tight">
+                    {shareErrorMessage}
+                </ErrorMessage>
+                <DialogFooter>
+                    <DialogClose
+                        disabled={isShareActionPending}
+                        render={<Button size="sm" variant="ghost" />}
+                    >
+                        Cancel
+                    </DialogClose>
+                    <Button
+                        isLoading={isShareActionPending}
+                        onClick={onConfirm}
+                        size="sm"
+                    >
+                        Share and copy link
+                    </Button>
+                </DialogFooter>
             </DialogPopup>
         </Dialog>
     );
@@ -558,14 +568,14 @@ function SurveyDialog({
     open,
     selections,
 }: SurveyDialogProps) {
-    const selectedOptions = isResponseStep
-        ? PAIN_POINT_OPTIONS.filter((option) => selections.has(option.id))
-        : null;
+    const selectedOptions = PAIN_POINT_OPTIONS.filter((option) =>
+        selections.has(option.id)
+    );
 
     return (
         <Dialog onOpenChange={onOpenChange} open={open}>
             <DialogPopup>
-                {selectedOptions ? (
+                {isResponseStep ? (
                     <>
                         <DialogHeader>
                             <DialogTitle>Good news —</DialogTitle>
@@ -659,7 +669,7 @@ function ShareCollectionButton({
             size="sm"
             variant="ghost"
         >
-            <Component className="size-4" />
+            <LibraryBig className="size-4" />
             <span className="min-w-0 truncate">{collection.name}</span>
         </Button>
     );

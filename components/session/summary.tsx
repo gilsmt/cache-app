@@ -1,6 +1,5 @@
 "use client";
 
-import { Calligraph } from "calligraph";
 import { cn } from "cn";
 import * as HeatGraph from "heat-graph";
 import {
@@ -8,11 +7,11 @@ import {
     Files,
     GlobeX,
     Grid2x2,
-    Grid2x2X,
     type LucideIcon,
     Star,
 } from "lucide-react";
 import type * as React from "react";
+import { TextMorph } from "torph/react";
 import {
     DataList,
     DataListChart,
@@ -49,9 +48,9 @@ const ACTIVITY_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
     year: "numeric",
 });
 
-interface LibraryRow {
+interface DataListRow {
+    hideWhenEmpty?: boolean;
     icon: LucideIcon;
-    isHiddenWhenEmpty?: boolean;
     label: string;
     value: number;
 }
@@ -72,13 +71,101 @@ function formatShareValue(value: number, total: number): React.ReactNode {
     );
 }
 
+function formatItemCount(count: number): string {
+    return `${count} item${count === 1 ? "" : "s"}`;
+}
+
+export function Summary(props: React.ComponentProps<typeof Popover>) {
+    return <Popover {...props} />;
+}
+
+interface SummaryTriggerProps
+    extends React.ComponentProps<typeof PopoverTrigger> {
+    render: React.ReactElement;
+    resultsSummary: string;
+    sectionCount: number;
+    showSectionCount: boolean;
+}
+
+export function SummaryTrigger({
+    resultsSummary,
+    sectionCount,
+    showSectionCount,
+    openOnHover = true,
+    ...props
+}: SummaryTriggerProps) {
+    return (
+        <PopoverTrigger {...props} openOnHover={openOnHover}>
+            <Grid2x2
+                aria-hidden
+                className="inline-block size-3.5 shrink-0"
+                focusable="false"
+            />
+            <span className="min-w-0 truncate">
+                &nbsp;Showing <TextMorph>{resultsSummary}</TextMorph>
+                {showSectionCount ? (
+                    <>
+                        , <TextMorph>{sectionCount}</TextMorph> group
+                        {sectionCount === 1 ? "" : "s"}
+                    </>
+                ) : null}
+            </span>
+        </PopoverTrigger>
+    );
+}
+
+interface SummaryPopupProps extends React.ComponentProps<typeof PopoverPopup> {
+    metrics: LibraryMetricsSnapshot;
+    onClearFilters?: () => void;
+}
+
+export function SummaryPopup({
+    className,
+    metrics,
+    onClearFilters,
+    side = "top",
+    align = "start",
+    positionMethod = "fixed",
+    ...props
+}: SummaryPopupProps) {
+    return (
+        <PopoverPopup
+            {...props}
+            align={align}
+            className={cn("min-w-72", className)}
+            positionMethod={positionMethod}
+            side={side}
+        >
+            <SummaryDataList
+                actions={
+                    onClearFilters ? (
+                        <PopoverClose
+                            render={
+                                <DataListItemButton onClick={onClearFilters} />
+                            }
+                        >
+                            Reset filters
+                        </PopoverClose>
+                    ) : undefined
+                }
+                metrics={metrics}
+            />
+        </PopoverPopup>
+    );
+}
+
 interface SummaryDataListProps
     extends Omit<React.ComponentProps<typeof DataList>, "children"> {
     actions?: React.ReactNode;
     metrics: LibraryMetricsSnapshot;
 }
 
-function SummaryDataList({ actions, metrics, ...props }: SummaryDataListProps) {
+function SummaryDataList({
+    actions,
+    className,
+    metrics,
+    ...props
+}: SummaryDataListProps) {
     const {
         addedActivity,
         addedInLast30DaysCount,
@@ -89,30 +176,30 @@ function SummaryDataList({ actions, metrics, ...props }: SummaryDataListProps) {
         unreachableCount,
     } = metrics;
 
-    const rows: readonly LibraryRow[] = [
+    const rows: readonly DataListRow[] = [
         { icon: Star, label: "Favorites", value: favoriteCount },
         {
+            hideWhenEmpty: true,
             icon: Clock,
-            isHiddenWhenEmpty: true,
             label: "Added in last 30 days",
             value: addedInLast30DaysCount,
         },
         {
+            hideWhenEmpty: true,
             icon: Files,
-            isHiddenWhenEmpty: true,
             label: "Duplicates",
             value: duplicateCount,
         },
         {
+            hideWhenEmpty: true,
             icon: GlobeX,
-            isHiddenWhenEmpty: true,
             label: "Unreachable",
             value: unreachableCount,
         },
-    ].filter((row) => !row.isHiddenWhenEmpty || row.value > 0);
+    ].filter((row) => !row.hideWhenEmpty || row.value > 0);
 
     return (
-        <DataList {...props} className={cn("-my-2", props.className)}>
+        <DataList {...props} className={cn("-my-2", className)}>
             {actions ? (
                 <>
                     {actions}
@@ -162,11 +249,7 @@ function SummaryDataList({ actions, metrics, ...props }: SummaryDataListProps) {
                             <DataListItem key={label}>
                                 <DataListLabel>{label}</DataListLabel>
                                 <DataListValue>
-                                    <Icon
-                                        aria-hidden
-                                        className="size-4 sm:size-3.5"
-                                        focusable="false"
-                                    />
+                                    <Icon aria-hidden focusable="false" />
                                     {formatShareValue(value, itemCount)}
                                 </DataListValue>
                             </DataListItem>
@@ -178,108 +261,31 @@ function SummaryDataList({ actions, metrics, ...props }: SummaryDataListProps) {
             <DataListSection>
                 <DataListSectionTrigger>Activity</DataListSectionTrigger>
                 <DataListSectionContent>
-                    <ActivityHeatmap activity={addedActivity} />
+                    <ActivityHeatGraph activity={addedActivity} />
                 </DataListSectionContent>
             </DataListSection>
         </DataList>
     );
 }
 
-export function Summary(props: React.ComponentProps<typeof Popover>) {
-    return <Popover {...props} />;
-}
-
-interface SummaryTriggerProps
-    extends Omit<
-        React.ComponentProps<typeof PopoverTrigger>,
-        "children" | "render"
-    > {
-    hasActiveFilters: boolean;
-    render: React.ReactElement;
-    resultsSummary: string;
-    sectionCount: number;
-    showSectionCount: boolean;
-}
-
-export function SummaryTrigger({
-    hasActiveFilters,
-    render,
-    resultsSummary,
-    sectionCount,
-    showSectionCount,
-    ...props
-}: SummaryTriggerProps) {
-    return (
-        <PopoverTrigger openOnHover {...props} render={render}>
-            {hasActiveFilters ? (
-                <Grid2x2X className="inline-block size-3.5 shrink-0" />
-            ) : (
-                <Grid2x2 className="inline-block size-3.5 shrink-0" />
-            )}
-            <span className="min-w-0 truncate tabular-nums">
-                &nbsp;Showing <Calligraph>{resultsSummary}</Calligraph>
-                {showSectionCount ? (
-                    <>
-                        , <Calligraph>{sectionCount}</Calligraph> group
-                        {sectionCount === 1 ? "" : "s"}
-                    </>
-                ) : null}
-            </span>
-        </PopoverTrigger>
-    );
-}
-
-interface SummaryPopupProps
-    extends Omit<React.ComponentProps<typeof PopoverPopup>, "children"> {
-    metrics: LibraryMetricsSnapshot;
-    onClearFilters?: () => void;
-}
-
-export function SummaryPopup({
-    className,
-    metrics,
-    onClearFilters,
-    ...props
-}: SummaryPopupProps) {
-    return (
-        <PopoverPopup
-            align="start"
-            {...props}
-            className={cn("w-72", className)}
-            positionMethod="fixed"
-            side="top"
-        >
-            <SummaryDataList
-                actions={
-                    onClearFilters ? (
-                        <PopoverClose
-                            render={
-                                <DataListItemButton onClick={onClearFilters} />
-                            }
-                        >
-                            Reset filters
-                        </PopoverClose>
-                    ) : undefined
-                }
-                metrics={metrics}
-            />
-        </PopoverPopup>
-    );
-}
-
-interface ActivityHeatmapProps {
+interface ActivityHeatGraphProps {
     activity: LibraryMetricsSnapshot["addedActivity"];
 }
 
-function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
+function ActivityHeatGraph({ activity }: ActivityHeatGraphProps) {
+    const totalAddedCount = activity.reduce(
+        (total, point) => total + point.count,
+        0
+    );
+
     return (
         <div className="col-span-full grid w-full min-w-0 gap-2">
             <HeatGraph.Root
-                aria-label="Daily item additions over the past year. Focus a filled day to see its count."
+                aria-label={`Daily activity graph over the past year, ${formatItemCount(totalAddedCount)} added`}
                 className="grid gap-2"
                 colorScale={ACTIVITY_COLOR_SCALE}
                 data={[...activity]}
-                role="group"
+                role="img"
                 weekStart="monday"
             >
                 <div className="relative h-3 text-[10px] text-muted-foreground/80">
@@ -303,27 +309,14 @@ function ActivityHeatmap({ activity }: ActivityHeatmapProps) {
                     </HeatGraph.MonthLabels>
                 </div>
                 <HeatGraph.Grid className="gap-px">
-                    {({ cell }) => {
-                        const isActiveDay = cell.count > 0;
-                        const label = isActiveDay
-                            ? `${cell.count} item${cell.count === 1 ? "" : "s"} added ${ACTIVITY_DATE_FORMATTER.format(cell.date)}`
-                            : undefined;
-
-                        return (
-                            <HeatGraph.Cell
-                                aria-hidden={!isActiveDay}
-                                aria-label={label}
-                                className="aspect-square rounded-[1px]"
-                                role={isActiveDay ? "img" : undefined}
-                                tabIndex={isActiveDay ? 0 : undefined}
-                            />
-                        );
-                    }}
+                    {() => (
+                        <HeatGraph.Cell className="aspect-square rounded-[1px]" />
+                    )}
                 </HeatGraph.Grid>
                 <HeatGraph.Tooltip className="z-50 rounded-md border bg-popover px-2 py-1 text-popover-foreground text-xs shadow-md">
                     {({ cell }) => (
                         <>
-                            {cell.count} item{cell.count === 1 ? "" : "s"} added{" "}
+                            {formatItemCount(cell.count)} added{" "}
                             {ACTIVITY_DATE_FORMATTER.format(cell.date)}
                         </>
                     )}

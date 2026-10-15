@@ -277,10 +277,6 @@ function useDeleteThread(threadId: string | null, onDeleted: () => void) {
         threadId: string;
     } | null>(null);
 
-    const clearError = useStableCallback(() => {
-        setFailure(null);
-    });
-
     React.useEffect(() => {
         setFailure((current) =>
             current && current.threadId !== threadId ? null : current
@@ -321,7 +317,7 @@ function useDeleteThread(threadId: string | null, onDeleted: () => void) {
     const errorMessage =
         failure && failure.threadId === threadId ? failure.message : null;
 
-    return { clearError, errorMessage, isPending, removeThread };
+    return { errorMessage, isPending, removeThread };
 }
 
 interface ThreadsProps {
@@ -510,6 +506,7 @@ function ThreadsListSearch(
         useThreadsListStore();
     const [isSearchOpen, setIsSearchOpen] = React.useState(false);
     const [inputValue, setInputValue] = React.useState("");
+
     const searchOptions = getThreadSearchOptions(inputValue, textMatchQuery);
     const value: ThreadSearchOption | null =
         textMatchQuery.trim().length > 0
@@ -758,77 +755,6 @@ function ThreadsListEmpty() {
     );
 }
 
-function ThreadsListDeleteDialog() {
-    const { threads } = useThreadsListContext();
-    const { pendingDeleteThreadId, setPendingDeleteThreadId } =
-        useThreadsListStore();
-
-    const handleDeleted = useStableCallback(() => {
-        setPendingDeleteThreadId(null);
-    });
-
-    const { clearError, errorMessage, isPending, removeThread } =
-        useDeleteThread(pendingDeleteThreadId, handleDeleted);
-
-    const thread = threads.find((entry) => entry.id === pendingDeleteThreadId);
-
-    const handleOpenChange = useStableCallback((isOpen: boolean) => {
-        if (isOpen || isPending) {
-            return;
-        }
-        clearError();
-        setPendingDeleteThreadId(null);
-    });
-
-    const handleConfirm = useStableCallback(() => {
-        if (!thread || isPending) {
-            return;
-        }
-        // The dialog stays open on failure so the error stays readable; it
-        // closes on success when the pending delete ID resets.
-        removeThread();
-    });
-
-    return (
-        <Dialog onOpenChange={handleOpenChange} open={thread !== undefined}>
-            <DialogPopup>
-                <DialogHeader>
-                    <DialogTitle>
-                        <T>Delete chat?</T>
-                    </DialogTitle>
-                    <DialogDescription>
-                        <T>
-                            This will permanently delete{" "}
-                            <Var>{thread?.title ?? "this chat"}</Var> from your
-                            Cache.
-                        </T>
-                    </DialogDescription>
-                </DialogHeader>
-                {errorMessage ? (
-                    <ErrorMessage className="px-6 pt-2">
-                        {errorMessage}
-                    </ErrorMessage>
-                ) : null}
-                <DialogFooter>
-                    <DialogClose
-                        disabled={isPending}
-                        render={<Button variant="ghost" />}
-                    >
-                        <T>Cancel</T>
-                    </DialogClose>
-                    <Button
-                        isLoading={isPending}
-                        onClick={handleConfirm}
-                        variant="destructive"
-                    >
-                        <T>Delete</T>
-                    </Button>
-                </DialogFooter>
-            </DialogPopup>
-        </Dialog>
-    );
-}
-
 interface ThreadsListItemProps {
     entry: ThreadListItem;
 }
@@ -841,11 +767,11 @@ function ThreadsListItem({ entry }: ThreadsListItemProps) {
     );
     const { setPendingDeleteThreadId } = useThreadsListStore();
 
+    const href = `/c/${entry.id}`;
+
     const requestDelete = useStableCallback(() =>
         setPendingDeleteThreadId(entry.id)
     );
-
-    const href = `/c/${entry.id}`;
 
     return (
         <div>
@@ -870,7 +796,7 @@ function ThreadsListItem({ entry }: ThreadsListItemProps) {
                             focusable="false"
                         />
                     </span>
-                    <SidebarItemValue>
+                    <SidebarItemValue className="mask-r-from-90%">
                         <Ticker className="font-medium text-sm leading-none tracking-tight [--accent-color:var(--primary)]">
                             <TextMatch query={textMatchQuery}>
                                 {entry.title}
@@ -925,7 +851,7 @@ function ThreadsListItemControls({
                 dateTime={updatedAt.toISOString()}
                 title={dayjs(updatedAt).format("MMM DD, YYYY, h:mm A")}
             >
-                {dayjs(updatedAt).fromNow(true)}
+                {dayjs(updatedAt).fromNow(true)}&nbsp;
             </time>
             <div className="absolute inline-flex items-center gap-px">
                 <Button
@@ -973,5 +899,76 @@ function ThreadsListItemControls({
                 ) : null}
             </div>
         </div>
+    );
+}
+
+function ThreadsListDeleteDialog() {
+    const { threads } = useThreadsListContext();
+    const { pendingDeleteThreadId, setPendingDeleteThreadId } =
+        useThreadsListStore();
+
+    const handleDeleted = useStableCallback(() => {
+        setPendingDeleteThreadId(null);
+    });
+
+    const { errorMessage, isPending, removeThread } = useDeleteThread(
+        pendingDeleteThreadId,
+        handleDeleted
+    );
+
+    const thread = threads.find((entry) => entry.id === pendingDeleteThreadId);
+    const shouldOpen = thread !== undefined;
+
+    const handleOpenChange = useStableCallback((isOpen: boolean) => {
+        if (isOpen || isPending) {
+            return;
+        }
+        setPendingDeleteThreadId(null);
+    });
+
+    const handleConfirm = useStableCallback(() => {
+        if (!thread || isPending) {
+            return;
+        }
+        removeThread();
+    });
+
+    return (
+        <Dialog onOpenChange={handleOpenChange} open={shouldOpen}>
+            <DialogPopup>
+                <DialogHeader>
+                    <DialogTitle>
+                        <T>Delete chat?</T>
+                    </DialogTitle>
+                    <DialogDescription>
+                        <T>
+                            This will permanently delete{" "}
+                            <Var>{thread?.title ?? "this chat"}</Var> from your
+                            Cache.
+                        </T>
+                    </DialogDescription>
+                </DialogHeader>
+                {errorMessage ? (
+                    <ErrorMessage className="px-6 pt-2">
+                        {errorMessage}
+                    </ErrorMessage>
+                ) : null}
+                <DialogFooter>
+                    <DialogClose
+                        disabled={isPending}
+                        render={<Button variant="ghost" />}
+                    >
+                        <T>Cancel</T>
+                    </DialogClose>
+                    <Button
+                        isLoading={isPending}
+                        onClick={handleConfirm}
+                        variant="destructive"
+                    >
+                        <T>Delete</T>
+                    </Button>
+                </DialogFooter>
+            </DialogPopup>
+        </Dialog>
     );
 }

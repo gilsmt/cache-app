@@ -1,11 +1,7 @@
 "use client";
 
 import { Tabs } from "@base-ui/react/tabs";
-import {
-    contains,
-    activeElement as getActiveElement,
-    getTarget,
-} from "@base-ui/utils/shadowDom";
+import { activeElement, contains, getTarget } from "@base-ui/utils/shadowDom";
 import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
@@ -39,7 +35,6 @@ import {
     RichTextExtension,
 } from "@lexical/rich-text";
 import { $setBlocksType } from "@lexical/selection";
-import { Calligraph } from "calligraph";
 import { cn } from "cn";
 import { T, useGT, Var } from "gt-next";
 import {
@@ -95,13 +90,17 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
+import { TextMorph } from "torph/react";
 import * as z from "zod";
 import { useFavicon } from "@/components/hooks/queries/use-favicon";
 import {
     type OembedResolution,
     useOembed,
 } from "@/components/hooks/queries/use-oembed";
-import { type SaveStatus, useAutosave } from "@/components/hooks/use-autosave";
+import {
+    type AutosaveStatus,
+    useAutosave,
+} from "@/components/hooks/use-autosave";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
 import { useItemsStateContext } from "@/components/session/items";
@@ -301,7 +300,7 @@ interface EditorActionsContext {
 interface EditorDraftContext {
     contentHtml: string;
     isDirty: boolean;
-    saveStatus: SaveStatus;
+    saveStatus: AutosaveStatus;
     textMetrics: EditorTextMetrics;
 }
 
@@ -1039,13 +1038,17 @@ function useRecentSideItems(): LibraryItemWithCollections[] {
     const { lastVisitedItemIds } = useLastVisited();
     const itemsById = new Map(items.map((item) => [item.id, item]));
 
-    return lastVisitedItemIds
-        .map((itemId) => itemsById.get(itemId))
-        .filter(
-            (item): item is LibraryItemWithCollections =>
-                item?.kind === ITEM_KIND_BOOKMARK
-        )
-        .slice(0, SIDE_RECENT_ITEMS_LIMIT);
+    const recentItems: LibraryItemWithCollections[] = [];
+    for (const itemId of lastVisitedItemIds) {
+        if (recentItems.length === SIDE_RECENT_ITEMS_LIMIT) {
+            break;
+        }
+        const item = itemsById.get(itemId);
+        if (item?.kind === ITEM_KIND_BOOKMARK) {
+            recentItems.push(item);
+        }
+    }
+    return recentItems;
 }
 
 function useRecentItemView(item: LibraryItemWithCollections) {
@@ -1384,14 +1387,10 @@ export function SidePanelContent() {
         setIsOpen((prev) => !prev);
     });
 
-    useHotkeys(
-        "mod+j, mod+i, mod+alt+b, mod+enter, ctrl+enter",
-        handleToggleShortcut,
-        {
-            description: gt("Open or close preview"),
-            preventDefault: true,
-        }
-    );
+    useHotkeys("mod+j, mod+i, mod+enter", handleToggleShortcut, {
+        description: gt("Open or close preview"),
+        preventDefault: true,
+    });
 
     const handleKeyDown = useStableCallback(
         (event: React.KeyboardEvent<HTMLElement>) => {
@@ -1426,7 +1425,7 @@ export function SidePanelContent() {
                 invokerRef.current = target;
             }
         };
-        trackInvoker(getActiveElement(doc));
+        trackInvoker(activeElement(doc));
         const handleFocusIn = (event: FocusEvent) => {
             trackInvoker(getTarget(event));
         };
@@ -1467,8 +1466,8 @@ export function SidePanelContent() {
         }
         const invoker = invokerRef.current;
         invokerRef.current = null;
-        const activeElement = getActiveElement(doc);
-        if (contains(aside, activeElement)) {
+        const focusedElement = activeElement(doc);
+        if (contains(aside, focusedElement)) {
             if (
                 invoker?.isConnected &&
                 invoker !== doc.body &&
@@ -1524,23 +1523,22 @@ export function SidePanelToggle() {
     const gt = useGT();
     const { isOpen, setIsOpen } = useSideStore();
 
+    const controlKey = getSystemControlKey();
+    const shortcut = `${controlKey}J / ${controlKey}I`;
+    const toggleTitle = isOpen
+        ? gt("Close preview ({shortcut})", { shortcut })
+        : gt("Open preview ({shortcut})", { shortcut });
+
     const handleClick = useStableCallback(() => {
         setIsOpen((prev) => !prev);
     });
 
-    const toggleLabel = isOpen ? gt("Close preview") : gt("Open preview");
-    const controlKey = getSystemControlKey();
-    const toggleShortcut = `${controlKey}J / ${controlKey}I`;
-    const toggleTitle = isOpen
-        ? gt("Close preview ({shortcut})", { shortcut: toggleShortcut })
-        : gt("Open preview ({shortcut})", { shortcut: toggleShortcut });
-
     return (
         <Button
-            aria-label={toggleLabel}
-            className={cn("fixed top-2 right-0.5 z-60 lg:right-2", {
-                "text-muted-foreground": !isOpen,
-            })}
+            className={cn(
+                "fixed top-2 right-0.5 z-50 opacity-80 hover:opacity-100 lg:right-2",
+                isOpen ? "cursor-e-resize" : "cursor-w-resize"
+            )}
             data-slot="side-toggle"
             onClick={handleClick}
             size="icon-sm"
@@ -1912,9 +1910,9 @@ function SidePanelTabsListItem({
                         key={faviconUrl ?? "globe"}
                     />
                 )}
-                <Calligraph className="min-w-0 flex-1 truncate text-left font-medium">
+                <TextMorph className="min-w-0 flex-1 truncate text-left font-medium">
                     {title}
-                </Calligraph>
+                </TextMorph>
             </Tabs.Tab>
             <Button
                 aria-label={closeLabel}
@@ -1940,14 +1938,17 @@ function SidePanelTabFavicon({ faviconSrc }: SidePanelTabFaviconProps) {
 
     const handleError = useStableCallback(() => setHasFailed(true));
 
+    // `key={faviconUrl}` on the parent remounts this component when the URL
+    // changes, so `hasFailed` resets without an effect.
+    const showFavicon = !!faviconSrc && !hasFailed;
+
     return (
-        <span aria-hidden className="relative size-3.5 shrink-0">
-            <Globe className="absolute inset-0 size-full" focusable="false" />
-            {faviconSrc && !hasFailed ? (
+        <span aria-hidden className="size-3.5 shrink-0">
+            {showFavicon ? (
                 // biome-ignore lint/a11y/noNoninteractiveElementInteractions: image load errors are resource lifecycle events, not user interactions.
                 <img
                     alt=""
-                    className="absolute inset-0 size-full object-contain"
+                    className="size-full object-contain"
                     draggable={false}
                     height={14}
                     loading="lazy"
@@ -1955,7 +1956,9 @@ function SidePanelTabFavicon({ faviconSrc }: SidePanelTabFaviconProps) {
                     src={`/api/preview?url=${encodeURIComponent(faviconSrc)}`}
                     width={14}
                 />
-            ) : null}
+            ) : (
+                <Globe className="size-full" focusable="false" />
+            )}
         </span>
     );
 }
@@ -2234,7 +2237,7 @@ function EditorRoot({ children, isActive, note, tabId }: EditorRootProps) {
                 savedNoteIdRef.current !== null
             )
         ) {
-            return true;
+            return draftToSave.contentHtml;
         }
 
         const savedNote = await handleSave(draftToSave, savedNoteIdRef.current);
@@ -2249,7 +2252,11 @@ function EditorRoot({ children, isActive, note, tabId }: EditorRootProps) {
         return draftToSave.contentHtml;
     });
 
-    const { isDirty, saveImmediately, saveStatus } = useAutosave({
+    const {
+        isDirty,
+        saveImmediately,
+        status: saveStatus,
+    } = useAutosave({
         content: draft.contentHtml,
         onSave: saveLatestDraft,
         savedContent: initialDraft.contentHtml,
@@ -2517,11 +2524,11 @@ function EditorExportControls() {
                         onClick={handleSendToNotion}
                     >
                         <NotionIcon className="size-4 text-muted-foreground" />
-                        <Calligraph className="flex-1">
+                        <TextMorph className="flex-1">
                             {isSendingToNotion
                                 ? gt("Sending to Notion…")
                                 : gt("Send to Notion")}
-                        </Calligraph>
+                        </TextMorph>
                         <ExternalLinkIcon className="size-4 text-muted-foreground" />
                     </MenuItem>
                     {notionStatus ? (
@@ -2632,7 +2639,7 @@ function EditorStatus() {
                 isError ? "text-destructive" : "text-muted-foreground"
             )}
         >
-            <Calligraph>{message}</Calligraph>
+            <TextMorph>{message}</TextMorph>
         </span>
     );
 }

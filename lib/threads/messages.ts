@@ -2,10 +2,13 @@ import { isTextUIPart, type UIMessage } from "ai";
 
 /** Concatenates the text parts of a UI message and ignores other part types. */
 export function getMessageText(message: UIMessage): string {
-    return message.parts
-        .filter(isTextUIPart)
-        .map((part) => part.text)
-        .join("");
+    let text = "";
+    for (const part of message.parts) {
+        if (isTextUIPart(part)) {
+            text += part.text;
+        }
+    }
+    return text;
 }
 
 export interface ThreadMessageMetadata {

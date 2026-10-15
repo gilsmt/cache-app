@@ -12,19 +12,19 @@ interface InputProps
         "size"
     > {
     isUnstyled?: boolean;
-    shouldUseNativeInput?: boolean;
     size?: InputSize;
+    useNativeInput?: boolean;
 }
 
 export function Input({
     className,
     size = "default",
     isUnstyled = false,
-    shouldUseNativeInput = false,
+    useNativeInput = false,
     ...props
 }: InputProps) {
     const inputClassName = cn(
-        "h-8.5 w-full min-w-0 rounded-[inherit] px-[calc(--spacing(3)-1px)] leading-8.5 outline-none [transition:background-color_5000000s_ease-in-out_0s] placeholder:text-muted-foreground/72 sm:h-7.5 sm:leading-7.5 autofill:[-webkit-text-fill-color:var(--foreground)]",
+        "h-8.5 w-full min-w-0 rounded-[inherit] px-[calc(--spacing(3)-1px)] leading-8.5 outline-none placeholder:text-muted-foreground/72 sm:h-7.5 sm:leading-7.5 autofill:[-webkit-text-fill-color:var(--foreground)]",
         size === "sm" &&
             "h-7.5 px-[calc(--spacing(2.5)-1px)] leading-7.5 sm:h-6.5 sm:leading-6.5",
         size === "lg" && "h-9.5 leading-9.5 sm:h-8.5 sm:leading-8.5",
@@ -44,7 +44,7 @@ export function Input({
             data-size={size}
             data-slot="input-control"
         >
-            {shouldUseNativeInput ? (
+            {useNativeInput ? (
                 <input
                     {...props}
                     className={inputClassName}
