@@ -3311,7 +3311,7 @@ function buildSearchCommands({
             value: `search ${draft}`,
         };
         const assistantItem: ComposerCommand = {
-            description: "AI Search",
+            description: "AI",
             label: `Ask Cache "${draft}"`,
             onSelect: () => onAssistantSubmit(draft),
             shortcut: shouldDefaultToAssistant ? "Enter" : "Tab",
@@ -4468,6 +4468,7 @@ export function ItemsList({
                 event.stopPropagation();
                 if (event.key === "Escape") {
                     if (query.trim() !== "") {
+                        event.preventBaseUIHandler();
                         setQuery("");
                         focusPaletteInput(true);
                         return;
