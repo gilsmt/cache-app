@@ -910,6 +910,10 @@ function getNotionNoteTitle(plainText: string): string {
     return "";
 }
 
+function preserveEditorSelection(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+}
+
 function getSelectionBlockType(selection: RangeSelection): EditorBlockType {
     const anchorNode = selection.anchor.getNode();
     const topLevelNode = $isRootNode(anchorNode)
@@ -2805,22 +2809,19 @@ function EditorBlockTypeButton({
     const gt = useGT();
     const [editor] = useLexicalComposerContext();
 
-    const handleMouseDown = useStableCallback(
-        (event: React.MouseEvent<HTMLButtonElement>) => {
-            event.preventDefault();
-            editor.update(() => {
-                const selection = $getSelection();
-                if (!$isRangeSelection(selection)) {
-                    return;
-                }
-                if (value === "paragraph") {
-                    $setBlocksType(selection, () => $createParagraphNode());
-                    return;
-                }
-                $setBlocksType(selection, () => $createHeadingNode(value));
-            });
-        }
-    );
+    const handleClick = useStableCallback(() => {
+        editor.update(() => {
+            const selection = $getSelection();
+            if (!$isRangeSelection(selection)) {
+                return;
+            }
+            if (value === "paragraph") {
+                $setBlocksType(selection, () => $createParagraphNode());
+                return;
+            }
+            $setBlocksType(selection, () => $createHeadingNode(value));
+        });
+    });
 
     let ariaLabel: string;
     let label: string;
@@ -2850,7 +2851,8 @@ function EditorBlockTypeButton({
     return (
         <Button
             aria-label={ariaLabel}
-            onMouseDown={handleMouseDown}
+            onClick={handleClick}
+            onMouseDown={preserveEditorSelection}
             size="xs"
             variant={isActive ? "secondary" : "ghost"}
         >
@@ -2873,12 +2875,9 @@ function EditorInlineFormatButton({
 
     const Icon = option.icon;
 
-    const handleMouseDown = useStableCallback(
-        (event: React.MouseEvent<HTMLButtonElement>) => {
-            event.preventDefault();
-            editor.dispatchCommand(FORMAT_TEXT_COMMAND, option.format);
-        }
-    );
+    const handleClick = useStableCallback(() => {
+        editor.dispatchCommand(FORMAT_TEXT_COMMAND, option.format);
+    });
 
     let ariaLabel: string;
     const format = option.format;
@@ -2905,7 +2904,8 @@ function EditorInlineFormatButton({
         <Button
             aria-label={ariaLabel}
             className={cn(isActive && "bg-accent")}
-            onMouseDown={handleMouseDown}
+            onClick={handleClick}
+            onMouseDown={preserveEditorSelection}
             size="icon-xs"
             variant="ghost"
         >
