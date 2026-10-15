@@ -11,7 +11,7 @@ import {
     IntegrationConnectionError,
 } from "@/lib/integrations/error";
 import type { IntegrationId } from "@/lib/integrations/registry";
-import { scheduleSmartCollections } from "@/lib/intelligence/collections/schedule";
+import { scheduleSmartCollections } from "@/lib/session/collections/schedule";
 
 const log = createLogger("integrations:oauth-import");
 

@@ -42,9 +42,9 @@ import {
     deleteAutomation,
     pauseAutomation,
     resumeAutomation,
-} from "@/lib/intelligence/automations/actions";
-import { AUTOMATION_TEMPLATE_DEFINITIONS } from "@/lib/intelligence/automations/constants";
-import type { AutomationListItem } from "@/lib/intelligence/automations/service";
+} from "@/lib/session/automations/actions";
+import { AUTOMATION_TEMPLATE_DEFINITIONS } from "@/lib/session/automations/constants";
+import type { AutomationListItem } from "@/lib/session/automations/service";
 
 const DEFAULT_WEEK_DAY = 1;
 const WEEK_DAY_LABELS = [

@@ -158,7 +158,7 @@ Use a short branch name of at most three words, separated by hyphens. Do not use
 ## Code map
 
 - Session UI: `components/session/`. Start with `list.tsx` for the library view, `side.tsx` for the selected item panel, `message.tsx` for shared message rendering, and `summary.tsx` for session summaries.
-- Automations: `components/automations/` contains the UI; `lib/intelligence/automations/` contains the domain logic. Scheduled runs enter through `app/api/cron/automations/route.ts`.
+- Automations: `components/automations/` contains the UI; `lib/session/automations/` contains the domain logic. Scheduled runs enter through `app/api/cron/automations/route.ts`.
 - Previews: `app/api/preview/route.ts` owns the preview request flow; `lib/common/extract.ts` extracts page metadata.
 - MCP: `app/mcp/route.ts` defines the tools; `app/mcp/prompt/route.ts` provides the setup prompt.
 - Data model: `prisma/schema.prisma` defines the database schema. Shared, domain-free utilities live in `lib/common/`.

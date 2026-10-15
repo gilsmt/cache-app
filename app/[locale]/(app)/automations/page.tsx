@@ -12,7 +12,7 @@ import { Threads } from "@/components/session/threads";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionUserId } from "@/lib/auth/session";
 import { listCollectionOptions } from "@/lib/collections/service";
-import { listAutomations } from "@/lib/intelligence/automations/service";
+import { listAutomations } from "@/lib/session/automations/service";
 import { listThreads } from "@/lib/threads/service";
 
 export async function generateMetadata({

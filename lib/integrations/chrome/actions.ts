@@ -17,7 +17,7 @@ import {
     getChromeBookmarkItemForUserByExternalId,
 } from "@/lib/integrations/chrome/service";
 import { IntegrationUserError } from "@/lib/integrations/error";
-import { autoTagLibraryItemsByIds } from "@/lib/intelligence/collections/engine";
+import { autoTagLibraryItemsByIds } from "@/lib/session/collections/engine";
 
 const log = createLogger("integrations:standalone:actions");
 const PASTED_BOOKMARK_URL_MAX_LENGTH = 4096;

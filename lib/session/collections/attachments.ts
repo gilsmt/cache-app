@@ -17,7 +17,7 @@ import { fetchPublicRedirect } from "@/lib/common/security/fetch";
 import { normalizeWhitespace } from "@/lib/common/string";
 import { isHttpUrl } from "@/lib/common/url";
 import { resolveCobaltDownloadUrl } from "@/lib/integrations/cobalt/service";
-import type { GenerationContent } from "@/lib/intelligence/generation";
+import type { GenerationContent } from "@/lib/session/generation";
 import { type LibraryItemKind, LibraryItemSource } from "@/prisma/client/enums";
 
 const log = createLogger("intelligence:smart-collections:attachments");

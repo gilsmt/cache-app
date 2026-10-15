@@ -246,28 +246,33 @@ import {
     createChromeBookmarkFromUrl,
 } from "@/lib/integrations/chrome/actions";
 import { getSourceIcon, getSourceLabel } from "@/lib/integrations/resolver";
-import { getAgentViewPage, runAssistant } from "@/lib/intelligence/actions";
+import {
+    createNote,
+    type NoteMutationResult,
+    updateNote,
+} from "@/lib/notes/actions";
+import { getAgentViewPage, runAssistant } from "@/lib/session/actions";
 import type {
     AssistantComposerPatch,
     AssistantRequest,
     AssistantResult,
     AssistantVisibleItem,
-} from "@/lib/intelligence/composer/assistant";
+} from "@/lib/session/composer/assistant";
 import {
     ASSISTANT_CONTEXT_COLLECTION_LIMIT,
     ASSISTANT_CONTEXT_DOMAIN_LIMIT,
     ASSISTANT_VISIBLE_ITEM_LABEL_MAX_LENGTH,
     ASSISTANT_VISIBLE_ITEM_LIMIT,
-} from "@/lib/intelligence/composer/assistant";
+} from "@/lib/session/composer/assistant";
 import type {
     AgentViewPage,
     AgentViewQuery,
-} from "@/lib/intelligence/composer/view";
+} from "@/lib/session/composer/view";
 import {
     appendAgentViewPageIds,
     filterItemsToAgentView,
     resolveAgentViewItems,
-} from "@/lib/intelligence/composer/view";
+} from "@/lib/session/composer/view";
 import {
     SECTION_DESCRIPTION_CONTEXT_ITEMS_LIMIT,
     SECTION_DESCRIPTION_DOMAIN_MAX_LENGTH,
@@ -275,12 +280,7 @@ import {
     SECTION_DESCRIPTION_TITLE_MAX_LENGTH,
     SECTION_DESCRIPTION_URL_MAX_LENGTH,
     type SectionDescriptionContextItem,
-} from "@/lib/intelligence/overview";
-import {
-    createNote,
-    type NoteMutationResult,
-    updateNote,
-} from "@/lib/notes/actions";
+} from "@/lib/session/overview";
 import { createThreadFromAssistant } from "@/lib/threads/actions";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";

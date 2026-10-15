@@ -2,7 +2,7 @@ import { getWorkflowMetadata } from "workflow";
 import {
     executeReadOnlyAutomationRun,
     prepareAutomationRunForWorkflow,
-} from "@/lib/intelligence/automations/workflow";
+} from "@/lib/session/automations/workflow";
 
 export async function automationRunWorkflow(runId: string) {
     "use workflow";

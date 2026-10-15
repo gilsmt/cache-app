@@ -55,7 +55,7 @@ import {
     createAutomation,
     resumeAutomation,
     updateAutomation,
-} from "@/lib/intelligence/automations/actions";
+} from "@/lib/session/automations/actions";
 import AppIconSmall from "@/public/cache-icon-small.png";
 
 const ALL_LIBRARY_COLLECTION_ID = "all_library";

@@ -22,7 +22,7 @@ mock.module("@/app/workflows/automation", () => ({
     automationRunWorkflow: {},
 }));
 
-mock.module("@/lib/intelligence/automations/service", () => ({
+mock.module("@/lib/session/automations/service", () => ({
     attachWorkflowRunId,
     claimDueAutomationRuns,
     markAutomationRunStartFailed,

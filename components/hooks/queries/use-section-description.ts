@@ -1,7 +1,7 @@
 import useSWR from "swr";
 import { ACTION_STATUS } from "@/lib/common/constants";
-import { getSectionDescription } from "@/lib/intelligence/actions";
-import { SectionDescriptionRequestSchema } from "@/lib/intelligence/overview";
+import { getSectionDescription } from "@/lib/session/actions";
+import { SectionDescriptionRequestSchema } from "@/lib/session/overview";
 
 interface SectionDescriptionResponse {
     summary: string;

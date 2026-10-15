@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getSessionUserId } from "@/lib/auth/session";
-import { countEnabledAutomations } from "@/lib/intelligence/automations/service";
+import { countEnabledAutomations } from "@/lib/session/automations/service";
 
 export async function AutomationsCount() {
     const userId = await getSessionUserId();

@@ -9,7 +9,7 @@ import {
     claimDueAutomationRuns,
     markAutomationRunStartFailed,
     recoverStaleAutomationRuns,
-} from "@/lib/intelligence/automations/service";
+} from "@/lib/session/automations/service";
 
 const log = createLogger("automations:cron");
 

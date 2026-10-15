@@ -11,7 +11,7 @@ import {
     chromeBookmarkSyncBodySchema,
     purgeChromeBookmarksForUser,
 } from "@/lib/integrations/chrome/service";
-import { autoTagLibraryItemsByIds } from "@/lib/intelligence/collections/engine";
+import { autoTagLibraryItemsByIds } from "@/lib/session/collections/engine";
 
 const log = createLogger("api:sync:chrome-bookmarks");
 

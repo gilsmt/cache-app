@@ -14,10 +14,10 @@ import {
 import * as z from "zod";
 import { requireRouteUserId } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { GenAiProtectionError } from "@/lib/intelligence/error";
-import { resolveRegisteredModel } from "@/lib/intelligence/providers/resolver";
-import { createAutomationAgentTools } from "@/lib/intelligence/tools/agent-tools";
-import { estimateTokens } from "@/lib/intelligence/usage";
+import { GenAiProtectionError } from "@/lib/session/error";
+import { resolveRegisteredModel } from "@/lib/session/providers/resolver";
+import { createAutomationAgentTools } from "@/lib/session/tools/agent-tools";
+import { estimateTokens } from "@/lib/session/usage";
 import {
     THREAD_FOLLOWUP_MESSAGE_MAX_LENGTH,
     THREAD_FOLLOWUP_OUTPUT_TOKEN_LIMIT,
@@ -373,9 +373,7 @@ async function protectThreadRequest(args: {
     system: string;
     userId: string;
 }): Promise<Response | null> {
-    const { protectGenAiRequest } = await import(
-        "@/lib/intelligence/protection"
-    );
+    const { protectGenAiRequest } = await import("@/lib/session/protection");
     // Reserve the full serialized request plus one generation, which is the
     // same basis the automation workflow uses. Reserving the worst case across
     // all tool steps would exceed the smallest plan's whole bucket and deny

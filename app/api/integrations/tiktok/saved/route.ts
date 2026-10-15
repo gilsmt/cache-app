@@ -6,7 +6,7 @@ import {
     importTiktokSaved,
     tiktokSavedBodySchema,
 } from "@/lib/integrations/tiktok/service";
-import { scheduleSmartCollections } from "@/lib/intelligence/collections/schedule";
+import { scheduleSmartCollections } from "@/lib/session/collections/schedule";
 
 export function OPTIONS(request: Request) {
     return new Response(null, {

@@ -4,7 +4,7 @@ import { AccountError } from "@/lib/accounts/error";
 import { auth } from "@/lib/auth/server";
 import { cancelUserNonterminalSubscriptions } from "@/lib/billing/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { seedDefaultUserAutomations } from "@/lib/intelligence/automations/service";
+import { seedDefaultUserAutomations } from "@/lib/session/automations/service";
 
 const log = createLogger("accounts:service");
 

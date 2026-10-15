@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { getRun } from "workflow/api";
 import { userHasProAccess } from "@/lib/billing/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import type { GenerationUsage } from "@/lib/intelligence/generation";
+import type { GenerationUsage } from "@/lib/session/generation";
 import { createThreadForAutomationRun } from "@/lib/threads/service";
 import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";

@@ -1,9 +1,9 @@
 import { type ModelCallStreamPart, WorkflowAgent } from "@ai-sdk/workflow";
 import { isStepCount } from "ai";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { summarizeStepUsage } from "@/lib/intelligence/classify";
-import type { GenerationUsage } from "@/lib/intelligence/generation";
-import { resolveRegisteredModel } from "@/lib/intelligence/providers/resolver";
+import { summarizeStepUsage } from "@/lib/session/classify";
+import type { GenerationUsage } from "@/lib/session/generation";
+import { resolveRegisteredModel } from "@/lib/session/providers/resolver";
 import {
     type AutomationAgentSource,
     createAutomationAgentTools,
@@ -106,10 +106,8 @@ async function protectAutomationAgentRun(args: {
 }) {
     "use step";
 
-    const { protectGenAiRequest } = await import(
-        "@/lib/intelligence/protection"
-    );
-    const { estimateTokens } = await import("@/lib/intelligence/usage");
+    const { protectGenAiRequest } = await import("@/lib/session/protection");
+    const { estimateTokens } = await import("@/lib/session/usage");
 
     await protectGenAiRequest({
         feature: "automation_agent",
