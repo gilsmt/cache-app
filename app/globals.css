@@ -168,6 +168,31 @@
         @apply bg-background text-foreground;
     }
 
+    /* Fixed strips give Mobile Safari a background to extend behind its
+    status bar and toolbar. Both match the adjacent document background. */
+    .edge-top,
+    .edge-bottom {
+        position: fixed;
+        right: 0;
+        left: 0;
+        pointer-events: none;
+        background: var(--background);
+    }
+    .edge-top {
+        top: 0;
+        height: max(12px, env(safe-area-inset-top));
+    }
+    .edge-bottom {
+        bottom: 0;
+        height: max(12px, env(safe-area-inset-bottom));
+    }
+    @media print {
+        .edge-top,
+        .edge-bottom {
+            display: none;
+        }
+    }
+
     svg {
         flex-shrink: 0;
         vertical-align: middle;

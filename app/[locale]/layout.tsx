@@ -152,6 +152,8 @@ export default async function LocaleLayout(props: React.PropsWithChildren) {
                 />
             </head>
             <body suppressHydrationWarning>
+                <div aria-hidden="true" className="edge-top" />
+                <div aria-hidden="true" className="edge-bottom" />
                 <ThemeSync />
                 <ConsoleBanner version={packageJson.version} />
                 <div className="not-has-focus-visible:sr-only pointer-events-none fixed inset-x-0 top-0 z-50 mt-4 flex select-none justify-center">

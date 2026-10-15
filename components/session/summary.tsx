@@ -3,6 +3,8 @@
 import { cn } from "cn";
 import * as HeatGraph from "heat-graph";
 import {
+    CalendarDays,
+    ChartPie,
     Clock,
     Files,
     GlobeX,
@@ -49,7 +51,6 @@ const ACTIVITY_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 });
 
 interface DataListRow {
-    hideWhenEmpty?: boolean;
     icon: LucideIcon;
     label: string;
     value: number;
@@ -179,24 +180,23 @@ function SummaryDataList({
     const rows: readonly DataListRow[] = [
         { icon: Star, label: "Favorites", value: favoriteCount },
         {
-            hideWhenEmpty: true,
             icon: Clock,
             label: "Added in last 30 days",
             value: addedInLast30DaysCount,
         },
         {
-            hideWhenEmpty: true,
             icon: Files,
             label: "Duplicates",
             value: duplicateCount,
         },
         {
-            hideWhenEmpty: true,
             icon: GlobeX,
             label: "Unreachable",
             value: unreachableCount,
         },
-    ].filter((row) => !row.hideWhenEmpty || row.value > 0);
+    ];
+
+    const hasSourceSegments = sourceSegments.length > 0;
 
     return (
         <DataList {...props} className={cn("-my-2", className)}>
@@ -209,35 +209,53 @@ function SummaryDataList({
             <DataListSection defaultOpen>
                 <DataListSectionTrigger
                     endAddon={
-                        <DataListChart
-                            className="ml-auto max-w-1/3 group-data-open/collapsible:hidden"
-                            segments={sourceSegments}
-                        />
+                        hasSourceSegments ? (
+                            <DataListChart
+                                className="ml-auto max-w-1/3 group-data-open/collapsible:hidden"
+                                segments={sourceSegments}
+                            />
+                        ) : null
                     }
                 >
                     Summary
                 </DataListSectionTrigger>
                 <DataListSectionContent>
-                    <DataListChart segments={sourceSegments} />
-                    <DataListGroup>
-                        {sourceSegments.map((segment) => (
-                            <DataListItem key={segment.key}>
-                                <DataListLabel>{segment.label}</DataListLabel>
-                                <DataListValue>
-                                    <span className="flex size-4 shrink-0 items-center justify-center sm:size-3.5">
-                                        <span
-                                            aria-hidden
-                                            className="size-2 shrink-0 rounded-full"
-                                            style={{
-                                                backgroundColor: segment.color,
-                                            }}
-                                        />
-                                    </span>
-                                    {formatShareValue(segment.value, itemCount)}
-                                </DataListValue>
-                            </DataListItem>
-                        ))}
-                    </DataListGroup>
+                    {hasSourceSegments ? (
+                        <>
+                            <DataListChart segments={sourceSegments} />
+                            <DataListGroup>
+                                {sourceSegments.map((segment) => (
+                                    <DataListItem key={segment.key}>
+                                        <DataListLabel>
+                                            {segment.label}
+                                        </DataListLabel>
+                                        <DataListValue>
+                                            <span className="flex size-4 shrink-0 items-center justify-center sm:size-3.5">
+                                                <span
+                                                    aria-hidden
+                                                    className="size-2 shrink-0 rounded-full"
+                                                    style={{
+                                                        backgroundColor:
+                                                            segment.color,
+                                                    }}
+                                                />
+                                            </span>
+                                            {formatShareValue(
+                                                segment.value,
+                                                itemCount
+                                            )}
+                                        </DataListValue>
+                                    </DataListItem>
+                                ))}
+                            </DataListGroup>
+                        </>
+                    ) : (
+                        <SummaryEmptyState
+                            description="Saved items show up here grouped by source."
+                            icon={ChartPie}
+                            title="No sources yet"
+                        />
+                    )}
                 </DataListSectionContent>
             </DataListSection>
             <DataListSeparator />
@@ -277,6 +295,16 @@ function ActivityHeatGraph({ activity }: ActivityHeatGraphProps) {
         (total, point) => total + point.count,
         0
     );
+
+    if (totalAddedCount <= 0) {
+        return (
+            <SummaryEmptyState
+                description="New saves light up this year view."
+                icon={CalendarDays}
+                title="No activity yet"
+            />
+        );
+    }
 
     return (
         <div className="col-span-full grid w-full min-w-0 gap-2">
@@ -336,6 +364,32 @@ function ActivityHeatGraph({ activity }: ActivityHeatGraphProps) {
                 ))}
                 <span>More</span>
             </div>
+        </div>
+    );
+}
+
+interface SummaryEmptyStateProps {
+    description: string;
+    icon: LucideIcon;
+    title: string;
+}
+
+function SummaryEmptyState({
+    description,
+    icon: Icon,
+    title,
+}: SummaryEmptyStateProps) {
+    return (
+        <div className="col-span-full flex flex-col items-center gap-1.5 px-2 py-6 text-center">
+            <span className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Icon aria-hidden className="size-4" focusable="false" />
+            </span>
+            <p className="font-medium text-foreground text-xs leading-tight">
+                {title}
+            </p>
+            <p className="max-w-55 text-balance text-muted-foreground text-xs leading-snug">
+                {description}
+            </p>
         </div>
     );
 }
