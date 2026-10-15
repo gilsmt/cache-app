@@ -6,30 +6,33 @@ import { useEffect } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth/client";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { useDesktopApp } from "@/lib/desktop/use-desktop-platform";
 
-const log = createLogger("logout-page-client");
+const log = createLogger("signout-page-client");
 
-export function LogoutPageClient() {
+export function SignoutPageClient() {
     const router = useRouter();
+    const { isDesktopApp } = useDesktopApp();
 
     useEffect(() => {
-        const handleLogOut = async () => {
+        const handleSignOut = async () => {
+            const returnUrl = isDesktopApp ? "/signin" : "/";
             try {
                 const result = await authClient.signOut();
                 if (result.data?.success) {
-                    router.push("/");
+                    router.push(returnUrl);
                     router.refresh();
                 } else {
                     router.push("/library");
                 }
             } catch (error) {
                 log.error("signOut failed", error);
-                router.push("/");
+                router.push(returnUrl);
             }
         };
 
-        handleLogOut();
-    }, [router]);
+        handleSignOut();
+    }, [router, isDesktopApp]);
 
     return (
         <div className="flex h-dvh w-full flex-col items-center justify-center bg-muted">
@@ -40,7 +43,7 @@ export function LogoutPageClient() {
                     className="shimmer shimmer-duration-1000 text-muted-foreground text-sm"
                     role="status"
                 >
-                    <T context="Logout redirect page">Signing out…</T>
+                    <T context="Signout redirect page">Signing out…</T>
                 </p>
             </div>
         </div>

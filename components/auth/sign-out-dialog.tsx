@@ -17,17 +17,17 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function SessionLogOutDialogTrigger(
+export function SignOutDialogTrigger(
     props: React.ComponentProps<typeof DialogTrigger>
 ) {
     const router = useRouter();
 
-    const handleLogOut = useStableCallback(() => {
-        router.push("/logout");
+    const handleSignOut = useStableCallback(() => {
+        router.push("/signout");
     });
 
-    useHotkeys("alt+shift+q", handleLogOut, {
-        description: "Log out",
+    useHotkeys("alt+shift+q", handleSignOut, {
+        description: "Sign out",
     });
 
     return (
@@ -36,10 +36,10 @@ export function SessionLogOutDialogTrigger(
             <DialogPopup>
                 <DialogHeader>
                     <DialogTitle>
-                        <T context="Logout dialog title">Log out?</T>
+                        <T context="Signout dialog title">Sign out?</T>
                     </DialogTitle>
                     <DialogDescription>
-                        <T context="Logout dialog description">
+                        <T context="Signout dialog description">
                             You will need to sign in again to access your
                             library.
                         </T>
@@ -50,10 +50,10 @@ export function SessionLogOutDialogTrigger(
                         <T context="Cancel button">Cancel</T>
                     </DialogClose>
                     <DialogClose
-                        onClick={handleLogOut}
+                        onClick={handleSignOut}
                         render={<Button variant="destructive" />}
                     >
-                        <T context="Logout confirm button">Log out</T>
+                        <T context="Signout confirm button">Sign out</T>
                     </DialogClose>
                 </DialogFooter>
             </DialogPopup>

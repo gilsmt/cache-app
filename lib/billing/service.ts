@@ -97,9 +97,12 @@ export async function cancelUserNonterminalSubscriptions(
         },
     });
 
-    const stripeSubscriptionIds = subscriptions
-        .map((subscription) => subscription.stripeSubscriptionId)
-        .filter((id): id is string => id !== null);
+    const stripeSubscriptionIds: string[] = [];
+    for (const subscription of subscriptions) {
+        if (subscription.stripeSubscriptionId !== null) {
+            stripeSubscriptionIds.push(subscription.stripeSubscriptionId);
+        }
+    }
 
     if (stripeSubscriptionIds.length === 0) {
         return;

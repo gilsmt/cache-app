@@ -51,15 +51,15 @@ export async function getLibraryItemComment(
         };
     }
 
-    const auth = await requireActionUserId("Sign in again to load comments.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to load comments.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const comment = await service.getCommentForItem({
             itemId: parsed.data.libraryItemId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -94,16 +94,16 @@ export async function updateLibraryItemComment(input: {
         };
     }
 
-    const auth = await requireActionUserId("Sign in again to save comments.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to save comments.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         await service.saveCommentForItem({
             contentText: parsed.data.contentText,
             itemId: parsed.data.itemId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {

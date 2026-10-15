@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getSessionUserId } from "@/lib/auth/session";
-import { countCommentsForUser } from "@/lib/comment/service";
+import { countCommentsForUser } from "@/lib/comments/service";
 
 export async function CommentsCount() {
     const userId = await getSessionUserId();

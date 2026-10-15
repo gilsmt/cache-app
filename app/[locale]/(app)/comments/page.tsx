@@ -9,7 +9,7 @@ import { CommentsList } from "@/components/comments/list";
 import { SidebarPanel } from "@/components/session/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionUserId } from "@/lib/auth/session";
-import { listCommentsForUser } from "@/lib/comment/service";
+import { listCommentsForUser } from "@/lib/comments/service";
 
 const COMMENTS_SKELETON_KEYS = ["c0", "c1", "c2", "c3", "c4"] as const;
 

@@ -4,7 +4,7 @@ import { T } from "gt-next";
 import { MessageSquare } from "lucide-react";
 import * as React from "react";
 import { getNoteExcerpt } from "@/lib/collections/utils";
-import type { ItemCommentWithItem } from "@/lib/comment/service";
+import type { ItemCommentWithItem } from "@/lib/comments/service";
 import { FALLBACK_URL, ITEM_KIND_NOTE } from "@/lib/common/constants";
 import { dayjs } from "@/lib/common/dayjs";
 import { parseDisplayUrl, toValidUrl } from "@/lib/common/url";

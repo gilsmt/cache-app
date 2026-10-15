@@ -1,12 +1,12 @@
 "use server";
 
 import { headers } from "next/headers";
-import { AccountError } from "@/lib/account/error";
-import * as service from "@/lib/account/service";
+import { AccountError } from "@/lib/accounts/error";
+import * as service from "@/lib/accounts/service";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
-const log = createLogger("account:actions");
+const log = createLogger("accounts:actions");
 
 interface DeleteAccountActionState {
     message: string;
@@ -15,12 +15,12 @@ interface DeleteAccountActionState {
 }
 
 export async function deleteAccountAction(): Promise<DeleteAccountActionState> {
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to delete your account."
     );
-    if (isUnauthenticated(auth)) {
+    if (isUnauthenticated(actor)) {
         return {
-            message: auth.message,
+            message: actor.message,
             redirect: null,
             status: "error",
         };

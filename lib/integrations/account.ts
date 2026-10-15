@@ -8,7 +8,7 @@ import {
     compareProviderAccountsForScopePreference,
     getProviderTokenApiErrorCode,
     isSoftProviderTokenResolutionFailure,
-} from "./provider-account-resolver";
+} from "./provider";
 import { listIntegrationAccountProviderIds } from "./registry";
 
 const log = createLogger("integrations:account");

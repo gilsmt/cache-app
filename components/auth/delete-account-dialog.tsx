@@ -16,11 +16,11 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/error-message";
-import { deleteAccountAction } from "@/lib/account/actions";
+import { deleteAccountAction } from "@/lib/accounts/actions";
 import { authClient } from "@/lib/auth/client";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
-const log = createLogger("auth-delete-account");
+const log = createLogger("accounts:delete-account-dialog");
 
 export function DeleteAccountDialogTrigger(
     props: React.ComponentProps<typeof DialogTrigger>
@@ -64,7 +64,7 @@ export function DeleteAccountDialogTrigger(
                     );
                 }
 
-                router.push(result.redirect ?? "/logout");
+                router.push(result.redirect ?? "/signout");
             } catch (error) {
                 log.error("deleteAccountAction failed", error);
                 setErrorMessage(

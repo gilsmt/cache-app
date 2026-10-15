@@ -12,7 +12,6 @@ import * as z from "zod";
 import { serverEnv } from "@/env/server";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/billing/client";
 import { getPlanPriceIds } from "@/lib/billing/prices";
-import { cancelUserNonterminalSubscriptions } from "@/lib/billing/service";
 import { APP_NAME, BASE_URL, CACHE_EXTENSION_ID } from "@/lib/common/constants";
 import { getErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
@@ -24,7 +23,7 @@ import { REDDIT_USER_AGENT } from "@/lib/integrations/reddit/api";
 import { prisma } from "@/prisma";
 import { i18nPlugin } from "./i18n";
 
-const log = createLogger("Auth:server");
+const log = createLogger("auth:server");
 
 const BASE_AUTH_URL = process.env.BETTER_AUTH_URL ?? BASE_URL;
 
@@ -74,17 +73,23 @@ function resolveChromeExtensionId(): string {
 
 const EXTENSION_ID = resolveChromeExtensionId();
 
-const ENV_TRUSTED_ORIGINS = (process.env.TRUSTED_ORIGINS ?? "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean)
-    .filter((origin) => {
-        if (isExactTrustedOrigin(origin)) {
-            return true;
+function parseEnvTrustedOrigins(rawOrigins: string | undefined): string[] {
+    const trustedOrigins: string[] = [];
+    for (const rawOrigin of (rawOrigins ?? "").split(",")) {
+        const origin = rawOrigin.trim();
+        if (origin.length === 0) {
+            continue;
         }
-        log.warn("Ignoring invalid TRUSTED_ORIGINS entry", { origin });
-        return false;
-    });
+        if (!isExactTrustedOrigin(origin)) {
+            log.warn("Ignoring invalid TRUSTED_ORIGINS entry", { origin });
+            continue;
+        }
+        trustedOrigins.push(origin);
+    }
+    return trustedOrigins;
+}
+
+const ENV_TRUSTED_ORIGINS = parseEnvTrustedOrigins(process.env.TRUSTED_ORIGINS);
 
 const TRUSTED_ORIGINS = [
     BASE_AUTH_URL,
@@ -468,18 +473,10 @@ export const auth = betterAuth({
         user: {
             create: {
                 after: async (user) => {
-                    try {
-                        const { seedDefaultUserAutomations } = await import(
-                            "@/lib/intelligence/automations/service"
-                        );
-                        await seedDefaultUserAutomations(user.id);
-                    } catch (error) {
-                        log.error("Failed to seed built-in automations", {
-                            error,
-                            operation: "seedDefaultUserAutomations",
-                            userId: user.id,
-                        });
-                    }
+                    const { onUserCreated } = await import(
+                        "@/lib/accounts/service"
+                    );
+                    await onUserCreated(user.id);
                 },
             },
         },
@@ -543,7 +540,10 @@ export const auth = betterAuth({
          */
         deleteUser: {
             beforeDelete: async (user) => {
-                await cancelUserNonterminalSubscriptions(user.id);
+                const { prepareUserDeletion } = await import(
+                    "@/lib/accounts/service"
+                );
+                await prepareUserDeletion(user.id);
             },
             enabled: true,
         },

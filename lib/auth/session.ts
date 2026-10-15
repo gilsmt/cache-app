@@ -8,7 +8,7 @@ import { ACTION_STATUS } from "@/lib/common/constants";
 import { getErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
-const log = createLogger("Auth:session");
+const log = createLogger("auth:session");
 
 export type Session = typeof auth.$Infer.Session;
 

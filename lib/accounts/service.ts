@@ -1,13 +1,30 @@
 import "server-only";
 
-import { AccountError } from "@/lib/account/error";
+import { AccountError } from "@/lib/accounts/error";
 import { auth } from "@/lib/auth/server";
+import { cancelUserNonterminalSubscriptions } from "@/lib/billing/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { seedDefaultUserAutomations } from "@/lib/intelligence/automations/service";
 
-const log = createLogger("account:service");
+const log = createLogger("accounts:service");
 
 interface DeleteUserAccountResult {
     redirect: string;
+}
+
+export async function onUserCreated(userId: string): Promise<void> {
+    try {
+        await seedDefaultUserAutomations(userId);
+    } catch (error) {
+        log.error("Failed to seed built-in automations", error, {
+            operation: "onUserCreated",
+            userId,
+        });
+    }
+}
+
+export async function prepareUserDeletion(userId: string): Promise<void> {
+    await cancelUserNonterminalSubscriptions(userId);
 }
 
 /**
@@ -42,7 +59,7 @@ export async function deleteUserAccount(
         );
     }
 
-    return { redirect: "/logout" };
+    return { redirect: "/signout" };
 }
 
 type DeleteUserFailureReason =

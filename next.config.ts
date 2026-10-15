@@ -139,6 +139,11 @@ const nextConfig: NextConfig = {
                 source: "/register",
             },
             {
+                destination: "/signout",
+                permanent: true,
+                source: "/logout",
+            },
+            {
                 destination: "/library",
                 permanent: true,
                 source: "/collections",

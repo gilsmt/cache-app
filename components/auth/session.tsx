@@ -12,8 +12,9 @@ import {
 } from "@/lib/auth/client";
 import type { Session } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { useDesktopApp } from "@/lib/desktop/use-desktop-platform";
 
-const log = createLogger("auth-session");
+const log = createLogger("auth:session");
 
 /**
  * Mount once on public entry points. Repeated mounts may initialize Google's
@@ -21,18 +22,24 @@ const log = createLogger("auth-session");
  */
 export function GoogleOneTapTrigger() {
     const { data: session, isPending } = useSession();
+    const { isDesktopApp } = useDesktopApp();
 
     const sessionId = session?.session?.id;
 
     React.useEffect(() => {
-        if (isPending || sessionId || !HAS_GOOGLE_ONE_TAP_CLIENT_ID) {
+        if (
+            isPending ||
+            sessionId ||
+            isDesktopApp ||
+            !HAS_GOOGLE_ONE_TAP_CLIENT_ID
+        ) {
             return;
         }
 
         authClient.oneTap({ callbackURL: "/library" }).catch((error) => {
             log.error("Google One Tap init failed", error);
         });
-    }, [isPending, sessionId]);
+    }, [isPending, sessionId, isDesktopApp]);
 
     return null;
 }
@@ -112,7 +119,7 @@ interface SessionHintProps {
 
 /**
  * Pass `serverSession` to prevent layout shift before client hydration. The
- * client session still owns the logout button's loading state as it reflects
+ * client session still owns the sign-out button's loading state as it reflects
  * the live request.
  */
 export function SessionHint({ serverSession }: SessionHintProps) {
@@ -137,10 +144,8 @@ export function SessionHint({ serverSession }: SessionHintProps) {
                     isLoading={isPending}
                     nativeButton={false}
                     render={
-                        <Link href="/logout" prefetch={false}>
-                            <T context="User Log out/Sign out of the app">
-                                Log out
-                            </T>
+                        <Link href="/signout" prefetch={false}>
+                            <T context="User Sign out of the app">Log out</T>
                         </Link>
                     }
                     size="xs"

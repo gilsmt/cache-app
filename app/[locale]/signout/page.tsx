@@ -2,7 +2,7 @@ import { getGT, getLocale } from "gt-next/server";
 import type { Metadata } from "next";
 import { buildPageMetadata } from "@/app/metadata";
 import { PageShell } from "@/components/ui/page-shell";
-import { LogoutPageClient } from "./client";
+import { SignoutPageClient } from "./client";
 
 export async function generateMetadata(): Promise<Metadata> {
     const locale = await getLocale();
@@ -11,9 +11,9 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
         ...buildPageMetadata({
             description: gt("Signing you out…"),
-            keywords: ["sign out", "logout", "Cache App"],
+            keywords: ["sign out", "signout", "Cache App"],
             locale,
-            path: "/logout",
+            path: "/signout",
             title: gt("Sign out"),
         }),
         robots: {
@@ -23,10 +23,10 @@ export async function generateMetadata(): Promise<Metadata> {
     };
 }
 
-export default function LogoutPage() {
+export default function SignoutPage() {
     return (
         <PageShell>
-            <LogoutPageClient />
+            <SignoutPageClient />
         </PageShell>
     );
 }
