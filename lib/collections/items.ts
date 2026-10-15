@@ -184,17 +184,17 @@ export async function deleteLibraryItem(
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage saved items."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await service.trashLibraryItem({
             itemId: parsed.data.itemId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         revalidatePath("/library");
@@ -230,17 +230,17 @@ export async function deleteLibraryItems(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage saved items."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await service.trashLibraryItems({
             itemIds: parsed.data.itemIds,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         revalidatePath("/library");
@@ -274,17 +274,17 @@ export async function restoreLibraryItem(
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage saved items."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await service.restoreLibraryItem({
             itemId: parsed.data.itemId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         revalidatePath("/library");
@@ -318,17 +318,17 @@ export async function purgeLibraryItem(
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage saved items."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await service.purgeLibraryItem({
             itemId: parsed.data.itemId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         revalidatePath("/recently-deleted");
@@ -356,16 +356,16 @@ export type LibraryItemPurgeAllResult =
     | ActionError;
 
 export async function purgeAllRecentlyDeletedItems(): Promise<LibraryItemPurgeAllResult> {
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage saved items."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await service.purgeAllRecentlyDeletedItems({
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         revalidatePath("/recently-deleted");
@@ -386,16 +386,16 @@ export async function purgeAllRecentlyDeletedItems(): Promise<LibraryItemPurgeAl
 }
 
 export async function purgeExpiredLibraryItems(): Promise<LibraryItemPurgeExpiredResult> {
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage saved items."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await service.purgeExpiredLibraryItems({
-            userId: auth.userId,
+            userId: actor.userId,
         });
         revalidatePath("/recently-deleted");
         return {
@@ -433,11 +433,11 @@ export async function updateLibraryItemsCollections(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
@@ -446,7 +446,7 @@ export async function updateLibraryItemsCollections(input: {
             nextSharedCollectionIds: parsed.data.nextSharedCollectionIds,
             previousSharedCollectionIds:
                 parsed.data.previousSharedCollectionIds,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -478,17 +478,17 @@ export async function toggleLibraryItemFavorite(
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage saved items."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await service.toggleLibraryItemFavorite({
             itemId: parsed.data.itemId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -520,17 +520,17 @@ export async function probeLibraryItemsReachabilityAction(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to check saved links."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const outcome = await probeLibraryItemsReachability({
             itemIds: parsed.data.itemIds,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         if (outcome.didPersist) {
@@ -568,18 +568,18 @@ export async function updateLibraryItemCollections(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await service.updateLibraryItemCollections({
             collectionIds: parsed.data.collectionIds,
             itemId: parsed.data.itemId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {

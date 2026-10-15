@@ -178,11 +178,18 @@ function parsePin(
 export async function listPinterestBoards(
     accessToken: string
 ): Promise<PinterestBoardSummary[]> {
-    const boards = (
-        await listPinterestCollection("/boards", accessToken, MAX_BOARD_PAGES)
-    )
-        .map(parseBoard)
-        .filter((item): item is PinterestBoardSummary => item !== null);
+    const rawBoards = await listPinterestCollection(
+        "/boards",
+        accessToken,
+        MAX_BOARD_PAGES
+    );
+    const boards: PinterestBoardSummary[] = [];
+    for (const rawBoard of rawBoards) {
+        const board = parseBoard(rawBoard);
+        if (board !== null) {
+            boards.push(board);
+        }
+    }
 
     return boards.sort((a, b) => {
         const left = a.updatedAt?.getTime() ?? 0;
@@ -195,13 +202,17 @@ export async function listPinterestBoardPins(
     accessToken: string,
     board: PinterestBoardSummary
 ): Promise<PinterestImportablePin[]> {
-    return (
-        await listPinterestCollection(
-            `/boards/${encodeURIComponent(board.id)}/pins`,
-            accessToken,
-            MAX_PIN_PAGES_PER_BOARD
-        )
-    )
-        .map((item) => parsePin(item, board.name))
-        .filter((item): item is PinterestImportablePin => item !== null);
+    const rawPins = await listPinterestCollection(
+        `/boards/${encodeURIComponent(board.id)}/pins`,
+        accessToken,
+        MAX_PIN_PAGES_PER_BOARD
+    );
+    const pins: PinterestImportablePin[] = [];
+    for (const rawPin of rawPins) {
+        const pin = parsePin(rawPin, board.name);
+        if (pin !== null) {
+            pins.push(pin);
+        }
+    }
+    return pins;
 }

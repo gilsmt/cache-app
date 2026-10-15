@@ -400,13 +400,17 @@ export function normalizeExpandedSummary(
         return null;
     }
 
-    const cleaned = normalized
+    const lines = normalized
         .replace(MARKDOWN_CODE_FENCE_PATTERN, "")
-        .split("\n")
-        .map((line) => line.trimEnd())
-        .filter((line) => line.length > 0)
-        .join("\n")
-        .trim();
+        .split("\n");
+    const keptLines: string[] = [];
+    for (const line of lines) {
+        const trimmedLine = line.trimEnd();
+        if (trimmedLine.length > 0) {
+            keptLines.push(trimmedLine);
+        }
+    }
+    const cleaned = keptLines.join("\n").trim();
 
     if (cleaned.length === 0) {
         return null;

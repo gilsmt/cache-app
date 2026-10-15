@@ -62,15 +62,15 @@ export type AutomationActionResult =
       };
 
 export async function listAutomations() {
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to view automations."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     return {
-        automations: await service.listAutomations({ userId: auth.userId }),
+        automations: await service.listAutomations({ userId: actor.userId }),
         status: "SUCCESS" as const,
     };
 }
@@ -89,11 +89,11 @@ export async function listAutomationRuns(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to view run history."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
@@ -101,7 +101,7 @@ export async function listAutomationRuns(input: {
             runs: await service.listAutomationRuns({
                 automationId: parsed.data.automationId,
                 limit: parsed.data.limit,
-                userId: auth.userId,
+                userId: actor.userId,
             }),
             status: "SUCCESS" as const,
         };
@@ -127,18 +127,18 @@ export async function createAutomation(
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to create automations."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         return {
             automation: await service.createAutomation({
                 input: parsed.data,
-                userId: auth.userId,
+                userId: actor.userId,
             }),
             status: "SUCCESS",
         };
@@ -170,11 +170,11 @@ export async function updateAutomation(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to update automations."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
@@ -182,7 +182,7 @@ export async function updateAutomation(input: {
             automation: await service.updateAutomation({
                 automationId: parsed.data.automationId,
                 input: parsed.data.automation,
-                userId: auth.userId,
+                userId: actor.userId,
             }),
             status: "SUCCESS",
         };
@@ -208,11 +208,11 @@ export async function resumeAutomation(
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to resume automations."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
@@ -220,7 +220,7 @@ export async function resumeAutomation(
             automation: await service.resumeAutomation({
                 automationId: parsed.data.automationId,
                 schedule: parsed.data.schedule,
-                userId: auth.userId,
+                userId: actor.userId,
             }),
             status: "SUCCESS",
         };
@@ -250,18 +250,18 @@ export async function deleteAutomation(input: { automationId: string }) {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to delete automations."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         return {
             deletedAutomation: await service.deleteAutomation({
                 automationId: parsed.data.automationId,
-                userId: auth.userId,
+                userId: actor.userId,
             }),
             status: "SUCCESS" as const,
         };
@@ -292,16 +292,16 @@ async function updateStatusAction(
         };
     }
 
-    const auth = await requireActionUserId(copy.unauthorizedMessage);
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId(copy.unauthorizedMessage);
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         return {
             automation: await action({
                 automationId: parsed.data.automationId,
-                userId: auth.userId,
+                userId: actor.userId,
             }),
             status: "SUCCESS",
         };

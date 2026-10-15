@@ -69,15 +69,15 @@ export async function addFeed(input: {
         };
     }
 
-    const auth = await requireActionUserId("Sign in again to add feeds.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to add feeds.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const feedId = await service.addRssFeed({
             feedUrl: parsed.data.feedUrl,
-            userId: auth.userId,
+            userId: actor.userId,
         });
         return { feedId, status: "SUCCESS" };
     } catch (error) {
@@ -112,15 +112,15 @@ export async function removeFeed(input: {
         };
     }
 
-    const auth = await requireActionUserId("Sign in again to manage feeds.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to manage feeds.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         await service.removeRssFeed({
             feedId: parsed.data.feedId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
         return { status: "SUCCESS" };
     } catch (error) {
@@ -133,14 +133,16 @@ export async function removeFeed(input: {
 }
 
 export async function listFeeds(): Promise<ListFeedsResult> {
-    const auth = await requireActionUserId("Sign in again to view your feeds.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId(
+        "Sign in again to view your feeds."
+    );
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const feeds = await service.listRssFeeds({
-            userId: auth.userId,
+            userId: actor.userId,
         });
         return { feeds: feeds.map(toFeedViewModel), status: "SUCCESS" };
     } catch (error) {

@@ -160,9 +160,9 @@ export async function getSideTabFavicons(input: {
         };
     }
 
-    const auth = await requireActionUserId("Sign in again to preview links.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to preview links.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     const { fetchLinkFavicons } = await import("@/lib/common/link-preview");
@@ -178,11 +178,11 @@ export async function createCollection(input: {
     description?: string;
     name: string;
 }): Promise<CollectionCreateResult> {
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to create collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     const parsed = CollectionCreateInputSchema.safeParse(input);
@@ -201,7 +201,7 @@ export async function createCollection(input: {
             assignToItemId: parsed.data.assignToItemId,
             description: parsed.data.description,
             name: parsed.data.name,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -239,11 +239,11 @@ export async function createCollectionFromItems(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to create collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
@@ -251,7 +251,7 @@ export async function createCollectionFromItems(input: {
             description: parsed.data.description,
             itemIds: parsed.data.itemIds,
             name: parsed.data.name,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -283,17 +283,17 @@ export async function deleteCollection(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const collection = await service.deleteCollection({
             collectionId: parsed.data.collectionId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -325,17 +325,17 @@ export async function duplicateCollection(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await service.duplicateCollection({
             collectionId: parsed.data.collectionId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -369,18 +369,18 @@ export async function renameCollection(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const collection = await service.renameCollection({
             collectionId: parsed.data.collectionId,
             name: parsed.data.name,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         if (collection.shareId) {
@@ -417,18 +417,18 @@ export async function updateCollectionPriority(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const collection = await service.updateCollectionPriority({
             collectionId: parsed.data.collectionId,
             priority: parsed.data.priority,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -456,16 +456,16 @@ export async function getSmartCollectionsPreference(): Promise<
               | typeof ACTION_STATUS.UNAUTHORIZED;
       }
 > {
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage smart collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const enabled = await service.getUserSmartCollectionsPreference({
-            userId: auth.userId,
+            userId: actor.userId,
         });
         return { disabled: !enabled, status: ACTION_STATUS.SUCCESS };
     } catch (error) {
@@ -500,17 +500,17 @@ export async function setSmartCollectionsPreference(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage smart collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         await service.setSmartCollectionsPreference({
             enabled: parsed.data.enabled,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return { status: ACTION_STATUS.UPDATED };
@@ -552,9 +552,9 @@ export async function downloadMedia(url: string): Promise<MediaDownloadResult> {
         };
     }
 
-    const auth = await requireActionUserId("Sign in again to download media.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to download media.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {

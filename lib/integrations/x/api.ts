@@ -239,6 +239,13 @@ function parseBookmark(
         record.text ||
         null;
 
+    const entityUrls: string[] = [];
+    for (const entity of record.entities?.urls ?? []) {
+        if (entity.expanded_url) {
+            entityUrls.push(entity.expanded_url);
+        }
+    }
+
     return {
         caption,
         externalId: record.id,
@@ -253,9 +260,7 @@ function parseBookmark(
                           username,
                       }
                     : null,
-                entityUrls: (record.entities?.urls ?? [])
-                    .map((u) => u.expanded_url)
-                    .filter((u): u is string => !!u),
+                entityUrls,
                 mediaKeys,
                 possiblySensitive: record.possibly_sensitive ?? false,
             },
@@ -322,10 +327,12 @@ export async function listXBookmarks(
             )
         );
 
-        const pageBookmarks = pagePayload.data
-            .map((item) => parseBookmark(item, pagePayload.includesLookup))
-            .filter((bookmark): bookmark is XImportableBookmark => !!bookmark);
-        items.push(...pageBookmarks);
+        for (const item of pagePayload.data) {
+            const bookmark = parseBookmark(item, pagePayload.includesLookup);
+            if (bookmark) {
+                items.push(bookmark);
+            }
+        }
 
         nextToken = pagePayload.nextToken;
         if (!nextToken) {

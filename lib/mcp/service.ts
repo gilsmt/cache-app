@@ -15,7 +15,6 @@ import {
 } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { parseStandaloneUrl } from "@/lib/common/url";
-import { IntegrationApiError } from "@/lib/integrations/error";
 import { upsertLibraryItemImports } from "@/lib/integrations/import";
 import { createNoteFromPlainText } from "@/lib/notes/service";
 import { prisma } from "@/prisma";
@@ -26,6 +25,7 @@ import {
     MCP_SCOPES,
     verifyMcpToken,
 } from "./auth";
+import { McpLibraryItemError } from "./error";
 import type { McpLibraryItemSchema } from "./protocol";
 
 const log = createLogger("mcp.service");
@@ -47,7 +47,7 @@ interface AddLibraryItemArgs {
  * Adds a new bookmark or note to the user's library.
  *
  * Exactly one of `noteContentText` or `url` must be provided. Supplying both
- * (or neither) raises `IntegrationApiError` with status 400. Bookmark creation
+ * (or neither) raises `McpLibraryItemError` with status 400. Bookmark creation
  * routes through `upsertLibraryItemImports` so a URL already saved by any
  * prior ingest path is reused (no duplicate triggers); new bookmarks flow into
  * the smart-collection auto-tag pipeline. Notes use the dedicated
@@ -58,7 +58,8 @@ export async function addLibraryItem(
     args: AddLibraryItemArgs
 ): Promise<LibraryItemWithCollections> {
     if (args.noteContentText && args.url) {
-        throw new IntegrationApiError({
+        throw new McpLibraryItemError({
+            code: "conflicting_inputs",
             message:
                 "Pass either `url` (for a bookmark) or `noteContentText` (for a note), not both.",
             operation: "addLibraryItem",
@@ -71,7 +72,8 @@ export async function addLibraryItem(
     }
 
     if (!args.url) {
-        throw new IntegrationApiError({
+        throw new McpLibraryItemError({
+            code: "missing_input",
             message: "Either `url` or `noteContentText` is required.",
             operation: "addLibraryItem",
             status: 400,
@@ -80,7 +82,8 @@ export async function addLibraryItem(
 
     const validatedUrl = parseStandaloneUrl(args.url);
     if (!validatedUrl) {
-        throw new IntegrationApiError({
+        throw new McpLibraryItemError({
+            code: "invalid_url",
             message: "The provided URL is not valid.",
             operation: "addLibraryItem",
             status: 400,
@@ -146,7 +149,8 @@ export async function addLibraryItem(
             browserProfileId: DEFAULT_BROWSER_PROFILE_ID,
             source: LibraryItemSource.other,
         });
-        throw new IntegrationApiError({
+        throw new McpLibraryItemError({
+            code: "reload_failed",
             message: "Bookmark was saved but could not be reloaded.",
             operation: "addLibraryItem",
             status: 500,

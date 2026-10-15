@@ -272,10 +272,14 @@ function getFinalMarkdown(
     operationSummaries: string[]
 ): string | null {
     const lastStepText = steps.findLast((step) => step.text.trim())?.text;
-    const aggregatedStepText = steps
-        .map((step) => step.text.trim())
-        .filter((text) => text.length > 0)
-        .join("\n");
+    const stepTexts: string[] = [];
+    for (const step of steps) {
+        const text = step.text.trim();
+        if (text.length > 0) {
+            stepTexts.push(text);
+        }
+    }
+    const aggregatedStepText = stepTexts.join("\n");
     const summaryText =
         operationSummaries.length > 0
             ? operationSummaries.join("\n")

@@ -165,6 +165,7 @@ export const McpAddLibraryItemInputSchema = z.union([
 ]);
 
 export const McpDeleteLibraryItemOutputSchema = z.object({
+    alreadyDeleted: z.boolean(),
     ok: z.literal(true),
 });
 

@@ -18,8 +18,8 @@ import {
 } from "@/lib/collections/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { isTrustedCacheWebOrigin } from "@/lib/common/security/origins";
-import { IntegrationApiError } from "@/lib/integrations/error";
-import { MCP_SCOPES, type McpScope } from "@/lib/mcp/auth";
+import { isMcpScope, type McpScope } from "@/lib/mcp/auth";
+import { McpLibraryItemError } from "@/lib/mcp/error";
 import {
     McpAddLibraryItemInputSchema,
     McpCollectionListOutputSchema,
@@ -30,11 +30,7 @@ import {
     McpLibraryItemListOutputSchema,
     McpLibraryItemSchema,
 } from "@/lib/mcp/protocol";
-import {
-    incrementMcpRateCounter,
-    isOverLimit,
-    MCP_RATE_BUCKETS,
-} from "@/lib/mcp/rate-limit";
+import { checkMcpRateLimit, MCP_RATE_BUCKETS } from "@/lib/mcp/rate-limit";
 import {
     addLibraryItem,
     toMcpLibraryItem,
@@ -57,40 +53,24 @@ function resolveAuth(extra: ServerContext): {
     if (!userId) {
         return null;
     }
-    const scopes = (authInfo?.scopes ?? []).filter((scope): scope is McpScope =>
-        (MCP_SCOPES as readonly string[]).includes(scope)
-    );
+    const scopes = (authInfo?.scopes ?? []).filter(isMcpScope);
     return { scopes, userId };
-}
-
-function unauthorizedResult(): CallToolResult {
-    return {
-        content: [
-            {
-                text: "Unauthorized: missing or invalid token.",
-                type: "text",
-            },
-        ],
-        isError: true,
-    };
-}
-
-function insufficientScopeResult(needed: McpScope): CallToolResult {
-    return {
-        content: [
-            {
-                text: `Forbidden: token grants fewer scopes than required for this tool (need \`${needed}\`).`,
-                type: "text",
-            },
-        ],
-        isError: true,
-    };
 }
 
 function textErrorResult(message: string): CallToolResult {
     return {
         content: [{ text: message, type: "text" }],
         isError: true,
+    };
+}
+
+function okResult<T extends Record<string, unknown>>(
+    payload: T,
+    text?: string
+): CallToolResult {
+    return {
+        content: [{ text: text ?? JSON.stringify(payload), type: "text" }],
+        structuredContent: payload,
     };
 }
 
@@ -111,33 +91,47 @@ async function authorizeToolCall(
 ): Promise<{ userId: string } | { result: CallToolResult }> {
     const auth = resolveAuth(extra);
     if (!auth) {
-        return { result: unauthorizedResult() };
+        return {
+            result: textErrorResult("Unauthorized: missing or invalid token."),
+        };
     }
     if (!auth.scopes.includes(required)) {
-        return { result: insufficientScopeResult(required) };
+        return {
+            result: textErrorResult(
+                `Forbidden: token grants fewer scopes than required for this tool (need \`${required}\`).`
+            ),
+        };
     }
     const bucket =
         required === "library:write"
             ? MCP_RATE_BUCKETS.write
             : MCP_RATE_BUCKETS.read;
-    const decision = await incrementMcpRateCounter(auth.userId, bucket);
-    if (decision !== null && isOverLimit(decision, bucket)) {
-        return { result: rateLimitResult(bucket, decision) };
+    const gate = await checkMcpRateLimit(auth.userId, bucket);
+    if (gate.limited) {
+        return {
+            result: rateLimitResult(
+                bucket,
+                gate.retryAfterSeconds,
+                auth.userId
+            ),
+        };
     }
     return { userId: auth.userId };
 }
 
 function rateLimitResult(
     bucket: { limit: number; name: string },
-    decision: { retryAfterSeconds: number }
+    retryAfterSeconds: number,
+    userId: string
 ): CallToolResult {
     log.warn(`rate limit hit (${bucket.name})`, {
-        retryAfterSeconds: decision.retryAfterSeconds,
+        retryAfterSeconds,
+        userId,
     });
     return {
         content: [
             {
-                text: `Rate limit reached for \`${bucket.name}\` operations. Retry in about ${decision.retryAfterSeconds} seconds.`,
+                text: `Rate limit reached for \`${bucket.name}\` operations. Retry in about ${retryAfterSeconds} seconds.`,
                 type: "text",
             },
         ],
@@ -190,14 +184,11 @@ async function handleListLibraryItems(
         const payload = {
             hasMore,
             items: mcpItems,
-            nextOffset: hasMore ? nextOffset : undefined,
+            ...(hasMore ? { nextOffset } : {}),
             offset: args.offset,
             total,
         };
-        return {
-            content: [{ text: JSON.stringify(payload), type: "text" }],
-            structuredContent: payload,
-        };
+        return okResult(payload);
     } catch (error) {
         return handleToolError(
             "list_library_items",
@@ -227,10 +218,7 @@ async function handleGetLibraryItem(
             return textErrorResult("Library item not found.");
         }
         const payload = toMcpLibraryItem(item);
-        return {
-            content: [{ text: JSON.stringify(payload), type: "text" }],
-            structuredContent: payload,
-        };
+        return okResult(payload);
     } catch (error) {
         return handleToolError(
             "get_library_item",
@@ -268,18 +256,16 @@ async function handleAddLibraryItem(
             userId,
         });
         const payload = toMcpLibraryItem(item);
-        return {
-            content: [
-                { text: `Saved. ${JSON.stringify(payload)}`, type: "text" },
-            ],
-            structuredContent: payload,
-        };
+        return okResult(payload, `Saved. ${JSON.stringify(payload)}`);
     } catch (error) {
-        // Client-facing validation failures (XOR / invalid URL) are safe to
-        // echo: they are authored strings, not infrastructure leakage.
-        if (IntegrationApiError.isInstance(error)) {
+        // Client-facing validation failures are safe to echo because the
+        // type gate below admits only this module's own error: every message
+        // in `McpLibraryItemError` is an authored static string, never
+        // infrastructure leakage. The 5xx case (`reload_failed`) still falls
+        // through to the generic handler.
+        if (McpLibraryItemError.isInstance(error)) {
             const status = error.data.status;
-            if (typeof status === "number" && status >= 400 && status < 500) {
+            if (status >= 400 && status < 500) {
                 return textErrorResult(error.data.message);
             }
         }
@@ -304,16 +290,11 @@ async function handleDeleteLibraryItem(
 
     try {
         await deleteLibraryItem({ itemId: args.itemId, userId });
-        const payload = McpDeleteLibraryItemOutputSchema.parse({ ok: true });
-        return {
-            content: [
-                {
-                    text: "Library item deleted.",
-                    type: "text",
-                },
-            ],
-            structuredContent: payload,
-        };
+        const payload = McpDeleteLibraryItemOutputSchema.parse({
+            alreadyDeleted: false,
+            ok: true,
+        });
+        return okResult(payload, "Library item deleted.");
     } catch (error) {
         if (
             LibraryCollectionError.isInstance(error) &&
@@ -321,21 +302,14 @@ async function handleDeleteLibraryItem(
         ) {
             // Treat already-trashed or never-existed as a successful no-op
             // so MCP clients can retry safely after a network blip. The
-            // tool's `outputSchema` (and the `{ ok: true }` payload) is
-            // unchanged so callers that rely on the typed result can keep
-            // doing so without branching.
+            // `alreadyDeleted` flag keeps the typed result truthful so
+            // callers that rely on `structuredContent` can distinguish the
+            // no-op without parsing human-readable text.
             const payload = McpDeleteLibraryItemOutputSchema.parse({
+                alreadyDeleted: true,
                 ok: true,
             });
-            return {
-                content: [
-                    {
-                        text: "Library item was already removed.",
-                        type: "text",
-                    },
-                ],
-                structuredContent: payload,
-            };
+            return okResult(payload, "Library item was already removed.");
         }
         return handleToolError(
             "delete_library_item",
@@ -366,10 +340,7 @@ async function handleListCollections(
             })),
             total: collections.length,
         };
-        return {
-            content: [{ text: JSON.stringify(payload), type: "text" }],
-            structuredContent: payload,
-        };
+        return okResult(payload);
     } catch (error) {
         return handleToolError(
             "list_collections",
@@ -382,7 +353,7 @@ async function handleListCollections(
 
 const EMPTY_INPUT_SCHEMA = z.object({});
 
-const LibAnn = {
+const TOOL_ANNOTATIONS = {
     Destructive: {
         destructiveHint: true,
         idempotentHint: false,
@@ -441,7 +412,7 @@ const baseHandler = createMcpHandler(
         server.registerTool(
             "list_library_items",
             {
-                annotations: LibAnn.ReadOnly,
+                annotations: TOOL_ANNOTATIONS.ReadOnly,
                 description:
                     "List library items for the authenticated user. Supports optional `search` (substring match across captions, URLs, and note text), optional `collectionId` filter, and paginated results via `limit`/`offset`. Returns `hasMore` and `nextOffset` for pagination. Read-only; idempotent.",
                 inputSchema: McpLibraryItemListInputSchema,
@@ -454,7 +425,7 @@ const baseHandler = createMcpHandler(
         server.registerTool(
             "get_library_item",
             {
-                annotations: LibAnn.ReadOnly,
+                annotations: TOOL_ANNOTATIONS.ReadOnly,
                 description:
                     "Fetch a single library item by ID. Read-only; returns not-found text when the ID does not exist for the user.",
                 inputSchema: McpGetLibraryItemInputSchema,
@@ -467,9 +438,9 @@ const baseHandler = createMcpHandler(
         server.registerTool(
             "add_library_item",
             {
-                annotations: LibAnn.Mutating,
+                annotations: TOOL_ANNOTATIONS.Mutating,
                 description:
-                    "Save a new item to the user's library. Two shapes are accepted (the schema is `oneOf`): provide `{ url, caption? }` to save a bookmark (dedupes by URL so re-saving is safe), or `{ noteContentText }` to save a note. Sending both or neither is rejected at validation time.",
+                    "Save a new item to the user's library. Two shapes are accepted (the schema is `oneOf`): provide `{ url, caption? }` to save a bookmark (dedupes by URL so re-saving is safe, including caption updates), or `{ noteContentText }` to save a note (every call creates a new note, so retries after a network blip can duplicate). Sending both or neither is rejected at validation time.",
                 inputSchema: McpAddLibraryItemInputSchema,
                 outputSchema: McpLibraryItemSchema,
                 title: "Add Library Item",
@@ -481,11 +452,11 @@ const baseHandler = createMcpHandler(
             "delete_library_item",
             {
                 annotations: {
-                    ...LibAnn.Destructive,
+                    ...TOOL_ANNOTATIONS.Destructive,
                     idempotentHint: true,
                 },
                 description:
-                    "Delete a library item by ID. Idempotent — calling on an already-deleted item returns ok.",
+                    "Delete a library item by ID. Idempotent — calling on an already-deleted item returns ok with `alreadyDeleted: true`.",
                 inputSchema: McpDeleteLibraryItemInputSchema,
                 outputSchema: McpDeleteLibraryItemOutputSchema,
                 title: "Delete Library Item",
@@ -496,7 +467,7 @@ const baseHandler = createMcpHandler(
         server.registerTool(
             "list_collections",
             {
-                annotations: LibAnn.ReadOnly,
+                annotations: TOOL_ANNOTATIONS.ReadOnly,
                 description:
                     "List the authenticated user's collections with item counts. Read-only; idempotent.",
                 inputSchema: EMPTY_INPUT_SCHEMA,
@@ -517,7 +488,8 @@ const baseHandler = createMcpHandler(
 
 // `withMcpAuth` first so MCP session headers stay intact. `required: false`
 // lets `initialize` / `tools/list` run without a token; tools still gate via
-// `authorizeToolCall`.
+// `authorizeToolCall`. The default `resource_metadata` challenge URL resolves
+// to `app/.well-known/oauth-protected-resource/route.ts`.
 const mcpHandler = withMcpAuth(baseHandler, verifyMcpAuthToken, {
     required: false,
 });
@@ -528,9 +500,14 @@ const mcpHandler = withMcpAuth(baseHandler, verifyMcpAuthToken, {
  * so we own the full CORS surface here:
  * - The app's own web origins only (never `*`) so `Authorization` can be sent
  * - Same allow-list on preflight and actual responses
+ * - `mcp-protocol-version` and `last-event-id` are allow-listed because the
+ *   SDK reads them off post-initialize and SSE-resume requests; without them
+ *   browser preflight fails and the client stalls after `initialize`.
  */
-const CORS_ALLOWED_HEADERS = "authorization,content-type,accept,mcp-session-id";
-const CORS_ALLOWED_METHODS = "POST, GET, OPTIONS";
+const CORS_ALLOWED_HEADERS =
+    "authorization,content-type,accept,mcp-session-id,mcp-protocol-version,last-event-id";
+const CORS_ALLOWED_METHODS = "POST, GET, DELETE, OPTIONS";
+const CORS_EXPOSED_HEADERS = "mcp-session-id, mcp-protocol-version";
 const CORS_MAX_AGE = "86400";
 
 function applyCorsHeaders(request: Request, headers: Headers): void {
@@ -542,10 +519,41 @@ function applyCorsHeaders(request: Request, headers: Headers): void {
     headers.set("Access-Control-Allow-Origin", origin);
 }
 
+/**
+ * The Streamable HTTP transport spec requires servers to validate the
+ * `Origin` header on every request and answer 403 when it is present but
+ * untrusted (DNS rebinding defense). Non-browser clients send no `Origin`
+ * and pass through. CORS alone is not enough: it only tells browsers what
+ * to block, while this rejects the request server-side.
+ */
+function invalidOriginResponse(request: Request): Response | null {
+    const origin = request.headers.get("origin");
+    if (!origin || isTrustedCacheWebOrigin(origin)) {
+        return null;
+    }
+    log.warn("mcp request rejected: untrusted origin", { origin });
+    return new Response(
+        JSON.stringify({
+            error: { code: -32_000, message: "Invalid origin." },
+            id: null,
+            jsonrpc: "2.0",
+        }),
+        {
+            headers: {
+                "Cache-Control": "private, no-store",
+                "Content-Type": "application/json",
+                Vary: "Origin",
+            },
+            status: 403,
+        }
+    );
+}
+
 function withCors(request: Request, response: Response): Response {
     const headers = new Headers(response.headers);
     // The MCP transport spec requires no-store on all HTTP responses.
     headers.set("Cache-Control", "private, no-store");
+    headers.set("Access-Control-Expose-Headers", CORS_EXPOSED_HEADERS);
     applyCorsHeaders(request, headers);
     return new Response(response.body, {
         headers,
@@ -568,9 +576,43 @@ export function OPTIONS(request: Request): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
+    const rejected = invalidOriginResponse(request);
+    if (rejected) {
+        return rejected;
+    }
     return withCors(request, await mcpHandler(request));
 }
 
 export async function POST(request: Request): Promise<Response> {
+    const rejected = invalidOriginResponse(request);
+    if (rejected) {
+        return rejected;
+    }
     return withCors(request, await mcpHandler(request));
+}
+
+// The server runs the SDK in stateless mode and never issues session IDs, so
+// there is nothing to terminate. The transport spec permits answering DELETE
+// with 405 when the server does not support client-initiated termination;
+// exporting it (instead of letting Next.js answer) keeps the CORS and
+// no-store surface identical to GET/POST for trusted origins.
+export function DELETE(request: Request): Response {
+    const rejected = invalidOriginResponse(request);
+    if (rejected) {
+        return rejected;
+    }
+    return withCors(
+        request,
+        new Response(
+            JSON.stringify({
+                error: { code: -32_000, message: "Method not allowed." },
+                id: null,
+                jsonrpc: "2.0",
+            }),
+            {
+                headers: { "Content-Type": "application/json" },
+                status: 405,
+            }
+        )
+    );
 }

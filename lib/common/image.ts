@@ -7,6 +7,7 @@ export function filterValidImageUrls(urls: string[]): string[] {
     return urls.filter(isLoadableHttpImageUrl);
 }
 
+/** @internal */
 function isLoadableHttpImageUrl(url: string): boolean {
     if (parseHttpUrl(url) !== null) {
         return true;

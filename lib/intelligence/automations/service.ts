@@ -351,6 +351,18 @@ export async function resumeAutomation(args: {
     });
 }
 
+function collectWorkflowRunIds(
+    runs: Array<{ workflowRunId: string | null }>
+): string[] {
+    const workflowRunIds: string[] = [];
+    for (const run of runs) {
+        if (run.workflowRunId) {
+            workflowRunIds.push(run.workflowRunId);
+        }
+    }
+    return workflowRunIds;
+}
+
 export async function pauseAutomation(args: {
     automationId: string;
     userId: string;
@@ -436,12 +448,7 @@ export async function pauseAutomation(args: {
 
             return {
                 automation: toAutomationListItem(paused),
-                workflowRunIds: inFlightRuns
-                    .map((run) => run.workflowRunId)
-                    .filter(
-                        (workflowRunId): workflowRunId is string =>
-                            !!workflowRunId
-                    ),
+                workflowRunIds: collectWorkflowRunIds(inFlightRuns),
             };
         }
     );
@@ -483,11 +490,7 @@ export async function deleteAutomation(args: {
         });
 
         return {
-            workflowRunIds: inFlightRuns
-                .map((run) => run.workflowRunId)
-                .filter(
-                    (workflowRunId): workflowRunId is string => !!workflowRunId
-                ),
+            workflowRunIds: collectWorkflowRunIds(inFlightRuns),
         };
     });
 
@@ -536,11 +539,7 @@ export async function recoverStaleAutomationRuns(now = new Date()) {
         };
     }
 
-    await cancelWorkflowRuns(
-        staleRunningRuns
-            .map((run) => run.workflowRunId)
-            .filter((workflowRunId): workflowRunId is string => !!workflowRunId)
-    );
+    await cancelWorkflowRuns(collectWorkflowRunIds(staleRunningRuns));
 
     const timedOutRunIds: string[] = [];
     for (const run of staleRunningRuns) {
@@ -554,6 +553,12 @@ export async function recoverStaleAutomationRuns(now = new Date()) {
     }
 
     if (timedOutRunIds.length > 0) {
+        const timedOutAutomationIds = new Set<string>();
+        for (const run of staleRunningRuns) {
+            if (timedOutRunIds.includes(run.id)) {
+                timedOutAutomationIds.add(run.automationId);
+            }
+        }
         await prisma.automation.updateMany({
             data: {
                 lastFailureCode: "run_timeout",
@@ -561,15 +566,7 @@ export async function recoverStaleAutomationRuns(now = new Date()) {
             },
             where: {
                 id: {
-                    in: [
-                        ...new Set(
-                            staleRunningRuns
-                                .filter((run) =>
-                                    timedOutRunIds.includes(run.id)
-                                )
-                                .map((run) => run.automationId)
-                        ),
-                    ],
+                    in: [...timedOutAutomationIds],
                 },
             },
         });

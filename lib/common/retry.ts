@@ -21,7 +21,7 @@ const DEFAULT_SHOULD_RETRY: NonNullable<Options["shouldRetry"]> = ({
 };
 
 export function withRetry<T>(
-    input: (attemptNumber: number) => PromiseLike<T> | T,
+    input: (attempt: number) => PromiseLike<T> | T,
     options: Options = {}
 ): Promise<T> {
     const {

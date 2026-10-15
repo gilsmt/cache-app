@@ -18,7 +18,6 @@ interface PreviewEntry {
 
 export interface LibraryItemIndexes {
     collectionPreviewThumbnailUrlsById: Map<string, string[]>;
-    favoriteItemIdSet: ReadonlySet<string>;
     favoriteItems: LibraryItemWithCollections[];
     itemsByCollectionId: Map<string, LibraryItemWithCollections[]>;
     itemsById: ReadonlyMap<string, LibraryItemWithCollections>;
@@ -91,14 +90,9 @@ export function buildLibraryItemIndexes(
         (left, right) =>
             right.favoritedAt.getTime() - left.favoritedAt.getTime()
     );
-    const favoriteItemIdSet = new Set<string>();
-    for (const item of favoriteItems) {
-        favoriteItemIdSet.add(item.id);
-    }
 
     return {
         collectionPreviewThumbnailUrlsById,
-        favoriteItemIdSet,
         favoriteItems,
         itemsByCollectionId,
         itemsById,

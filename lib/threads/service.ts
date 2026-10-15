@@ -482,6 +482,7 @@ export async function startThreadTurn(args: {
         const trailing = history.at(-1);
         const orphaned =
             previousPendingId &&
+            previousPendingId !== args.message.id &&
             trailing?.role === ChatMessageRole.user &&
             trailing.id === previousPendingId
                 ? trailing
@@ -490,6 +491,24 @@ export async function startThreadTurn(args: {
             await tx.chatMessage.deleteMany({
                 where: { chatId: thread.id, id: orphaned.id },
             });
+        }
+
+        const saved = orphaned
+            ? history.filter((message) => message.id !== orphaned.id)
+            : history;
+        const retriedIndex = saved.findIndex(
+            (message) => message.id === args.message.id
+        );
+        const retried =
+            retriedIndex !== -1 && retriedIndex === saved.length - 1
+                ? saved[retriedIndex]
+                : undefined;
+        if (retried?.role === ChatMessageRole.user) {
+            // Idempotent retry: the turn is already saved (e.g. after a
+            // mid-stream failure released the claim). Reuse the trailing
+            // user row instead of creating a duplicate. Anything else
+            // falls through to create, which rejects it as before.
+            return saved.slice(0, retriedIndex + 1);
         }
 
         await tx.chatMessage.create({
@@ -502,9 +521,7 @@ export async function startThreadTurn(args: {
         });
 
         return [
-            ...(orphaned
-                ? history.filter((message) => message.id !== orphaned.id)
-                : history),
+            ...saved,
             {
                 content: args.message.content,
                 createdAt: now,

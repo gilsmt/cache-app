@@ -45,16 +45,16 @@ export async function setThreadArchived(input: {
         };
     }
 
-    const auth = await requireActionUserId("Sign in again to manage chats.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to manage chats.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         await service.setThreadArchived({
             isArchived: parsed.data.isArchived,
             threadId: parsed.data.threadId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return { status: ACTION_STATUS.UPDATED };
@@ -97,15 +97,15 @@ export async function deleteThread(input: {
         };
     }
 
-    const auth = await requireActionUserId("Sign in again to manage chats.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to manage chats.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         await service.deleteThread({
             threadId: parsed.data.threadId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return { status: ACTION_STATUS.DELETED };
@@ -164,18 +164,18 @@ export async function createThreadFromAssistant(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to continue in chat."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const thread = await service.createStandaloneThread({
             markdown: parsed.data.markdown,
             prompt: parsed.data.prompt,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return { status: ACTION_STATUS.CREATED, threadId: thread.id };

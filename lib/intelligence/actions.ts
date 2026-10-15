@@ -77,11 +77,11 @@ export async function getSectionDescription(
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to generate an overview."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
@@ -90,7 +90,7 @@ export async function getSectionDescription(
             items: parsed.data.items,
             request: await getArcjetRequest(),
             sectionTitle: parsed.data.sectionTitle,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -120,18 +120,18 @@ export async function getCollectionDescription(
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to generate a collection description."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await generateCollectionDescription({
             collectionTitle: parsed.data.title,
             request: await getArcjetRequest(),
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         const description = result.description.trim();
@@ -170,16 +170,16 @@ export async function runAssistant(
         };
     }
 
-    const auth = await requireActionUserId("Sign in again to ask Cache.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to ask Cache.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const result = await runAssistantAgent({
             input: parsed.data,
             request: await getArcjetRequest(),
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -240,16 +240,16 @@ export async function getAgentViewPage(
         };
     }
 
-    const auth = await requireActionUserId("Sign in again to ask Cache.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to ask Cache.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const page = await resolveAgentViewPage({
             offset: parsed.data.offset,
             query: parsed.data.query,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {
@@ -271,16 +271,16 @@ const SUGGESTIONS_ERROR_MESSAGE =
     "We couldn't load collection suggestions right now.";
 
 export async function getCollectionSuggestions(): Promise<CollectionSuggestionsResult> {
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to view collection suggestions."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const suggestions = await getCollectionSuggestionsService({
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         return {

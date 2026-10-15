@@ -884,15 +884,16 @@ export function trashLibraryItems({
         const trashedItemIds = trashedItems.map((item) => item.id);
 
         const trashedItemIdSet = new Set(trashedItemIds);
-        const collectionIds = Array.from(
-            new Set(
-                items
-                    .filter((item) => trashedItemIdSet.has(item.id))
-                    .flatMap((item) =>
-                        item.collections.map((collection) => collection.id)
-                    )
-            )
-        );
+        const collectionIdSet = new Set<string>();
+        for (const item of items) {
+            if (!trashedItemIdSet.has(item.id)) {
+                continue;
+            }
+            for (const collection of item.collections) {
+                collectionIdSet.add(collection.id);
+            }
+        }
+        const collectionIds = Array.from(collectionIdSet);
 
         return {
             collectionSummaries: await findCollectionSummariesOwnedByIds(tx, {

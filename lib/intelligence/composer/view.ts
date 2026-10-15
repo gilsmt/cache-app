@@ -13,6 +13,7 @@ import {
     ASSISTANT_SEARCH_TERM_MAX_LENGTH,
     ASSISTANT_SOURCE_FILTER_VALUES,
 } from "./assistant";
+import { matchAvailableDomains } from "./context";
 
 export const AGENT_VIEW_PAGE_ITEM_LIMIT = 100;
 export const AGENT_VIEW_OFFSET_MAX = 10_000;
@@ -104,12 +105,6 @@ export function normalizeAgentViewQueryForContext(
     const collectionIds = new Set(
         context.availableCollections.map((collection) => collection.id)
     );
-    const domainsByLowerCase = new Map(
-        context.availableDomains.map((entry) => [
-            entry.domain.toLowerCase(),
-            entry.domain,
-        ])
-    );
 
     const normalizedCollectionIds = normalizeCollectionIdsForContext(
         query.collectionIds,
@@ -118,9 +113,10 @@ export function normalizeAgentViewQueryForContext(
     const normalizedDomainFilters =
         query.domainFilters === undefined
             ? undefined
-            : query.domainFilters
-                  .map((domain) => domainsByLowerCase.get(domain.toLowerCase()))
-                  .filter((domain): domain is string => domain !== undefined);
+            : matchAvailableDomains(
+                  query.domainFilters,
+                  context.availableDomains
+              );
     const normalized: AgentViewQuery = {
         ...query,
         ...(query.domainFilters === undefined

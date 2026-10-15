@@ -2,6 +2,23 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth/server";
 import { generateMcpSetupPrompt, rotateMcpTokens } from "@/lib/mcp/service";
 
+async function getSessionUserId(): Promise<string | null> {
+    const session = await auth.api.getSession({
+        headers: await headers(),
+    });
+    return session?.user?.id ?? null;
+}
+
+function unauthorizedResponse(): Response {
+    return Response.json(
+        { error: "Unauthorized" },
+        {
+            headers: { "Cache-Control": "no-store, private" },
+            status: 401,
+        }
+    );
+}
+
 /**
  * Mint and revoke surface for MCP bearer tokens.
  *
@@ -20,19 +37,9 @@ import { generateMcpSetupPrompt, rotateMcpTokens } from "@/lib/mcp/service";
  * token leaks, then POST again to configure the client with a fresh one.
  */
 export async function POST(): Promise<Response> {
-    const session = await auth.api.getSession({
-        headers: await headers(),
-    });
-    const userId = session?.user?.id;
-
+    const userId = await getSessionUserId();
     if (!userId) {
-        return Response.json(
-            { error: "Unauthorized" },
-            {
-                headers: { "Cache-Control": "no-store, private" },
-                status: 401,
-            }
-        );
+        return unauthorizedResponse();
     }
 
     const { endpoint, prompt, token } = await generateMcpSetupPrompt(userId);
@@ -50,19 +57,9 @@ export async function POST(): Promise<Response> {
  * MCP clients stop working until they are reconfigured with a new token.
  */
 export async function DELETE(): Promise<Response> {
-    const session = await auth.api.getSession({
-        headers: await headers(),
-    });
-    const userId = session?.user?.id;
-
+    const userId = await getSessionUserId();
     if (!userId) {
-        return Response.json(
-            { error: "Unauthorized" },
-            {
-                headers: { "Cache-Control": "no-store, private" },
-                status: 401,
-            }
-        );
+        return unauthorizedResponse();
     }
 
     await rotateMcpTokens(userId);

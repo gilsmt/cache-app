@@ -39,15 +39,15 @@ export function buildLibraryDomainCondition(
         return null;
     }
 
-    const uniqueDomains = [
-        ...new Set(
-            domainFilters
-                .map(normalizeDomainFilter)
-                .filter((domain) => domain.length > 0)
-        ),
-    ];
+    const uniqueDomains = new Set<string>();
+    for (const domainFilter of domainFilters) {
+        const domain = normalizeDomainFilter(domainFilter);
+        if (domain.length > 0) {
+            uniqueDomains.add(domain);
+        }
+    }
 
-    if (uniqueDomains.length === 0) {
+    if (uniqueDomains.size === 0) {
         return { id: { in: [] } };
     }
 

@@ -13,19 +13,20 @@
  * constant). The window is short enough that an attacker can't amortize
  * the burst and long enough not to feel like a quota.
  *
- * When Redis is unavailable, `incrementMcpRateCounter` returns `null`
+ * When Redis is unavailable, `checkMcpRateLimit` reports not-limited
  * (fail-open) because we'd rather degrade UX than block legitimate user
  * actions during an infrastructure blip. The danger is bounded: stealing
  * a token still gives the user their existing library access; rate-limits
  * are a defense in depth, not the only line.
  *
- * No `import "server-only"` here on purpose: this module's only callers are
+ * No `import "server-only"` here on purpose: this module's only caller is
  * the MCP route handler (a Next.js server route); pulling in the client
- * import attempt would be caught at the route, not at this leaf. Adding the
- * marker would also keep us from unit-testing the decision helpers without a
- * preload hack.
+ * import attempt would be caught at the route, not at this leaf.
  */
+import { createLogger } from "@/lib/common/logs/console/logger";
 import { getRedisClient } from "@/lib/common/redis";
+
+const log = createLogger("mcp.rate-limit");
 
 const WINDOW_SECONDS = 60;
 
@@ -41,52 +42,48 @@ export const MCP_RATE_BUCKETS = {
     write: { limit: 30, name: "write" },
 } as const satisfies Record<string, Bucket>;
 
-export interface RateLimitDecision {
-    count: number;
-    limit: number;
+export interface McpRateLimitVerdict {
+    limited: boolean;
     retryAfterSeconds: number;
 }
 
 /**
- * Atomically increment the counter for the user's bucket and return the new
- * count. Returns `null` when Redis isn't reachable so callers can decide
- * whether to fail-open or surface the error.
+ * Fixed-window gate for one user's bucket. Fail-open when Redis is
+ * unreachable: rate limits bound a stolen token's blast radius but are
+ * defense in depth, not the only line, so an infrastructure blip degrades
+ * to unthrottled rather than blocking legitimate use.
  */
-export async function incrementMcpRateCounter(
+export async function checkMcpRateLimit(
     userId: string,
     bucket: Bucket
-): Promise<RateLimitDecision | null> {
+): Promise<McpRateLimitVerdict> {
     const redis = getRedisClient();
     if (!redis) {
-        return null;
+        return { limited: false, retryAfterSeconds: 0 };
     }
-    const key = `mcp:rate:${bucket.name}:${userId}`;
-    const count = await redis.incr(key);
-    if (count === 1) {
-        // First request in a fresh window — establish the TTL atomically.
-        // `pexpire` is preferred so a partial-second drift doesn't cut the
-        // window short; the worst case is we let a request through on the
-        // 60.0001-second boundary, which is fine for a defense-in-depth cap.
-        await redis.pExpire(key, WINDOW_SECONDS * 1000);
+    try {
+        const key = `mcp:rate:${bucket.name}:${userId}`;
+        const count = await redis.incr(key);
+        if (count === 1) {
+            // First request in a fresh window
+            await redis.pExpire(key, WINDOW_SECONDS * 1000);
+        } else {
+            // Repair a key left without TTL when a prior expire failed.
+            // Without this the counter never resets and blocks the user.
+            const ttlMs = await redis.pTTL(key);
+            if (ttlMs === -1) {
+                await redis.pExpire(key, WINDOW_SECONDS * 1000);
+            }
+        }
+        if (count <= bucket.limit) {
+            return { limited: false, retryAfterSeconds: 0 };
+        }
+        return { limited: true, retryAfterSeconds: WINDOW_SECONDS };
+    } catch (error) {
+        log.warn("rate-limit store unreachable; failing open", {
+            error,
+            userId,
+        });
+        return { limited: false, retryAfterSeconds: 0 };
     }
-    const retryAfterSeconds = count > bucket.limit ? WINDOW_SECONDS : 0;
-    return {
-        count,
-        limit: bucket.limit,
-        retryAfterSeconds,
-    };
-}
-
-/**
- * Centralized gate. `null` means Redis is absent — fall through and let the
- * tool run. A `decision` with `count > limit` means fail-closed at this call.
- */
-export function isOverLimit(
-    decision: RateLimitDecision | null,
-    bucket: Bucket
-): boolean {
-    if (!decision) {
-        return false;
-    }
-    return decision.count > bucket.limit;
 }

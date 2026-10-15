@@ -3,6 +3,9 @@ const encoder = new TextEncoder();
 const MCP_TOKEN_TTL_DAYS = 30;
 const MCP_TOKEN_TTL_MS = MCP_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
 
+/** Real tokens are a few hundred chars; anything larger is a hostile input. */
+const MCP_TOKEN_MAX_LENGTH = 4096;
+
 /**
  * MCP scopes map onto tool capabilities. Tokens carry one or both; the route
  * checks the relevant scope before executing mutating tools. Adding
@@ -51,14 +54,26 @@ function encodePayload(
     expiresAt: number,
     scopes: McpScope[]
 ): string {
-    // Dot-separated so the existing base64 wrap carries it verbatim. Trailing
-    // `.` lets decoders distinguish an unscoped legacy payload from an empty
-    // scope list (semantically the same today but easy to flip later).
+    // Dot-separated so the existing base64 wrap carries it verbatim. An
+    // explicitly empty scope list encodes as a trailing `.` and decodes back
+    // to empty (no access); only payloads with no fourth segment at all
+    // decode as legacy full access. See `decodePayload`.
     return `${userId}.${issuedAt}.${expiresAt}.${scopes.join("+")}`;
 }
 
 function decodePayload(payload: string): TokenPayload | null {
-    const [userId, issuedAtRaw, expiresAtRaw, scopesRaw] = payload.split(".");
+    const parts = payload.split(".");
+    if (parts.length < 3) {
+        return null;
+    }
+    // Right-anchored parse: the numeric tail fixes field positions even if a
+    // future userId format contains dots. A dotted legacy payload without a
+    // scope segment misparses the tail as non-numeric and fails closed below.
+    const hasScopeSegment = parts.length > 3;
+    const userId = hasScopeSegment ? parts.slice(0, -3).join(".") : parts[0];
+    const issuedAtRaw = hasScopeSegment ? parts.at(-3) : parts[1];
+    const expiresAtRaw = hasScopeSegment ? parts.at(-2) : parts[2];
+    const scopesRaw = hasScopeSegment ? parts.at(-1) : undefined;
     if (!(userId && issuedAtRaw && expiresAtRaw)) {
         return null;
     }
@@ -67,27 +82,31 @@ function decodePayload(payload: string): TokenPayload | null {
     if (!(Number.isFinite(issuedAt) && Number.isFinite(expiresAt))) {
         return null;
     }
-    // Tokens issued before the scope segment existed decode as
-    // `library:read+library:write` so existing clients keep working until
-    // they re-issue. New tokens carry an explicit scope list.
-    const scopes: McpScope[] = scopesRaw
-        ? decodeScopes(scopesRaw)
-        : LEGACY_DEFAULT_SCOPES;
+    // Tokens issued before the scope segment existed carry only three
+    // segments and decode as `library:read+library:write` so existing clients
+    // keep working until they re-issue. New tokens always carry an explicit
+    // scope list, including an explicitly empty one (no access).
+    const scopes: McpScope[] =
+        scopesRaw === undefined
+            ? LEGACY_DEFAULT_SCOPES
+            : normalizeScopes(scopesRaw.split("+"));
     return { expiresAt, issuedAt, scopes, userId };
 }
 
-function decodeScopes(raw: string): McpScope[] {
+function normalizeScopes(values: readonly string[]): McpScope[] {
     const seen = new Set<McpScope>();
-    for (const chunk of raw.split("+")) {
-        if (chunk === "" || !isMcpScope(chunk)) {
+    const result: McpScope[] = [];
+    for (const value of values) {
+        if (!isMcpScope(value) || seen.has(value)) {
             continue;
         }
-        seen.add(chunk);
+        seen.add(value);
+        result.push(value);
     }
-    return [...seen];
+    return result;
 }
 
-function isMcpScope(value: string): value is McpScope {
+export function isMcpScope(value: string): value is McpScope {
     return (MCP_SCOPES as readonly string[]).includes(value);
 }
 
@@ -109,7 +128,10 @@ export async function generateMcpToken(
 ): Promise<string> {
     const issuedAt = Date.now();
     const expiresAt = issuedAt + MCP_TOKEN_TTL_MS;
-    const normalized = dedupeScopes(scopes);
+    const normalized = normalizeScopes(scopes);
+    if (normalized.length === 0) {
+        throw new Error("generateMcpToken requires at least one scope.");
+    }
     const payload = encodePayload(userId, issuedAt, expiresAt, normalized);
     const key = await importKey();
     const signature = await crypto.subtle.sign(
@@ -120,22 +142,6 @@ export async function generateMcpToken(
     const sigB64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
     const payloadB64 = btoa(payload);
     return `${payloadB64}.${sigB64}`;
-}
-
-function dedupeScopes(scopes: readonly McpScope[]): McpScope[] {
-    const seen = new Set<McpScope>();
-    const result: McpScope[] = [];
-    for (const scope of scopes) {
-        if (!isMcpScope(scope)) {
-            continue;
-        }
-        if (seen.has(scope)) {
-            continue;
-        }
-        seen.add(scope);
-        result.push(scope);
-    }
-    return result;
 }
 
 /** The claims of an MCP token whose signature and expiry both check out. */
@@ -155,6 +161,9 @@ export interface VerifiedMcpToken {
 export async function verifyMcpToken(
     token: string
 ): Promise<VerifiedMcpToken | null> {
+    if (token.length > MCP_TOKEN_MAX_LENGTH) {
+        return null;
+    }
     const parts = token.split(".");
     if (parts.length !== 2) {
         return null;

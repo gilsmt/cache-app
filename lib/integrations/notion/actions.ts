@@ -98,15 +98,15 @@ async function sendToNotion(
         pageUrl: string;
     }>
 ): Promise<NotionSendResult> {
-    const auth = await requireActionUserId("Sign in again to send to Notion.");
-    if (isUnauthenticated(auth)) {
-        return auth;
+    const actor = await requireActionUserId("Sign in again to send to Notion.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     if (
         !(await hasLinkedProviderAccount({
             providerId: NOTION_PROVIDER_ID,
-            userId: auth.userId,
+            userId: actor.userId,
         }))
     ) {
         return {
@@ -117,7 +117,7 @@ async function sendToNotion(
 
     const accessToken = await resolveProviderAccountAccessToken({
         providerId: NOTION_PROVIDER_ID,
-        userId: auth.userId,
+        userId: actor.userId,
     });
     if (!accessToken) {
         return {
@@ -127,7 +127,7 @@ async function sendToNotion(
     }
 
     try {
-        const result = await fn({ accessToken, userId: auth.userId });
+        const result = await fn({ accessToken, userId: actor.userId });
         return {
             pageUrl: result.pageUrl,
             status: "SUCCESS",
@@ -148,7 +148,7 @@ async function sendToNotion(
         if (IntegrationApiError.isInstance(error)) {
             log.error("Notion API send failure", {
                 error,
-                userId: auth.userId,
+                userId: actor.userId,
             });
             return {
                 message: details.message,
@@ -158,7 +158,7 @@ async function sendToNotion(
 
         log.error("Unexpected Notion send failure", {
             error,
-            userId: auth.userId,
+            userId: actor.userId,
         });
         return {
             message: "We couldn't send this to Notion right now.",

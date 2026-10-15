@@ -1,4 +1,5 @@
 import type { AssistantComposerPatch, AssistantRequest } from "./assistant";
+import { matchAvailableDomains } from "./context";
 
 function arraysEqual(left: string[], right: string[]): boolean {
     if (left.length !== right.length) {
@@ -23,25 +24,16 @@ export function normalizeComposerPatchForContext(
             (collection) => collection.id
         )
     );
-    const domainsByLowerCase = new Map(
-        request.visibleContext.availableDomains.map((entry) => [
-            entry.domain.toLowerCase(),
-            entry.domain,
-        ])
-    );
 
     return {
         ...patch,
         ...(patch.domainFilters === undefined
             ? {}
             : {
-                  domainFilters: patch.domainFilters
-                      .map((domain) =>
-                          domainsByLowerCase.get(domain.toLowerCase())
-                      )
-                      .filter(
-                          (domain): domain is string => domain !== undefined
-                      ),
+                  domainFilters: matchAvailableDomains(
+                      patch.domainFilters,
+                      request.visibleContext.availableDomains
+                  ),
               }),
         ...(patch.selectedCollectionIds === undefined
             ? {}

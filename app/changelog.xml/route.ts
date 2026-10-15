@@ -32,20 +32,22 @@ export async function GET() {
         );
         const releases: Release[] = await response.json();
 
-        const items = (releases || [])
-            .filter((r) => !r.prerelease)
-            .map(
-                (r) => `
+        const itemEntries: string[] = [];
+        for (const release of releases || []) {
+            if (release.prerelease) {
+                continue;
+            }
+            itemEntries.push(`
         <item>
-          <title>${escapeXml(r.name || r.tag_name)}</title>
-          <link>${r.html_url}</link>
-          <guid isPermaLink="true">${r.html_url}</guid>
-          <pubDate>${new Date(r.published_at).toUTCString()}</pubDate>
-          <description>${escapeXml(r.body || "")}</description>
+          <title>${escapeXml(release.name || release.tag_name)}</title>
+          <link>${release.html_url}</link>
+          <guid isPermaLink="true">${release.html_url}</guid>
+          <pubDate>${new Date(release.published_at).toUTCString()}</pubDate>
+          <description>${escapeXml(release.body || "")}</description>
         </item>
-      `
-            )
-            .join("");
+      `);
+        }
+        const items = itemEntries.join("");
 
         const xml = `<?xml version="1.0" encoding="UTF-8" ?>
       <rss version="2.0">

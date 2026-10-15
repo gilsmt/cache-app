@@ -74,17 +74,17 @@ export async function shareCollectionPublicly(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to share collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const collection = await enablePublicCollectionShare({
             collectionId: parsed.data.collectionId,
-            userId: auth.userId,
+            userId: actor.userId,
         });
 
         invalidateShareMetadataCache(collection.shareId);
@@ -122,18 +122,18 @@ export async function disableCollectionSharing(input: {
         };
     }
 
-    const auth = await requireActionUserId(
+    const actor = await requireActionUserId(
         "Sign in again to manage shared collections."
     );
-    if (isUnauthenticated(auth)) {
-        return auth;
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     try {
         const { collection, revokedShareId } =
             await disablePublicCollectionShare({
                 collectionId: parsed.data.collectionId,
-                userId: auth.userId,
+                userId: actor.userId,
             });
 
         if (revokedShareId) {
