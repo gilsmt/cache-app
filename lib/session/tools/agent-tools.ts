@@ -80,25 +80,8 @@ export const AssistantLibrarySearchInputSchema = z.strictObject({
         .optional(),
 });
 
-export function createAutomationAgentTools(args: { runId: string }) {
-    const sources: AutomationAgentSource[] = [];
-
+export function createWebAgentTools(sources: AutomationAgentSource[] = []) {
     const tools = {
-        getAutomationPayloadSummary: tool({
-            description:
-                "Return the total size and scope of the saved-content payload available to this automation run.",
-            execute: async () => {
-                // Import server implementations lazily so the automation
-                // workflow definition stays free of server-only modules.
-                const { getAutomationPayloadSummary } = await import(
-                    "../automations/payload"
-                );
-                return await getAutomationPayloadSummary({
-                    runId: args.runId,
-                });
-            },
-            inputSchema: EmptyAutomationToolInputSchema,
-        }),
         github_repo: tool({
             description:
                 "Get public stats for a GitHub repository: stars, forks, open issues, language, and description.",
@@ -119,34 +102,6 @@ export function createAutomationAgentTools(args: { runId: string }) {
                 return result;
             },
             inputSchema: GitHubRepoInputSchema,
-        }),
-        listAutomationPayloadItems: tool({
-            description:
-                "Page through saved items available to this automation run. Use this before writing the final summary.",
-            execute: async (input) => {
-                const { listAutomationPayloadItems } = await import(
-                    "../automations/payload"
-                );
-                const result = await listAutomationPayloadItems({
-                    cursor: input.cursor,
-                    limit: input.limit,
-                    runId: args.runId,
-                    search: input.search,
-                });
-                for (const item of result.items) {
-                    if (!isHttpUrl(item.url)) {
-                        continue;
-                    }
-                    sources.push({
-                        id: item.id,
-                        title: item.caption?.trim() || item.url,
-                        type: "library_item",
-                        url: item.url,
-                    });
-                }
-                return result;
-            },
-            inputSchema: AutomationPayloadItemsInputSchema,
         }),
         web_fetch: tool({
             description:
@@ -193,6 +148,63 @@ export function createAutomationAgentTools(args: { runId: string }) {
     return {
         getSources: (): { sources: AutomationAgentSource[] } =>
             uniqueSources(sources),
+        tools,
+    };
+}
+
+export function createAutomationAgentTools(args: { runId: string }) {
+    const sources: AutomationAgentSource[] = [];
+    const web = createWebAgentTools(sources);
+
+    const tools = {
+        ...web.tools,
+        getAutomationPayloadSummary: tool({
+            description:
+                "Return the total size and scope of the saved-content payload available to this automation run.",
+            execute: async () => {
+                // Import server implementations lazily so the automation
+                // workflow definition stays free of server-only modules.
+                const { getAutomationPayloadSummary } = await import(
+                    "../automations/payload"
+                );
+                return await getAutomationPayloadSummary({
+                    runId: args.runId,
+                });
+            },
+            inputSchema: EmptyAutomationToolInputSchema,
+        }),
+        listAutomationPayloadItems: tool({
+            description:
+                "Page through saved items available to this automation run. Use this before writing the final summary.",
+            execute: async (input) => {
+                const { listAutomationPayloadItems } = await import(
+                    "../automations/payload"
+                );
+                const result = await listAutomationPayloadItems({
+                    cursor: input.cursor,
+                    limit: input.limit,
+                    runId: args.runId,
+                    search: input.search,
+                });
+                for (const item of result.items) {
+                    if (!isHttpUrl(item.url)) {
+                        continue;
+                    }
+                    sources.push({
+                        id: item.id,
+                        title: item.caption?.trim() || item.url,
+                        type: "library_item",
+                        url: item.url,
+                    });
+                }
+                return result;
+            },
+            inputSchema: AutomationPayloadItemsInputSchema,
+        }),
+    };
+
+    return {
+        getSources: web.getSources,
         tools,
     };
 }

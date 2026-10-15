@@ -43,7 +43,6 @@ import { CollapsibleListHorizontal } from "@/components/ui/collapsible-list";
 import { Textarea } from "@/components/ui/textarea";
 import { ToBottomButton } from "@/components/ui/to-bottom-button";
 import { dayjs } from "@/lib/common/dayjs";
-import { isDevelopment } from "@/lib/common/environment";
 import { getErrorMessage } from "@/lib/common/error";
 import { isSubmitKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
@@ -80,11 +79,6 @@ interface ThreadToolActivity {
 }
 
 function getThreadToolActivities(message: UIMessage): ThreadToolActivity[] {
-    // Tool activity is a development aid, so end users get the plain
-    // conversation. Outside development this returns no activities.
-    if (!isDevelopment) {
-        return [];
-    }
     return message.parts.flatMap((part, index) =>
         isToolUIPart(part)
             ? [

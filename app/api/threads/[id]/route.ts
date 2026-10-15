@@ -16,7 +16,10 @@ import { requireRouteUserId } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { GenAiProtectionError } from "@/lib/session/error";
 import { resolveRegisteredModel } from "@/lib/session/providers/resolver";
-import { createAutomationAgentTools } from "@/lib/session/tools/agent-tools";
+import {
+    createAutomationAgentTools,
+    createWebAgentTools,
+} from "@/lib/session/tools/agent-tools";
 import { estimateTokens } from "@/lib/session/usage";
 import {
     THREAD_FOLLOWUP_MESSAGE_MAX_LENGTH,
@@ -339,7 +342,7 @@ function getThreadModelContext(thread: ThreadFollowupContext): {
 } {
     const system = THREAD_SYSTEM_PROMPT;
     if (!thread.automationRunId) {
-        return { messages: [], system, tools: {} };
+        return { messages: [], system, tools: createWebAgentTools().tools };
     }
 
     const { tools } = createAutomationAgentTools({
