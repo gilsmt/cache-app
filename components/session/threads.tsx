@@ -65,7 +65,6 @@ import {
 import { SidebarItem, SidebarItemValue } from "@/components/ui/sidebar";
 import { TextMatch } from "@/components/ui/text-match";
 import { Ticker } from "@/components/ui/ticker";
-import { Toolbar, ToolbarButton, ToolbarGroup } from "@/components/ui/toolbar";
 import {
     RELATIVE_DATE_GROUP_IDS,
     type RelativeDateGroupId,
@@ -342,25 +341,16 @@ export function Threads({ threads }: ThreadsProps) {
                 className="group/collapsible"
                 data-sidebar-collapsible=""
             >
-                <Toolbar className="group">
+                <div className="group relative flex w-full items-center justify-between gap-2">
                     <ThreadsListTrigger>
                         <T>Recents</T>
                     </ThreadsListTrigger>
-                    <ToolbarGroup className="pointer-events-none absolute right-1 justify-end">
-                        <ToolbarButton
-                            className="pointer-events-auto"
-                            render={<ThreadsListClear />}
-                        />
-                        <ToolbarButton
-                            className="pointer-events-auto"
-                            render={<ThreadsListSearch />}
-                        />
-                        <ToolbarButton
-                            className="pointer-events-auto"
-                            render={<ThreadsListFilterTrigger />}
-                        />
-                    </ToolbarGroup>
-                </Toolbar>
+                    <div className="pointer-events-none absolute right-1 flex items-center justify-end gap-1 text-nowrap">
+                        <ThreadsListClear className="pointer-events-auto" />
+                        <ThreadsListSearch className="pointer-events-auto" />
+                        <ThreadsListFilterTrigger className="pointer-events-auto" />
+                    </div>
+                </div>
                 <ThreadsListPanel>
                     <ThreadsListEmpty />
                     <ThreadsListContent>

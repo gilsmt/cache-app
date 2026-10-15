@@ -150,7 +150,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TextMatch } from "@/components/ui/text-match";
 import { Textarea } from "@/components/ui/textarea";
-import { Toolbar, ToolbarButton, ToolbarGroup } from "@/components/ui/toolbar";
 import {
     type CollectionCreateResult,
     createCollection,
@@ -2200,17 +2199,17 @@ export function Collections() {
                 className="group/collapsible"
                 data-sidebar-collapsible=""
             >
-                <Toolbar className="group">
+                <div className="group relative flex w-full items-center justify-between gap-2">
                     <CollectionsListFavoritesTrigger>
                         <T>Favorites</T>
                     </CollectionsListFavoritesTrigger>
-                    <ToolbarGroup className="pointer-events-none absolute right-1 justify-end">
+                    <div className="pointer-events-none absolute right-1 flex items-center justify-end gap-1 text-nowrap">
                         <Kbd className="invisible bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
                             <ShiftKbd />
                             <CmdKbd />F
                         </Kbd>
-                    </ToolbarGroup>
-                </Toolbar>
+                    </div>
+                </div>
                 <CollectionsListFavoritesPanel>
                     <CollectionsListFavoritesItemsContent>
                         {(item) => (
@@ -2243,29 +2242,20 @@ export function Collections() {
                 className="group/collapsible"
                 data-sidebar-collapsible=""
             >
-                <Toolbar className="group">
+                <div className="group relative flex w-full items-center justify-between gap-2">
                     <CollectionsListTrigger>
                         <T>Collections</T>
                     </CollectionsListTrigger>
-                    <ToolbarGroup className="pointer-events-none absolute right-1 justify-end">
+                    <div className="pointer-events-none absolute right-1 flex items-center justify-end gap-1 text-nowrap">
                         <Kbd className="invisible bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
                             <ShiftKbd />
                             <CmdKbd />C
                         </Kbd>
-                        <ToolbarButton
-                            className="pointer-events-auto"
-                            render={<CollectionsListClear />}
-                        />
-                        <ToolbarButton
-                            className="pointer-events-auto"
-                            render={<CollectionsListCombobox />}
-                        />
-                        <ToolbarButton
-                            className="pointer-events-auto"
-                            render={<CollectionsListCreateButton />}
-                        />
-                    </ToolbarGroup>
-                </Toolbar>
+                        <CollectionsListClear className="pointer-events-auto" />
+                        <CollectionsListCombobox className="pointer-events-auto" />
+                        <CollectionsListCreateButton className="pointer-events-auto" />
+                    </div>
+                </div>
                 <CollectionsListPanel>
                     <div className="flex p-1.5 pt-0.5 pl-2.5">
                         <CollectionsListSmartCollectionsPopover />
