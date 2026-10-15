@@ -1,6 +1,9 @@
 "use client";
 
-import type { AutocompleteRootChangeEventDetails } from "@base-ui/react";
+import type {
+    AutocompleteRootChangeEventDetails,
+    BaseUIEvent,
+} from "@base-ui/react";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
 import { useGT } from "gt-next";
@@ -173,6 +176,7 @@ export function ComposerInput({
     className,
     filteredItems,
     items = [],
+    onKeyDown,
     onOpenChange,
     onValueChange,
     open,
@@ -180,6 +184,20 @@ export function ComposerInput({
     ...props
 }: ComposerInputProps) {
     const { input, setInput } = useComposerContext();
+
+    const handleKeyDown = useStableCallback(
+        (event: BaseUIEvent<React.KeyboardEvent<HTMLInputElement>>) => {
+            onKeyDown?.(event);
+            if (
+                event.currentTarget.tagName === "TEXTAREA" &&
+                (event.key === "Home" || event.key === "End")
+            ) {
+                // Autocomplete moves to the value's edges. Keep native textarea
+                // line navigation, selection, and platform-specific modifiers.
+                event.preventBaseUIHandler();
+            }
+        }
+    );
 
     const handleValueChange = useStableCallback(
         (next: string, eventDetails: AutocompleteRootChangeEventDetails) => {
@@ -210,6 +228,7 @@ export function ComposerInput({
                 <AutocompleteInput
                     {...props}
                     className="bg-transparent shadow-none"
+                    onKeyDown={handleKeyDown}
                 />
                 {children}
                 <div
