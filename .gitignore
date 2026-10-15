@@ -63,10 +63,3 @@ Thumbs.db
 .swc
 *.swp
 *.swo
-
-# vercel
-.vercel
-
-# IntelliJ based IDEs
-.idea
-# .vscode and .zed hold shared settings and stay tracked.

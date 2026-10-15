@@ -32,8 +32,6 @@ Cache exists because that signal is too valuable to waste. It treats the act of 
 
 The Cache App is still evolving, and its features and workflows will continue to change.
 
----
-
 ## Quickstart
 
 ### Cloud-hosted: [www.cachd.app](https://www.cachd.app)
@@ -109,8 +107,6 @@ See the [environment variables reference](.env.example) for the full list.
 
 </details>
 
----
-
 ## Cache App MCP
 
 Cache App exposes an [MCP](https://modelcontextprotocol.io/) server so AI agents like Codex, Claude, Cursor, and others can read and write your library directly. Search bookmarks, save new items, list collections, and more.
@@ -120,15 +116,11 @@ Endpoint: `https://www.cachd.app/mcp`
 - [llms.txt](https://www.cachd.app/llms.txt) — agent context and tool reference
 - Generate a setup prompt with your Bearer token from the app (Integrations → MCP)
 
----
-
 ## Contributing
 
 Please see the [Contributing Guide](CONTRIBUTING.md) for details.
 
 Open an [issue](https://github.com/gilsmt/cache-app/issues?q=sort%3Aupdated-desc+is%3Aissue+state%3Aopen+) if you believe you've encountered a bug.
-
----
 
 ## License
 
