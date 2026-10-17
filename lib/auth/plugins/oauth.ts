@@ -39,7 +39,7 @@ interface IntegrationOAuthDef<T> {
 }
 
 function integrationPlaceholderEmail(providerId: string, id: string): string {
-    return `${providerId}.${id}.integration@placeholder.cache`;
+    return `${providerId}.${id}.integration@placeholder.invalid`;
 }
 
 async function fetchOAuthUser<T>(
