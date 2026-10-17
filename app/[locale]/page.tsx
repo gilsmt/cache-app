@@ -211,7 +211,7 @@ export default async function Home() {
                         <T context="'Cache' is the product's name">
                             <h1 className="font-medium text-[3rem] leading-[98%] tracking-[-0.2rem] md:text-[4rem]">
                                 <GradientWaveText
-                                    ariaLabel={gt("Bookmark Intelligence")}
+                                    ariaLabel="Bookmark Intelligence"
                                     className="pb-1.5"
                                 >
                                     Bookmark Intelligence
@@ -253,7 +253,7 @@ export default async function Home() {
                     </SidebarFooter>
                 </Sidebar>
                 <div className="flex w-full max-w-5xl flex-col gap-12 p-8 pb-0 lg:gap-16 2xl:mx-auto">
-                    <div className="relative aspect-video w-full min-w-0 overflow-hidden rounded-2xl bg-muted">
+                    <div className="relative aspect-video w-full min-w-0 overflow-clip rounded-xl bg-muted">
                         <div aria-live="polite" className="sr-only">
                             <T>
                                 This element contains an interactive demo for
@@ -262,20 +262,43 @@ export default async function Home() {
                                 brand background.
                             </T>
                         </div>
-                        <Image
-                            alt=""
-                            aria-hidden
-                            className="absolute top-9.5 left-9 w-full rounded-xl"
-                            fetchPriority="high"
-                            placeholder="blur"
-                            preload
-                            quality={90}
-                            sizes={HERO_IMAGE_SIZES}
-                            src={HeroImage}
-                        />
+                        <Carousel>
+                            <CarouselPanel className="grid auto-cols-[100%] grid-flow-col">
+                                <Image
+                                    alt=""
+                                    aria-hidden
+                                    className="absolute top-9.5 left-9 w-full rounded-xl"
+                                    fetchPriority="high"
+                                    placeholder="blur"
+                                    preload
+                                    sizes={HERO_IMAGE_SIZES}
+                                    src={HeroImage}
+                                />
+                                <Image
+                                    alt=""
+                                    aria-hidden
+                                    className="absolute top-9.5 left-9 w-full rounded-xl"
+                                    fetchPriority="high"
+                                    placeholder="blur"
+                                    preload
+                                    sizes={HERO_IMAGE_SIZES}
+                                    src={HeroImage}
+                                />
+                                <Image
+                                    alt=""
+                                    aria-hidden
+                                    className="absolute top-9.5 left-9 w-full rounded-xl"
+                                    fetchPriority="high"
+                                    placeholder="blur"
+                                    preload
+                                    sizes={HERO_IMAGE_SIZES}
+                                    src={HeroImage}
+                                />
+                            </CarouselPanel>
+                        </Carousel>
                         <div
                             aria-hidden
-                            className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-black/3 ring-inset dark:ring-white/3"
+                            className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-black/3 ring-inset dark:ring-white/3"
                         />
                     </div>
                     <div className="mx-auto -mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
@@ -283,7 +306,7 @@ export default async function Home() {
                             nativeButton={false}
                             render={
                                 <a
-                                    aria-label={gt("GitHub Repository")}
+                                    aria-label="GitHub Repository"
                                     href="/github"
                                     rel="noopener noreferrer"
                                     target="_blank"
@@ -381,7 +404,7 @@ export default async function Home() {
                                 </T>
                             </ul>
                         </div>
-                        <div className="order-first aspect-square w-full overflow-hidden rounded-2xl bg-muted md:order-last">
+                        <div className="order-first aspect-square w-full bg-muted md:order-last">
                             <figure className="overflow-hidden">
                                 <Image
                                     alt=""
@@ -428,7 +451,7 @@ export default async function Home() {
                                 </T>
                             </ul>
                         </div>
-                        <div className="order-first aspect-square w-full overflow-hidden rounded-2xl bg-muted md:order-last">
+                        <div className="order-first aspect-square w-full bg-muted md:order-last">
                             <figure className="relative flex h-full items-center justify-center overflow-hidden p-6">
                                 <div className="relative mx-auto flex w-full max-w-sm items-center justify-between">
                                     <div className="space-y-6">
@@ -455,7 +478,7 @@ export default async function Home() {
                                             );
                                         })}
                                     </div>
-                                    <div className="relative z-20 rounded-2xl border bg-muted p-1">
+                                    <div className="relative z-20 rounded-xl border bg-muted p-1">
                                         <IntegrationCard
                                             className="size-16 border-black/20 shadow-black/10 shadow-xl"
                                             isCenter
@@ -534,7 +557,7 @@ export default async function Home() {
                                 </T>
                             </ul>
                         </div>
-                        <div className="order-first aspect-square w-full overflow-hidden rounded-2xl bg-muted md:order-last">
+                        <div className="order-first aspect-square w-full bg-muted md:order-last">
                             <figure className="overflow-hidden">
                                 <Image
                                     alt=""
@@ -578,7 +601,7 @@ export default async function Home() {
                                 </T>
                             </ul>
                         </div>
-                        <div className="order-first aspect-square w-full overflow-hidden rounded-2xl bg-muted md:order-last">
+                        <div className="order-first aspect-square w-full bg-muted md:order-last">
                             <figure className="overflow-hidden">
                                 <Image
                                     alt=""
@@ -625,7 +648,7 @@ export default async function Home() {
                                 </T>
                             </ul>
                         </div>
-                        <div className="relative order-first aspect-square w-full overflow-hidden rounded-2xl bg-muted md:order-last">
+                        <div className="relative order-first aspect-square w-full bg-muted md:order-last">
                             <figure className="relative h-full overflow-hidden">
                                 <Image
                                     alt=""
@@ -759,7 +782,7 @@ export default async function Home() {
                         <div className="relative mx-auto h-[300px] w-full max-w-[640px] sm:h-[360px] sm:max-w-[700px] md:h-[420px]">
                             <div
                                 aria-hidden
-                                className="absolute bottom-0 left-0 z-10 w-[44%] max-w-[160px] translate-x-3 overflow-hidden rounded-xl shadow-lg/15 sm:w-[200px] sm:max-w-none sm:translate-x-4 sm:rounded-2xl md:w-[230px] md:translate-x-6"
+                                className="absolute bottom-0 left-0 z-10 w-[44%] max-w-[160px] translate-x-3 overflow-hidden rounded-xl shadow-lg/15 sm:w-[200px] sm:max-w-none sm:translate-x-4 sm:rounded-xl md:w-[230px] md:translate-x-6"
                             >
                                 <div className="relative aspect-3/4 w-full">
                                     <Image
@@ -784,7 +807,7 @@ export default async function Home() {
                             </div>
                             <div
                                 aria-hidden
-                                className="absolute top-0 right-0 z-10 w-[44%] max-w-[160px] -translate-x-3 overflow-hidden rounded-xl shadow-lg/15 sm:w-[200px] sm:max-w-none sm:-translate-x-4 sm:rounded-2xl md:w-[230px] md:-translate-x-6"
+                                className="absolute top-0 right-0 z-10 w-[44%] max-w-[160px] -translate-x-3 overflow-hidden rounded-xl shadow-lg/15 sm:w-[200px] sm:max-w-none sm:-translate-x-4 sm:rounded-xl md:w-[230px] md:-translate-x-6"
                             >
                                 <div className="relative aspect-3/4 w-full">
                                     <Image
@@ -810,7 +833,7 @@ export default async function Home() {
                                 </div>
                             </div>
                             <div className="absolute top-3 left-1/2 z-20 w-[min(78%,250px)] -translate-x-1/2 sm:top-3 sm:w-[min(86%,320px)] md:top-4 md:w-[340px]">
-                                <div className="flex h-[270px] flex-col justify-between rounded-[1.25rem] border-4 border-background bg-card p-3 shadow-[0_8px_40px_-12px_rgb(0_0_0/0.35)] sm:h-[330px] sm:rounded-[1.75rem] sm:border-8 sm:p-5 md:h-[380px] md:rounded-[2rem] md:p-7">
+                                <div className="flex h-[270px] flex-col justify-between rounded-2xl border-4 border-background bg-card p-3 shadow-[0_8px_40px_-12px_rgb(0_0_0/0.35)] sm:h-[330px] sm:border-8 sm:p-5 md:h-[380px] md:p-7">
                                     <T context="AI agents demo on homepage">
                                         <div className="ml-auto w-fit max-w-[92%] rounded-xl bg-muted px-3 py-2.5 sm:rounded-2xl sm:px-5 sm:py-3.5">
                                             <p className="text-left font-medium text-[12px] text-foreground leading-[1.35] tracking-[-0.2px] sm:text-[13px] md:text-[15px]">
@@ -861,7 +884,7 @@ export default async function Home() {
                                 className="pb-10! [&>*:not(:last-child)]:me-4"
                                 slideClassName="!w-[300px] md:!w-[340px]"
                             >
-                                <div className="flex h-96 flex-col justify-between rounded-2xl border border-border/70 bg-background p-6">
+                                <div className="flex h-96 flex-col justify-between rounded-xl border border-border bg-background p-6">
                                     <h3 className="font-medium text-foreground text-lg tracking-[-0.5px]">
                                         <T>Curious readers</T>
                                     </h3>
@@ -873,7 +896,7 @@ export default async function Home() {
                                         </T>
                                     </p>
                                 </div>
-                                <div className="flex h-96 flex-col justify-between rounded-2xl border border-border/70 bg-background p-6">
+                                <div className="flex h-96 flex-col justify-between rounded-xl border border-border bg-background p-6">
                                     <h3 className="font-medium text-foreground text-lg tracking-[-0.5px]">
                                         <T>Writers and thinkers</T>
                                     </h3>
@@ -885,7 +908,7 @@ export default async function Home() {
                                         </T>
                                     </p>
                                 </div>
-                                <div className="flex h-96 flex-col justify-between rounded-2xl border border-border/70 bg-background p-6">
+                                <div className="flex h-96 flex-col justify-between rounded-xl border border-border bg-background p-6">
                                     <h3 className="font-medium text-foreground text-lg tracking-[-0.5px]">
                                         <T>Builders and developers</T>
                                     </h3>
@@ -896,7 +919,7 @@ export default async function Home() {
                                         </T>
                                     </p>
                                 </div>
-                                <div className="flex h-96 flex-col justify-between rounded-2xl border border-border/70 bg-background p-6">
+                                <div className="flex h-96 flex-col justify-between rounded-xl border border-border bg-background p-6">
                                     <h3 className="font-medium text-foreground text-lg tracking-[-0.5px]">
                                         <T>Creators and curators</T>
                                     </h3>
@@ -908,7 +931,7 @@ export default async function Home() {
                                         </T>
                                     </p>
                                 </div>
-                                <div className="flex h-96 flex-col justify-between rounded-2xl border border-border/70 bg-background p-6">
+                                <div className="flex h-96 flex-col justify-between rounded-xl border border-border bg-background p-6">
                                     <h3 className="font-medium text-foreground text-lg tracking-[-0.5px]">
                                         <T>Productivity</T>
                                     </h3>
