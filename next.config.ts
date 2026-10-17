@@ -104,12 +104,6 @@ const nextConfig: NextConfig = {
     },
     images: {
         minimumCacheTTL: 2_678_400, // 31 days
-        /**
-         * Allowed `quality` values for next/image. 75 is the app-wide default;
-         * 90 exists for large photographic marketing assets
-         * where the default visibly softens texture.
-         */
-        qualities: [75, 90],
     },
     output:
         process.env.NEXT_BUILD_STANDALONE === "1" ? "standalone" : undefined,
