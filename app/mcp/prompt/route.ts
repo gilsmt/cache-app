@@ -1,23 +1,9 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth/server";
+import { requireRouteUserId } from "@/lib/auth/session";
 import { generateMcpSetupPrompt, rotateMcpTokens } from "@/lib/mcp/service";
 
-async function getSessionUserId(): Promise<string | null> {
-    const session = await auth.api.getSession({
-        headers: await headers(),
-    });
-    return session?.user?.id ?? null;
-}
-
-function unauthorizedResponse(): Response {
-    return Response.json(
-        { error: "Unauthorized" },
-        {
-            headers: { "Cache-Control": "no-store, private" },
-            status: 401,
-        }
-    );
-}
+const UNAUTHORIZED_RESPONSE_HEADERS = {
+    "Cache-Control": "no-store, private",
+};
 
 /**
  * Mint and revoke surface for MCP bearer tokens.
@@ -37,12 +23,16 @@ function unauthorizedResponse(): Response {
  * token leaks, then POST again to configure the client with a fresh one.
  */
 export async function POST(): Promise<Response> {
-    const userId = await getSessionUserId();
-    if (!userId) {
-        return unauthorizedResponse();
+    const auth = await requireRouteUserId({
+        unauthorizedResponseHeaders: UNAUTHORIZED_RESPONSE_HEADERS,
+    });
+    if (auth instanceof Response) {
+        return auth;
     }
 
-    const { endpoint, prompt, token } = await generateMcpSetupPrompt(userId);
+    const { endpoint, prompt, token } = await generateMcpSetupPrompt(
+        auth.userId
+    );
 
     return Response.json(
         { endpoint, prompt, token },
@@ -57,12 +47,14 @@ export async function POST(): Promise<Response> {
  * MCP clients stop working until they are reconfigured with a new token.
  */
 export async function DELETE(): Promise<Response> {
-    const userId = await getSessionUserId();
-    if (!userId) {
-        return unauthorizedResponse();
+    const auth = await requireRouteUserId({
+        unauthorizedResponseHeaders: UNAUTHORIZED_RESPONSE_HEADERS,
+    });
+    if (auth instanceof Response) {
+        return auth;
     }
 
-    await rotateMcpTokens(userId);
+    await rotateMcpTokens(auth.userId);
 
     return new Response(null, {
         headers: { "Cache-Control": "no-store, private" },
