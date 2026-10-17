@@ -2,6 +2,7 @@
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T } from "gt-next";
+import { MetalText } from "metal-fx";
 import { parseAsString, useQueryState } from "nuqs";
 import * as React from "react";
 import {
@@ -49,10 +50,18 @@ export function SuccessfulUpgradeDialog() {
                     <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                         <CrownFilledIcon className="size-6" />
                     </span>
-                    <DialogTitle>
-                        <T context="Upgrade success dialog title">
-                            Welcome to Pro
+                    <DialogTitle className="flex items-center justify-center gap-1.5">
+                        <T context="Upgrade success dialog title prefix">
+                            Welcome to
                         </T>
+                        <MetalText
+                            color="var(--foreground)"
+                            font="600 18px/1.2 var(--font-sans)"
+                            glow
+                            strength={0.9}
+                        >
+                            Pro
+                        </MetalText>
                     </DialogTitle>
                     <DialogDescription>
                         <T context="Upgrade success dialog description">
