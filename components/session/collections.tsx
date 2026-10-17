@@ -3414,7 +3414,7 @@ function CollectionsListSmartCollectionsPopover() {
             <div className="flex items-center gap-0.5 text-nowrap font-medium text-[11px] opacity-40">
                 Smart Collections
                 <span>is</span>
-                <Skeleton className="h-4 w-15" />
+                <Skeleton className="h-3.5 w-14" />
             </div>
         );
     }
