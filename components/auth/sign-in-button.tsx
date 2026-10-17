@@ -86,7 +86,7 @@ function GoogleSignInButton() {
     return (
         <div className="flex flex-col gap-1">
             <Button
-                className="border border-[#747775] bg-white text-[#1f1f1f] shadow-xs hover:bg-[#f8f9fa] *:data-[slot=spinner]:text-[#1f1f1f] dark:border-input dark:bg-popover dark:text-foreground dark:hover:bg-accent/50 dark:*:data-[slot=spinner]:text-foreground"
+                className="border border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f8f9fa] *:data-[slot=spinner]:text-[#1f1f1f] dark:border-input dark:bg-popover dark:text-foreground dark:hover:bg-accent/50 dark:*:data-[slot=spinner]:text-foreground"
                 isLoading={isPending}
                 onClick={handleSignIn}
                 size="xl"
@@ -94,9 +94,7 @@ function GoogleSignInButton() {
                 <GoogleIcon />
                 <T context="Sign in/up CTA button">Continue with Google</T>
             </Button>
-            <ErrorMessage className="text-sm underline decoration-dotted underline-offset-4">
-                {errorMessage}
-            </ErrorMessage>
+            <ErrorMessage className="text-sm">{errorMessage}</ErrorMessage>
         </div>
     );
 }

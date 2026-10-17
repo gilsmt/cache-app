@@ -121,7 +121,7 @@ export function DeleteAccountDialogTrigger(
                     </Button>
                 </DialogFooter>
                 {errorMessage ? (
-                    <ErrorMessage className="px-6 pb-6 underline decoration-dotted underline-offset-4">
+                    <ErrorMessage className="px-6 pb-6">
                         {errorMessage}
                     </ErrorMessage>
                 ) : null}
