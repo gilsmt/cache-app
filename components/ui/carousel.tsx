@@ -1,9 +1,5 @@
 "use client";
 
-import { useAnimationFrame } from "@base-ui/utils/useAnimationFrame";
-import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
-import { useMergedRefs } from "@base-ui/utils/useMergedRefs";
-import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import {
     BlossomCarousel,
     BlossomNext,
@@ -16,8 +12,6 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Group } from "@/components/ui/group";
 import "@blossom-carousel/react/style.css";
-
-type CarouselHandle = React.ComponentRef<typeof BlossomCarousel> | null;
 
 interface CarouselContext {
     id: string;
@@ -35,85 +29,13 @@ function useCarouselContext() {
     return context;
 }
 
-interface UseCarouselScrollOverflowOptions {
-    handleRef: React.RefObject<CarouselHandle>;
-    isEnabled: boolean;
-    resetKey: unknown;
-}
-
-// This could eventually be replaced by the CSS native `scroll()` property with something like https://github.com/petekp/tw-fade
-function useCarouselScrollOverflow({
-    handleRef,
-    isEnabled,
-    resetKey,
-}: UseCarouselScrollOverflowOptions) {
-    const animationFrame = useAnimationFrame();
-
-    const updateOverflow = useStableCallback(() => {
-        animationFrame.request(() => {
-            const scrollableEl = handleRef.current?.element;
-            if (!scrollableEl?.isConnected) {
-                return;
-            }
-            const maxScrollLeft = Math.max(
-                0,
-                scrollableEl.scrollWidth - scrollableEl.clientWidth
-            );
-            const scrollLeft = Math.max(
-                0,
-                Math.min(scrollableEl.scrollLeft, maxScrollLeft)
-            );
-            scrollableEl.style.setProperty(
-                "--carousel-overflow-x-start",
-                `${scrollLeft}px`
-            );
-            scrollableEl.style.setProperty(
-                "--carousel-overflow-x-end",
-                `${maxScrollLeft - scrollLeft}px`
-            );
-        });
-    });
-
-    useIsoLayoutEffect(() => {
-        if (!isEnabled) {
-            return;
-        }
-
-        const scrollableElement = handleRef.current?.element;
-        if (!scrollableElement) {
-            return;
-        }
-
-        updateOverflow();
-
-        scrollableElement.addEventListener("scroll", updateOverflow, {
-            passive: true,
-        });
-
-        const resizeObserver =
-            typeof ResizeObserver === "function"
-                ? new ResizeObserver(updateOverflow)
-                : null;
-        resizeObserver?.observe(scrollableElement);
-
-        return () => {
-            resizeObserver?.disconnect();
-            animationFrame.cancel();
-            scrollableElement.removeEventListener("scroll", updateOverflow);
-            scrollableElement.style.removeProperty(
-                "--carousel-overflow-x-start"
-            );
-            scrollableElement.style.removeProperty("--carousel-overflow-x-end");
-        };
-    }, [isEnabled, resetKey]);
-}
-
 interface CarouselProps {
     children: React.ReactNode;
 }
 
 export function Carousel({ children }: CarouselProps) {
     const id = React.useId();
+
     const contextValue = { id };
 
     return <CarouselContext value={contextValue}>{children}</CarouselContext>;
@@ -121,31 +43,19 @@ export function Carousel({ children }: CarouselProps) {
 
 interface CarouselPanelProps
     extends React.ComponentProps<typeof BlossomCarousel> {
-    shouldScrollFade?: boolean;
     slideClassName?: string;
 }
 
 export function CarouselPanel({
     children,
     className,
-    shouldScrollFade = false,
     slideClassName,
-    ref,
     ...props
 }: CarouselPanelProps) {
     const gt = useGT();
     const { id } = useCarouselContext();
 
-    const handleRef = React.useRef<CarouselHandle>(null);
-    const mergedRefs = useMergedRefs(ref, handleRef);
-
     const slides = React.Children.toArray(children);
-
-    useCarouselScrollOverflow({
-        handleRef,
-        isEnabled: shouldScrollFade,
-        resetKey: slides.length,
-    });
 
     return (
         <BlossomCarousel
@@ -154,12 +64,9 @@ export function CarouselPanel({
             as="section"
             className={cn(
                 "no-scrollbar relative w-full shrink-0 snap-x snap-mandatory scroll-smooth",
-                shouldScrollFade &&
-                    "mask-l-from-[calc(100%-min(var(--fade-size),var(--carousel-overflow-x-start)))] mask-r-from-[calc(100%-min(var(--fade-size),var(--carousel-overflow-x-end)))] scroll-px-[calc(var(--fade-size)/2)] [--fade-size:0.5rem]",
                 className
             )}
             id={id}
-            ref={mergedRefs}
             role="region"
         >
             {slides.map((child, index) => {
