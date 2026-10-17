@@ -332,7 +332,7 @@ export function AutomationComposerDialog({
             return;
         }
         setFormState(getInitialFormState(automation, collections));
-    }, [automation?.id, collections, isOpen]);
+    }, [automation?.id, isOpen]);
 
     const updateFormState = useStableCallback(
         (nextState: Partial<AutomationFormState>) => {
