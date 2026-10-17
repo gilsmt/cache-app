@@ -45,20 +45,22 @@ export function SuccessfulUpgradeDialog() {
 
     return (
         <Dialog onOpenChange={handleOpenChange} open={isOpen}>
-            <DialogPopup className="max-w-sm">
-                <DialogHeader className="items-center text-center">
+            <DialogPopup>
+                <DialogHeader className="items-center gap-3 text-center">
                     <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                         <CrownFilledIcon className="size-6" />
                     </span>
-                    <DialogTitle className="flex items-center justify-center gap-1.5">
+                    <DialogTitle className="font-normal text-3xl">
                         <T context="Upgrade success dialog title prefix">
                             Welcome to
                         </T>
+                        &nbsp;
                         <MetalText
                             color="var(--foreground)"
-                            font="600 18px/1.2 var(--font-sans)"
+                            font="400 30px/1.2 var(--font-sans)"
                             glow
-                            strength={0.9}
+                            shaderScale={1.7}
+                            strength={0.95}
                         >
                             Pro
                         </MetalText>
