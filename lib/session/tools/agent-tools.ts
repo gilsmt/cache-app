@@ -209,6 +209,79 @@ export function createAutomationAgentTools(args: { runId: string }) {
     };
 }
 
+export function createThreadAgentTools(args: {
+    runId: string | null;
+    userId: string;
+}) {
+    const sources: AutomationAgentSource[] = [];
+    const web = createWebAgentTools(sources);
+
+    const tools = {
+        ...web.tools,
+        ...(args.runId
+            ? {
+                  getAutomationPayloadSummary: tool({
+                      description:
+                          "Return the total size and scope of the saved-content payload available to this automation run.",
+                      execute: async () => {
+                          const { getAutomationPayloadSummary } = await import(
+                              "../automations/payload"
+                          );
+                          return await getAutomationPayloadSummary({
+                              runId: args.runId as string,
+                          });
+                      },
+                      inputSchema: EmptyAutomationToolInputSchema,
+                  }),
+                  listAutomationPayloadItems: tool({
+                      description:
+                          "Page through saved items available to this automation run. Use this before writing the final summary.",
+                      execute: async (input) => {
+                          const { listAutomationPayloadItems } = await import(
+                              "../automations/payload"
+                          );
+                          const result = await listAutomationPayloadItems({
+                              cursor: input.cursor,
+                              limit: input.limit,
+                              runId: args.runId as string,
+                              search: input.search,
+                          });
+                          for (const item of result.items) {
+                              if (!isHttpUrl(item.url)) {
+                                  continue;
+                              }
+                              sources.push({
+                                  id: item.id,
+                                  title: item.caption?.trim() || item.url,
+                                  type: "library_item",
+                                  url: item.url,
+                              });
+                          }
+                          return result;
+                      },
+                      inputSchema: AutomationPayloadItemsInputSchema,
+                  }),
+              }
+            : {}),
+        search_library: tool({
+            description:
+                "Search the user's saved Cache library. Query words are AND-matched across caption, note text, and URL within each item. Prefer concrete names, brands, domains, domainFilters, sourceFilters, or collectionIds over broad category labels. When truncated is true, continue with nextOffset while it is not null; if it is null, explain that the offset limit was reached and the result is partial.",
+            execute: (toolInput) =>
+                searchAssistantLibrary({
+                    input: toolInput,
+                    userId: args.userId,
+                }),
+            inputSchema: AssistantLibrarySearchInputSchema,
+        }),
+    };
+
+    return {
+        getSources: (): { sources: AutomationAgentSource[] } =>
+            uniqueSources(sources),
+        tools,
+    };
+}
+
 export function createAssistantAgentTools(args: {
     input: AssistantRequest;
     userId: string;

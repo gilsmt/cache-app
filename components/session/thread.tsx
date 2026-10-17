@@ -414,6 +414,8 @@ function ThreadToolLabel({ name }: ThreadToolLabelProps) {
             return <T>GitHub repo</T>;
         case "listAutomationPayloadItems":
             return <T>Saved items</T>;
+        case "search_library":
+            return <T>Library search</T>;
         case "web_fetch":
             return <T>Web page</T>;
         case "web_search":
