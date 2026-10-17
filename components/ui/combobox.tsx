@@ -35,31 +35,6 @@ export function Combobox<
     );
 }
 
-interface ComboboxChipsInputProps
-    extends Omit<ComboboxPrimitive.Input.Props, "size"> {
-    ref?: React.Ref<HTMLInputElement>;
-    size?: InputSize;
-}
-
-export function ComboboxChipsInput({
-    className,
-    size = "default",
-    ...props
-}: ComboboxChipsInputProps) {
-    return (
-        <ComboboxPrimitive.Input
-            {...props}
-            className={cn(
-                "min-w-12 flex-1 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:text-sm [[data-slot=combobox-chip]+&]:ps-0.5",
-                size === "sm" ? "ps-1.5" : "ps-2",
-                className
-            )}
-            data-size={size}
-            data-slot="combobox-chips-input"
-        />
-    );
-}
-
 interface ComboboxInputProps
     extends Omit<ComboboxPrimitive.Input.Props, "size"> {
     clearProps?: ComboboxPrimitive.Clear.Props;
@@ -112,7 +87,7 @@ export function ComboboxInput({
                 data-slot="combobox-input"
                 render={
                     <Input
-                        className="rounded-b-none before:rounded-b-none has-disabled:opacity-100"
+                        className="rounded-b-none before:rounded-b-none has-disabled:opacity-100 dark:bg-transparent"
                         size={size}
                         useNativeInput
                     />
@@ -244,7 +219,7 @@ export function ComboboxSeparator({
     return (
         <ComboboxPrimitive.Separator
             {...props}
-            className={cn("mt-1.5 mb-1 h-px shrink-0 bg-border/50", className)}
+            className={cn("my-1 h-px shrink-0 bg-border/50", className)}
             data-slot="combobox-separator"
         />
     );
