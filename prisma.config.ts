@@ -5,12 +5,8 @@ if (existsSync(".env")) {
     process.loadEnvFile(".env");
 }
 
-const DATABASE_URL = new URL(env("DATABASE_URL"));
-
-if (!DATABASE_URL) {
-    throw new Error("DATABASE_URL env is not set.");
-}
-
 export default defineConfig({
-    datasource: { url: DATABASE_URL.href },
+    datasource: { url: env("DATABASE_URL") },
+    migrations: { path: "prisma/migrations" },
+    schema: "prisma/schema.prisma",
 });

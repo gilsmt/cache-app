@@ -9,12 +9,11 @@ const connectionString = process.env.DATABASE_URL;
 
 const adapter = new PrismaPg({ connectionString });
 
-const prismaOptions: Prisma.PrismaClientOptions = {
+const options: Prisma.PrismaClientOptions = {
     adapter,
 };
 
-const baseClient =
-    globalForPrisma.baseClient || new PrismaClient(prismaOptions);
+const baseClient = globalForPrisma.baseClient || new PrismaClient(options);
 
 export const prisma = baseClient; /** .extends() goes here */
 
