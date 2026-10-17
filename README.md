@@ -1,12 +1,10 @@
 # Cache App
 
-<a href="https://www.cachd.app" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/cachd.app-000000?logo=vercel&logoColor=white" alt="cachd.app"></a>
+<a href="https://www.cachd.app" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/Cache-cachd.app-3B3B3B?labelColor=1A1A1A" alt="cachd.app"></a>
 <a href="https://docs.cachd.app" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/Docs-Read-E6E6E6?labelColor=C3C3C3&color=E6E6E6" alt="Documentation"></a>
 <a href="https://github.com/gilsmt/cache-app/releases" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/v/release/gilsmt/cache-app" alt="Release"></a>
 
 Collect, organize, and rediscover everything you've saved across platforms.
-
-[![Cache App Preview](app/opengraph-image.png)](https://www.cachd.app)
 
 ## Why Cache
 
@@ -34,11 +32,11 @@ The Cache App is still evolving, and its features and workflows will continue to
 
 ## Quickstart
 
-### Cloud-hosted: [www.cachd.app](https://www.cachd.app)
+### Cloud-hosted: [cachd.app](https://www.cachd.app)
 
 <a href="https://www.cachd.app" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/Open-cachd.app-3B3B3B?labelColor=1A1A1A" alt="Open cachd.app"></a>
 
-### Self hosting
+### Self-hosted:
 
 You can self-host the Cache App for total control over your data and design. Cache has zero telemetry by default.
 
