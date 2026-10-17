@@ -11,11 +11,6 @@ import { genericOAuthConfig } from "./plugins/integrations";
 import { BASE_AUTH_URL, trustedOrigins } from "./plugins/origins";
 import { getStripeAuthPlugin } from "./plugins/stripe";
 
-const SESSION_COOKIE_CACHE_MAX_AGE_SECONDS = 24 * 60 * 60;
-const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
-const SESSION_FRESH_AGE_SECONDS = 60 * 60;
-const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
-
 const trustedProviders = [
     "google",
     ...genericOAuthConfig.map((c) => c.providerId),
@@ -58,11 +53,11 @@ export const auth = betterAuth({
     session: {
         cookieCache: {
             enabled: true,
-            maxAge: SESSION_COOKIE_CACHE_MAX_AGE_SECONDS,
+            maxAge: 24 * 60 * 60,
         },
-        expiresIn: SESSION_EXPIRES_IN_SECONDS,
-        freshAge: SESSION_FRESH_AGE_SECONDS,
-        updateAge: SESSION_UPDATE_AGE_SECONDS,
+        expiresIn: 60 * 60 * 24 * 30,
+        freshAge: 60 * 60,
+        updateAge: 60 * 60 * 24,
     },
     socialProviders: {
         google: GOOGLE_SOCIAL_PROVIDER,
