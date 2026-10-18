@@ -1,10 +1,13 @@
 import * as z from "zod";
 import { isAbortError } from "@/lib/common/abort";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { fetchWithTimeout } from "@/lib/common/timeout";
 
 const log = createLogger("integrations:cobalt");
 
 export const COBALT_API_BASE = "https://preview.cachd.app";
+
+const COBALT_DOWNLOAD_TIMEOUT_MS = 10_000;
 
 const CobaltPickerItemSchema = z.object({
     thumb: z.string().optional(),
@@ -49,15 +52,19 @@ export async function resolveCobaltDownloadUrl(
     }
 
     try {
-        const response = await fetch(`${COBALT_API_BASE}/`, {
-            body: JSON.stringify({ url: normalizedUrl }),
-            cache: "no-store",
-            headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
+        const response = await fetchWithTimeout(
+            `${COBALT_API_BASE}/`,
+            {
+                body: JSON.stringify({ url: normalizedUrl }),
+                cache: "no-store",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                },
+                method: "POST",
             },
-            method: "POST",
-        });
+            COBALT_DOWNLOAD_TIMEOUT_MS
+        );
 
         if (!response.ok) {
             return {
@@ -99,6 +106,13 @@ export async function resolveCobaltDownloadUrl(
             status: "SUCCESS",
         };
     } catch (error) {
+        if (isAbortError(error)) {
+            return {
+                message: "The media resolver took too long to respond.",
+                status: "ERROR",
+            };
+        }
+
         return {
             message:
                 error instanceof Error
