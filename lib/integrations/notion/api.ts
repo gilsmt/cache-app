@@ -1,9 +1,12 @@
 import "server-only";
 
 import * as z from "zod";
+import { isAbortError } from "@/lib/common/abort";
+import { fetchWithTimeout } from "@/lib/common/timeout";
 import { IntegrationApiError } from "@/lib/integrations/error";
 
 const NOTION_API_BASE_URL = "https://api.notion.com/v1";
+const NOTION_API_TIMEOUT_MS = 30_000;
 
 export const NOTION_API_VERSION = "2026-03-11";
 
@@ -45,24 +48,43 @@ async function fetchNotion(
     init: RequestInit,
     operation: string
 ): Promise<unknown> {
-    const response = await fetch(`${NOTION_API_BASE_URL}${path}`, {
-        ...init,
-        cache: "no-store",
-        headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            "Notion-Version": NOTION_API_VERSION,
-            ...init.headers,
-        },
-    });
+    try {
+        const response = await fetchWithTimeout(
+            `${NOTION_API_BASE_URL}${path}`,
+            {
+                ...init,
+                cache: "no-store",
+                headers: {
+                    Accept: "application/json",
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                    "Notion-Version": NOTION_API_VERSION,
+                    ...init.headers,
+                },
+            },
+            NOTION_API_TIMEOUT_MS
+        );
 
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-        throw parseNotionApiError(payload, response.status, operation);
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+            throw parseNotionApiError(payload, response.status, operation);
+        }
+
+        return payload;
+    } catch (error) {
+        if (isAbortError(error)) {
+            throw new IntegrationApiError(
+                {
+                    integrationId: "notion",
+                    message: "Notion took too long to respond.",
+                    operation,
+                    status: 504,
+                },
+                { cause: error }
+            );
+        }
+        throw error;
     }
-
-    return payload;
 }
 
 export async function createNotionMarkdownPage(args: {
