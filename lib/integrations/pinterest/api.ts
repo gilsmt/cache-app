@@ -1,10 +1,13 @@
 import "server-only";
 
 import * as z from "zod";
+import { isAbortError } from "@/lib/common/abort";
 import { parseDate } from "@/lib/common/date";
+import { fetchWithTimeout } from "@/lib/common/timeout";
 import { IntegrationApiError } from "@/lib/integrations/error";
 
 const PINTEREST_API_BASE_URL = "https://api.pinterest.com/v5";
+const PINTEREST_API_TIMEOUT_MS = 30_000;
 const PINTEREST_PAGE_SIZE = 100;
 const MAX_BOARD_PAGES = 20;
 const MAX_PIN_PAGES_PER_BOARD = 20;
@@ -76,27 +79,43 @@ async function fetchPinterestPage(
     accessToken: string,
     searchParams: URLSearchParams
 ): Promise<{ bookmark: string | null; items: unknown[] }> {
-    const response = await fetch(
-        `${PINTEREST_API_BASE_URL}${path}?${searchParams.toString()}`,
-        {
-            cache: "no-store",
-            headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${accessToken}`,
+    try {
+        const response = await fetchWithTimeout(
+            `${PINTEREST_API_BASE_URL}${path}?${searchParams.toString()}`,
+            {
+                cache: "no-store",
+                headers: {
+                    Accept: "application/json",
+                    Authorization: `Bearer ${accessToken}`,
+                },
             },
+            PINTEREST_API_TIMEOUT_MS
+        );
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+            throw parsePinterestApiError(payload, response.status);
         }
-    );
 
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-        throw parsePinterestApiError(payload, response.status);
+        const parsed = PinterestPaginatedResponseSchema.safeParse(payload);
+        return {
+            bookmark: parsed.data?.bookmark ?? null,
+            items: parsed.data?.items ?? [],
+        };
+    } catch (error) {
+        if (isAbortError(error)) {
+            throw new IntegrationApiError(
+                {
+                    integrationId: "pinterest",
+                    message: "Pinterest took too long to respond.",
+                    operation: "fetchPinterestPage",
+                    status: 504,
+                },
+                { cause: error }
+            );
+        }
+        throw error;
     }
-
-    const parsed = PinterestPaginatedResponseSchema.safeParse(payload);
-    return {
-        bookmark: parsed.data?.bookmark ?? null,
-        items: parsed.data?.items ?? [],
-    };
 }
 
 async function listPinterestCollection(

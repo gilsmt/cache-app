@@ -1,11 +1,14 @@
 import "server-only";
 
 import * as z from "zod";
+import { isAbortError } from "@/lib/common/abort";
 import { parseDate } from "@/lib/common/date";
+import { fetchWithTimeout } from "@/lib/common/timeout";
 import { IntegrationApiError } from "@/lib/integrations/error";
 import type { Prisma } from "@/prisma/client/client";
 
 const X_API_BASE_URL = "https://api.x.com/2";
+const X_API_TIMEOUT_MS = 30_000;
 const X_BOOKMARKS_PAGE_SIZE = 100;
 const MAX_BOOKMARK_PAGES = 100;
 
@@ -146,23 +149,39 @@ async function fetchX(
     path: string,
     searchParams?: URLSearchParams
 ): Promise<unknown> {
-    const response = await fetch(
-        `${X_API_BASE_URL}${path}${searchParams ? `?${searchParams.toString()}` : ""}`,
-        {
-            cache: "no-store",
-            headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${accessToken}`,
+    try {
+        const response = await fetchWithTimeout(
+            `${X_API_BASE_URL}${path}${searchParams ? `?${searchParams.toString()}` : ""}`,
+            {
+                cache: "no-store",
+                headers: {
+                    Accept: "application/json",
+                    Authorization: `Bearer ${accessToken}`,
+                },
             },
+            X_API_TIMEOUT_MS
+        );
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+            throw parseXApiError(payload, response.status);
         }
-    );
 
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-        throw parseXApiError(payload, response.status);
+        return payload;
+    } catch (error) {
+        if (isAbortError(error)) {
+            throw new IntegrationApiError(
+                {
+                    integrationId: "x",
+                    message: "X took too long to respond.",
+                    operation: "fetchX",
+                    status: 504,
+                },
+                { cause: error }
+            );
+        }
+        throw error;
     }
-
-    return payload;
 }
 
 function parseAuthenticatedUser(payload: unknown): XAuthenticatedUser | null {
