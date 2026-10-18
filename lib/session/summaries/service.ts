@@ -3,36 +3,34 @@ import "server-only";
 import type { ArcjetNextRequest } from "@arcjet/next";
 import { cacheLife } from "next/cache";
 import * as z from "zod";
-import {
-    type CollectionTemplateOption,
-    TEMPLATES,
-} from "@/lib/collections/templates";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { normalizeCollectionName } from "@/lib/common/string";
-import { prisma } from "@/prisma";
-import { suggestCollectionTemplates } from "./collections/suggestions";
-import { generateStructured } from "./generation";
+import { truncateText } from "@/lib/common/string";
+import { generateStructured } from "../ai/generate";
+import { estimateTokens } from "../ai/usage";
+import {
+    normalizeExpandedSummary,
+    normalizeSummary,
+} from "../formatter/markdown";
 import {
     buildCollectionDescriptionPrompt,
     buildExpandedSummaryPrompt,
     buildOverviewPrompt,
+    truncateContextItems,
+} from "../instructions/summaries";
+import { protectGenAiRequest } from "../protection";
+import {
     COLLECTION_DESCRIPTION_TITLE_MAX_LENGTH,
     type DescriptionRequest,
-    normalizeExpandedSummary,
-    normalizeSummary,
-    SECTION_DESCRIPTION_EXPANDED_OUTPUT_TOKEN_LIMIT,
-    SECTION_DESCRIPTION_FALLBACK_TEXT,
-    truncateContextItems,
-} from "./overview";
-import { protectGenAiRequest } from "./protection";
-import { truncateChars } from "./truncate";
-import { estimateTokens } from "./usage";
+} from "./schema";
 
 const log = createLogger("intelligence:service");
 
 const SECTION_OUTPUT_TOKEN_LIMIT = 96;
 const SECTION_TIMEOUT_MS = 30_000;
 const EXPANDED_SECTION_TIMEOUT_MS = 45_000;
+const SECTION_DESCRIPTION_EXPANDED_OUTPUT_TOKEN_LIMIT = 512;
+export const SECTION_DESCRIPTION_FALLBACK_TEXT =
+    "Summary is unavailable right now.";
 
 const SectionSummaryOutputSchema = z.object({
     summary: z.string(),
@@ -140,9 +138,10 @@ export async function generateCollectionSummary(
 export async function generateCollectionDescription(
     input: GenerateCollectionDescriptionInput
 ): Promise<GenerateCollectionDescriptionResult> {
-    const collectionTitle = truncateChars(
+    const collectionTitle = truncateText(
         input.collectionTitle.trim(),
-        COLLECTION_DESCRIPTION_TITLE_MAX_LENGTH
+        COLLECTION_DESCRIPTION_TITLE_MAX_LENGTH,
+        ""
     );
     if (collectionTitle.length === 0) {
         return { description: "" };
@@ -182,36 +181,6 @@ export async function generateCollectionDescription(
         span.stop();
     }
 }
-
-export async function getCollectionSuggestions(args: {
-    userId: string;
-}): Promise<CollectionTemplateOption[]> {
-    const templateNameKeys = TEMPLATES.map(
-        (template) => normalizeCollectionName(template.name).nameKey
-    );
-
-    const existingCollections = await prisma.collection.findMany({
-        select: {
-            nameKey: true,
-        },
-        where: {
-            nameKey: { in: templateNameKeys },
-            userId: args.userId,
-        },
-    });
-
-    const existingNameKeys = new Set(
-        existingCollections.map((collection) => collection.nameKey)
-    );
-
-    return suggestCollectionTemplates({
-        existingNameKeys,
-    });
-}
-
-// ---------------------------------------------------------------------------
-// Cached generation
-// ---------------------------------------------------------------------------
 
 async function generateCachedSummary(args: {
     prompt: string;

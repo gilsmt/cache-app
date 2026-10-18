@@ -227,7 +227,7 @@ import {
 } from "@/lib/common/url";
 import { sendCollectionToNotion } from "@/lib/integrations/notion/actions";
 import { getSourceLabel } from "@/lib/integrations/resolver";
-import { getCollectionDescription } from "@/lib/session/actions";
+import { getCollectionDescription } from "@/lib/session/summaries/actions";
 import type { CollectionPriority } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
 import EmptyCollectionStateDarkImage from "@/public/empty-collection-state-dark.webp";

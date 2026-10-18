@@ -124,7 +124,7 @@ const CREATE_THREAD_FROM_ASSISTANT_INPUT_SCHEMA = z.object({
     markdown: z
         .string()
         .trim()
-        .min(1, "There is no Ask Cache answer to continue.")
+        .min(1, "There is no assistant answer to continue.")
         .max(
             THREAD_STANDALONE_MARKDOWN_MAX_LENGTH,
             "This answer is too long to continue in chat."
@@ -158,7 +158,7 @@ export async function createThreadFromAssistant(input: {
         return {
             message: getValidationErrorMessage(
                 parsed,
-                "Enter a valid Ask Cache answer."
+                "Enter a valid assistant answer."
             ),
             status: ACTION_STATUS.INVALID,
         };

@@ -5,9 +5,9 @@ import { gateway, type LanguageModel } from "ai";
 import { serverEnv } from "@/env/server";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { GenAiConfigurationError } from "../error";
-import { DEFAULT_REGISTERED_MODEL, parseRegisteredModel } from "./registry";
+import { DEFAULT_REGISTERED_MODEL, parseRegisteredModel } from "./model";
 
-const log = createLogger("intelligence:providers");
+const log = createLogger("intelligence:model");
 
 const google = createGoogleGenerativeAI({ apiKey: serverEnv.GEMINI_API_KEY });
 

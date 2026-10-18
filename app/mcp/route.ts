@@ -18,8 +18,8 @@ import {
 } from "@/lib/collections/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { isTrustedCacheWebOrigin } from "@/lib/common/security/origins";
-import { isMcpScope, type McpScope } from "@/lib/mcp/auth";
-import { McpLibraryItemError } from "@/lib/mcp/error";
+import { isMcpScope, type McpScope } from "@/lib/session/mcp/auth";
+import { McpLibraryItemError } from "@/lib/session/mcp/error";
 import {
     McpAddLibraryItemInputSchema,
     McpCollectionListOutputSchema,
@@ -29,13 +29,16 @@ import {
     McpLibraryItemListInputSchema,
     McpLibraryItemListOutputSchema,
     McpLibraryItemSchema,
-} from "@/lib/mcp/protocol";
-import { checkMcpRateLimit, MCP_RATE_BUCKETS } from "@/lib/mcp/rate-limit";
+} from "@/lib/session/mcp/protocol";
+import {
+    checkMcpRateLimit,
+    MCP_RATE_BUCKETS,
+} from "@/lib/session/mcp/rate-limit";
 import {
     addLibraryItem,
     toMcpLibraryItem,
     verifyMcpAuthToken,
-} from "@/lib/mcp/service";
+} from "@/lib/session/mcp/service";
 
 const log = createLogger("mcp.route");
 

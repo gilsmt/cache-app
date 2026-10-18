@@ -17,10 +17,6 @@ import { resolveExtensionIngestUserId } from "./service";
 
 const log = createLogger("extension:ingest");
 
-// ---------------------------------------------------------------------------
-// CORS
-// ---------------------------------------------------------------------------
-
 const INGEST_CORS_HEADERS = {
     "Access-Control-Allow-Headers": "authorization, content-type",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -66,9 +62,8 @@ function corsHeadersForOrigin(
 }
 
 /**
- * CORS headers for the extension ingest POST endpoints. The extension
- * posts saved items with an `Authorization: Bearer` header, so these are
- * not credentialed.
+ * The extension posts saved items with an `Authorization: Bearer` header,
+ * so the ingest endpoints are not credentialed.
  */
 export function extensionIngestCorsHeaders(request: Request): HeadersInit {
     return corsHeadersForOrigin(
@@ -79,9 +74,8 @@ export function extensionIngestCorsHeaders(request: Request): HeadersInit {
 }
 
 /**
- * CORS headers for endpoints that rely on cookie/session credentials
- * (e.g. the extension ingest token endpoint). Credentialed CORS cannot use a
- * wildcard origin, so untrusted origins receive no allow-origin header.
+ * Credentialed CORS cannot use a wildcard origin, so untrusted origins
+ * receive no allow-origin header.
  */
 export function extensionTokenCorsHeaders(request: Request): HeadersInit {
     return corsHeadersForOrigin(
@@ -90,10 +84,6 @@ export function extensionTokenCorsHeaders(request: Request): HeadersInit {
         { allowCredentials: true }
     );
 }
-
-// ---------------------------------------------------------------------------
-// Bearer auth
-// ---------------------------------------------------------------------------
 
 function parseBearerToken(request: Request): string | null {
     const raw = request.headers.get("authorization");
@@ -105,13 +95,8 @@ function parseBearerToken(request: Request): string | null {
 }
 
 /**
- * Authenticates an extension ingest request by Bearer token.
- *
- * The CORS headers are computed once and attached to every response,
- * including the failure paths, so the browser can read the error body.
- *
- * @returns The CORS headers and resolved user id, or a 401 Response if
- *   authentication fails.
+ * The CORS headers attach to every response, including the failure paths,
+ * so the browser can read the error body.
  */
 export async function authenticateExtensionIngest(
     request: Request
@@ -136,10 +121,6 @@ export async function authenticateExtensionIngest(
     return { cors, userId };
 }
 
-// ---------------------------------------------------------------------------
-// Generic import route adapter
-// ---------------------------------------------------------------------------
-
 interface ExtensionIngestImportResult {
     smartCollectionItemIds: string[];
 }
@@ -159,19 +140,8 @@ interface ExtensionIngestImportConfig<
 }
 
 /**
- * Route adapter for the per-provider extension ingest endpoints.
- *
- * Pipeline:
- * 1. Authenticate via `Authorization: Bearer <token>` (returns CORS-aware
- *    401 on failure).
- * 2. Parse the request body and validate it against the provider-specific
- *    schema.
- * 3. Call the provider-specific import service.
- * 4. Schedule the request-scoped auto-tagging side-effect.
- * 5. Return a CORS-aware JSON response.
- *
- * The provider-specific `importFn` is a pure service (e.g. `importTiktokSaved`)
- * and has no knowledge of HTTP.
+ * The provider-specific `importFn` is a pure service (e.g.
+ * `importTiktokSaved`) and has no knowledge of HTTP.
  */
 export async function runExtensionIngestImport<
     TBody,

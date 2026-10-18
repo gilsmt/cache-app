@@ -1,7 +1,7 @@
 import "server-only";
 
 import { after } from "next/server";
-import { autoTagLibraryItemsByIds } from "@/lib/session/collections/engine";
+import { autoTagLibraryItemsByIds } from "./engine";
 
 export function scheduleSmartCollections(
     userId: string,

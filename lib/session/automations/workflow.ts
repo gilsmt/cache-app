@@ -1,27 +1,19 @@
 import { type ModelCallStreamPart, WorkflowAgent } from "@ai-sdk/workflow";
 import { isStepCount } from "ai";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { summarizeStepUsage } from "@/lib/session/classify";
-import type { GenerationUsage } from "@/lib/session/generation";
-import { resolveRegisteredModel } from "@/lib/session/providers/resolver";
 import {
-    type AutomationAgentSource,
-    createAutomationAgentTools,
-} from "../tools/agent-tools";
-import { AUTOMATION_INSPECTED_ITEM_COUNT_MAX } from "./constants";
-
-const AUTOMATION_OUTPUT_TOKEN_LIMIT = 8192;
+    type AutomationAgentInput,
+    automationAgent,
+} from "@/lib/session/ai/agents";
+import type { GenerationUsage } from "@/lib/session/ai/generate";
+import { resolveRegisteredModel } from "@/lib/session/ai/resolver";
+import { createAgentRunState } from "@/lib/session/ai/runner";
+import { summarizeStepUsage } from "@/lib/session/ai/usage";
+import { normalizeGeneratedMarkdown } from "@/lib/session/formatter/markdown";
+import type { AutomationAgentSource } from "@/lib/session/tool/web";
+import { uniqueSources } from "@/lib/session/tool/web";
 
 const log = createLogger("automations:workflow");
-
-interface ReadyAutomationRun {
-    payloadScope: string;
-    prompt: string;
-    runId: string;
-    scheduledForUtc: string;
-    templateKey: string | null;
-    userId: string;
-}
 
 type AutomationRunSources =
     | {
@@ -30,16 +22,16 @@ type AutomationRunSources =
     | {
           sources: AutomationAgentSource[];
       };
+
 interface AutomationAgentRunResult {
     sources: { sources: AutomationAgentSource[] };
     summaryMarkdown: string;
     usage?: GenerationUsage;
 }
-interface GenAiProtectionErrorData {
-    data: {
-        message: string;
-        reason: "quota_exceeded" | "forbidden";
-    };
+
+interface AutomationProtectionDenial {
+    message: string;
+    reason: "quota_exceeded" | "forbidden";
 }
 
 export async function prepareAutomationRunForWorkflow(args: {
@@ -51,19 +43,33 @@ export async function prepareAutomationRunForWorkflow(args: {
     return await markAutomationRunRunning(args);
 }
 
-export async function executeReadOnlyAutomationRun(ready: ReadyAutomationRun) {
-    const instructions = buildAutomationInstructions(ready);
-    const userMessage = buildAutomationUserMessage(ready);
+export async function executeReadOnlyAutomationRun(
+    ready: AutomationAgentInput
+) {
+    const instructions = automationAgent.instructions(ready);
+    const userMessage = automationAgent.userMessage(ready);
 
     try {
-        await protectAutomationAgentRun({
+        const denial = await protectAutomationAgentRun({
             prompt: `${instructions}\n\n${userMessage}`,
             userId: ready.userId,
         });
 
+        if (denial) {
+            await finishAutomationRunForWorkflow({
+                errorCode: denial.reason,
+                errorMessage: denial.message,
+                runId: ready.runId,
+                status: "failed",
+                summaryMarkdown:
+                    "This automation was blocked by AI usage protection before it ran.",
+            });
+            return;
+        }
+
         const result = await runAutomationAgentForWorkflow({
+            input: ready,
             instructions,
-            runId: ready.runId,
             userMessage,
         });
 
@@ -75,18 +81,6 @@ export async function executeReadOnlyAutomationRun(ready: ReadyAutomationRun) {
             usage: result.usage,
         });
     } catch (error) {
-        if (isGenAiProtectionErrorData(error)) {
-            await finishAutomationRunForWorkflow({
-                errorCode: error.data.reason,
-                errorMessage: error.data.message,
-                runId: ready.runId,
-                status: "failed",
-                summaryMarkdown:
-                    "This automation was blocked by AI usage protection before it ran.",
-            });
-            return;
-        }
-
         log.error("Automation agent run failed", error);
         await finishAutomationRunForWorkflow({
             errorCode: "agent_failed",
@@ -103,40 +97,54 @@ export async function executeReadOnlyAutomationRun(ready: ReadyAutomationRun) {
 async function protectAutomationAgentRun(args: {
     prompt: string;
     userId: string;
-}) {
+}): Promise<AutomationProtectionDenial | null> {
     "use step";
 
     const { protectGenAiRequest } = await import("@/lib/session/protection");
-    const { estimateTokens } = await import("@/lib/session/usage");
+    const { GenAiProtectionError } = await import("@/lib/session/error");
+    const { estimateTokens } = await import("@/lib/session/ai/usage");
 
-    await protectGenAiRequest({
-        feature: "automation_agent",
-        request: new Request("https://cache.local/internal/automations"),
-        requestedTokens: estimateTokens(
-            args.prompt,
-            AUTOMATION_OUTPUT_TOKEN_LIMIT
-        ),
-        userId: args.userId,
-    });
+    try {
+        await protectGenAiRequest({
+            feature: automationAgent.feature,
+            request: new Request("https://cache.local/internal/automations"),
+            requestedTokens: estimateTokens(
+                args.prompt,
+                automationAgent.outputTokenLimit
+            ),
+            userId: args.userId,
+        });
+        return null;
+    } catch (error) {
+        if (GenAiProtectionError.isInstance(error)) {
+            return {
+                message: error.data.message,
+                reason: error.data.reason,
+            };
+        }
+        throw error;
+    }
 }
 
 async function runAutomationAgentForWorkflow(args: {
+    input: AutomationAgentInput;
     instructions: string;
-    runId: string;
     userMessage: string;
 }): Promise<AutomationAgentRunResult> {
     "use step";
 
-    const { getSources, tools } = createAutomationAgentTools({
-        runId: args.runId,
-    });
+    const state = createAgentRunState();
 
     const agent = new WorkflowAgent({
         instructions: args.instructions,
-        maxOutputTokens: AUTOMATION_OUTPUT_TOKEN_LIMIT,
-        model: resolveRegisteredModel("executeReadOnlyAutomationRun"),
-        temperature: 0.3,
-        tools,
+        maxOutputTokens: automationAgent.outputTokenLimit,
+        model: resolveRegisteredModel(automationAgent.operation),
+        temperature: automationAgent.temperature,
+        tools: automationAgent.tools({
+            input: args.input,
+            state,
+            userId: args.input.userId,
+        }),
     });
 
     const result = await agent.stream({
@@ -146,12 +154,12 @@ async function runAutomationAgentForWorkflow(args: {
                 role: "user",
             },
         ],
-        stopWhen: isStepCount(6),
+        stopWhen: isStepCount(automationAgent.maxSteps),
         writable: new WritableStream<ModelCallStreamPart>(),
     });
 
     return {
-        sources: getSources(),
+        sources: uniqueSources(state.sources),
         summaryMarkdown: getFinalStepText(result.steps),
         usage: summarizeStepUsage(result.steps),
     };
@@ -171,53 +179,13 @@ async function finishAutomationRunForWorkflow(args: {
     await finishAutomationRun(args);
 }
 
-function isGenAiProtectionErrorData(
-    error: unknown
-): error is GenAiProtectionErrorData {
-    if (typeof error !== "object" || error === null || !("data" in error)) {
-        return false;
-    }
-
-    const { data } = error;
-    if (typeof data !== "object" || data === null) {
-        return false;
-    }
-
-    return (
-        "message" in data &&
-        typeof data.message === "string" &&
-        "reason" in data &&
-        (data.reason === "quota_exceeded" || data.reason === "forbidden")
-    );
-}
-
-function buildAutomationInstructions(ready: ReadyAutomationRun): string {
-    return [
-        "You are Cache's scheduled automation agent.",
-        "You help users make saved content useful without mutating their library.",
-        "Use the payload tools to inspect saved items. Do not claim to inspect items you did not retrieve.",
-        `Inspect at most ${AUTOMATION_INSPECTED_ITEM_COUNT_MAX} saved items. If the payload is larger, disclose that the result is based on a bounded sample.`,
-        "Use web_search and web_fetch only when current public context is useful. Use github_repo for stats on a specific public GitHub repository.",
-        "Return concise markdown. Include practical next steps when relevant.",
-        `Scheduled run time: ${ready.scheduledForUtc}`,
-        `Payload scope: ${ready.payloadScope}`,
-    ].join("\n");
-}
-
-function buildAutomationUserMessage(prepared: ReadyAutomationRun): string {
-    return [
-        "Run this saved-content automation:",
-        "",
-        prepared.prompt,
-        "",
-        "Return the final result as concise markdown.",
-    ].join("\n");
-}
-
 function getFinalStepText(steps: Array<{ text?: string }>): string {
     const finalText = steps.findLast((step) => step.text?.trim())?.text?.trim();
     if (finalText) {
-        return finalText;
+        const normalized = normalizeGeneratedMarkdown(finalText);
+        if (normalized) {
+            return normalized;
+        }
     }
 
     return "The automation completed, but it did not produce a text summary.";

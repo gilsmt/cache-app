@@ -1,5 +1,8 @@
 import { requireRouteUserId } from "@/lib/auth/session";
-import { generateMcpSetupPrompt, rotateMcpTokens } from "@/lib/mcp/service";
+import {
+    generateMcpSetupPrompt,
+    rotateMcpTokens,
+} from "@/lib/session/mcp/service";
 
 const UNAUTHORIZED_RESPONSE_HEADERS = {
     "Cache-Control": "no-store, private",

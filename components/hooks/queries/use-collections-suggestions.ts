@@ -1,7 +1,7 @@
 import useSWR from "swr";
 import type { CollectionTemplateOption } from "@/lib/collections/templates";
 import { ACTION_STATUS } from "@/lib/common/constants";
-import { getCollectionSuggestions } from "@/lib/session/actions";
+import { getCollectionSuggestions } from "@/lib/session/collections/actions";
 
 const COLLECTIONS_SUGGESTIONS_SWR_KEY = ["collections-suggestions"] as const;
 
