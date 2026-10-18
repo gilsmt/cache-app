@@ -8,7 +8,7 @@ import {
 } from "../instructions/automations";
 import { createAutomationPayloadTools } from "../tool/automation";
 import type { AssistantRequest } from "../tool/composer";
-import { createComposerTools } from "../tool/composer";
+import { createComposerTools } from "../tool/composer-tools";
 import { createLibrarySearchTool } from "../tool/library-search";
 import { createWebAgentTools } from "../tool/web";
 import type { AgentDefinition } from "./runner";

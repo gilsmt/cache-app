@@ -13,8 +13,12 @@ import { normalizeGeneratedMarkdown } from "../formatter/markdown";
 import { protectGenAiRequest } from "../protection";
 import type { AgentViewPage, AssistantComposerPatch } from "../tool/composer";
 import type { AutomationAgentSource } from "../tool/web";
-import { type GenerationUsage, runGeneration } from "./generate";
-import { estimateTokens, summarizeStepUsage } from "./usage";
+import {
+    type GenerationUsage,
+    type RawGenerationUsage,
+    runGeneration,
+} from "./generate";
+import { estimateTokens } from "./usage";
 
 const log = createLogger("intelligence:agent");
 
@@ -129,7 +133,7 @@ async function runAgentModel<Input>(args: {
     userId: string;
 }): Promise<{
     output: { markdown: string };
-    usage?: GenerationUsage;
+    usage?: RawGenerationUsage;
 }> {
     const { agent, state } = args;
     const loop = new ToolLoopAgent({
@@ -159,7 +163,7 @@ async function runAgentModel<Input>(args: {
 
     return {
         output: { markdown },
-        usage: summarizeStepUsage(result.steps),
+        usage: result.usage,
     };
 }
 

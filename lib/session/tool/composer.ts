@@ -1,20 +1,5 @@
-import { tool } from "ai";
 import * as z from "zod";
-import {
-    buildLibraryDomainCondition,
-    buildLibraryTextSearchConditions,
-} from "@/lib/collections/search";
-import { ITEM_KIND_FOLDER, SORT_DESC } from "@/lib/common/constants";
-import { createLogger } from "@/lib/common/logs/console/logger";
-import type { Prisma } from "@/prisma/client/client";
 import { LibraryItemSource } from "@/prisma/client/enums";
-
-/**
- * Server dependencies load lazily inside functions so the client can
- * import the contract.
- */
-
-const log = createLogger("intelligence:composer");
 
 export const ASSISTANT_DOMAIN_FILTER_MAX_LENGTH = 120;
 /** Cap for search_library domainFilters — each domain expands into many URL predicates. */
@@ -207,7 +192,7 @@ export const AssistantRequestSchema = z.strictObject({
     visibleContext: AssistantVisibleContextSchema,
 });
 
-const AssistantToolUpdateInputSchema = z.strictObject({
+export const AssistantToolUpdateInputSchema = z.strictObject({
     patch: AssistantComposerPatchSchema,
     summary: z.string().trim().min(1).max(200),
 });
@@ -219,7 +204,7 @@ export type AssistantRequest = z.infer<typeof AssistantRequestSchema>;
 export type AssistantVisibleItem = z.infer<typeof AssistantVisibleItemSchema>;
 
 export const AGENT_VIEW_PAGE_ITEM_LIMIT = 100;
-const AGENT_VIEW_OFFSET_MAX = 10_000;
+export const AGENT_VIEW_OFFSET_MAX = 10_000;
 const AGENT_VIEW_TITLE_MAX_LENGTH = 120;
 const AGENT_VIEW_EXPLANATION_MAX_LENGTH = 500;
 export const AGENT_VIEW_TEXT_MAX_LENGTH = 200;
@@ -273,7 +258,7 @@ export const AgentViewPageRequestSchema = z.strictObject({
     query: AgentViewQuerySchema,
 });
 
-const DefineAgentViewToolInputSchema = z.strictObject({
+export const DefineAgentViewToolInputSchema = z.strictObject({
     explanation: z
         .string()
         .trim()
@@ -286,234 +271,6 @@ const DefineAgentViewToolInputSchema = z.strictObject({
 export type AgentViewQuery = z.infer<typeof AgentViewQuerySchema>;
 export type AgentViewPage = z.infer<typeof AgentViewPageSchema>;
 export type AgentViewPageRequest = z.infer<typeof AgentViewPageRequestSchema>;
-
-interface AgentViewPageResult {
-    itemIds: string[];
-    nextOffset: number | null;
-    truncated: boolean;
-}
-
-function compileAgentViewQueryToWhere(
-    userId: string,
-    query: AgentViewQuery
-): Prisma.LibraryItemWhereInput {
-    const where: Prisma.LibraryItemWhereInput = {
-        deletedAt: null,
-        kind:
-            query.kind === undefined
-                ? { not: ITEM_KIND_FOLDER }
-                : { equals: query.kind },
-        userId,
-    };
-
-    const conditions: Prisma.LibraryItemWhereInput[] = [];
-
-    if (query.favoritedOnly) {
-        conditions.push({ favoritedAt: { not: null } });
-    }
-
-    if (query.collectionIds !== undefined) {
-        conditions.push({
-            collections: { some: { id: { in: query.collectionIds } } },
-        });
-    }
-
-    if (query.membership === "in-collections") {
-        conditions.push({ collections: { some: {} } });
-    }
-
-    if (query.membership === "not-in-collections") {
-        conditions.push({ collections: { none: {} } });
-    }
-
-    if ((query.sourceFilters ?? []).length > 0) {
-        conditions.push({ source: { in: query.sourceFilters } });
-    }
-
-    const text = query.text?.trim();
-    if (text) {
-        conditions.push(
-            ...buildLibraryTextSearchConditions(
-                text,
-                ASSISTANT_SEARCH_TERM_MAX_LENGTH
-            )
-        );
-    }
-
-    const domainCondition = buildLibraryDomainCondition(
-        query.domainFilters ?? []
-    );
-    if (domainCondition) {
-        conditions.push(domainCondition);
-    }
-
-    if (conditions.length > 0) {
-        where.AND = conditions;
-    }
-
-    return where;
-}
-
-interface ResolveAgentViewPageInput {
-    offset?: number;
-    query: AgentViewQuery;
-    userId: string;
-}
-
-/**
- * Resolves one page of an agent view query in stable recency order with an
- * id tiebreak so offset cursors do not skip or repeat rows. Free preview
- * shares the same cap; cards render only from page-loaded items, so locked
- * ids resolve to nothing client-side. Server dependencies load lazily so
- * this module stays client-importable.
- */
-export async function resolveAgentViewPage(
-    input: ResolveAgentViewPageInput
-): Promise<AgentViewPageResult & { previewLimited: boolean }> {
-    const { userHasProAccess } = await import("@/lib/billing/service");
-    const { prisma } = await import("@/prisma");
-
-    const offset = Math.min(
-        Math.max(input.offset ?? 0, 0),
-        AGENT_VIEW_OFFSET_MAX
-    );
-    const [hasAccess, rows] = await Promise.all([
-        userHasProAccess(input.userId),
-        prisma.libraryItem.findMany({
-            orderBy: [
-                { scrapedAt: SORT_DESC },
-                { updatedAt: SORT_DESC },
-                { id: SORT_DESC },
-            ],
-            select: { id: true },
-            skip: offset,
-            take: AGENT_VIEW_PAGE_ITEM_LIMIT + 1,
-            where: compileAgentViewQueryToWhere(input.userId, input.query),
-        }),
-    ]);
-
-    const truncated = rows.length > AGENT_VIEW_PAGE_ITEM_LIMIT;
-    const itemIds = rows
-        .slice(0, AGENT_VIEW_PAGE_ITEM_LIMIT)
-        .map((row) => row.id);
-
-    log.debug("Resolved agent view page", {
-        itemCount: itemIds.length,
-        offset,
-        truncated,
-        userId: input.userId,
-    });
-
-    const nextOffset = offset + itemIds.length;
-
-    return {
-        itemIds,
-        nextOffset:
-            truncated && nextOffset <= AGENT_VIEW_OFFSET_MAX
-                ? nextOffset
-                : null,
-        previewLimited: !hasAccess,
-        truncated,
-    };
-}
-
-/**
- * Each tool owns its policy; changes made during a run are recorded into
- * the run state the runner provides, so the agent can report them back.
- */
-export function createComposerTools(args: {
-    input: AssistantRequest;
-    state: {
-        operations: AssistantComposerPatch[];
-        operationSummaries: string[];
-        view: AgentViewPage | null;
-    };
-    userId: string;
-}) {
-    const { state } = args;
-
-    const tools = {
-        define_view: tool({
-            description:
-                "Define the ephemeral library view for show, find, or filter requests. Prefer this over update_composer for navigation. Returns server-resolved item ids in recency order with a truncated flag. One view per run; the last call wins.",
-            execute: async (toolInput) => {
-                const query = normalizeAgentViewQueryForContext(
-                    toolInput.query,
-                    {
-                        availableCollections:
-                            args.input.visibleContext.availableCollections,
-                        availableDomains:
-                            args.input.visibleContext.availableDomains,
-                    }
-                );
-
-                const page = await resolveAgentViewPage({
-                    query,
-                    userId: args.userId,
-                });
-
-                state.view = {
-                    explanation: toolInput.explanation,
-                    itemIds: page.itemIds,
-                    nextOffset: page.nextOffset,
-                    query,
-                    title: toolInput.title,
-                    truncated: page.truncated,
-                };
-
-                return {
-                    itemCount: state.view.itemIds.length,
-                    ok: true,
-                    previewLimited: page.previewLimited,
-                    title: state.view.title,
-                    truncated: state.view.truncated,
-                };
-            },
-            inputSchema: DefineAgentViewToolInputSchema,
-        }),
-        update_composer: tool({
-            description:
-                "Apply a validated composer patch. Batch all state changes into one call. Only include fields that differ from the current composer state; noop patches are rejected. Prefer high-confidence concrete filters (domains, collections, sources, entity names) over generic category searchTerms.",
-            execute: (toolInput) => {
-                if (state.operations.length >= ASSISTANT_OPERATION_LIMIT) {
-                    return {
-                        ok: false,
-                        reason: "operation_limit_reached",
-                    };
-                }
-
-                const patch = resolveComposerPatchContradictions(
-                    normalizeComposerPatchForContext(
-                        toolInput.patch,
-                        args.input
-                    ),
-                    args.input.composerState
-                );
-
-                if (isNoopComposerPatch(patch, args.input.composerState)) {
-                    return {
-                        ok: false,
-                        reason: "patch_is_noop",
-                        validationNote:
-                            "All proposed changes already match the current composer state. Update only fields that differ.",
-                    };
-                }
-
-                state.operations.push(patch);
-                state.operationSummaries.push(toolInput.summary);
-                return {
-                    appliedOperationCount: state.operations.length,
-                    ok: true,
-                    patch,
-                    summary: toolInput.summary,
-                };
-            },
-            inputSchema: AssistantToolUpdateInputSchema,
-        }),
-    };
-
-    return tools;
-}
 
 /**
  * Maps the domains and collection ids a model asks for onto the ones the
@@ -554,7 +311,7 @@ function arraysEqual(left: string[], right: string[]): boolean {
     return true;
 }
 
-function normalizeComposerPatchForContext(
+export function normalizeComposerPatchForContext(
     patch: AssistantComposerPatch,
     request: AssistantRequest
 ): AssistantComposerPatch {
@@ -591,7 +348,7 @@ function normalizeComposerPatchForContext(
  * membership to `all`. Also heals latent contradictory state left by older
  * patches so a partial update (e.g. searchTerms only) does not keep zero results.
  */
-function resolveComposerPatchContradictions(
+export function resolveComposerPatchContradictions(
     patch: AssistantComposerPatch,
     state: AssistantRequest["composerState"]
 ): AssistantComposerPatch {
@@ -621,7 +378,7 @@ function resolveComposerPatchContradictions(
     return { ...patch, selectedCollectionIds: [] };
 }
 
-function isNoopComposerPatch(
+export function isNoopComposerPatch(
     patch: AssistantComposerPatch,
     state: AssistantRequest["composerState"]
 ): boolean {
@@ -659,7 +416,7 @@ function isNoopComposerPatch(
     return !checks.some((check) => check());
 }
 
-function normalizeAgentViewQueryForContext(
+export function normalizeAgentViewQueryForContext(
     query: AgentViewQuery,
     context: {
         availableCollections: Array<{ id: string }>;

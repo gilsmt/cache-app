@@ -8,14 +8,14 @@ import {
     type GenerationActionStatus,
     mapGenerationFailure,
 } from "@/lib/session/error";
-import type { AssistantComposerPatch } from "../tool/composer";
+import { resolveAgentViewPage } from "../tool/agent-view";
 import {
     type AgentViewPage,
     type AgentViewPageRequest,
     AgentViewPageRequestSchema,
+    type AssistantComposerPatch,
     type AssistantRequest,
     AssistantRequestSchema,
-    resolveAgentViewPage,
 } from "../tool/composer";
 import { assistantAgent } from "./agents";
 import { runAgent } from "./runner";
