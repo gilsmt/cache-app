@@ -1,7 +1,7 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { vercel } from "@t3-oss/env-nextjs/presets-zod";
 import * as z from "zod";
-import { REGISTERED_MODEL_PATTERN } from "@/lib/session/providers/registry";
+import { REGISTERED_MODEL_PATTERN } from "@/lib/session/ai/model";
 
 export const serverEnv = createEnv({
     emptyStringAsUndefined: true,
@@ -40,6 +40,7 @@ export const serverEnv = createEnv({
         GT_PROJECT_ID: z.string().optional(),
         NOTION_CLIENT_ID: z.string().optional(),
         NOTION_CLIENT_SECRET: z.string().optional(),
+        OPENROUTER_API_KEY: z.string().optional(),
         PINTEREST_CLIENT_ID: z.string().optional(),
         PINTEREST_CLIENT_SECRET: z.string().optional(),
         REDDIT_CLIENT_ID: z.string().optional(),

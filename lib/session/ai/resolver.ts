@@ -1,23 +1,80 @@
 import "server-only";
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { gateway, type LanguageModel } from "ai";
 import { serverEnv } from "@/env/server";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { GenAiConfigurationError } from "../error";
-import { DEFAULT_REGISTERED_MODEL, parseRegisteredModel } from "./model";
+import {
+    DEFAULT_REGISTERED_MODEL,
+    type ParsedRegisteredModel,
+    parseRegisteredModel,
+} from "./model";
 
 const log = createLogger("intelligence:model");
 
-const google = createGoogleGenerativeAI({ apiKey: serverEnv.GEMINI_API_KEY });
+/**
+ * AI Gateway leads for model IDs in its catalog. OpenRouter catalog refs use
+ * OpenRouter's own slug format, so they must use the direct OpenRouter adapter.
+ */
+interface Provider {
+    apiKey: string | undefined;
+    create: (args: {
+        apiKey: string;
+        model: ParsedRegisteredModel;
+    }) => LanguageModel;
+    /** Vendor this provider serves; omitted for vendor-agnostic providers. */
+    vendor?: string;
+}
+
+const providers: Provider[] = [
+    {
+        apiKey: serverEnv.AI_GATEWAY_API_KEY,
+        create: ({ model }) => gateway(`${model.vendor}/${model.modelId}`),
+    },
+    {
+        apiKey: serverEnv.GEMINI_API_KEY,
+        create: ({ apiKey, model }) =>
+            createGoogleGenerativeAI({ apiKey })(model.modelId),
+        vendor: "google",
+    },
+    {
+        apiKey: serverEnv.OPENROUTER_API_KEY,
+        create: ({ apiKey, model }) =>
+            createOpenRouter({ apiKey })(model.modelId),
+        vendor: "openrouter",
+    },
+];
+
+interface ResolvedProvider {
+    apiKey: string;
+    create: (args: {
+        apiKey: string;
+        model: ParsedRegisteredModel;
+    }) => LanguageModel;
+}
+
+function resolveProvider(
+    model: ParsedRegisteredModel
+): ResolvedProvider | undefined {
+    for (const provider of providers) {
+        if (model.vendor === "openrouter" && provider.vendor !== "openrouter") {
+            continue;
+        }
+        if (
+            provider.apiKey &&
+            (provider.vendor === undefined || provider.vendor === model.vendor)
+        ) {
+            return { apiKey: provider.apiKey, create: provider.create };
+        }
+    }
+    return undefined;
+}
 
 /**
- * Resolves the configured vendor-qualified model to an AI SDK language model.
- *
- * Routes through AI Gateway when AI_GATEWAY_API_KEY is present. Otherwise
- * only google/* references resolve directly; any other vendor needs the
- * gateway key, so misconfiguration fails fast with a named error instead of
- * surfacing as a provider error mid-generation.
+ * Misconfiguration fails fast with a named error instead of surfacing as a
+ * provider error mid-generation.
  */
 export function resolveRegisteredModel(operation: string): LanguageModel {
     const registeredModel =
@@ -35,20 +92,29 @@ export function resolveRegisteredModel(operation: string): LanguageModel {
         log.debug("Using configured AI model", { registeredModel });
     }
 
-    if (serverEnv.AI_GATEWAY_API_KEY) {
-        return gateway(`${model.vendor}/${model.modelId}`);
+    const provider = resolveProvider(model);
+    if (!provider) {
+        const credentialHint =
+            model.vendor === "openrouter"
+                ? "OPENROUTER_API_KEY"
+                : `AI_GATEWAY_API_KEY or a direct credential for vendor "${model.vendor}"`;
+        throw new GenAiConfigurationError({
+            message: `No provider available for model "${registeredModel}": set ${credentialHint}.`,
+            operation,
+        });
     }
 
-    if (model.vendor === "google") {
-        return google(model.modelId);
-    }
-
-    throw new GenAiConfigurationError({
-        message: `Model vendor "${model.vendor}" requires AI_GATEWAY_API_KEY.`,
-        operation,
-    });
+    return provider.create({ apiKey: provider.apiKey, model });
 }
 
 export function isIntelligenceConfigured(): boolean {
-    return !!(serverEnv.GEMINI_API_KEY || serverEnv.AI_GATEWAY_API_KEY);
+    const registeredModel =
+        serverEnv.CACHE_AI_MODEL ?? DEFAULT_REGISTERED_MODEL;
+    const model = parseRegisteredModel(registeredModel);
+
+    if (!model) {
+        return false;
+    }
+
+    return !!resolveProvider(model);
 }

@@ -9,7 +9,7 @@ export interface ParsedRegisteredModel {
 }
 
 export const REGISTERED_MODEL_PATTERN =
-    /^[a-z0-9][a-z0-9-]*\/[a-z0-9._-]+(?:\/[a-z0-9._-]+)*$/i;
+    /^[a-z0-9][a-z0-9-]*\/[a-z0-9._-]+(?:\/[a-z0-9._-]+)*(?::[a-z0-9._-]+)?$/i;
 
 export function parseRegisteredModel(
     value: string
