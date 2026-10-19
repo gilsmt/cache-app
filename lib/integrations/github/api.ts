@@ -1,11 +1,14 @@
 import "server-only";
 
 import * as z from "zod";
+import { isAbortError } from "@/lib/common/abort";
 import { parseDate } from "@/lib/common/date";
+import { fetchWithTimeout } from "@/lib/common/timeout";
 import { IntegrationApiError } from "@/lib/integrations/error";
 import type { Prisma } from "@/prisma/client/client";
 
 const GITHUB_API_BASE_URL = "https://api.github.com";
+export const GITHUB_API_TIMEOUT_MS = 30_000;
 const GITHUB_API_VERSION = "2022-11-28";
 const GITHUB_PAGE_SIZE = 100;
 const MAX_GITHUB_STARRED_PAGES = 20;
@@ -79,24 +82,40 @@ async function fetchGitHub(
     path: string,
     searchParams?: URLSearchParams
 ): Promise<unknown> {
-    const response = await fetch(
-        `${GITHUB_API_BASE_URL}${path}${searchParams ? `?${searchParams.toString()}` : ""}`,
-        {
-            cache: "no-store",
-            headers: {
-                Accept: "application/vnd.github+json",
-                Authorization: `Bearer ${accessToken}`,
-                "X-GitHub-Api-Version": GITHUB_API_VERSION,
+    try {
+        const response = await fetchWithTimeout(
+            `${GITHUB_API_BASE_URL}${path}${searchParams ? `?${searchParams.toString()}` : ""}`,
+            {
+                cache: "no-store",
+                headers: {
+                    Accept: "application/vnd.github+json",
+                    Authorization: `Bearer ${accessToken}`,
+                    "X-GitHub-Api-Version": GITHUB_API_VERSION,
+                },
             },
+            GITHUB_API_TIMEOUT_MS
+        );
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+            throw parseGitHubApiError(payload, response.status);
         }
-    );
 
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-        throw parseGitHubApiError(payload, response.status);
+        return payload;
+    } catch (error) {
+        if (isAbortError(error)) {
+            throw new IntegrationApiError(
+                {
+                    integrationId: "github",
+                    message: "GitHub took too long to respond.",
+                    operation: "fetchGitHub",
+                    status: 504,
+                },
+                { cause: error }
+            );
+        }
+        throw error;
     }
-
-    return payload;
 }
 
 function parseAuthenticatedUser(

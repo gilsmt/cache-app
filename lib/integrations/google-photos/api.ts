@@ -1,7 +1,9 @@
 import "server-only";
 
 import * as z from "zod";
+import { isAbortError } from "@/lib/common/abort";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { fetchWithTimeout } from "@/lib/common/timeout";
 import { IntegrationApiError } from "@/lib/integrations/error";
 
 const log = createLogger("google-photos:api");
@@ -17,6 +19,7 @@ import {
 } from "./shared";
 
 const GOOGLE_PHOTOS_PICKER_API = "https://photospicker.googleapis.com/v1";
+const GOOGLE_PHOTOS_PICKER_TIMEOUT_MS = 30_000;
 const TRAILING_SLASHES_PATTERN = /\/+$/;
 
 const PickerApiErrorSchema = z.object({
@@ -34,35 +37,57 @@ async function pickerFetch(
     pathname: string,
     init: RequestInit = {}
 ): Promise<unknown> {
-    const response = await fetch(`${GOOGLE_PHOTOS_PICKER_API}${pathname}`, {
-        ...init,
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            ...(init.headers ?? {}),
-        },
-    });
+    try {
+        const response = await fetchWithTimeout(
+            `${GOOGLE_PHOTOS_PICKER_API}${pathname}`,
+            {
+                ...init,
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                    ...(init.headers ?? {}),
+                },
+            },
+            GOOGLE_PHOTOS_PICKER_TIMEOUT_MS
+        );
 
-    if (!response.ok) {
-        const maybeJson = await response.json().catch(() => null);
-        const parsedError = PickerApiErrorSchema.safeParse(maybeJson);
-        if (!parsedError.success) {
-            log.debug("Picker API error body did not match expected schema", {
-                error: parsedError.error,
-                raw: maybeJson,
+        if (!response.ok) {
+            const maybeJson = await response.json().catch(() => null);
+            const parsedError = PickerApiErrorSchema.safeParse(maybeJson);
+            if (!parsedError.success) {
+                log.debug(
+                    "Picker API error body did not match expected schema",
+                    {
+                        error: parsedError.error,
+                        raw: maybeJson,
+                    }
+                );
+            }
+            const apiMessage =
+                parsedError.data?.error?.message ?? response.statusText;
+            throw new IntegrationApiError({
+                integrationId: "google-photos",
+                message: apiMessage,
+                operation: "pickerFetch",
+                status: response.status,
             });
         }
-        const apiMessage =
-            parsedError.data?.error?.message ?? response.statusText;
-        throw new IntegrationApiError({
-            integrationId: "google-photos",
-            message: apiMessage,
-            operation: "pickerFetch",
-            status: response.status,
-        });
-    }
 
-    return await response.json();
+        return await response.json();
+    } catch (error) {
+        if (isAbortError(error)) {
+            throw new IntegrationApiError(
+                {
+                    integrationId: "google-photos",
+                    message: "Google Photos took too long to respond.",
+                    operation: "pickerFetch",
+                    status: 504,
+                },
+                { cause: error }
+            );
+        }
+        throw error;
+    }
 }
 
 export async function createPickerSession(
