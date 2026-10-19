@@ -1,9 +1,11 @@
 import "server-only";
 
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { fetchWithTimeout } from "@/lib/common/timeout";
 import { importLibraryItemSnapshot } from "@/lib/integrations/import";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import {
+    GITHUB_API_TIMEOUT_MS,
     getGitHubAuthenticatedUser,
     listGitHubStarredRepositories,
 } from "./api";
@@ -74,11 +76,12 @@ export async function importGitHubStarredRepositories(args: {
 
 export async function getStarCount(repositoryId: string): Promise<string> {
     try {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
             `https://api.github.com/repos/${repositoryId}`,
             {
                 headers: { Accept: "application/vnd.github.v3+json" },
-            }
+            },
+            GITHUB_API_TIMEOUT_MS
         );
         if (!response.ok) {
             return "";
