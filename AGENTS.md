@@ -73,7 +73,7 @@ When refactoring or moving code, preserve existing comments unless they are expl
 
 ## React
 
-Follow [BaseUI conventions](https://base-ui.com/react/handbook/composition).
+Follow [Base UI conventions](https://base-ui.com/react/handbook/composition).
 
 Every component should be co-located into a single file with its parts, and should use a common, composable interface, making them predictable.
 
@@ -100,9 +100,9 @@ Inside component functions, hooks and logic should be grouped in a predictable s
 
 Runtime & Package Manager: Node.js 24.x and Bun (API docs is in `node_modules/bun-types/docs/**.mdx` if necessary)
 Framework: Next.js 16 (App Router)
-UI: [React 19](https://react.dev/llms.txt), Base-UI ([@base-ui/react](https://base-ui.com/llms.txt), @base-ui/utils), [motion (previously framer motion)](https://motion.dev/llms.txt), and lucide-react icons
-React Compiler: enabled via Next.js `reactCompiler: true`. It automatically memoizes components and values, such as render-time derived values. Do not add manual `useMemo` or `useCallback`; they can interfere with compiler optimization
-Styling: Tailwind CSS 4
+UI: [React 19](https://react.dev/llms.txt), Base-UI ([@base-ui/react](https://base-ui.com/llms.txt), @base-ui/utils), [motion (previously framer motion)](https://motion.dev/llms.txt)
+React Compiler: enabled via Next.js `reactCompiler: true`. It automatically memoizes components and values, such as render-time derived values. Do not add manual `useMemo` or `useCallback`;
+Styling: Tailwind CSS v4
 Rich Text: [Lexical](https://lexical.dev)
 Internationalization: [gt-next](https://generaltranslation.com/llms.txt)
 Validation: [Zod v4.5](https://zod.dev/llms.txt) schemas
