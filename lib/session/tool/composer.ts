@@ -1,5 +1,11 @@
 import * as z from "zod";
 import { LibraryItemSource } from "@/prisma/client/enums";
+import {
+    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
+    DEFAULT_COLUMN_COUNT_MODE,
+    DEFAULT_GROUP_BY_MODE,
+    DEFAULT_SORT_MODE,
+} from "../composer/defaults";
 
 export const ASSISTANT_DOMAIN_FILTER_MAX_LENGTH = 120;
 /** Cap for search_library domainFilters — each domain expands into many URL predicates. */
@@ -203,6 +209,17 @@ export type AssistantComposerPatch = z.infer<
 export type AssistantRequest = z.infer<typeof AssistantRequestSchema>;
 export type AssistantVisibleItem = z.infer<typeof AssistantVisibleItemSchema>;
 
+export const DEFAULT_ASSISTANT_COMPOSER_STATE = {
+    collectionMembershipFilter: DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
+    columnCountMode: DEFAULT_COLUMN_COUNT_MODE,
+    domainFilters: [],
+    groupBy: DEFAULT_GROUP_BY_MODE,
+    searchTerms: [],
+    selectedCollectionIds: [],
+    sortMode: DEFAULT_SORT_MODE,
+    sourceFilters: [],
+} satisfies AssistantRequest["composerState"];
+
 export const AGENT_VIEW_PAGE_ITEM_LIMIT = 100;
 export const AGENT_VIEW_OFFSET_MAX = 10_000;
 const AGENT_VIEW_TITLE_MAX_LENGTH = 120;
@@ -271,6 +288,11 @@ export const DefineAgentViewToolInputSchema = z.strictObject({
 export type AgentViewQuery = z.infer<typeof AgentViewQuerySchema>;
 export type AgentViewPage = z.infer<typeof AgentViewPageSchema>;
 export type AgentViewPageRequest = z.infer<typeof AgentViewPageRequestSchema>;
+
+export interface NormalizedAgentViewQuery {
+    matchesNoItems: boolean;
+    query: AgentViewQuery;
+}
 
 /**
  * Maps the domains and collection ids a model asks for onto the ones the
@@ -422,7 +444,7 @@ export function normalizeAgentViewQueryForContext(
         availableCollections: Array<{ id: string }>;
         availableDomains: Array<{ domain: string }>;
     }
-): AgentViewQuery {
+): NormalizedAgentViewQuery {
     const collectionIds = new Set(
         context.availableCollections.map((collection) => collection.id)
     );
@@ -448,7 +470,12 @@ export function normalizeAgentViewQueryForContext(
         normalized.collectionIds = normalizedCollectionIds;
     }
 
-    return resolveAgentViewContradictions(normalized);
+    return {
+        matchesNoItems:
+            (query.domainFilters?.length ?? 0) > 0 &&
+            (normalizedDomainFilters?.length ?? 0) === 0,
+        query: resolveAgentViewContradictions(normalized),
+    };
 }
 
 function normalizeCollectionIdsForContext(

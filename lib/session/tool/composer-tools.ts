@@ -8,6 +8,7 @@ import {
     type AssistantComposerPatch,
     type AssistantRequest,
     AssistantToolUpdateInputSchema,
+    DEFAULT_ASSISTANT_COMPOSER_STATE,
     DefineAgentViewToolInputSchema,
     isNoopComposerPatch,
     normalizeAgentViewQueryForContext,
@@ -29,13 +30,17 @@ export function createComposerTools(args: {
     userId: string;
 }) {
     const { state } = args;
+    let latestViewSequence = 0;
+    let effectiveComposerState = args.input.composerState;
 
     const tools = {
         define_view: tool({
             description:
                 "Define the ephemeral library view for show, find, or filter requests. Prefer this over update_composer for navigation. Returns server-resolved item ids in recency order with a truncated flag. One view per run; the last call wins.",
             execute: async (toolInput) => {
-                const query = normalizeAgentViewQueryForContext(
+                latestViewSequence += 1;
+                const viewSequence = latestViewSequence;
+                const normalized = normalizeAgentViewQueryForContext(
                     toolInput.query,
                     {
                         availableCollections:
@@ -45,26 +50,36 @@ export function createComposerTools(args: {
                     }
                 );
 
-                const page = await resolveAgentViewPage({
-                    query,
-                    userId: args.userId,
-                });
+                const page = normalized.matchesNoItems
+                    ? {
+                          itemIds: [],
+                          nextOffset: null,
+                          previewLimited: false,
+                          truncated: false,
+                      }
+                    : await resolveAgentViewPage({
+                          query: normalized.query,
+                          userId: args.userId,
+                      });
 
-                state.view = {
+                const view = {
                     explanation: toolInput.explanation,
                     itemIds: page.itemIds,
                     nextOffset: page.nextOffset,
-                    query,
+                    query: normalized.query,
                     title: toolInput.title,
                     truncated: page.truncated,
                 };
+                if (viewSequence === latestViewSequence) {
+                    state.view = view;
+                }
 
                 return {
-                    itemCount: state.view.itemIds.length,
+                    itemCount: view.itemIds.length,
                     ok: true,
                     previewLimited: page.previewLimited,
-                    title: state.view.title,
-                    truncated: state.view.truncated,
+                    title: view.title,
+                    truncated: view.truncated,
                 };
             },
             inputSchema: DefineAgentViewToolInputSchema,
@@ -80,15 +95,18 @@ export function createComposerTools(args: {
                     };
                 }
 
+                const stateBeforePatch = toolInput.patch.reset
+                    ? DEFAULT_ASSISTANT_COMPOSER_STATE
+                    : effectiveComposerState;
                 const patch = resolveComposerPatchContradictions(
                     normalizeComposerPatchForContext(
                         toolInput.patch,
                         args.input
                     ),
-                    args.input.composerState
+                    stateBeforePatch
                 );
 
-                if (isNoopComposerPatch(patch, args.input.composerState)) {
+                if (isNoopComposerPatch(patch, stateBeforePatch)) {
                     return {
                         ok: false,
                         reason: "patch_is_noop",
@@ -97,6 +115,10 @@ export function createComposerTools(args: {
                     };
                 }
 
+                effectiveComposerState = applyAssistantComposerPatch(
+                    patch,
+                    stateBeforePatch
+                );
                 state.operations.push(patch);
                 state.operationSummaries.push(toolInput.summary);
                 return {
@@ -111,4 +133,23 @@ export function createComposerTools(args: {
     };
 
     return tools;
+}
+
+function applyAssistantComposerPatch(
+    patch: AssistantComposerPatch,
+    state: AssistantRequest["composerState"]
+): AssistantRequest["composerState"] {
+    return {
+        collectionMembershipFilter:
+            patch.collectionMembershipFilter ??
+            state.collectionMembershipFilter,
+        columnCountMode: patch.columnCountMode ?? state.columnCountMode,
+        domainFilters: patch.domainFilters ?? state.domainFilters,
+        groupBy: patch.groupBy ?? state.groupBy,
+        searchTerms: patch.searchTerms ?? state.searchTerms,
+        selectedCollectionIds:
+            patch.selectedCollectionIds ?? state.selectedCollectionIds,
+        sortMode: patch.sortMode ?? state.sortMode,
+        sourceFilters: patch.sourceFilters ?? state.sourceFilters,
+    };
 }

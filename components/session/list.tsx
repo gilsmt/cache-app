@@ -54,9 +54,6 @@ import { useSectionDescription } from "@/components/hooks/queries/use-section-de
 import {
     type CollectionMembershipFilter,
     type ColumnCountMode,
-    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
-    DEFAULT_COLUMN_COUNT_MODE,
-    DEFAULT_SORT_MODE,
     type GroupByMode,
     type SortMode,
     useComposerFilters,
@@ -253,6 +250,11 @@ import {
 } from "@/lib/notes/actions";
 import type { AssistantResult } from "@/lib/session/ai/actions";
 import { getAgentViewPage, runAssistant } from "@/lib/session/ai/actions";
+import {
+    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
+    DEFAULT_COLUMN_COUNT_MODE,
+    DEFAULT_SORT_MODE,
+} from "@/lib/session/composer/defaults";
 import {
     SECTION_DESCRIPTION_CONTEXT_ITEMS_LIMIT,
     SECTION_DESCRIPTION_DOMAIN_MAX_LENGTH,
