@@ -17,7 +17,7 @@ import { fetchPublicRedirect } from "@/lib/common/security/fetch";
 import { normalizeWhitespace } from "@/lib/common/string";
 import { isHttpUrl } from "@/lib/common/url";
 import { resolveCobaltDownloadUrl } from "@/lib/integrations/cobalt/service";
-import type { GenerationContent } from "@/lib/session/generation";
+import type { GenerationContent } from "@/lib/session/ai/generate";
 import { type LibraryItemKind, LibraryItemSource } from "@/prisma/client/enums";
 
 const log = createLogger("intelligence:smart-collections:attachments");
@@ -113,14 +113,10 @@ function inferDownloadAssetType(
             mimeType: mime.lookup(headerExt) || MIME_TYPES.binary,
         };
     }
-    try {
-        const pathExt = extname(new URL(url).pathname).toLowerCase();
-        const lookupType = pathExt ? mime.lookup(pathExt) : false;
-        if (lookupType) {
-            return { extension: pathExt, mimeType: lookupType };
-        }
-    } catch {
-        // URL parse failure — fall through
+    const pathExt = extname(URL.parse(url)?.pathname ?? "").toLowerCase();
+    const lookupType = pathExt ? mime.lookup(pathExt) : false;
+    if (lookupType) {
+        return { extension: pathExt, mimeType: lookupType };
     }
     return { extension: ".bin", mimeType: MIME_TYPES.binary };
 }

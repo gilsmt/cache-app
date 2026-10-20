@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { getRun } from "workflow/api";
 import { userHasProAccess } from "@/lib/billing/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import type { GenerationUsage } from "@/lib/session/generation";
+import type { GenerationUsage } from "@/lib/session/ai/generate";
 import { createThreadForAutomationRun } from "@/lib/threads/service";
 import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
@@ -905,6 +905,7 @@ export async function finishAutomationRun(args: {
                 summaryMarkdown: args.summaryMarkdown,
                 usage: args.usage
                     ? {
+                          cachedInputTokens: args.usage.cachedInputTokens,
                           inputTokens: args.usage.inputTokens,
                           outputTokens: args.usage.outputTokens,
                           totalTokens: args.usage.totalTokens,

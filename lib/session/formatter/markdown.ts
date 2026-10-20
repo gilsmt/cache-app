@@ -1,4 +1,5 @@
 import { isRecord } from "@/lib/common/object";
+import { truncateText } from "@/lib/common/string";
 
 const JSON_MARKDOWN_FIELD_NAMES = [
     "markdown",
@@ -113,4 +114,83 @@ function parseJson(
     } catch {
         return { ok: false };
     }
+}
+
+const SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH = 220;
+const SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH = 1600;
+
+const WHITESPACE_PATTERN = /\s+/g;
+const SUMMARY_PREFIX_PATTERN = /^summary:\s*/i;
+const SURROUNDING_QUOTES_PATTERN = /^["']|["']$/g;
+const FIRST_SENTENCE_PATTERN = /^.+?[.!?](?=\s|$)/;
+const GRAMMATICALLY_COMPLETE_PATTERN = /[.!?]$/;
+const MARKDOWN_CODE_FENCE_PATTERN = /^```(?:markdown|md)?\s*|\s*```$/gi;
+
+function firstSentence(value: string): string {
+    const match = value.match(FIRST_SENTENCE_PATTERN);
+    return match?.[0]?.trim() ?? value.trim();
+}
+
+function isGrammaticallyComplete(value: string): boolean {
+    return GRAMMATICALLY_COMPLETE_PATTERN.test(value);
+}
+
+export function normalizeSummary(value: string | undefined): string | null {
+    const normalized = normalizeGeneratedMarkdown(value)
+        .replace(WHITESPACE_PATTERN, " ")
+        .replace(SUMMARY_PREFIX_PATTERN, "")
+        .trim();
+    const singleSentence = firstSentence(normalized);
+    const cleaned = singleSentence
+        .replace(SURROUNDING_QUOTES_PATTERN, "")
+        .trim();
+
+    if (cleaned.length === 0) {
+        return null;
+    }
+
+    if (cleaned.length <= SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH) {
+        return isGrammaticallyComplete(cleaned) ? cleaned : `${cleaned}.`;
+    }
+
+    return truncateText(
+        cleaned,
+        SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH,
+        "..."
+    );
+}
+
+export function normalizeExpandedSummary(
+    value: string | undefined
+): string | null {
+    const normalized = normalizeGeneratedMarkdown(value);
+    if (!normalized) {
+        return null;
+    }
+
+    const lines = normalized
+        .replace(MARKDOWN_CODE_FENCE_PATTERN, "")
+        .split("\n");
+    const keptLines: string[] = [];
+    for (const line of lines) {
+        const trimmedLine = line.trimEnd();
+        if (trimmedLine.length > 0) {
+            keptLines.push(trimmedLine);
+        }
+    }
+    const cleaned = keptLines.join("\n").trim();
+
+    if (cleaned.length === 0) {
+        return null;
+    }
+
+    if (cleaned.length <= SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH) {
+        return cleaned;
+    }
+
+    return truncateText(
+        cleaned,
+        SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH,
+        "..."
+    );
 }

@@ -212,10 +212,16 @@ export function escapeLikePattern(value: string): string {
 }
 
 /**
- * Truncates to maxLength. When truncated, the ellipsis is included in the
- * budget so the result length is at most maxLength.
+ * Truncates to maxLength UTF-16 code units. When truncated, the ellipsis is
+ * included in the budget so the result length is at most maxLength. An empty
+ * ellipsis performs a hard cut. The cut stays on a grapheme boundary, so
+ * surrogate pairs, flags, ZWJ sequences, and combining marks stay intact.
  */
-export function truncateText(value: string, maxLength: number): string {
+export function truncateText(
+    value: string,
+    maxLength: number,
+    ellipsis = "…"
+): string {
     if (maxLength <= 0) {
         return "";
     }
@@ -229,10 +235,10 @@ export function truncateText(value: string, maxLength: number): string {
     if (value.length <= budget) {
         return value;
     }
-    if (budget === 1) {
-        return "…";
+    if (ellipsis.length >= budget) {
+        return ellipsis.slice(0, budget);
     }
-    return `${graphemePrefix(value, budget - 1).trimEnd()}…`;
+    return `${graphemePrefix(value, budget - ellipsis.length).trimEnd()}${ellipsis}`;
 }
 
 // Longest grapheme prefix whose UTF-16 length fits `maxUnits`, so slicing

@@ -48,7 +48,7 @@ You can self-host the Cache App for total control over your data and design. Cac
 
 - [Node.js 24+](https://nodejs.org/)
 - PostgreSQL 12+ (local or remote)
-- A [Google Gemini API](https://aistudio.google.com/apikey) or an [AI Gateway](https://vercel.com/docs/ai-gateway) key to route any provider (`CACHE_AI_MODEL` selects a different model; see `.env.example`)
+- An AI provider key: [Google Gemini](https://aistudio.google.com/apikey) for the default model, [OpenRouter](https://openrouter.ai/keys) for OpenRouter model references, or [AI Gateway](https://vercel.com/docs/ai-gateway) for its model catalog; see `.env.example`.
 - Docker (optional)
 
 ### Local Development
@@ -87,23 +87,23 @@ See the [environment variables reference](.env.example) for the full list.
 <a href="https://prisma.io"><img width="122" height="20" src="http://made-with.prisma.io/indigo.svg" alt="Made with Prisma" /></a>
 <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/tailwindcss-0F172A?&logo=tailwindcss" alt="Tailwind CSS"></a>
 
-| Category                  | Technology                                                                                                      |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Framework**             | [Next.js](https://nextjs.org/) (App Router)                                                                     |
-| **UI**                    | [React](https://react.dev/), [Base UI](https://base-ui.com/), [Tailwind CSS](https://tailwindcss.com/)          |
-| **Rich Text**             | [Lexical](https://lexical.dev/), [Streamdown](https://github.com/vercel/streamdown)                             |
-| **Database**              | PostgreSQL, Redis                                                                                               |
-| **Auth**                  | [Better Auth](https://better-auth.com/)                                                                         |
-| **Validation**            | [Zod](https://zod.dev/), [@t3-oss/env-nextjs](https://env.t3.gg/)                                               |
-| **AI/LLM**                | [AI SDK](https://sdk.vercel.ai/), [AI Gateway](https://vercel.com/ai-gateway), [Gemini](https://ai.google.dev/) |
-| **Agentic Web Search**    | [Tavily](https://tavily.com/)                                                                                   |
-| **Data Fetching**         | [SWR](https://swr.vercel.app/), [nuqs](https://nuqs.vercel.app/)                                                |
-| **i18n**                  | [gt-next](https://generaltranslation.com)                                                                       |
-| **Subscriptions**         | [Stripe](https://stripe.com/)                                                                                   |
-| **Durable Execution**     | [Workflow SDK](https://workflow-sdk.dev/)                                                                       |
-| **Security (Cloud-only)** | [Arcjet](https://arcjet.com/) (WAF, rate limiting, PII redaction)                                               |
-| **Linting**               | [Ultracite](https://ultracite.dev/) (Biome)                                                                     |
-| **Date Handling**         | [Day.js](https://day.js.org/), [chrono-node](https://github.com/wanasit/chrono)                                 |
+| Category                  | Technology                                                                                                                                            |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Framework**             | [Next.js](https://nextjs.org/) (App Router)                                                                                                           |
+| **UI**                    | [React](https://react.dev/), [Base UI](https://base-ui.com/), [Tailwind CSS](https://tailwindcss.com/)                                                |
+| **Rich Text**             | [Lexical](https://lexical.dev/), [Streamdown](https://github.com/vercel/streamdown)                                                                   |
+| **Database**              | PostgreSQL, Redis                                                                                                                                     |
+| **Auth**                  | [Better Auth](https://better-auth.com/)                                                                                                               |
+| **Validation**            | [Zod](https://zod.dev/), [@t3-oss/env-nextjs](https://env.t3.gg/)                                                                                     |
+| **AI/LLM**                | [AI SDK](https://sdk.vercel.ai/), [AI Gateway](https://vercel.com/ai-gateway), [Gemini](https://ai.google.dev/), [OpenRouter](https://openrouter.ai/) |
+| **Agentic Web Search**    | [Tavily](https://tavily.com/)                                                                                                                         |
+| **Data Fetching**         | [SWR](https://swr.vercel.app/), [nuqs](https://nuqs.vercel.app/)                                                                                      |
+| **i18n**                  | [gt-next](https://generaltranslation.com)                                                                                                             |
+| **Subscriptions**         | [Stripe](https://stripe.com/)                                                                                                                         |
+| **Durable Execution**     | [Workflow SDK](https://workflow-sdk.dev/)                                                                                                             |
+| **Security (Cloud-only)** | [Arcjet](https://arcjet.com/) (WAF, rate limiting, PII redaction)                                                                                     |
+| **Linting**               | [Ultracite](https://ultracite.dev/) (Biome)                                                                                                           |
+| **Date Handling**         | [Day.js](https://day.js.org/), [chrono-node](https://github.com/wanasit/chrono)                                                                       |
 
 </details>
 

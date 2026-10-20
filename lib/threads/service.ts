@@ -369,7 +369,7 @@ export async function createStandaloneThread(args: {
     if (markdown.length === 0) {
         throw new ThreadError({
             code: "invalid_input",
-            message: "There is no Ask Cache answer to continue.",
+            message: "There is no assistant answer to continue.",
             operation: "createStandaloneThread",
         });
     }
@@ -403,7 +403,7 @@ export function buildStandaloneThreadTitle(prompt: string): string {
         normalizeWhitespace(prompt),
         THREAD_TITLE_MAX_LENGTH
     );
-    return title.length > 0 ? title : "Ask Cache chat";
+    return title.length > 0 ? title : "Assistant chat";
 }
 
 export async function startThreadTurn(args: {
@@ -514,8 +514,7 @@ export async function startThreadTurn(args: {
             }
             // Idempotent retry: the turn is already saved (e.g. after a
             // mid-stream failure released the claim). Reuse the trailing
-            // user row instead of creating a duplicate. Anything else
-            // falls through to create, which rejects it as before.
+            // user row instead of creating a duplicate.
             return saved.slice(0, retriedIndex + 1);
         }
 

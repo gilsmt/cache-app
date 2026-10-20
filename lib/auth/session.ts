@@ -27,9 +27,8 @@ export const getSessionUserId = cache(async (): Promise<string | null> => {
 type WithSessionCallback<T> = (session: Session | null) => Promise<T> | T;
 
 /**
- * Executes a callback with the current session. Only session resolution
- * failures normalize to SessionError; callback errors propagate untouched so
- * their domain is preserved.
+ * Only session resolution failures normalize to SessionError; callback errors
+ * propagate untouched so their domain is preserved.
  */
 export async function withSession<T>(
     callback: WithSessionCallback<T>
@@ -68,18 +67,12 @@ interface AuthorizedActionResult {
 
 type ActionAuthResult = UnauthorizedActionResult | AuthorizedActionResult;
 
-/**
- * Narrows the serializable auth result used by Server Actions.
- */
 export function isUnauthenticated(
     result: ActionAuthResult
 ): result is UnauthorizedActionResult {
     return "status" in result && result.status === ACTION_STATUS.UNAUTHORIZED;
 }
 
-/**
- * Resolves the current session user id for Server Actions.
- */
 export async function requireActionUserId(
     unauthorizedMessage = "Sign in to continue."
 ): Promise<ActionAuthResult> {
@@ -95,11 +88,6 @@ export async function requireActionUserId(
     return { userId };
 }
 
-/**
- * Resolves the current session user id for API route handlers.
- * Session always comes from Next.js request cookies via `headers()`.
- * `unauthorizedResponseHeaders` attach only to the 401 response (e.g. CORS).
- */
 export async function requireRouteUserId(args?: {
     unauthorizedResponseHeaders?: HeadersInit;
 }): Promise<{ userId: string } | Response> {
