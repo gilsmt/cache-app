@@ -129,6 +129,8 @@ We organize and co-locate Next.js Server Actions as thin adapters in `lib/{modul
 
 Actions are the only networking boundary: they parse/validate inputs, guard with user context, translate service results to serialized responses, and decide application-specific side effects, like `revalidatePath()`. Behind the scenes, actions use the `POST` method. On the client, an action is consumed in one of two ways: as a read, by wrapping it in a small fetcher function passed to [swr](https://swr.vercel.app/llms.txt) (SWR calls the function locally); or as a mutation, by calling it directly from an event handler or form action. Either way the action is imported and invoked as an ordinary async function — the type signature of the export is the type of the call site, so requests and responses are fully inferred without an intermediate schema. Actions should return the minimal stable contract the current consumer needs — prefer a small DTO over entire domain objects or field-by-field thrash.
 
+Route handlers are the exception, and only for clients that cannot call an action: cross-origin callers such as the browser extension, public or documented endpoints such as `/mcp/prompt`, and binary or streaming resources such as `/api/preview`. A handler the app UI itself calls, such as the integration sync routes, stays a handler because the client reads its JSON body directly instead of going through the action layer. Handlers that authenticate with their own credential use a bearer token, not a session cookie, and handle their own CORS and origin rules.
+
 ## Logging and error handling pattern
 
 Instrument critical paths. Log errors with context. Emit metrics for failure rates. Trace requests across service boundaries.
