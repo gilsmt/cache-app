@@ -6,18 +6,22 @@ import { clamp } from "@/lib/common/number";
 const ICON_VIEWBOX = 24;
 const ICON_CENTER = 12;
 const ICON_STROKE_WIDTH = 3;
+const TRANSITION_DURATION_MS = 300;
 
 interface RadialIconProps extends React.ComponentProps<"svg"> {
     size?: number;
+    transitionDurationMs?: number;
     value: number;
 }
 
 export function RadialIcon({
     value,
     size = 10,
+    transitionDurationMs = TRANSITION_DURATION_MS,
     "aria-label": ariaLabel,
     "aria-hidden": ariaHidden,
     role = "img",
+    style,
     ...props
 }: RadialIconProps) {
     const circumference = 2 * Math.PI * size;
@@ -32,7 +36,7 @@ export function RadialIcon({
             aria-label={isDecorative ? undefined : label}
             height="20"
             role={isDecorative ? undefined : role}
-            style={{ color: "currentcolor" }}
+            style={{ color: "currentcolor", ...style }}
             viewBox={`0 0 ${ICON_VIEWBOX} ${ICON_VIEWBOX}`}
             width="20"
         >
@@ -46,7 +50,7 @@ export function RadialIcon({
                 strokeWidth={ICON_STROKE_WIDTH}
             />
             <circle
-                className="transition-[stroke-dashoffset] duration-300 ease-out motion-reduce:transition-none"
+                className="transition-[stroke-dashoffset] ease-out motion-reduce:transition-none"
                 cx={ICON_CENTER}
                 cy={ICON_CENTER}
                 fill="none"
@@ -59,6 +63,7 @@ export function RadialIcon({
                     strokeDashoffset: dashOffset,
                     transform: "rotate(-90deg)",
                     transformOrigin: "center",
+                    transitionDuration: `${transitionDurationMs}ms`,
                 }}
             />
         </svg>

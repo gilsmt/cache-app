@@ -46,7 +46,7 @@ export default async function SignInPage() {
                         alt={APP_NAME}
                         className="h-auto w-10 select-none"
                         draggable="false"
-                        preload
+                        fetchPriority="high"
                         src={AppIconSmall}
                     />
                     <div className="flex w-full flex-col gap-2">

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/carousel";
 import { Footer } from "@/components/ui/footer";
 import { GradientWaveText } from "@/components/ui/gradient-wave-text";
+import { HomepageHero } from "@/components/ui/homepage-hero";
 import {
     ChromeIcon,
     ClaudeIcon,
@@ -71,7 +72,6 @@ import AiSectionTravelImage from "@/public/ai-section-travel.webp";
 import LogoIconImage from "@/public/cache-app-icon.png";
 import IconSmallImage from "@/public/cache-icon-small.png";
 import CollectionsSectionImage from "@/public/collections-section-image.webp";
-import HeroImage from "@/public/hero-image.webp";
 import LibrarySectionImage from "@/public/library-section.webp";
 import OrganizeSectionImage from "@/public/organize-section.webp";
 import SmartCollectionsBackgroundImage from "@/public/smart-collections-background.webp";
@@ -133,7 +133,6 @@ const HOME_JSON_LD: Record<string, unknown> = {
     ],
 };
 
-const HERO_IMAGE_SIZES = "(max-width: 1024px) 100vw, 1024px";
 const SECTION_IMAGE_SIZES = "(max-width: 768px) 100vw, 512px";
 const ASSISTANT_QUERY =
     "What does Cache App, the app at https://www.cachd.app, do?";
@@ -253,7 +252,7 @@ export default async function Home() {
                     </SidebarFooter>
                 </Sidebar>
                 <div className="flex w-full max-w-5xl flex-col gap-12 p-8 pb-0 lg:gap-16 2xl:mx-auto">
-                    <div className="relative aspect-video w-full min-w-0 overflow-clip rounded-xl bg-muted">
+                    <div className="flex w-full flex-col gap-4">
                         <div aria-live="polite" className="sr-only">
                             <T>
                                 This element contains an interactive demo for
@@ -262,44 +261,7 @@ export default async function Home() {
                                 brand background.
                             </T>
                         </div>
-                        <Carousel>
-                            <CarouselPanel className="grid auto-cols-[100%] grid-flow-col">
-                                <Image
-                                    alt=""
-                                    aria-hidden
-                                    className="absolute top-9.5 left-9 w-full rounded-xl"
-                                    fetchPriority="high"
-                                    placeholder="blur"
-                                    preload
-                                    sizes={HERO_IMAGE_SIZES}
-                                    src={HeroImage}
-                                />
-                                <Image
-                                    alt=""
-                                    aria-hidden
-                                    className="absolute top-9.5 left-9 w-full rounded-xl"
-                                    fetchPriority="high"
-                                    placeholder="blur"
-                                    preload
-                                    sizes={HERO_IMAGE_SIZES}
-                                    src={HeroImage}
-                                />
-                                <Image
-                                    alt=""
-                                    aria-hidden
-                                    className="absolute top-9.5 left-9 w-full rounded-xl"
-                                    fetchPriority="high"
-                                    placeholder="blur"
-                                    preload
-                                    sizes={HERO_IMAGE_SIZES}
-                                    src={HeroImage}
-                                />
-                            </CarouselPanel>
-                        </Carousel>
-                        <div
-                            aria-hidden
-                            className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-black/3 ring-inset dark:ring-white/3"
-                        />
+                        <HomepageHero />
                     </div>
                     <div className="mx-auto -mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
                         <Button
@@ -404,13 +366,12 @@ export default async function Home() {
                                 </T>
                             </ul>
                         </div>
-                        <div className="order-first aspect-square w-full bg-muted md:order-last">
-                            <figure className="overflow-hidden">
+                        <div className="order-first aspect-square w-full md:order-last">
+                            <figure className="overflow-hidden rounded-lg">
                                 <Image
                                     alt=""
                                     height={800}
                                     placeholder="blur"
-                                    quality={90}
                                     sizes={SECTION_IMAGE_SIZES}
                                     src={LibrarySectionImage}
                                     width={800}
@@ -451,8 +412,8 @@ export default async function Home() {
                                 </T>
                             </ul>
                         </div>
-                        <div className="order-first aspect-square w-full bg-muted md:order-last">
-                            <figure className="relative flex h-full items-center justify-center overflow-hidden p-6">
+                        <div className="order-first aspect-square w-full md:order-last">
+                            <figure className="relative flex h-full items-center justify-center overflow-hidden rounded-lg bg-muted p-6">
                                 <div className="relative mx-auto flex w-full max-w-sm items-center justify-between">
                                     <div className="space-y-6">
                                         {INTEGRATION_DEFINITIONS.slice(
@@ -557,8 +518,8 @@ export default async function Home() {
                                 </T>
                             </ul>
                         </div>
-                        <div className="order-first aspect-square w-full bg-muted md:order-last">
-                            <figure className="overflow-hidden">
+                        <div className="order-first aspect-square w-full md:order-last">
+                            <figure className="overflow-hidden rounded-lg">
                                 <Image
                                     alt=""
                                     height={800}
@@ -601,8 +562,8 @@ export default async function Home() {
                                 </T>
                             </ul>
                         </div>
-                        <div className="order-first aspect-square w-full bg-muted md:order-last">
-                            <figure className="overflow-hidden">
+                        <div className="order-first aspect-square w-full md:order-last">
+                            <figure className="overflow-hidden rounded-lg">
                                 <Image
                                     alt=""
                                     height={800}
@@ -648,8 +609,8 @@ export default async function Home() {
                                 </T>
                             </ul>
                         </div>
-                        <div className="relative order-first aspect-square w-full bg-muted md:order-last">
-                            <figure className="relative h-full overflow-hidden">
+                        <div className="relative order-first aspect-square w-full md:order-last">
+                            <figure className="relative h-full overflow-hidden rounded-lg">
                                 <Image
                                     alt=""
                                     className="object-cover"

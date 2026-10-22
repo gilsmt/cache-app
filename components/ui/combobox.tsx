@@ -10,13 +10,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ComboboxContext {
     chipsRef: React.RefObject<HTMLDivElement | null> | null;
-    multiple: boolean;
 }
 
 const ComboboxContext: React.Context<ComboboxContext> =
     React.createContext<ComboboxContext>({
         chipsRef: null,
-        multiple: false,
     });
 
 export function Combobox<
@@ -26,7 +24,7 @@ export function Combobox<
 >(props: ComboboxPrimitive.Root.Props<Value, Multiple, Item>) {
     const chipsRef = React.useRef<HTMLDivElement | null>(null);
 
-    const contextValue = { chipsRef, multiple: !!props.multiple };
+    const contextValue = { chipsRef };
 
     return (
         <ComboboxContext value={contextValue}>

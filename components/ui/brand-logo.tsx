@@ -126,7 +126,7 @@ export function BrandLogo({ href, src, className, ...props }: BrandLogoProps) {
                     alt={APP_NAME}
                     className="block h-auto w-45 select-none"
                     draggable="false"
-                    preload
+                    fetchPriority="high"
                     sizes="180px"
                     src={src}
                 />
