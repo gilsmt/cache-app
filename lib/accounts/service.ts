@@ -28,8 +28,8 @@ export async function prepareUserDeletion(userId: string): Promise<void> {
 }
 
 /**
- * Hard-deletes the user through Better Auth. Its pre-delete hook cancels
- * Stripe subscriptions only after Better Auth accepts the fresh session.
+ * Better Auth's pre-delete hook cancels Stripe subscriptions only after it
+ * accepts the fresh session.
  *
  * @throws {AccountError} When Better Auth rejects the deletion, billing
  * cancellation fails, or the database write fails.

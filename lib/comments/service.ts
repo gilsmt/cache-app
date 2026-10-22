@@ -21,8 +21,8 @@ export interface ItemCommentWithItem {
 }
 
 /**
- * Read the single comment attached to an item. Returns null when the item has
- * no comment or the row does not belong to the user.
+ * Returns null when the item has no comment or the comment does not belong
+ * to the user.
  */
 export async function getCommentForItem({
     itemId,
@@ -42,10 +42,6 @@ export async function getCommentForItem({
     return { contentText: comment.contentText };
 }
 
-/**
- * List the calling user's item comments with their owning items, newest
- * first. Only comments on active (non-deleted) items are returned.
- */
 export async function listCommentsForUser({
     limit,
     userId,
@@ -78,9 +74,6 @@ export async function listCommentsForUser({
     }));
 }
 
-/**
- * Count comments that are visible in the user's comments list.
- */
 export function countCommentsForUser({
     userId,
 }: {
@@ -90,8 +83,8 @@ export function countCommentsForUser({
 }
 
 /**
- * Create, update, or delete the single comment on an item. Empty (or
- * whitespace-only) drafts delete the row so "no comment" has one legal state.
+ * Empty (or whitespace-only) drafts delete the row so "no comment" has one
+ * legal state.
  */
 export async function saveCommentForItem({
     contentText,

@@ -1,87 +1,13 @@
-import * as z from "zod";
-import { LibraryItemSource } from "@/prisma/client/enums";
-import { normalizeGeneratedMarkdown } from "./markdown";
-import { truncateChars } from "./truncate";
-import { CHARS_PER_TOKEN, estimateTokens } from "./usage";
-
-// --- Input Limits ---
-
-export const SECTION_DESCRIPTION_CONTEXT_ITEMS_LIMIT = 20;
-export const SECTION_DESCRIPTION_TEXT_MAX_LENGTH = 180;
-export const SECTION_DESCRIPTION_URL_MAX_LENGTH = 240;
-export const SECTION_DESCRIPTION_DOMAIN_MAX_LENGTH = 80;
-export const SECTION_DESCRIPTION_TITLE_MAX_LENGTH = 140;
-export const COLLECTION_DESCRIPTION_TITLE_MAX_LENGTH = 120;
-
-// --- Output Limits ---
-
-export const SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH = 220;
-export const SECTION_DESCRIPTION_FALLBACK_TEXT =
-    "Summary is unavailable right now.";
-export const SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH = 1600;
-export const SECTION_DESCRIPTION_EXPANDED_OUTPUT_TOKEN_LIMIT = 512;
-
-// --- Prompt Budget ---
+import { truncateText } from "@/lib/common/string";
+import { CHARS_PER_TOKEN, estimateTokens } from "../ai/usage";
+import type {
+    CollectionDescriptionRequest,
+    DescriptionRequest,
+    SectionDescriptionContextItem,
+} from "../summaries/schema";
 
 const MAX_PROMPT_TOKENS = 4096;
 const PROMPT_OVERHEAD_TOKENS = 400;
-
-// --- Schemas ---
-
-const SectionDescriptionContextItemSchema = z.object({
-    addedAt: z.iso.datetime().optional(),
-    createdAt: z.iso.datetime().optional(),
-    domain: z
-        .string()
-        .trim()
-        .max(SECTION_DESCRIPTION_DOMAIN_MAX_LENGTH)
-        .optional(),
-    kind: z.enum(["bookmark", "note"]),
-    noteExcerpt: z
-        .string()
-        .trim()
-        .max(SECTION_DESCRIPTION_TEXT_MAX_LENGTH)
-        .optional(),
-    primaryText: z
-        .string()
-        .trim()
-        .min(1)
-        .max(SECTION_DESCRIPTION_TEXT_MAX_LENGTH),
-    source: z.enum(LibraryItemSource),
-    title: z.string().trim().min(1).max(SECTION_DESCRIPTION_TITLE_MAX_LENGTH),
-    url: z.string().trim().max(SECTION_DESCRIPTION_URL_MAX_LENGTH).optional(),
-});
-
-export const SectionDescriptionRequestSchema = z.object({
-    expanded: z.boolean().optional(),
-    items: z
-        .array(SectionDescriptionContextItemSchema)
-        .min(1)
-        .max(SECTION_DESCRIPTION_CONTEXT_ITEMS_LIMIT),
-    sectionTitle: z.string().trim().min(1).max(120),
-});
-
-export const CollectionDescriptionRequestSchema = z.object({
-    title: z
-        .string()
-        .trim()
-        .min(1)
-        .max(COLLECTION_DESCRIPTION_TITLE_MAX_LENGTH),
-});
-
-export type SectionDescriptionContextItem = z.infer<
-    typeof SectionDescriptionContextItemSchema
->;
-
-export type DescriptionRequest = z.infer<
-    typeof SectionDescriptionRequestSchema
->;
-
-export type CollectionDescriptionRequest = z.infer<
-    typeof CollectionDescriptionRequestSchema
->;
-
-// --- Few-Shot Examples ---
 
 interface FewShotExample {
     input: {
@@ -158,8 +84,6 @@ const FORMATTED_FEW_SHOT_EXAMPLES = FEW_SHOT_EXAMPLES.map((example, index) =>
         `Summary: ${example.output}`,
     ].join("\n")
 ).join("\n\n");
-
-// --- Prompt Builder ---
 
 interface CompactItem {
     domain?: string;
@@ -262,12 +186,6 @@ export function buildExpandedSummaryPrompt(
     ].join("\n");
 }
 
-/**
- * Truncates items to stay within the prompt token budget.
- *
- * Drops items from the end if the full set exceeds the budget, and
- * truncates text fields of the last included item when necessary.
- */
 export function truncateContextItems(
     request: DescriptionRequest,
     maxTokens: number = MAX_PROMPT_TOKENS
@@ -298,7 +216,6 @@ export function truncateContextItems(
             .join(" ");
         const itemTokens = estimateTokens(itemText);
 
-        // If adding this item would exceed budget and we already have at least one item, stop
         if (
             currentTokens + itemTokens > availableTokens &&
             truncatedItems.length > 0
@@ -306,7 +223,6 @@ export function truncateContextItems(
             break;
         }
 
-        // If a single item exceeds the remaining budget, truncate its text fields
         if (itemTokens > availableTokens - currentTokens) {
             const budget = availableTokens - currentTokens;
             const maxChars = budget * CHARS_PER_TOKEN;
@@ -318,8 +234,8 @@ export function truncateContextItems(
 
             truncatedItems.push({
                 ...item,
-                primaryText: truncateChars(item.primaryText, textBudget),
-                title: truncateChars(item.title, titleBudget),
+                primaryText: truncateText(item.primaryText, textBudget, ""),
+                title: truncateText(item.title, titleBudget, ""),
             });
             break;
         }
@@ -332,97 +248,4 @@ export function truncateContextItems(
         items: truncatedItems,
         sectionTitle: request.sectionTitle,
     };
-}
-
-// --- Output Normalization ---
-
-const WHITESPACE_PATTERN = /\s+/g;
-const SUMMARY_PREFIX_PATTERN = /^summary:\s*/i;
-const SURROUNDING_QUOTES_PATTERN = /^["']|["']$/g;
-const FIRST_SENTENCE_PATTERN = /^.+?[.!?](?=\s|$)/;
-const GRAMMATICALLY_COMPLETE_PATTERN = /[.!?]$/;
-
-function firstSentence(value: string): string {
-    const match = value.match(FIRST_SENTENCE_PATTERN);
-    return match?.[0]?.trim() ?? value.trim();
-}
-
-function isGrammaticallyComplete(value: string): boolean {
-    return GRAMMATICALLY_COMPLETE_PATTERN.test(value);
-}
-
-/**
- * Normalizes and validates a raw model summary.
- *
- * Returns the cleaned summary string, or null if the output is empty.
- */
-export function normalizeSummary(value: string | undefined): string | null {
-    const normalized = normalizeGeneratedMarkdown(value)
-        .replace(WHITESPACE_PATTERN, " ")
-        .replace(SUMMARY_PREFIX_PATTERN, "")
-        .trim();
-    const singleSentence = firstSentence(normalized);
-    const cleaned = singleSentence
-        .replace(SURROUNDING_QUOTES_PATTERN, "")
-        .trim();
-
-    if (cleaned.length === 0) {
-        return null;
-    }
-
-    if (cleaned.length <= SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH) {
-        return isGrammaticallyComplete(cleaned) ? cleaned : `${cleaned}.`;
-    }
-
-    return truncateChars(
-        cleaned,
-        SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH,
-        "..."
-    );
-}
-
-// --- Expanded Output Normalization ---
-
-const MARKDOWN_CODE_FENCE_PATTERN = /^```(?:markdown|md)?\s*|\s*```$/gi;
-
-/**
- * Normalizes and validates a raw expanded model response.
- *
- * Accepts either the preferred JSON object with a markdown `summary`
- * string or a raw markdown response. Returns the cleaned summary string,
- * or null if the output is empty.
- */
-export function normalizeExpandedSummary(
-    value: string | undefined
-): string | null {
-    const normalized = normalizeGeneratedMarkdown(value);
-    if (!normalized) {
-        return null;
-    }
-
-    const lines = normalized
-        .replace(MARKDOWN_CODE_FENCE_PATTERN, "")
-        .split("\n");
-    const keptLines: string[] = [];
-    for (const line of lines) {
-        const trimmedLine = line.trimEnd();
-        if (trimmedLine.length > 0) {
-            keptLines.push(trimmedLine);
-        }
-    }
-    const cleaned = keptLines.join("\n").trim();
-
-    if (cleaned.length === 0) {
-        return null;
-    }
-
-    if (cleaned.length <= SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH) {
-        return cleaned;
-    }
-
-    return truncateChars(
-        cleaned,
-        SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH,
-        "..."
-    );
 }

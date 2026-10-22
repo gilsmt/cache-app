@@ -82,10 +82,6 @@ function decodePayload(payload: string): TokenPayload | null {
     if (!(Number.isFinite(issuedAt) && Number.isFinite(expiresAt))) {
         return null;
     }
-    // Tokens issued before the scope segment existed carry only three
-    // segments and decode as `library:read+library:write` so existing clients
-    // keep working until they re-issue. New tokens always carry an explicit
-    // scope list, including an explicitly empty one (no access).
     const scopes: McpScope[] =
         scopesRaw === undefined
             ? LEGACY_DEFAULT_SCOPES

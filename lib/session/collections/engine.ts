@@ -7,13 +7,20 @@ import { unique } from "@/lib/common/array";
 import { ITEM_KIND_BOOKMARK, SORT_ASC } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { normalizeCollectionName, truncateText } from "@/lib/common/string";
+import { generateStructured } from "@/lib/session/ai/generate";
+import { isIntelligenceConfigured } from "@/lib/session/ai/resolver";
+import { estimateTokens } from "@/lib/session/ai/usage";
 import { GenAiProtectionError } from "@/lib/session/error";
-import { generateStructured } from "@/lib/session/generation";
 import { protectGenAiRequest } from "@/lib/session/protection";
-import { isIntelligenceConfigured } from "@/lib/session/providers/resolver";
 import { prisma } from "@/prisma";
 import { LibraryItemSource } from "@/prisma/client/enums";
-import { estimateTokens } from "../usage";
+import {
+    buildSmartCollectionPrompt,
+    SMART_COLLECTIONS_APPLY_COLLECTION_COUNT_MAX,
+    SMART_COLLECTIONS_NEW_COLLECTION_COUNT_MAX,
+    SMART_COLLECTIONS_NEW_COLLECTION_WORD_COUNT_MAX,
+    SMART_COLLECTIONS_SYSTEM_INSTRUCTION,
+} from "../instructions/smart-collections";
 import {
     createAttachmentForItem,
     type SmartCollectionAttachment,
@@ -23,9 +30,6 @@ import {
 
 const log = createLogger("intelligence:smart-collections");
 
-const SMART_COLLECTIONS_APPLY_COLLECTION_COUNT_MAX = 4;
-const SMART_COLLECTIONS_NEW_COLLECTION_COUNT_MAX = 1;
-const SMART_COLLECTIONS_NEW_COLLECTION_WORD_COUNT_MAX = 3;
 const SMART_COLLECTIONS_OUTPUT_TOKEN_LIMIT = 256;
 const SMART_COLLECTIONS_MODEL_TIMEOUT_MS = 45_000;
 const DEFAULT_SUMMARIZE_JSON_MAX_LENGTH = 1500;
@@ -82,60 +86,6 @@ function resolveCollectionDescription(
     );
 }
 
-function buildPrompt(
-    item: SmartCollectionItem,
-    collections: SmartCollectionCatalogEntry[]
-): string {
-    const currentCollectionNames = item.collections.map(
-        (collection) => collection.name
-    );
-    const collectionCatalog = collections.map((collection) => {
-        const description = resolveCollectionDescription(collection);
-        if (description) {
-            return {
-                description,
-                name: collection.name,
-            };
-        }
-        return { name: collection.name };
-    });
-    const sourceMetadata = summarizeJson(item.sourceMetadata);
-
-    return [
-        "Classify this single saved library item into user collections.",
-        "Return strict JSON only.",
-        "Always return both arrays, even when they are empty.",
-        "Use applyCollectionNames only for exact collection names from AVAILABLE_COLLECTIONS.",
-        "When a collection includes a description, treat that description as the primary membership criteria — apply the collection only when the item clearly fits the described purpose, not merely because the name shares a keyword.",
-        "Prefer existing collections that have descriptions over creating new collections for the same theme.",
-        `Choose at most ${SMART_COLLECTIONS_APPLY_COLLECTION_COUNT_MAX} existing collections and at most ${SMART_COLLECTIONS_NEW_COLLECTION_COUNT_MAX} new collections.`,
-        "Create a new collection only when the item has a broad, reusable topic that will likely group many future saved items.",
-        `New collection names must be concise taxonomy labels of at most ${SMART_COLLECTIONS_NEW_COLLECTION_WORD_COUNT_MAX} words, such as Design Systems or Personal Finance.`,
-        "Do not create collections for a single title, author, person, brand, source platform, website, format, product version, or passing mention.",
-        "Apply a collection only when the item is centrally about that collection, not because of a loose keyword, brand, person, location, format, or passing mention.",
-        "When uncertain, return empty arrays.",
-        "Avoid vague names like Misc, Random, or Interesting.",
-        "",
-        `Item source: ${sourceLabel(item.source)}`,
-        `Item URL: ${item.url}`,
-        `Item caption: ${item.caption ?? "None"}`,
-        `Already assigned collections: ${currentCollectionNames.length > 0 ? currentCollectionNames.join(", ") : "None"}`,
-        sourceMetadata && `Item source metadata: ${sourceMetadata}`,
-        "",
-        "AVAILABLE_COLLECTIONS:",
-        JSON.stringify(collectionCatalog),
-    ]
-        .filter(Boolean)
-        .join("\n");
-}
-
-const SMART_COLLECTIONS_SYSTEM_INSTRUCTION =
-    "You organize a user's saved media into focused collections. Be conservative, prefer existing collections, and create new collections only when there is a strong reusable theme. When a collection has a description, use that description as the membership criteria for what belongs in it.";
-
-/**
- * Classifies one item against the catalog, with attachment cleanup guaranteed
- * on every path.
- */
 async function decideCollectionsForItem(args: {
     attachment: SmartCollectionAttachment | null;
     item: SmartCollectionItem;
@@ -143,7 +93,21 @@ async function decideCollectionsForItem(args: {
     userId: string;
 }): Promise<SmartCollectionDecision | null> {
     const { attachment, item, collections } = args;
-    const promptText = buildPrompt(item, collections);
+    const promptText = buildSmartCollectionPrompt({
+        caption: item.caption,
+        collectionCatalog: collections.map((collection) => {
+            const description = resolveCollectionDescription(collection);
+            return description
+                ? { description, name: collection.name }
+                : { name: collection.name };
+        }),
+        currentCollectionNames: item.collections.map(
+            (collection) => collection.name
+        ),
+        sourceLabel: sourceLabel(item.source),
+        sourceMetadata: summarizeJson(item.sourceMetadata),
+        url: item.url,
+    });
     const protectionPrompt = [promptText, attachment?.protectionText]
         .filter((segment) => segment && segment.length > 0)
         .join("\n\n");

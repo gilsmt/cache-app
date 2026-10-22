@@ -54,9 +54,6 @@ import { useSectionDescription } from "@/components/hooks/queries/use-section-de
 import {
     type CollectionMembershipFilter,
     type ColumnCountMode,
-    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
-    DEFAULT_COLUMN_COUNT_MODE,
-    DEFAULT_SORT_MODE,
     type GroupByMode,
     type SortMode,
     useComposerFilters,
@@ -251,28 +248,13 @@ import {
     type NoteMutationResult,
     updateNote,
 } from "@/lib/notes/actions";
-import { getAgentViewPage, runAssistant } from "@/lib/session/actions";
-import type {
-    AssistantComposerPatch,
-    AssistantRequest,
-    AssistantResult,
-    AssistantVisibleItem,
-} from "@/lib/session/composer/assistant";
+import type { AssistantResult } from "@/lib/session/ai/actions";
+import { getAgentViewPage, runAssistant } from "@/lib/session/ai/actions";
 import {
-    ASSISTANT_CONTEXT_COLLECTION_LIMIT,
-    ASSISTANT_CONTEXT_DOMAIN_LIMIT,
-    ASSISTANT_VISIBLE_ITEM_LABEL_MAX_LENGTH,
-    ASSISTANT_VISIBLE_ITEM_LIMIT,
-} from "@/lib/session/composer/assistant";
-import type {
-    AgentViewPage,
-    AgentViewQuery,
-} from "@/lib/session/composer/view";
-import {
-    appendAgentViewPageIds,
-    filterItemsToAgentView,
-    resolveAgentViewItems,
-} from "@/lib/session/composer/view";
+    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
+    DEFAULT_COLUMN_COUNT_MODE,
+    DEFAULT_SORT_MODE,
+} from "@/lib/session/composer/defaults";
 import {
     SECTION_DESCRIPTION_CONTEXT_ITEMS_LIMIT,
     SECTION_DESCRIPTION_DOMAIN_MAX_LENGTH,
@@ -280,7 +262,20 @@ import {
     SECTION_DESCRIPTION_TITLE_MAX_LENGTH,
     SECTION_DESCRIPTION_URL_MAX_LENGTH,
     type SectionDescriptionContextItem,
-} from "@/lib/session/overview";
+} from "@/lib/session/summaries/schema";
+import type {
+    AgentViewPage,
+    AgentViewQuery,
+    AssistantComposerPatch,
+    AssistantRequest,
+    AssistantVisibleItem,
+} from "@/lib/session/tool/composer";
+import {
+    ASSISTANT_CONTEXT_COLLECTION_LIMIT,
+    ASSISTANT_CONTEXT_DOMAIN_LIMIT,
+    ASSISTANT_VISIBLE_ITEM_LABEL_MAX_LENGTH,
+    ASSISTANT_VISIBLE_ITEM_LIMIT,
+} from "@/lib/session/tool/composer";
 import { createThreadFromAssistant } from "@/lib/threads/actions";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
@@ -1607,7 +1602,26 @@ function resolveAgentViewDisplayItems(
     if (!agentView) {
         return [];
     }
-    return resolveAgentViewItems(items, agentView.itemIds);
+    const itemsById = new Map(items.map((item) => [item.id, item] as const));
+    const resolved: LibraryItemWithCollections[] = [];
+    for (const id of agentView.itemIds) {
+        const item = itemsById.get(id);
+        if (item) {
+            resolved.push(item);
+        }
+    }
+    return resolved;
+}
+
+function filterItemsToAgentView(
+    items: LibraryItemWithCollections[],
+    agentView: AgentViewPage | null
+): LibraryItemWithCollections[] {
+    if (!agentView) {
+        return items;
+    }
+    const ids = new Set(agentView.itemIds);
+    return items.filter((item) => ids.has(item.id));
 }
 
 function countAgentViewMissingIds(
@@ -1673,9 +1687,18 @@ function appendAgentViewPage(
     if (!isEqualAgentViewQuery(current.query, page.query)) {
         return current;
     }
+    const seen = new Set(current.itemIds);
+    const itemIds = [...current.itemIds];
+    for (const id of page.itemIds) {
+        if (seen.has(id)) {
+            continue;
+        }
+        seen.add(id);
+        itemIds.push(id);
+    }
     return {
         ...current,
-        itemIds: appendAgentViewPageIds(current.itemIds, page.itemIds),
+        itemIds,
         nextOffset: page.nextOffset,
         truncated: page.truncated,
     };
@@ -3315,10 +3338,10 @@ function buildSearchCommands({
         };
         const assistantItem: ComposerCommand = {
             description: "AI",
-            label: `Ask Cache "${draft}"`,
+            label: `Ask the assistant "${draft}"`,
             onSelect: () => onAssistantSubmit(draft),
             shortcut: shouldDefaultToAssistant ? "Enter" : "Tab",
-            value: `ask cache ${draft}`,
+            value: `assistant ${draft}`,
         };
 
         groups.push({
@@ -3510,17 +3533,17 @@ function buildAssistantCommands({
     const items: ComposerCommand[] = [
         {
             children: <AssistantResponsePanel response={assistantResponse} />,
-            label: "Ask Cache response",
+            label: "Assistant response",
             onSelect: () => undefined,
-            value: "ask cache response",
+            value: "assistant response",
         },
     ];
 
     if (draft) {
         items.unshift({
-            label: `Ask Cache "${draft}"`,
+            label: `Ask the assistant "${draft}"`,
             onSelect: () => onAssistantSubmit(draft),
-            value: `ask cache ${draft}`,
+            value: `assistant ${draft}`,
         });
     }
 
@@ -3531,7 +3554,7 @@ function buildAssistantCommands({
         },
         {
             items,
-            label: "Ask Cache",
+            label: "Assistant",
         },
     ];
 }
@@ -3853,21 +3876,19 @@ export function ItemsList({
         ? lastVisitedItemIds
         : [];
 
-    const filteredItems = filterItemsToAgentView(
-        filterItems(items, {
-            collectionMembershipFilter,
-            domainFilters,
-            duplicateItemIds,
-            duplicatesFilterEnabled,
-            lastVisitedItemIds: activeLastVisitedItemIds,
-            searchTerms,
-            selectedCollectionIds,
-            sourceFilters,
-            unreachableFilterEnabled,
-            unreachableItemIds,
-        }),
-        agentView
-    );
+    const baseFilteredItems = filterItems(items, {
+        collectionMembershipFilter,
+        domainFilters,
+        duplicateItemIds,
+        duplicatesFilterEnabled,
+        lastVisitedItemIds: activeLastVisitedItemIds,
+        searchTerms,
+        selectedCollectionIds,
+        sourceFilters,
+        unreachableFilterEnabled,
+        unreachableItemIds,
+    });
+    const filteredItems = filterItemsToAgentView(baseFilteredItems, agentView);
 
     // `groups` projects this list into sections and repeats items that belong to
     // several collections. Result counts and exports must read this list instead.
@@ -4005,9 +4026,9 @@ export function ItemsList({
                 if (assistantRequestVersionRef.current !== requestVersion) {
                     return;
                 }
-                log.error("Failed to submit Ask Cache request", error);
+                log.error("Failed to submit assistant request", error);
                 setAssistantResponse({
-                    message: "Ask Cache is unavailable right now.",
+                    message: "The assistant is unavailable right now.",
                     prompt,
                     status: "error",
                 });
@@ -4485,7 +4506,7 @@ export function ItemsList({
                     return;
                 }
                 handleAssistantSubmit(query).catch((error) => {
-                    log.error("Failed to handle Ask Cache shortcut", error);
+                    log.error("Failed to handle assistant shortcut", error);
                 });
                 return;
             }
@@ -6489,7 +6510,10 @@ function ContinueInThreadButton({
                 }
                 router.push(`/c/${result.threadId}`);
             } catch (error) {
-                log.error("Failed to continue Ask Cache in thread", error);
+                log.error(
+                    "Failed to continue assistant response in thread",
+                    error
+                );
                 setErrorMessage("We couldn't start this chat right now.");
             }
         });

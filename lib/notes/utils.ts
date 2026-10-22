@@ -290,16 +290,6 @@ export function extractNoteText(input: string): string {
         .trim();
 }
 
-/**
- * Convert sanitized note HTML to Markdown.
- *
- * Handles the limited tag set produced by the note editor:
- * headings, paragraphs, bold, italic, underline, strikethrough,
- * highlight, and line breaks.
- *
- * Nesting is preserved because children are converted before their
- * parent wrapper is applied.
- */
 export function convertNoteHtmlToMarkdown(html: string): string {
     const sanitized = sanitizeNoteHtml(html);
     if (sanitized === NOTE_EMPTY_HTML) {

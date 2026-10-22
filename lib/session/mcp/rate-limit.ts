@@ -31,7 +31,6 @@ const log = createLogger("mcp.rate-limit");
 const WINDOW_SECONDS = 60;
 
 interface Bucket {
-    /** Maximum number of operations allowed per window. */
     readonly limit: number;
     /** Name used to namespace the Redis counter so read and write budgets are separate. */
     readonly name: string;
@@ -47,12 +46,6 @@ export interface McpRateLimitVerdict {
     retryAfterSeconds: number;
 }
 
-/**
- * Fixed-window gate for one user's bucket. Fail-open when Redis is
- * unreachable: rate limits bound a stolen token's blast radius but are
- * defense in depth, not the only line, so an infrastructure blip degrades
- * to unthrottled rather than blocking legitimate use.
- */
 export async function checkMcpRateLimit(
     userId: string,
     bucket: Bucket
@@ -65,7 +58,6 @@ export async function checkMcpRateLimit(
         const key = `mcp:rate:${bucket.name}:${userId}`;
         const count = await redis.incr(key);
         if (count === 1) {
-            // First request in a fresh window
             await redis.pExpire(key, WINDOW_SECONDS * 1000);
         } else {
             // Repair a key left without TTL when a prior expire failed.

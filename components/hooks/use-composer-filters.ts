@@ -8,6 +8,12 @@ import {
     parseAsStringEnum,
     useQueryStates,
 } from "nuqs";
+import {
+    DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
+    DEFAULT_COLUMN_COUNT_MODE,
+    DEFAULT_GROUP_BY_MODE,
+    DEFAULT_SORT_MODE,
+} from "@/lib/session/composer/defaults";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
 export type GroupByMode =
@@ -71,13 +77,6 @@ export const COLUMN_COUNT_MODE_VALUES = [
 export const COLLECTION_MEMBERSHIP_FILTER_VALUES: CollectionMembershipFilter[] =
     ["all", "in-collections", "not-in-collections"];
 
-export const DEFAULT_SORT_MODE = "added-newest" as const;
-
-export const DEFAULT_COLUMN_COUNT_MODE: ColumnCountMode = "auto";
-
-export const DEFAULT_COLLECTION_MEMBERSHIP_FILTER: CollectionMembershipFilter =
-    "all";
-
 const COMPOSER_FILTER_PARSERS = {
     collectionMembership: parseAsStringEnum<CollectionMembershipFilter>(
         COLLECTION_MEMBERSHIP_FILTER_VALUES
@@ -89,7 +88,7 @@ const COMPOSER_FILTER_PARSERS = {
     duplicates: parseAsBoolean.withDefault(false),
     group: parseAsStringEnum<GroupByMode>([
         ...GROUP_BY_MODE_VALUES,
-    ]).withDefault("none"),
+    ]).withDefault(DEFAULT_GROUP_BY_MODE),
     lastVisited: parseAsBoolean.withDefault(false),
     search: parseAsArrayOf(parseAsString).withDefault([]),
     sort: parseAsStringEnum<SortMode>([...SORT_MODE_VALUES]).withDefault(

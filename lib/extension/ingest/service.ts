@@ -49,10 +49,6 @@ async function resolveFallbackExtensionIngestUserId(
     return user?.id ?? null;
 }
 
-/**
- * Returns the user's existing extension ingest token, generating and
- * persisting a new one when none exists.
- */
 export async function getOrCreateExtensionIngestToken(args: {
     userId: string;
 }): Promise<string> {
@@ -90,9 +86,6 @@ export async function getOrCreateExtensionIngestToken(args: {
     return user.extensionIngestToken;
 }
 
-/**
- * Generates a fresh extension ingest token and overwrites the existing one.
- */
 export async function rotateExtensionIngestToken(args: {
     userId: string;
 }): Promise<string> {
