@@ -87,10 +87,20 @@ export interface LibraryCollectionTagRecord {
     description: string | null;
     id: string;
     name: string;
-    priority: LibraryCollectionTag["priority"];
+    priority: CollectionPriority;
     sharedAt: Date | null;
     shareId: string | null;
     updatedAt: Date;
+}
+
+/**
+ * Maps collection ids to the shape Prisma uses to connect a many-to-many
+ * relation.
+ */
+export function toIdConnections(ids: readonly string[]): Array<{
+    id: string;
+}> {
+    return ids.map((id) => ({ id }));
 }
 
 export interface LibraryCollectionSummaryRecord

@@ -18,12 +18,12 @@ function messageForRedditApiError(error: IntegrationApiError): string {
 export function POST() {
     return runOAuthImport({
         importFn: importRedditSavedItems,
+        integrationId: "reddit",
         messages: {
             apiError: messageForRedditApiError,
             genericError: "Failed to import Reddit saved posts",
             noToken: "Reconnect Reddit before importing saved posts.",
             notConnected: "Connect Reddit before importing saved posts.",
         },
-        providerId: "reddit",
     });
 }

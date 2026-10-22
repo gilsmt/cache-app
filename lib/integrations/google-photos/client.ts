@@ -186,9 +186,11 @@ async function importSelectedMedia(
 /**
  * Executes the full Google Photos Picker flow: session creation, polling for selection, and import.
  *
- * @returns A success message with the number of imported items.
+ * @returns The number of imported items.
  */
-export async function executeGooglePhotosPickerFlow(): Promise<string> {
+export async function executeGooglePhotosPickerFlow(): Promise<{
+    importedCount: number;
+}> {
     const createPayload = await createPickerSessionRequest();
 
     if (!createPayload.pickerUri) {
@@ -211,5 +213,5 @@ export async function executeGooglePhotosPickerFlow(): Promise<string> {
         createPayload.accountId
     );
 
-    return `Imported ${importPayload.importedCount} item${importPayload.importedCount === 1 ? "" : "s"}.`;
+    return { importedCount: importPayload.importedCount };
 }

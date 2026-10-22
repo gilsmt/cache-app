@@ -11,6 +11,7 @@ import {
     IntegrationConnectionError,
 } from "@/lib/integrations/error";
 import type { IntegrationId } from "@/lib/integrations/registry";
+import { getIntegrationAuthProviderId } from "@/lib/integrations/registry";
 import { scheduleSmartCollections } from "@/lib/session/collections/schedule";
 
 const log = createLogger("integrations:oauth-import");
@@ -40,26 +41,33 @@ export async function runOAuthImportService<
     },
 >(args: {
     importFn: (args: { accessToken: string; userId: string }) => Promise<T>;
-    providerId: IntegrationId;
+    integrationId: IntegrationId;
     userId: string;
 }): Promise<OAuthImportResult<T>> {
-    if (!(await hasLinkedProviderAccount(args))) {
+    const providerId = getIntegrationAuthProviderId(args.integrationId);
+
+    if (
+        !(await hasLinkedProviderAccount({
+            providerId,
+            userId: args.userId,
+        }))
+    ) {
         throw new IntegrationConnectionError({
             code: "not_connected",
-            integrationId: args.providerId,
+            integrationId: args.integrationId,
             message: "Provider account is not connected.",
             operation: "runOAuthImportService",
         });
     }
 
     const accessToken = await resolveProviderAccountAccessToken({
-        providerId: args.providerId,
+        providerId,
         userId: args.userId,
     });
     if (!accessToken) {
         throw new IntegrationConnectionError({
             code: "token_missing",
-            integrationId: args.providerId,
+            integrationId: args.integrationId,
             message: "Provider access token is unavailable.",
             operation: "runOAuthImportService",
         });
@@ -85,8 +93,8 @@ interface OAuthImportMessages {
 
 interface OAuthImportConfig<T extends { smartCollectionItemIds: string[] }> {
     importFn: (args: { accessToken: string; userId: string }) => Promise<T>;
+    integrationId: IntegrationId;
     messages: OAuthImportMessages;
-    providerId: IntegrationId;
 }
 
 /**
@@ -110,7 +118,7 @@ export async function runOAuthImport<
         const { response, smartCollectionItemIds } =
             await runOAuthImportService({
                 importFn: config.importFn,
-                providerId: config.providerId,
+                integrationId: config.integrationId,
                 userId,
             });
         scheduleSmartCollections(userId, smartCollectionItemIds);
@@ -133,7 +141,7 @@ export async function runOAuthImport<
 
         if (
             IntegrationApiError.isInstance(error) &&
-            error.data.integrationId === config.providerId
+            error.data.integrationId === config.integrationId
         ) {
             return Response.json(
                 { error: config.messages.apiError(error) },
@@ -143,7 +151,7 @@ export async function runOAuthImport<
 
         log.error("OAuth import failed", {
             error,
-            providerId: config.providerId,
+            integrationId: config.integrationId,
             userId,
         });
         return Response.json(

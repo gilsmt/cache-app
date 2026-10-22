@@ -37,7 +37,7 @@ const INTEGRATION_ICONS: Record<IntegrationId, IntegrationIcon> = {
 
 const SOURCE_TO_LABEL: ReadonlyMap<string, string> = new Map<string, string>([
     ...INTEGRATION_DEFINITIONS.flatMap((integration: Integration) =>
-        (integration.source?.libraryItemSources ?? []).map(
+        integration.libraryItemSources.map(
             (source) => [source, integration.label] as const
         )
     ),
@@ -51,7 +51,7 @@ const SOURCE_TO_ICON: ReadonlyMap<LibraryItemSource, IntegrationIcon> = new Map<
     IntegrationIcon
 >(
     INTEGRATION_DEFINITIONS.flatMap((integration: Integration) =>
-        (integration.source?.libraryItemSources ?? []).map(
+        integration.libraryItemSources.map(
             (source) => [source, INTEGRATION_ICONS[integration.id]] as const
         )
     )

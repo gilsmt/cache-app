@@ -2,7 +2,12 @@
 
 import * as z from "zod";
 import { getSessionUserId } from "@/lib/auth/session";
-import type { LibraryItemWithCollections } from "@/lib/collections/utils";
+import type {
+    LibraryCollectionSummary,
+    LibraryItemWithCollections,
+} from "@/lib/collections/utils";
+import { unique } from "@/lib/common/array";
+import { MAX_COLLECTIONS_PER_ITEM } from "@/lib/common/constants";
 import { extractNamedErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { IntegrationUserError } from "@/lib/integrations/error";
@@ -17,6 +22,9 @@ const log = createLogger("notes:actions");
 const NOTE_CONTENT_HTML_MAX_LENGTH = 100_000;
 
 const CreateNoteInputSchema = z.object({
+    collectionIds: z
+        .array(z.string().trim().min(1))
+        .max(MAX_COLLECTIONS_PER_ITEM),
     contentHtml: z.string().max(NOTE_CONTENT_HTML_MAX_LENGTH).optional(),
     contentState: z.unknown().optional(),
 });
@@ -29,6 +37,7 @@ const UpdateNoteInputSchema = z.object({
 
 export type NoteMutationResult =
     | {
+          collectionSummaries: LibraryCollectionSummary[];
           item: LibraryItemWithCollections;
           status: "SUCCESS";
       }
@@ -38,9 +47,17 @@ export type NoteMutationResult =
       };
 
 export async function createNote(
-    input: { contentHtml?: string; contentState?: unknown } = {}
+    input: {
+        collectionIds?: string[];
+        contentHtml?: string;
+        contentState?: unknown;
+    } = {}
 ): Promise<NoteMutationResult> {
-    const parsed = CreateNoteInputSchema.safeParse(input);
+    const parsed = CreateNoteInputSchema.safeParse({
+        collectionIds: input.collectionIds ?? [],
+        contentHtml: input.contentHtml,
+        contentState: input.contentState,
+    });
     if (!parsed.success) {
         return {
             message:
@@ -59,11 +76,15 @@ export async function createNote(
     }
 
     const note = normalizeNotePayload(parsed.data);
+    // The ids are trimmed by the schema, so the duplicates are removed after
+    // the trim: " abc" and "abc" name the same collection.
+    const collectionIds = unique(parsed.data.collectionIds);
 
     try {
-        const item = await createNoteService(userId, note);
+        const result = await createNoteService(userId, note, collectionIds);
         return {
-            item,
+            collectionSummaries: result.collectionSummaries,
+            item: result.item,
             status: "SUCCESS",
         };
     } catch (error) {
@@ -105,6 +126,7 @@ export async function updateNote(input: {
     try {
         const item = await updateNoteService(userId, parsed.data.itemId, note);
         return {
+            collectionSummaries: [],
             item,
             status: "SUCCESS",
         };

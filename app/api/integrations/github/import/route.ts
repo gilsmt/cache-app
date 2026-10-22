@@ -18,6 +18,7 @@ function messageForGitHubApiError(error: IntegrationApiError): string {
 export function POST() {
     return runOAuthImport({
         importFn: importGitHubStarredRepositories,
+        integrationId: "github",
         messages: {
             apiError: messageForGitHubApiError,
             genericError: "Failed to import GitHub starred repositories",
@@ -25,6 +26,5 @@ export function POST() {
             notConnected:
                 "Connect GitHub before importing starred repositories.",
         },
-        providerId: "github",
     });
 }

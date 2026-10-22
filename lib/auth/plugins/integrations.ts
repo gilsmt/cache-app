@@ -65,6 +65,22 @@ const RedditUserAccountSchema = z.object({
     name: z.string(),
 });
 
+/**
+ * Provider IDs the app can authenticate through.
+ *
+ * A provider is only usable when its credentials are configured, so the
+ * list is kept apart from the enabled configs: the registry connects
+ * integrations through these IDs, and `lib/auth/server.ts` checks both
+ * lists against each other at boot.
+ */
+export const INTEGRATION_OAUTH_PROVIDER_IDS = {
+    github: "github",
+    notion: "notion",
+    pinterest: "pinterest",
+    reddit: "reddit",
+    x: "x",
+} as const;
+
 export const genericOAuthConfig = [
     buildIntegrationOAuthConfig({
         authentication: "basic",
@@ -82,7 +98,7 @@ export const genericOAuthConfig = [
                 name: data.username ?? id,
             };
         },
-        providerId: "pinterest",
+        providerId: INTEGRATION_OAUTH_PROVIDER_IDS.pinterest,
         schema: PinterestUserAccountSchema,
         scopes: ["user_accounts:read", "boards:read", "pins:read"],
         tokenUrl: "https://api.pinterest.com/v5/oauth/token",
@@ -113,7 +129,7 @@ export const genericOAuthConfig = [
             image: data.icon_img?.split("?")[0],
             name: data.name,
         }),
-        providerId: "reddit",
+        providerId: INTEGRATION_OAUTH_PROVIDER_IDS.reddit,
         schema: RedditUserAccountSchema,
         // `history` governs /user/{username}/saved. It cannot be isolated
         // from the rest of Reddit's history listings.
@@ -138,7 +154,7 @@ export const genericOAuthConfig = [
                 name: data.data?.name ?? data.data?.username ?? id,
             };
         },
-        providerId: "x",
+        providerId: INTEGRATION_OAUTH_PROVIDER_IDS.x,
         schema: XUserAccountSchema,
         scopes: ["bookmark.read", "offline.access", "tweet.read", "users.read"],
         tokenUrl: "https://api.x.com/2/oauth2/token",
@@ -167,7 +183,7 @@ export const genericOAuthConfig = [
                 name: data.name ?? data.login ?? id,
             };
         },
-        providerId: "github",
+        providerId: INTEGRATION_OAUTH_PROVIDER_IDS.github,
         schema: GitHubUserAccountSchema,
         scopes: ["read:user"],
         tokenUrl: "https://github.com/login/oauth/access_token",
@@ -196,7 +212,7 @@ export const genericOAuthConfig = [
                 name: user.name ?? undefined,
             };
         },
-        providerId: "notion",
+        providerId: INTEGRATION_OAUTH_PROVIDER_IDS.notion,
         schema: NotionUserSchema,
         tokenUrl: "https://api.notion.com/v1/oauth/token",
         userInfoUrl: "https://api.notion.com/v1/users/me",

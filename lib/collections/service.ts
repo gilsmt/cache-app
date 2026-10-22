@@ -10,12 +10,14 @@ import {
     type LibraryCollectionTag,
     type LibraryCollectionTagRecord,
     type LibraryItemWithCollections,
+    toIdConnections,
     toLibraryCollectionSummary,
     toLibraryCollectionSummaryFromTagRecord,
     toLibraryCollectionTag,
     toLibraryItemWithCollections,
     uniqueLibraryItemSources,
 } from "@/lib/collections/utils";
+import { unique } from "@/lib/common/array";
 import {
     FREE_LIBRARY_PREVIEW_ITEMS,
     ITEM_KIND_FOLDER,
@@ -23,6 +25,7 @@ import {
     SORT_ASC,
     SORT_DESC,
 } from "@/lib/common/constants";
+import { createLogger } from "@/lib/common/logs/console/logger";
 import {
     getIncrementedName,
     normalizeCollectionName,
@@ -51,6 +54,8 @@ const EXPIRED_LIBRARY_ITEM_PURGE_BATCH_SIZE = 1000;
 
 type CollectionTransaction = Prisma.TransactionClient;
 
+const log = createLogger("collections:service");
+
 interface CollectionLookupOwned {
     id: string;
     name: string;
@@ -65,12 +70,6 @@ interface LibraryItemLookupOwned {
 interface LibraryItemCollectionsOwned {
     collections: Array<{ id: string }>;
     id: string;
-}
-
-function toIdConnections(ids: readonly string[]): Array<{
-    id: string;
-}> {
-    return ids.map((id) => ({ id }));
 }
 
 function getChangedCollectionIds(
@@ -198,7 +197,13 @@ async function ensureCollectionNameAvailable(
     }
 }
 
-async function findCollectionSummariesOwnedByIds(
+/**
+ * Reads the summaries of the collections the user owns.
+ *
+ * A summary counts the items in the collection, so it must be read after the
+ * membership change it describes.
+ */
+export async function findCollectionSummariesOwnedByIds(
     tx: CollectionTransaction,
     args: {
         collectionIds: string[];
@@ -275,6 +280,52 @@ async function findCollectionTagsOwnedByIds(
     });
 
     return collections;
+}
+
+/**
+ * Resolves the ids of the collections the user owns.
+ */
+async function findOwnedCollectionIds(
+    tx: CollectionTransaction,
+    args: {
+        collectionIds: readonly string[];
+        userId: string;
+    }
+): Promise<string[]> {
+    const ownedCollections = await findCollectionTagsOwnedByIds(tx, {
+        collectionIds: [...args.collectionIds],
+        userId: args.userId,
+    });
+
+    return ownedCollections.map((collection) => collection.id);
+}
+
+/**
+ * Resolves the collections the user owns.
+ *
+ * Fails when a requested collection is gone or belongs to somebody else, so
+ * a membership change never silently drops a collection. A repeated id
+ * names one collection, so it is counted once.
+ */
+async function requireOwnedCollectionIds(
+    tx: CollectionTransaction,
+    args: {
+        collectionIds: readonly string[];
+        message: string;
+        operation: string;
+        userId: string;
+    }
+): Promise<string[]> {
+    const collectionIds = await findOwnedCollectionIds(tx, {
+        collectionIds: args.collectionIds,
+        userId: args.userId,
+    });
+
+    if (collectionIds.length !== unique(args.collectionIds).length) {
+        throwCollectionNotFound(args.operation, args.message);
+    }
+
+    return collectionIds;
 }
 
 async function requireLibraryItemsOwnedWithCollections(
@@ -1243,6 +1294,50 @@ export async function toggleLibraryItemFavorite({
     return { item: toLibraryItemWithCollections(updated) };
 }
 
+/**
+ * Resolves the collections a new item is filed into.
+ *
+ * A collection that was deleted before the save is dropped instead of
+ * failing the save: the item must never be lost because of a stale
+ * reference. The caller reads the resolved ids to learn which collections
+ * the item actually joined.
+ */
+export async function connectNewItemCollections(
+    tx: CollectionTransaction,
+    args: {
+        collectionIds: readonly string[];
+        userId: string;
+    }
+): Promise<{ collectionIds: string[] }> {
+    if (args.collectionIds.length === 0) {
+        return { collectionIds: [] };
+    }
+
+    const collectionIds = await findOwnedCollectionIds(tx, {
+        collectionIds: args.collectionIds,
+        userId: args.userId,
+    });
+    const droppedCount =
+        unique(args.collectionIds).length - collectionIds.length;
+
+    if (droppedCount > 0) {
+        log.warn("Dropped collections that no longer exist", {
+            droppedCount,
+            userId: args.userId,
+        });
+    }
+
+    // A new member is collection activity, so keep the updatedAt contract
+    // updateLibraryItemCollections establishes for membership changes.
+    await touchCollectionsUpdatedAt(tx, {
+        collectionIds,
+        now: new Date(),
+        userId: args.userId,
+    });
+
+    return { collectionIds };
+}
+
 export function updateLibraryItemCollections({
     collectionIds,
     itemId,
@@ -1266,21 +1361,14 @@ export function updateLibraryItemCollections({
             userId,
         });
 
-        const ownedCollections = await findCollectionTagsOwnedByIds(tx, {
+        const resolvedCollectionIds = await requireOwnedCollectionIds(tx, {
             collectionIds,
+            message: "One of those collections is no longer available.",
+            operation: "updateLibraryItemCollections",
             userId,
         });
 
-        if (ownedCollections.length !== collectionIds.length) {
-            throwCollectionNotFound(
-                "updateLibraryItemCollections",
-                "One of those collections is no longer available."
-            );
-        }
-
-        const connections = toIdConnections(
-            ownedCollections.map((collection) => collection.id)
-        );
+        const connections = toIdConnections(resolvedCollectionIds);
         const updatedItem = await tx.libraryItem.update({
             data: {
                 collections:
@@ -1368,17 +1456,12 @@ export function updateLibraryItemsCollections({
             ])
         );
 
-        const ownedCollections = await findCollectionTagsOwnedByIds(tx, {
+        const resolvedCollectionIds = await requireOwnedCollectionIds(tx, {
             collectionIds: referencedCollectionIds,
+            message: "One of those collections is no longer available.",
+            operation: "updateLibraryItemsCollections",
             userId,
         });
-
-        if (ownedCollections.length !== referencedCollectionIds.length) {
-            throwCollectionNotFound(
-                "updateLibraryItemsCollections",
-                "One of those collections is no longer available."
-            );
-        }
 
         await deleteSharedCollectionItems(tx, {
             collectionIds: previousSharedCollectionIds,
@@ -1434,7 +1517,7 @@ export function updateLibraryItemsCollections({
 
         return {
             collectionSummaries: await findCollectionSummariesOwnedByIds(tx, {
-                collectionIds: referencedCollectionIds,
+                collectionIds: resolvedCollectionIds,
                 userId,
             }),
             itemCollections: itemIds.map((itemId) => {

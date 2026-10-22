@@ -15,12 +15,12 @@ function messageForPinterestApiError(error: IntegrationApiError): string {
 export function POST() {
     return runOAuthImport({
         importFn: importPinterestBoards,
+        integrationId: "pinterest",
         messages: {
             apiError: messageForPinterestApiError,
             genericError: "Failed to import Pinterest pins",
             noToken: "Reconnect Pinterest before importing pins.",
             notConnected: "Connect Pinterest before importing pins.",
         },
-        providerId: "pinterest",
     });
 }

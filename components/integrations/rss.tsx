@@ -2,6 +2,7 @@
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { Rss, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { createStore } from "stan-js";
 import useSWR from "swr";
@@ -49,6 +50,7 @@ async function fetchFeeds(): Promise<FeedViewModel[]> {
 
 export function RssManageDialog() {
     const { isOpen, setIsOpen } = useRssManageStore();
+    const router = useRouter();
     const [removingFeedIds, setRemovingFeedIds] = React.useState<Set<string>>(
         () => new Set()
     );
@@ -68,6 +70,9 @@ export function RssManageDialog() {
         mutate().catch((refreshError: unknown) => {
             log.error("Refresh feeds failed", refreshError);
         });
+        // The connected integrations live in the server-rendered page, so the
+        // list has to re-render after a feed is added or removed.
+        router.refresh();
     });
 
     const handleRemove = useStableCallback(async (feedId: string) => {
@@ -84,6 +89,7 @@ export function RssManageDialog() {
                         ),
                     { revalidate: false }
                 );
+                router.refresh();
             } else {
                 log.error("Remove feed failed", result);
                 setRemoveError(result.message);

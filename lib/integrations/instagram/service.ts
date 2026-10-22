@@ -2,12 +2,12 @@ import "server-only";
 
 import * as z from "zod";
 import {
-    extensionSavedItemBaseSchema,
-    importExtensionSavedItems,
-} from "@/lib/extension/ingest/service";
+    importSavedItems,
+    savedItemBaseSchema,
+} from "@/lib/integrations/items";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
-export const instagramSavedItemSchema = extensionSavedItemBaseSchema
+export const instagramSavedItemSchema = savedItemBaseSchema
     .extend({
         shortcode: z.string().optional(),
     })
@@ -24,7 +24,7 @@ export function importInstagramSaved(args: {
     items: z.infer<typeof instagramSavedItemSchema>[];
     userId: string;
 }) {
-    return importExtensionSavedItems({
+    return importSavedItems({
         externalId: (item) => item.shortcode,
         items: args.items,
         source: LibraryItemSource.instagram,

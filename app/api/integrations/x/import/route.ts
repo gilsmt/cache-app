@@ -15,12 +15,12 @@ function messageForXApiError(error: IntegrationApiError): string {
 export function POST() {
     return runOAuthImport({
         importFn: importXBookmarks,
+        integrationId: "x",
         messages: {
             apiError: messageForXApiError,
             genericError: "Failed to import X bookmarks",
             noToken: "Reconnect X before importing bookmarks.",
             notConnected: "Connect X before importing bookmarks.",
         },
-        providerId: "x",
     });
 }

@@ -15,9 +15,18 @@ export function accountHasOAuthScope(
     return scope.split(OAUTH_SCOPE_SEPARATOR_PATTERN).includes(requiredScope);
 }
 
+/**
+ * Orders linked accounts so the most likely usable one comes first.
+ *
+ * `Account.scope` holds every scope the account was ever granted: better-auth
+ * merges scopes on link and keeps the stored value on refresh, even when the
+ * refreshed grant is narrower. The stored scope therefore says which account
+ * was asked for the scope, not what the live token carries. Accounts are
+ * compared by link time so the order is stable and meaningful.
+ */
 export function compareProviderAccountsForScopePreference(
-    left: { id: string; scope: string | null },
-    right: { id: string; scope: string | null },
+    left: { createdAt: Date; id: string; scope: string | null },
+    right: { createdAt: Date; id: string; scope: string | null },
     requiredScope: string | undefined
 ): number {
     if (requiredScope) {
@@ -27,6 +36,12 @@ export function compareProviderAccountsForScopePreference(
             return leftHasScope ? -1 : 1;
         }
     }
+
+    const linkOrder = left.createdAt.getTime() - right.createdAt.getTime();
+    if (linkOrder !== 0) {
+        return linkOrder;
+    }
+
     return left.id.localeCompare(right.id);
 }
 

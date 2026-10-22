@@ -9,7 +9,6 @@ import {
     getProviderTokenApiErrorCode,
     isSoftProviderTokenResolutionFailure,
 } from "./provider";
-import { listIntegrationAccountProviderIds } from "./registry";
 
 const log = createLogger("integrations:account");
 
@@ -26,28 +25,6 @@ const LINKED_INTEGRATION_ACCOUNT_LIMIT = 50;
 export interface ResolvedProviderAccess {
     accessToken: string;
     accountId: string;
-}
-
-/**
- * Lists linked OAuth accounts for integrations the app supports.
- *
- * Only returns accounts whose providerId matches a known integration,
- * because the account table may contain auth-only providers (e.g. Google
- * sign-in) that are not treated as content integrations.
- */
-export function listLinkedIntegrationAccounts(args: {
-    userId: string;
-}): Promise<Array<{ providerId: string }>> {
-    return prisma.account.findMany({
-        select: { providerId: true },
-        take: LINKED_INTEGRATION_ACCOUNT_LIMIT,
-        where: {
-            providerId: {
-                in: listIntegrationAccountProviderIds(),
-            },
-            userId: args.userId,
-        },
-    });
 }
 
 /**
@@ -189,8 +166,8 @@ export async function attemptProviderAccounts<TResult>(args: {
     userId: string;
 }): Promise<TResult | null> {
     const accounts = await prisma.account.findMany({
-        orderBy: { id: "asc" },
-        select: { id: true, scope: true },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true, id: true, scope: true },
         take: LINKED_INTEGRATION_ACCOUNT_LIMIT,
         where: {
             providerId: args.providerId,
@@ -201,8 +178,16 @@ export async function attemptProviderAccounts<TResult>(args: {
     const orderedAccounts = args.requiredScope
         ? accounts.toSorted((left, right) =>
               compareProviderAccountsForScopePreference(
-                  { id: left.id, scope: left.scope },
-                  { id: right.id, scope: right.scope },
+                  {
+                      createdAt: left.createdAt,
+                      id: left.id,
+                      scope: left.scope,
+                  },
+                  {
+                      createdAt: right.createdAt,
+                      id: right.id,
+                      scope: right.scope,
+                  },
                   args.requiredScope
               )
           )

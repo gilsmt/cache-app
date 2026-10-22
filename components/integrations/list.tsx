@@ -4,7 +4,7 @@ import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
 import { cn } from "cn";
-import { T, useGT, Var } from "gt-next";
+import { T, useGT, useMessages, Var } from "gt-next";
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -49,16 +49,14 @@ import {
     executeOpenBehavior,
     executeSyncBehavior,
 } from "@/lib/integrations/client";
-import { IntegrationUserError } from "@/lib/integrations/error";
 import {
-    findBehaviorForRole,
     INTEGRATION_DEFINITIONS,
     type Integration,
+    type IntegrationAction,
     type IntegrationActionRole,
-    type IntegrationDirection,
+    type IntegrationBehavior,
     type IntegrationId,
-    listIntegrationActions,
-    type SupportedIntegrationAction,
+    isIntegrationActionVisible,
 } from "@/lib/integrations/registry";
 import { getIntegrationIcon } from "@/lib/integrations/resolver";
 import IntegrationsPreviewImage from "@/public/integrations-preview.webp";
@@ -97,7 +95,6 @@ interface IntegrationActionViewModel {
 }
 
 interface UseIntegrationActionsArgs {
-    direction: IntegrationDirection;
     integration: Integration;
     isConnected: boolean;
     isExtensionInstalled: boolean;
@@ -125,12 +122,12 @@ export function openIntegrationsList() {
 }
 
 function useIntegrationActions({
-    direction,
     integration,
     isExtensionInstalled,
     isConnected,
 }: UseIntegrationActionsArgs): UseIntegrationActionsResult {
     const gt = useGT();
+    const m = useMessages();
     const router = useRouter();
 
     const [actionStatus, setActionStatus] =
@@ -152,21 +149,22 @@ function useIntegrationActions({
     }
 
     const handleIntegrationAction = useStableCallback(
-        async (role: IntegrationActionRole) => {
-            if (pendingActionRoles.has(role)) {
+        async (action: IntegrationAction) => {
+            if (pendingActionRoles.has(action.role)) {
                 return;
             }
-            pendingActionRoles.add(role);
+            pendingActionRoles.add(action.role);
 
             setActionStatus(null);
-            setLoadingRoles((prev) => new Set(prev).add(role));
+            setLoadingRoles((prev) => new Set(prev).add(action.role));
 
             try {
                 const result = await executeIntegrationAction({
+                    action,
                     gt,
                     integration,
                     isExtensionInstalled,
-                    role,
+                    m,
                 });
 
                 if (result.refresh) {
@@ -181,10 +179,9 @@ function useIntegrationActions({
                 }
             } catch (error) {
                 log.error("Integration action failed", {
-                    direction,
                     error,
                     integrationId: integration.id,
-                    role,
+                    role: action.role,
                 });
 
                 showActionStatus({
@@ -195,37 +192,32 @@ function useIntegrationActions({
                     tone: "error",
                 });
             } finally {
-                pendingActionRoles.delete(role);
+                pendingActionRoles.delete(action.role);
                 setLoadingRoles((prev) => {
                     const nextRoles = new Set(prev);
-                    nextRoles.delete(role);
+                    nextRoles.delete(action.role);
                     return nextRoles;
                 });
             }
         }
     );
 
-    const integrationActions = listIntegrationActions(
-        integration.id,
-        direction
-    );
     const visibleActions: IntegrationActionViewModel[] = [];
 
-    for (const action of integrationActions) {
-        if (!isActionVisible(action, isConnected)) {
+    for (const action of integration.actions) {
+        if (!isIntegrationActionVisible(action, isConnected)) {
             continue;
         }
         visibleActions.push({
             isLoading: loadingRoles.has(action.role),
             label: resolveActionLabel({
+                action,
                 gt,
-                integration,
                 isConnected,
                 isExtensionInstalled,
-                label: action.label,
-                role: action.role,
+                m,
             }),
-            onClick: () => handleIntegrationAction(action.role),
+            onClick: () => handleIntegrationAction(action),
             role: action.role,
         } satisfies IntegrationActionViewModel);
     }
@@ -234,29 +226,22 @@ function useIntegrationActions({
 }
 
 function resolveActionLabel(args: {
+    action: IntegrationAction;
     gt: ReturnType<typeof useGT>;
-    integration: Integration;
-    label?: string;
-    isExtensionInstalled: boolean;
     isConnected: boolean;
-    role: IntegrationActionRole;
+    isExtensionInstalled: boolean;
+    m: ReturnType<typeof useMessages>;
 }) {
-    const { gt, integration, isConnected, isExtensionInstalled, label, role } =
-        args;
+    const { action, gt, isConnected, isExtensionInstalled, m } = args;
+    const role = action.role;
 
-    if (label) {
-        return label;
+    if (action.label) {
+        return m(action.label);
     }
 
     switch (role) {
         case "open":
-            if (
-                !isExtensionInstalled &&
-                findBehaviorForRole(integration, "open")
-            ) {
-                return gt("Get extension");
-            }
-            return gt("Open");
+            return isExtensionInstalled ? gt("Open") : gt("Get extension");
         case "connect":
             return isConnected ? gt("Reconnect") : gt("Connect");
         case "sync":
@@ -266,39 +251,10 @@ function resolveActionLabel(args: {
         case "import":
             return gt("Import");
         default:
-            throw new Error(`Unhandled integration action role: ${role}.`);
+            throw new Error(
+                `Unhandled integration action role: ${role satisfies never}.`
+            );
     }
-}
-
-function resolveCapabilityMissingMessage(
-    gt: ReturnType<typeof useGT>,
-    role: IntegrationActionRole
-): string {
-    switch (role) {
-        case "connect":
-            return gt("This integration cannot be connected yet.");
-        case "copy":
-            return gt("This integration does not support copying a prompt.");
-        case "import":
-            return gt("This integration cannot be imported yet.");
-        case "open":
-            return gt("This integration cannot be opened yet.");
-        case "sync":
-            return gt("This integration cannot sync yet.");
-        default:
-            throw new Error(`Unhandled integration action role: ${role}.`);
-    }
-}
-
-function resolveIntegrationDirection(
-    integration: Integration
-): IntegrationDirection {
-    if (integration.source && integration.destination) {
-        throw new TypeError(
-            `Integration ${integration.id} must define exactly one of source or destination.`
-        );
-    }
-    return integration.source ? "source" : "destination";
 }
 
 function resolvePrimaryAction(
@@ -311,52 +267,15 @@ function resolvePrimaryAction(
     );
 }
 
-function isActionVisible(
-    action: SupportedIntegrationAction,
-    isConnected: boolean
-): boolean {
-    if (action.visibleWhen === "connected") {
-        return isConnected;
-    }
-    if (action.visibleWhen === "disconnected") {
-        return !isConnected;
-    }
-    return true;
-}
-
-function buildCapabilityMissingError({
-    capability,
-    integrationId,
-    message,
-}: {
-    capability: IntegrationActionRole;
-    integrationId: IntegrationId;
-    message: string;
-}): IntegrationUserError {
-    return new IntegrationUserError({
-        capability,
-        integrationId,
-        message,
-        operation: "executeIntegrationAction",
-    });
-}
-
 async function executeIntegrationAction(args: {
+    action: IntegrationAction;
     gt: ReturnType<typeof useGT>;
-    isExtensionInstalled: boolean;
     integration: Integration;
-    role: IntegrationActionRole;
+    isExtensionInstalled: boolean;
+    m: ReturnType<typeof useMessages>;
 }): Promise<IntegrationActionResult> {
-    const { gt, isExtensionInstalled, integration, role } = args;
-    const behavior = findBehaviorForRole(integration, role);
-
-    if (!behavior) {
-        throw buildCapabilityMissingError({
-            capability: role,
-            integrationId: integration.id,
-            message: resolveCapabilityMissingMessage(gt, role),
-        });
-    }
+    const { action, gt, integration, isExtensionInstalled, m } = args;
+    const behavior: IntegrationBehavior = action.behavior;
 
     switch (behavior.kind) {
         case "extension-entry":
@@ -379,14 +298,14 @@ async function executeIntegrationAction(args: {
         case "google-photos-picker":
             return {
                 refresh: true,
-                successMessage: await executeSyncBehavior(behavior),
+                successMessage: await executeSyncBehavior(behavior, m),
             };
         case "markdown-import":
             openMarkdownImportDialog();
             return NO_ACTION_FEEDBACK;
         default:
             throw new Error(
-                `Unhandled behavior for integration action ${integration.id}/${role}.`
+                `Unhandled behavior for integration action ${integration.id}/${action.role}: ${behavior satisfies never}.`
             );
     }
 }
@@ -407,7 +326,6 @@ export function Integrations({ connectedIntegrations }: IntegrationsProps) {
                 <IntegrationsListContent>
                     {INTEGRATION_DEFINITIONS.map((integration) => (
                         <IntegrationsListItem
-                            direction={resolveIntegrationDirection(integration)}
                             integration={integration}
                             isConnected={connectedIntegrations.has(
                                 integration.id
@@ -582,20 +500,18 @@ function IntegrationsListOverflowPreview() {
 
 interface IntegrationsListItemProps
     extends React.ComponentProps<typeof PreviewCardTrigger> {
-    direction: IntegrationDirection;
     integration: Integration;
     isConnected: boolean;
 }
 
 function IntegrationsListItem({
-    direction,
     integration,
     isConnected,
     ...props
 }: IntegrationsListItemProps) {
+    const m = useMessages();
     const isExtensionInstalled = useIsExtensionInstalled();
     const { actionStatus, actions } = useIntegrationActions({
-        direction,
         integration,
         isConnected,
         isExtensionInstalled,
@@ -649,7 +565,7 @@ function IntegrationsListItem({
                         hasActionStatus && "sm:opacity-0"
                     )}
                 >
-                    {integration.description}
+                    {m(integration.description)}
                 </span>
                 <IntegrationsListItemActions
                     actionStatus={actionStatus}
@@ -669,6 +585,8 @@ function IntegrationsListItemPreviewTrigger({
     integration,
     ...props
 }: IntegrationsListItemPreviewTriggerProps) {
+    const m = useMessages();
+
     return (
         <PreviewCard>
             <PreviewCardTrigger {...props} />
@@ -689,7 +607,7 @@ function IntegrationsListItemPreviewTrigger({
                     </div>
                 ) : null}
                 <PreviewCardDescription className="p-3">
-                    {integration.hint}
+                    {m(integration.hint)}
                 </PreviewCardDescription>
             </PreviewCardPopup>
         </PreviewCard>

@@ -85,6 +85,12 @@ export const TEMPLATES = [
     },
     {
         description:
+            "Furniture, color palettes, room layouts, and styling inspiration for your home.",
+        name: "Interior Design",
+        value: "interior_design",
+    },
+    {
+        description:
             "Workouts, routines, nutrition ideas, and wellness resources to revisit.",
         name: "Wellness & Fitness",
         value: "wellness_fitness",

@@ -63,7 +63,7 @@ interface LibraryItemImportRow extends LibraryItemImportIdentity {
     source: LibraryItemSource;
 }
 
-interface LibraryItemImportInput {
+export interface LibraryItemImportInput {
     browserProfileId?: string | null;
     caption?: string | null;
     externalId?: string | null;

@@ -61,7 +61,7 @@ export const GOOGLE_PHOTOS_PICKER_SCOPE =
     "https://www.googleapis.com/auth/photospicker.mediaitems.readonly";
 
 export const GOOGLE_PHOTOS_PERMISSION_MESSAGE =
-    "Your Google account needs Photos permission. Sign out and sign back in to reconnect.";
+    "Your Google account needs Photos permission. Reconnect Google to grant it.";
 
 export const SessionCreateResponseSchema = z.object({
     accountId: z.string().min(1),

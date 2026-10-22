@@ -3,8 +3,14 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import type { SerializedEditorState } from "lexical";
 import {
+    connectNewItemCollections,
+    findCollectionSummariesOwnedByIds,
+} from "@/lib/collections/service";
+import {
     LIBRARY_ITEM_COLLECTIONS_INCLUDE,
+    type LibraryCollectionSummary,
     type LibraryItemWithCollections,
+    toIdConnections,
 } from "@/lib/collections/utils";
 import {
     DEFAULT_BROWSER_PROFILE_ID,
@@ -74,38 +80,78 @@ export function getNoteItemForUser(
     });
 }
 
-export function createNoteFromPlainText(
+export async function createNoteFromPlainText(
     userId: string,
     plainText: string
 ): Promise<LibraryItemWithCollections> {
-    return createNote(
+    const result = await createNote(
         userId,
         normalizeNotePayload({
             contentHtml: `<p>${escapeNoteHtmlText(plainText)}</p>`,
         })
     );
+    return result.item;
 }
 
 export async function createNote(
     userId: string,
-    note: NormalizedNotePayload
-): Promise<LibraryItemWithCollections> {
-    const created = await prisma.libraryItem.create({
-        data: {
-            browserProfileId: DEFAULT_BROWSER_PROFILE_ID,
-            caption: null,
-            externalId: `note_${randomUUID()}`,
-            kind: ITEM_KIND_NOTE,
-            noteContentHtml: note.contentHtml,
-            noteContentState: noteContentStateForPrisma(note.contentState),
-            noteContentText: note.contentText,
-            source: LibraryItemSource.cache_note,
-            url: FALLBACK_URL,
-            userId,
-        },
-    });
+    note: NormalizedNotePayload,
+    collectionIds: readonly string[] = []
+): Promise<{
+    collectionSummaries: LibraryCollectionSummary[];
+    item: LibraryItemWithCollections;
+}> {
+    // Creation and collection membership commit together, so the note and
+    // its collections always agree.
+    const { collectionSummaries, itemId } = await prisma.$transaction(
+        async (tx) => {
+            const membership = await connectNewItemCollections(tx, {
+                collectionIds,
+                userId,
+            });
 
-    const item = await getNoteItemForUser(userId, created.id);
+            const created = await tx.libraryItem.create({
+                data: {
+                    browserProfileId: DEFAULT_BROWSER_PROFILE_ID,
+                    caption: null,
+                    collections:
+                        membership.collectionIds.length > 0
+                            ? {
+                                  connect: toIdConnections(
+                                      membership.collectionIds
+                                  ),
+                              }
+                            : undefined,
+                    externalId: `note_${randomUUID()}`,
+                    kind: ITEM_KIND_NOTE,
+                    noteContentHtml: note.contentHtml,
+                    noteContentState: noteContentStateForPrisma(
+                        note.contentState
+                    ),
+                    noteContentText: note.contentText,
+                    source: LibraryItemSource.cache_note,
+                    url: FALLBACK_URL,
+                    userId,
+                },
+                select: { id: true },
+            });
+
+            // A summary counts the items in its collection, so it is read
+            // after the note joined them.
+            return {
+                collectionSummaries: await findCollectionSummariesOwnedByIds(
+                    tx,
+                    {
+                        collectionIds: membership.collectionIds,
+                        userId,
+                    }
+                ),
+                itemId: created.id,
+            };
+        }
+    );
+
+    const item = await getNoteItemForUser(userId, itemId);
     if (!item) {
         throw new IntegrationUserError({
             message: "We created the note but couldn't load it back.",
@@ -114,7 +160,7 @@ export async function createNote(
         });
     }
 
-    return item;
+    return { collectionSummaries, item };
 }
 
 export async function updateNote(

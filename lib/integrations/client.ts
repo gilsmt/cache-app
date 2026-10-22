@@ -1,4 +1,5 @@
 import copy from "copy-to-clipboard";
+import type { useMessages } from "gt-next";
 import { authClient } from "@/lib/auth/client";
 import { CACHE_SITE_OPEN_AND_SYNC_EVENT } from "@/lib/common/constants";
 import { getErrorMessage } from "@/lib/common/error";
@@ -17,8 +18,15 @@ import type {
     RouteSyncBehavior,
     SocialSignInConnectBehavior,
 } from "@/lib/integrations/registry";
+import { SYNC_NOTICE_MESSAGES } from "@/lib/integrations/registry";
 
 const CONNECTION_FLOW_ERROR_MESSAGE = "Failed to start the connection";
+
+/**
+ * The message resolver returned by `useMessages`. It resolves a registered
+ * source string for the active locale and formats ICU variables.
+ */
+export type TranslateMessage = ReturnType<typeof useMessages>;
 
 function navigateTo(url: string) {
     window.location.assign(url);
@@ -135,10 +143,40 @@ export async function executeConnectBehavior(
 }
 
 /**
+ * Renders the result of a sync: the imported count plus the notices the
+ * import pipeline reports about the run.
+ */
+function formatSyncSuccessMessage(
+    behavior: GooglePhotosPickerSyncBehavior | RouteSyncBehavior,
+    importedCount: number,
+    payload: Record<string, unknown>,
+    m: TranslateMessage
+): string {
+    const parts = [m(behavior.successMessage, { count: importedCount })];
+
+    if (payload.truncated === true) {
+        parts.push(m(SYNC_NOTICE_MESSAGES.truncated));
+    }
+    if (payload.pruneAborted === true) {
+        parts.push(m(SYNC_NOTICE_MESSAGES.pruneAborted));
+    }
+    if (
+        behavior.failureMessage &&
+        Array.isArray(payload.errors) &&
+        payload.errors.length > 0
+    ) {
+        parts.push(m(behavior.failureMessage));
+    }
+
+    return parts.join(" ");
+}
+
+/**
  * Executes a sync behavior that triggers a specific API route.
  */
 export async function executeRouteSyncBehavior(
-    behavior: RouteSyncBehavior
+    behavior: RouteSyncBehavior,
+    m: TranslateMessage
 ): Promise<string | null> {
     const response = await fetch(behavior.path, {
         method: behavior.method,
@@ -146,17 +184,11 @@ export async function executeRouteSyncBehavior(
     const payload = await response.json().catch(() => null);
 
     const payloadRecord = asRecord(payload);
-    if (
-        !(
-            response.ok &&
-            payloadRecord &&
-            Object.hasOwn(payloadRecord, behavior.successKey)
-        )
-    ) {
+    if (!(response.ok && payloadRecord)) {
         throw new IntegrationApiError(
             {
                 cause: payload,
-                message: getErrorMessage(payload, behavior.errorMessage),
+                message: getErrorMessage(payload, m(behavior.errorMessage)),
                 operation: "executeRouteSyncBehavior",
                 status: response.status,
             },
@@ -164,23 +196,39 @@ export async function executeRouteSyncBehavior(
         );
     }
 
-    return behavior.successMessage?.(payloadRecord) ?? null;
+    const importedCount = payloadRecord.importedCount;
+    if (typeof importedCount !== "number") {
+        throw new IntegrationApiError(
+            {
+                cause: payload,
+                message: m(behavior.errorMessage),
+                operation: "executeRouteSyncBehavior",
+                status: response.status,
+            },
+            { cause: payload }
+        );
+    }
+
+    return formatSyncSuccessMessage(behavior, importedCount, payloadRecord, m);
 }
 
 /**
  * Executes a sync behavior, dispatching on its kind.
  */
-export function executeSyncBehavior(
-    behavior: GooglePhotosPickerSyncBehavior | RouteSyncBehavior
+export async function executeSyncBehavior(
+    behavior: GooglePhotosPickerSyncBehavior | RouteSyncBehavior,
+    m: TranslateMessage
 ): Promise<string | null> {
     switch (behavior.kind) {
         case "route":
-            return executeRouteSyncBehavior(behavior);
-        case "google-photos-picker":
-            return executeGooglePhotosPickerFlow();
+            return executeRouteSyncBehavior(behavior, m);
+        case "google-photos-picker": {
+            const { importedCount } = await executeGooglePhotosPickerFlow();
+            return formatSyncSuccessMessage(behavior, importedCount, {}, m);
+        }
         default:
             throw new Error(
-                `Unhandled sync behavior: ${JSON.stringify(behavior)}.`
+                `Unhandled sync behavior: ${behavior satisfies never}.`
             );
     }
 }

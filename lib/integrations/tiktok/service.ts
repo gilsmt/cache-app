@@ -2,12 +2,12 @@ import "server-only";
 
 import * as z from "zod";
 import {
-    extensionSavedItemBaseSchema,
-    importExtensionSavedItems,
-} from "@/lib/extension/ingest/service";
+    importSavedItems,
+    savedItemBaseSchema,
+} from "@/lib/integrations/items";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
-export const tiktokSavedItemSchema = extensionSavedItemBaseSchema
+export const tiktokSavedItemSchema = savedItemBaseSchema
     .extend({
         id: z.string().optional(),
     })
@@ -24,7 +24,7 @@ export function importTiktokSaved(args: {
     items: z.infer<typeof tiktokSavedItemSchema>[];
     userId: string;
 }) {
-    return importExtensionSavedItems({
+    return importSavedItems({
         externalId: (item) => item.id,
         items: args.items,
         source: LibraryItemSource.tiktok,

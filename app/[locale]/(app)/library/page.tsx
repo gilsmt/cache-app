@@ -15,7 +15,7 @@ import { SidebarPanel } from "@/components/session/sidebar";
 import { getSessionUserId } from "@/lib/auth/session";
 import { userHasProAccess } from "@/lib/billing/service";
 import { getLibrary, listCollections } from "@/lib/collections/service";
-import { listLinkedIntegrationAccounts } from "@/lib/integrations/account";
+import { loadIntegrationConnectionState } from "@/lib/integrations/connection";
 import type { IntegrationId } from "@/lib/integrations/registry";
 import { listConnectedIntegrationIds } from "@/lib/integrations/registry";
 
@@ -57,27 +57,23 @@ export default async function LibraryPage() {
     const [
         { itemSources, items, lockedItemCount, totalItemCount },
         collections,
-        linkedAccounts,
+        connectionState,
     ] = await Promise.all([
         userHasProAccess(userId).then((hasAccess) =>
             getLibrary({ hasAccess, userId })
         ),
         listCollections({ userId }),
-        listLinkedIntegrationAccounts({ userId }),
+        loadIntegrationConnectionState({ userId }),
     ]);
 
-    const integrationConnectionContext = {
-        libraryItemSources: itemSources.map((item) => item.source),
-        linkedProviderIds: linkedAccounts.map((account) => account.providerId),
-    };
-
-    const connectedIntegrations: Set<IntegrationId> = new Set([
-        ...listConnectedIntegrationIds("source", integrationConnectionContext),
-        ...listConnectedIntegrationIds(
-            "destination",
-            integrationConnectionContext
-        ),
-    ]);
+    const connectedIntegrations: Set<IntegrationId> = new Set(
+        listConnectedIntegrationIds({
+            hasMarkdownImports: connectionState.hasMarkdownImports,
+            hasRssFeeds: connectionState.hasRssFeeds,
+            libraryItemSources: itemSources.map((item) => item.source),
+            linkedProviderIds: connectionState.linkedProviderIds,
+        })
+    );
 
     return (
         <DimensionCacheProvider>
