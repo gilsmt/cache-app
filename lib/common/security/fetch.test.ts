@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readBodyText } from "@/lib/common/security/fetch";
+import { isUpstreamRefusal, readBodyText } from "@/lib/common/security/fetch";
 import { isLocalhostAlias } from "@/lib/common/security/hostname";
 
 function responseWith(chunks: Uint8Array[]): Response {
@@ -85,6 +85,24 @@ describe("readBodyText", () => {
         const result = await readBodyText(response, { maxChars: 10 });
         expect(result.text).toBe("\u{1F600}!");
         expect(result.truncated).toBe(false);
+    });
+});
+
+describe("isUpstreamRefusal", () => {
+    test("treats bot protection, rate limits, and server errors as refusals", () => {
+        expect(isUpstreamRefusal(401)).toBe(true);
+        expect(isUpstreamRefusal(403)).toBe(true);
+        expect(isUpstreamRefusal(406)).toBe(true);
+        expect(isUpstreamRefusal(429)).toBe(true);
+        expect(isUpstreamRefusal(500)).toBe(true);
+        expect(isUpstreamRefusal(503)).toBe(true);
+    });
+
+    test("treats a served or missing resource as no refusal", () => {
+        expect(isUpstreamRefusal(200)).toBe(false);
+        expect(isUpstreamRefusal(301)).toBe(false);
+        expect(isUpstreamRefusal(404)).toBe(false);
+        expect(isUpstreamRefusal(410)).toBe(false);
     });
 });
 

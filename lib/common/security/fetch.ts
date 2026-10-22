@@ -513,6 +513,22 @@ export function isRedirectStatus(status: number): boolean {
     return REDIRECT_STATUSES.has(status);
 }
 
+/**
+ * True when the upstream refused the request instead of serving the
+ * resource: bot protection, an unfulfilled authorization, rate limiting, or
+ * a server error. Such a refusal is transient, so a caller must not report
+ * it as a missing resource.
+ */
+export function isUpstreamRefusal(status: number): boolean {
+    return (
+        status === 401 ||
+        status === 403 ||
+        status === 406 ||
+        status === 429 ||
+        status >= 500
+    );
+}
+
 export function resolveRedirectLocation(
     location: string,
     baseUrl: URL
