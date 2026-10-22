@@ -1,6 +1,11 @@
 {
     "defaultLocale": "en-US",
     "locales": ["en-US", "es-ES"],
+    "src": [
+        "app/**/*.{js,jsx,ts,tsx}",
+        "components/**/*.{js,jsx,ts,tsx}",
+        "lib/**/*.{js,jsx,ts,tsx}"
+    ],
     "files": {
         "gt": {
             "output": "public/_gt/[locale].json"
