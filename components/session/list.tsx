@@ -2150,9 +2150,11 @@ function buildItemsGroups(
 
 async function saveLibraryNoteDraft({
     activeNoteId,
+    collectionIds = [],
     draft,
 }: {
     activeNoteId: string | null;
+    collectionIds?: string[];
     draft: EditorDraft;
 }): Promise<NoteMutationResult> {
     try {
@@ -2163,6 +2165,7 @@ async function saveLibraryNoteDraft({
                   itemId: activeNoteId,
               })
             : await createNote({
+                  collectionIds,
                   contentHtml: draft.contentHtml,
                   contentState: draft.contentState ?? undefined,
               });
@@ -4618,8 +4621,18 @@ export function ItemsList({
 
     const handleSaveNote = useStableCallback(
         async (draft: EditorDraft, noteId: string | null) => {
+            // A first save files a new note into the collections the
+            // composer is currently filtered by. The "not in collections"
+            // filter suspends that selection, so the note stays unassigned.
+            const collectionIds =
+                noteId === null &&
+                collectionMembershipFilter !== "not-in-collections"
+                    ? selectedCollectionIds
+                    : [];
+
             const result = await saveLibraryNoteDraft({
                 activeNoteId: noteId,
+                collectionIds,
                 draft,
             });
 
@@ -4627,6 +4640,14 @@ export function ItemsList({
                 return null;
             }
 
+            if (result.collectionSummaries.length !== collectionIds.length) {
+                log.warn("Some selected collections no longer exist", {
+                    requestedCollectionCount: collectionIds.length,
+                    savedCollectionCount: result.collectionSummaries.length,
+                });
+            }
+
+            mergeCollectionSummaries(result.collectionSummaries);
             setItems((current) => mergeById(current, [result.item]));
             return result.item;
         }

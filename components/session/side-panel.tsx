@@ -103,6 +103,7 @@ import {
 } from "@/components/hooks/use-autosave";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
+import { ItemCollectionsCombobox } from "@/components/session/collections";
 import { useItemsStateContext } from "@/components/session/items";
 import { Button } from "@/components/ui/button";
 import {
@@ -300,6 +301,7 @@ interface EditorActionsContext {
 interface EditorDraftContext {
     contentHtml: string;
     isDirty: boolean;
+    noteId: string | null;
     saveStatus: AutosaveStatus;
     textMetrics: EditorTextMetrics;
 }
@@ -2401,6 +2403,7 @@ function EditorRoot({ children, isActive, note, tabId }: EditorRootProps) {
     const draftContextValue: EditorDraftContext = {
         contentHtml: draft.contentHtml,
         isDirty,
+        noteId,
         saveStatus,
         textMetrics,
     };
@@ -2422,9 +2425,10 @@ function EditorRoot({ children, isActive, note, tabId }: EditorRootProps) {
 
 function EditorExportControls() {
     const gt = useGT();
-    const { contentHtml, textMetrics } = useEditorDraftContext();
+    const { contentHtml, noteId, textMetrics } = useEditorDraftContext();
     const { plainText } = textMetrics;
     const { copyToClipboard, isCopied } = useCopyToClipboard();
+    const { items } = useItemsStateContext();
 
     const [isSendingToNotion, startSendToNotion] = useTransition();
     const [notionStatus, setNotionStatus] = useState<{
@@ -2433,6 +2437,21 @@ function EditorExportControls() {
     } | null>(null);
 
     const hasPlainText = plainText.length > 0;
+
+    // Collection assignment needs the persisted library item, so an unsaved
+    // draft offers no combobox until its first autosave creates the note.
+    const noteItem =
+        noteId === null
+            ? null
+            : (items.find((item) => item.id === noteId) ?? null);
+
+    const assignedCollectionCount = noteItem?.collections.length ?? 0;
+    const assignCollectionsLabel =
+        assignedCollectionCount === 0
+            ? gt("Assign collections")
+            : gt("Change or add collections ({count} selected)", {
+                  count: assignedCollectionCount,
+              });
 
     const handleCopyNote = useStableCallback(() => {
         if (!hasPlainText) {
@@ -2484,6 +2503,18 @@ function EditorExportControls() {
     return (
         <div className="ms-auto inline-flex items-center justify-end gap-px">
             <EditorStatus />
+            {noteItem ? (
+                <ItemCollectionsCombobox
+                    items={[noteItem]}
+                    render={
+                        <Button
+                            aria-label={assignCollectionsLabel}
+                            size="icon-sm"
+                            variant="ghost"
+                        />
+                    }
+                />
+            ) : null}
             <Button
                 aria-label={gt("Copy note")}
                 disabled={!hasPlainText}
