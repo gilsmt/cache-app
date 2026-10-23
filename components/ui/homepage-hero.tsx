@@ -925,12 +925,8 @@ export function HomepageHero() {
             </CarouselActiveSlide>
             <CarouselActiveSlide>
                 {(index) => (
-                    <div className="relative overflow-hidden rounded-xl border border-border bg-background shadow-[0_28px_64px_-36px_rgb(0_0_0/0.35)]">
-                        <CarouselPanel
-                            aria-hidden
-                            className="gap-0"
-                            slideClassName="w-full"
-                        >
+                    <div className="relative">
+                        <CarouselPanel aria-hidden slideClassName="w-full">
                             {SCENES.map((scene, sceneIndex) => (
                                 <LibraryScene
                                     isActive={index === sceneIndex}

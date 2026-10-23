@@ -197,7 +197,7 @@ export function CarouselActiveSlide({
     const { activeIndex, count } = useBlossomNavigation(id);
     const hasActiveSlide = activeIndex >= 0 && activeIndex < count;
 
-    return <>{children(hasActiveSlide ? activeIndex : null)}</>;
+    return children(hasActiveSlide ? activeIndex : null);
 }
 
 interface CarouselAutoPlayProps {
@@ -230,8 +230,6 @@ export function CarouselAutoplayIndicator({
     const [value, setValue] = React.useState(100);
 
     React.useEffect(() => {
-        // The ring must paint full before it transitions to empty. Two frames
-        // guarantee one paint between the mount and the value change.
         let frameId = requestAnimationFrame(() => {
             frameId = requestAnimationFrame(() => setValue(0));
         });
