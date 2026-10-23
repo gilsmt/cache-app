@@ -2,6 +2,7 @@ import "server-only";
 
 import * as z from "zod";
 import { isAbortError } from "@/lib/common/abort";
+import { readResponseJson } from "@/lib/common/http";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { fetchWithTimeout } from "@/lib/common/timeout";
 import { IntegrationApiError } from "@/lib/integrations/error";
@@ -52,7 +53,7 @@ async function pickerFetch(
         );
 
         if (!response.ok) {
-            const maybeJson = await response.json().catch(() => null);
+            const maybeJson = await readResponseJson(response);
             const parsedError = PickerApiErrorSchema.safeParse(maybeJson);
             if (!parsedError.success) {
                 log.debug(

@@ -1,4 +1,21 @@
+import { isAbortError } from "@/lib/common/abort";
 import { isRecord } from "@/lib/common/object";
+
+/**
+ * Reads a response body as JSON. An unreadable or non-JSON body yields null,
+ * matching a provider that answered without a JSON payload. Abort errors
+ * propagate so the caller can report a timeout instead of a malformed response.
+ */
+export async function readResponseJson(response: Response): Promise<unknown> {
+    try {
+        return await response.json();
+    } catch (error) {
+        if (isAbortError(error)) {
+            throw error;
+        }
+        return null;
+    }
+}
 
 export class HttpError extends Error {
     readonly retryAfter: number | null;

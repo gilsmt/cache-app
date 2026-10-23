@@ -3,6 +3,7 @@ import "server-only";
 import * as z from "zod";
 import { isAbortError } from "@/lib/common/abort";
 import { parseDate } from "@/lib/common/date";
+import { readResponseJson } from "@/lib/common/http";
 import { fetchWithTimeout } from "@/lib/common/timeout";
 import { IntegrationApiError } from "@/lib/integrations/error";
 import type { Prisma } from "@/prisma/client/client";
@@ -162,7 +163,7 @@ async function fetchX(
             X_API_TIMEOUT_MS
         );
 
-        const payload = await response.json().catch(() => null);
+        const payload = await readResponseJson(response);
         if (!response.ok) {
             throw parseXApiError(payload, response.status);
         }
