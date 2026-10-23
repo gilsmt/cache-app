@@ -355,6 +355,7 @@ export const INTEGRATION_DEFINITIONS = [
                     provider: "google",
                 },
                 role: "connect",
+                visibleWhen: "disconnected",
             },
             {
                 behavior: {
