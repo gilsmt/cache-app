@@ -252,22 +252,6 @@ export function ComboboxGroupLabel({
     );
 }
 
-export function ComboboxLabel({
-    className,
-    ...props
-}: ComboboxPrimitive.Label.Props) {
-    return (
-        <ComboboxPrimitive.Label
-            {...props}
-            className={cn(
-                "inline-flex cursor-default items-center gap-2 font-medium text-base/4.5 text-foreground sm:text-sm/4",
-                className
-            )}
-            data-slot="combobox-label"
-        />
-    );
-}
-
 export function ComboboxEmpty({
     className,
     ...props
