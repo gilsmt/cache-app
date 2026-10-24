@@ -11,6 +11,10 @@
     },
     "license": "Apache-2.0",
     "type": "module",
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
     "scripts": {
         "analyze": "next analyze",
         "build": "bun run next build",
