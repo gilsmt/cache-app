@@ -503,12 +503,13 @@ const mcpHandler = withMcpAuth(baseHandler, verifyMcpAuthToken, {
  * so we own the full CORS surface here:
  * - The app's own web origins only (never `*`) so `Authorization` can be sent
  * - Same allow-list on preflight and actual responses
- * - `mcp-protocol-version` and `last-event-id` are allow-listed because the
- *   SDK reads them off post-initialize and SSE-resume requests; without them
- *   browser preflight fails and the client stalls after `initialize`.
+ * - `mcp-protocol-version` and `mcp-method` are required on every
+ *   2026-07-28 request, and `mcp-name` on `tools/call`; browsers preflight
+ *   custom request headers, so all three must be allow-listed.
+ * - `last-event-id` is allow-listed for legacy SSE-resume requests.
  */
 const CORS_ALLOWED_HEADERS =
-    "authorization,content-type,accept,mcp-session-id,mcp-protocol-version,last-event-id";
+    "authorization,content-type,accept,mcp-session-id,mcp-protocol-version,mcp-method,mcp-name,last-event-id";
 const CORS_ALLOWED_METHODS = "POST, GET, DELETE, OPTIONS";
 const CORS_EXPOSED_HEADERS = "mcp-session-id, mcp-protocol-version";
 const CORS_MAX_AGE = "86400";
@@ -598,7 +599,9 @@ export async function POST(request: Request): Promise<Response> {
 // there is nothing to terminate. The transport spec permits answering DELETE
 // with 405 when the server does not support client-initiated termination;
 // exporting it (instead of letting Next.js answer) keeps the CORS and
-// no-store surface identical to GET/POST for trusted origins.
+// no-store surface identical to GET/POST for trusted origins. `Allow: POST`
+// mirrors the SDK's stateless 405: POST is the only MCP method this endpoint
+// serves.
 export function DELETE(request: Request): Response {
     const rejected = invalidOriginResponse(request);
     if (rejected) {
@@ -613,7 +616,10 @@ export function DELETE(request: Request): Response {
                 jsonrpc: "2.0",
             }),
             {
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    Allow: "POST",
+                    "Content-Type": "application/json",
+                },
                 status: 405,
             }
         )
