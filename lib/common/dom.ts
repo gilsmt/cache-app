@@ -1,3 +1,6 @@
+// `Node` can be undefined outside the DOM.
+const DOCUMENT_NODE = 9;
+
 export const canUseDOM =
     typeof window !== "undefined" &&
     typeof window.document !== "undefined" &&
@@ -9,27 +12,26 @@ export function getOwnerWindow(
         | null
         | undefined
 ) {
-    if (!canUseDOM) {
-        throw new Error("Cannot access window outside of the DOM");
-    }
-    if (node && "nodeType" in node && node.nodeType === Node.DOCUMENT_NODE) {
-        return (node as Document).defaultView ?? globalThis.window;
+    if (isDocument(node)) {
+        return node.defaultView ?? globalThis.window;
     }
     return node?.ownerDocument?.defaultView ?? globalThis.window;
 }
 
-export function getOwnerDocument(node?: Node | Document | null | undefined) {
-    if (!canUseDOM) {
-        throw new Error("Cannot access document outside of the DOM");
-    }
-    if (node?.nodeType === Node.DOCUMENT_NODE) {
-        return node as Document;
+export function getOwnerDocument(node?: Node | null) {
+    if (isDocument(node)) {
+        return node;
     }
     return node?.ownerDocument ?? globalThis.document;
 }
 
-export function getComputedStyle(element: Element, pseudoElement?: string) {
-    return getOwnerWindow(element).getComputedStyle(element, pseudoElement);
+function isDocument(value: unknown): value is Document {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        "nodeType" in value &&
+        value.nodeType === DOCUMENT_NODE
+    );
 }
 
 export function isTextEntryTarget(target: EventTarget | null): boolean {
