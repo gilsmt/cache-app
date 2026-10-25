@@ -46,7 +46,7 @@ export async function prepareAutomationRunForWorkflow(args: {
 export async function executeReadOnlyAutomationRun(
     ready: AutomationAgentInput
 ) {
-    const instructions = automationAgent.instructions(ready);
+    const { instructions } = automationAgent;
     const userMessage = automationAgent.userMessage(ready);
 
     try {

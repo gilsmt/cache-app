@@ -22,6 +22,16 @@ import { estimateTokens } from "./usage";
 
 const log = createLogger("intelligence:agent");
 
+/**
+ * Sent as an extra system part on the last step of a run. The loop stops after
+ * it, so the model answers from what it already has instead of promising work
+ * it cannot do.
+ */
+const FINAL_STEP_NOTICE = [
+    "Tool budget exhausted: this is the last step of the run, and no tools are available.",
+    "Answer with the information you already have. Do not promise follow-up actions or ask the user to continue.",
+].join("\n");
+
 /** What the tools of one agent run recorded. */
 export interface AgentRunState {
     operationSummaries: string[];
@@ -41,16 +51,20 @@ export function createAgentRunState(): AgentRunState {
 
 /**
  * An agent definition: who an agent is, as data. A record carries every
- * policy decision — limits, instruction builders, and the toolset composed
- * from the tool layer per run — and holds no execution mechanics. Runners
- * consume records; records never know how they are run.
+ * policy decision — limits, instructions, and the toolset composed from the
+ * tool layer per run — and holds no execution mechanics. Runners consume
+ * records; records never know how they are run.
  */
 export interface AgentDefinition<Input> {
     defaultErrorMessage: string;
     /** Protection feature label. */
     feature: string;
     id: string;
-    instructions: (input: Input) => string;
+    /**
+     * Policy only. Request data belongs in `userMessage`, so the prompt is
+     * identical on every run and stays in the provider's prompt cache.
+     */
+    instructions: string;
     maxSteps: number;
     operation: string;
     outputTokenLimit: number;
@@ -83,7 +97,7 @@ export async function runAgent<Input>(args: {
     userId: string;
 }): Promise<AgentRunResult> {
     const { agent, input, userId } = args;
-    const instructions = agent.instructions(input);
+    const { instructions } = agent;
     const userMessage = agent.userMessage(input);
     const state = createAgentRunState();
 
@@ -140,6 +154,16 @@ async function runAgentModel<Input>(args: {
         instructions: args.instructions,
         maxOutputTokens: agent.outputTokenLimit,
         model: args.model,
+        prepareStep: ({ stepNumber }) =>
+            stepNumber === agent.maxSteps - 1
+                ? {
+                      instructions: [
+                          { content: args.instructions, role: "system" },
+                          { content: FINAL_STEP_NOTICE, role: "system" },
+                      ],
+                      toolChoice: "none",
+                  }
+                : undefined,
         stopWhen: isStepCount(agent.maxSteps),
         ...(agent.temperature === undefined
             ? {}
