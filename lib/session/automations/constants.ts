@@ -23,9 +23,9 @@ export interface AutomationTemplateDefinition {
     title: string;
 }
 
-export type AutomationTemplate = AutomationTemplateDefinition & {
+export interface AutomationTemplate extends AutomationTemplateDefinition {
     templateKey: AutomationTemplateKey;
-};
+}
 
 // First-party automation templates available to every user. The catalog is the
 // source of truth for suggestions; an Automation row exists only after the user

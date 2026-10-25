@@ -15,7 +15,6 @@ import {
     Search,
     Trash2,
     X,
-    Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -100,15 +99,6 @@ const THREADS_LIST_GROUP_LABELS: Record<RelativeDateGroupId, React.ReactNode> =
         older: <T>Older</T>,
         today: <T>Today</T>,
     };
-
-const THREADS_LIST_PREVIEW_LABELS: Record<
-    ThreadListItem["preview"]["kind"],
-    React.ReactNode
-> = {
-    automation: <T>Automation run</T>,
-    prompt: <T>Initial prompt</T>,
-    response: <T>Chat preview</T>,
-};
 
 type ThreadListView = "show-all" | "exclude-archives";
 
@@ -887,7 +877,6 @@ interface ThreadsListItemTriggerProps
 }
 
 function ThreadsListItemTrigger({
-    children,
     item,
     ...props
 }: ThreadsListItemTriggerProps) {
@@ -912,9 +901,7 @@ function ThreadsListItemTrigger({
                         }
                     />
                 }
-            >
-                {children}
-            </PreviewCardTrigger>
+            />
             <PreviewCardPopup
                 align="start"
                 className="p-3"
@@ -922,33 +909,11 @@ function ThreadsListItemTrigger({
                 side="right"
             >
                 <div className="flex min-w-0 flex-col gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                            {item.preview.kind === "automation" ? (
-                                <Zap
-                                    aria-hidden
-                                    className="size-3.5"
-                                    focusable="false"
-                                />
-                            ) : (
-                                <MessageCircle
-                                    aria-hidden
-                                    className="size-3.5"
-                                    focusable="false"
-                                />
-                            )}
-                        </span>
-                        <div className="flex min-w-0 flex-col gap-0.5">
-                            <PreviewCardTitle className="truncate">
-                                {item.preview.kind === "automation"
-                                    ? item.preview.automationTitle
-                                    : item.title}
-                            </PreviewCardTitle>
-                            <span className="text-[11px] text-muted-foreground">
-                                {THREADS_LIST_PREVIEW_LABELS[item.preview.kind]}
-                            </span>
-                        </div>
-                    </div>
+                    <PreviewCardTitle className="truncate">
+                        {item.preview.kind === "automation"
+                            ? item.preview.automationTitle
+                            : item.title}
+                    </PreviewCardTitle>
                     <PreviewCardDescription className="line-clamp-4 border-t pt-2">
                         {item.preview.text || <T>No preview available.</T>}
                     </PreviewCardDescription>
