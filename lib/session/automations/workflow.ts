@@ -7,7 +7,10 @@ import {
 } from "@/lib/session/ai/agents";
 import type { GenerationUsage } from "@/lib/session/ai/generate";
 import { resolveRegisteredModel } from "@/lib/session/ai/resolver";
-import { createAgentRunState } from "@/lib/session/ai/runner";
+import {
+    createAgentRunState,
+    getFinalStepSystem,
+} from "@/lib/session/ai/runner";
 import { summarizeStepUsage } from "@/lib/session/ai/usage";
 import { normalizeGeneratedMarkdown } from "@/lib/session/formatter/markdown";
 import type { AutomationAgentSource } from "@/lib/session/tool/web";
@@ -139,6 +142,16 @@ async function runAutomationAgentForWorkflow(args: {
         instructions: args.instructions,
         maxOutputTokens: automationAgent.outputTokenLimit,
         model: resolveRegisteredModel(automationAgent.operation),
+        prepareStep: ({ stepNumber }) => {
+            const system = getFinalStepSystem({
+                instructions: args.instructions,
+                maxSteps: automationAgent.maxSteps,
+                stepNumber,
+            });
+            return system === undefined
+                ? undefined
+                : { system, toolChoice: "none" };
+        },
         temperature: automationAgent.temperature,
         tools: automationAgent.tools({
             input: args.input,
