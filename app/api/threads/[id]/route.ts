@@ -15,6 +15,7 @@ import * as z from "zod";
 import { requireRouteUserId } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { resolveRegisteredModel } from "@/lib/session/ai/resolver";
+import { getFinalStepSystem } from "@/lib/session/ai/runner";
 import { estimateTokens } from "@/lib/session/ai/usage";
 import { GenAiProtectionError } from "@/lib/session/error";
 import { THREAD_SYSTEM_PROMPT } from "@/lib/session/instructions/threads";
@@ -217,6 +218,16 @@ export async function POST(request: Request, { params }: ThreadRouteParams) {
                     threadId,
                     userId,
                 });
+            },
+            prepareStep: ({ stepNumber }) => {
+                const finalSystem = getFinalStepSystem({
+                    instructions: system,
+                    maxSteps: THREAD_FOLLOWUP_STEP_LIMIT,
+                    stepNumber,
+                });
+                return finalSystem === undefined
+                    ? undefined
+                    : { instructions: finalSystem, toolChoice: "none" };
             },
             stopWhen: isStepCount(THREAD_FOLLOWUP_STEP_LIMIT),
             system,
