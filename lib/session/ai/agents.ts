@@ -1,9 +1,9 @@
 import {
-    buildAssistantInstructions,
+    ASSISTANT_SYSTEM_PROMPT,
     buildAssistantUserMessage,
 } from "../instructions/assistant";
 import {
-    buildAutomationInstructions,
+    AUTOMATION_SYSTEM_PROMPT,
     buildAutomationUserMessage,
 } from "../instructions/automations";
 import { createAutomationPayloadTools } from "../tool/automation";
@@ -17,7 +17,7 @@ export const assistantAgent: AgentDefinition<AssistantRequest> = {
     defaultErrorMessage: "We couldn't ask the assistant right now.",
     feature: "assistant_agent",
     id: "assistant",
-    instructions: buildAssistantInstructions,
+    instructions: ASSISTANT_SYSTEM_PROMPT,
     maxSteps: 12,
     operation: "runAssistant",
     outputTokenLimit: 8192,
@@ -43,7 +43,7 @@ export const automationAgent: AgentDefinition<AutomationAgentInput> = {
     defaultErrorMessage: "This automation failed before producing a result.",
     feature: "automation_agent",
     id: "automation",
-    instructions: buildAutomationInstructions,
+    instructions: AUTOMATION_SYSTEM_PROMPT,
     maxSteps: 6,
     operation: "executeReadOnlyAutomationRun",
     outputTokenLimit: 8192,

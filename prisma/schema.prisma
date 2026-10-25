@@ -75,11 +75,23 @@ enum AutomationCadence {
     monthly
 }
 
-/// First-party automation templates seeded for new users.
+/// First-party automation templates available to every user.
 enum AutomationTemplateKey {
     daily_digest
     worth_revisiting
     next_actions
+    monthly_recap
+    unsorted_triage
+    expiring_soon
+    decision_memo
+    research_digest
+    theme_thread
+    learning_path
+    open_questions
+    collection_health
+    duplicate_radar
+    collection_brief
+    story_follow_up
 }
 
 /// Durable execution state for a single scheduled automation attempt.
@@ -255,12 +267,15 @@ model Comment {
     @@map("comment")
 }
 
-/// Scheduled assistant behavior owned by a user. Paused seeded automations may
+/// Scheduled assistant behavior owned by a user. A row exists only after the
+/// user adds a catalog template or creates a custom automation; paused rows may
 /// be unscheduled until the user explicitly enables them.
 model Automation {
     id                     String                 @id @default(cuid())
     userId                 String
     user                   User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    /// Catalog template this automation was created from; null for custom
+    /// automations. The unique constraint allows many nulls per user.
     templateKey            AutomationTemplateKey?
     title                  String
     prompt                 String

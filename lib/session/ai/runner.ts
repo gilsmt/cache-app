@@ -10,6 +10,7 @@ import {
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { EmptyGenerationOutputError } from "../error";
 import { normalizeGeneratedMarkdown } from "../formatter/markdown";
+import { getFinalStepSystem } from "../instructions/final-step";
 import { protectGenAiRequest } from "../protection";
 import type { AgentViewPage, AssistantComposerPatch } from "../tool/composer";
 import type { AutomationAgentSource } from "../tool/web";
@@ -41,16 +42,20 @@ export function createAgentRunState(): AgentRunState {
 
 /**
  * An agent definition: who an agent is, as data. A record carries every
- * policy decision — limits, instruction builders, and the toolset composed
- * from the tool layer per run — and holds no execution mechanics. Runners
- * consume records; records never know how they are run.
+ * policy decision — limits, instructions, and the toolset composed from the
+ * tool layer per run — and holds no execution mechanics. Runners consume
+ * records; records never know how they are run.
  */
 export interface AgentDefinition<Input> {
     defaultErrorMessage: string;
     /** Protection feature label. */
     feature: string;
     id: string;
-    instructions: (input: Input) => string;
+    /**
+     * Policy only. Request data belongs in `userMessage`, so the prompt is
+     * identical on every run and stays in the provider's prompt cache.
+     */
+    instructions: string;
     maxSteps: number;
     operation: string;
     outputTokenLimit: number;
@@ -83,7 +88,7 @@ export async function runAgent<Input>(args: {
     userId: string;
 }): Promise<AgentRunResult> {
     const { agent, input, userId } = args;
-    const instructions = agent.instructions(input);
+    const { instructions } = agent;
     const userMessage = agent.userMessage(input);
     const state = createAgentRunState();
 
@@ -140,6 +145,16 @@ async function runAgentModel<Input>(args: {
         instructions: args.instructions,
         maxOutputTokens: agent.outputTokenLimit,
         model: args.model,
+        prepareStep: ({ stepNumber }) => {
+            const system = getFinalStepSystem({
+                instructions: args.instructions,
+                maxSteps: agent.maxSteps,
+                stepNumber,
+            });
+            return system === undefined
+                ? undefined
+                : { instructions: system, toolChoice: "none" };
+        },
         stopWhen: isStepCount(agent.maxSteps),
         ...(agent.temperature === undefined
             ? {}

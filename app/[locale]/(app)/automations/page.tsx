@@ -75,11 +75,12 @@ async function AutomationsPageBody() {
         return redirect("/");
     }
 
-    const [automations, collections, threads] = await Promise.all([
-        listAutomations({ userId }),
-        listCollectionOptions({ userId }),
-        listThreads({ userId }),
-    ]);
+    const [{ automations, suggestions }, collections, threads] =
+        await Promise.all([
+            listAutomations({ userId }),
+            listCollectionOptions({ userId }),
+            listThreads({ userId }),
+        ]);
 
     return (
         <>
@@ -94,6 +95,7 @@ async function AutomationsPageBody() {
                     <AutomationsList
                         automations={automations}
                         collections={collections}
+                        suggestions={suggestions}
                     />
                 </div>
             </div>

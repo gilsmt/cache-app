@@ -56,6 +56,7 @@ import {
     resumeAutomation,
     updateAutomation,
 } from "@/lib/session/automations/actions";
+import type { AutomationTemplateKey } from "@/prisma/client/enums";
 import AppIconSmall from "@/public/cache-icon-small.png";
 
 const ALL_LIBRARY_COLLECTION_ID = "all_library";
@@ -155,11 +156,13 @@ export interface AutomationCollectionOption {
 export interface AutomationComposerAutomation {
     cadence: AutomationCadence;
     collectionId?: string;
-    id: string;
+    /** Absent when the user is adding a catalog template for the first time. */
+    id?: string;
     monthDay?: number;
     payloadScope: AutomationPayloadScope;
     prompt: string;
     status: AutomationStatus;
+    templateKey?: AutomationTemplateKey;
     timeOfDayMinutes: number;
     timezone: string;
     title: string;
@@ -201,10 +204,11 @@ function getInitialFormState(
 
 function getSubmitLabel(args: {
     isEditing: boolean;
+    isTemplate: boolean;
     shouldResumeAfterSave: boolean;
 }): string {
     if (!args.isEditing) {
-        return "Create automation";
+        return args.isTemplate ? "Enable automation" : "Create automation";
     }
     if (args.shouldResumeAfterSave) {
         return "Enable automation";
@@ -309,11 +313,12 @@ export function AutomationComposerDialog({
     const [formState, setFormState] = React.useState<AutomationFormState>(() =>
         getInitialFormState(automation, collections)
     );
-    const isEditing = automation !== undefined;
+    const isEditing = automation?.id !== undefined;
     const shouldRenderTrigger = trigger !== null;
-    const shouldResumeAfterSave = automation?.status === "paused";
+    const shouldResumeAfterSave = isEditing && automation?.status === "paused";
     const submitLabel = getSubmitLabel({
         isEditing,
+        isTemplate: automation?.templateKey !== undefined,
         shouldResumeAfterSave,
     });
     const timeOptions = getTimeOfDayOptions(locale);
@@ -406,6 +411,7 @@ export function AutomationComposerDialog({
                         automation === undefined
                             ? Intl.DateTimeFormat().resolvedOptions().timeZone
                             : automation.timezone;
+                    const automationId = automation?.id;
 
                     const input = {
                         collectionId: isAllLibraryPayload
@@ -428,13 +434,16 @@ export function AutomationComposerDialog({
                                     ? formState.weekDay
                                     : null,
                         },
+                        templateKey: automationId
+                            ? undefined
+                            : automation?.templateKey,
                         title: formState.title,
                     };
 
-                    const result = isEditing
+                    const result = automationId
                         ? await updateAutomation({
                               automation: input,
-                              automationId: automation.id,
+                              automationId,
                           })
                         : await createAutomation(input);
 
@@ -446,9 +455,9 @@ export function AutomationComposerDialog({
                         return;
                     }
 
-                    if (isEditing && shouldResumeAfterSave) {
+                    if (automationId && shouldResumeAfterSave) {
                         const resumeResult = await resumeAutomation({
-                            automationId: automation.id,
+                            automationId,
                             schedule: input.schedule,
                         });
 

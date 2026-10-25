@@ -19,7 +19,8 @@ import {
     AUTOMATION_DUE_BATCH_LIMIT,
     AUTOMATION_LEASE_DURATION_MS,
     AUTOMATION_RUNNING_TIMEOUT_MS,
-    AUTOMATION_TEMPLATE_DEFINITIONS,
+    AUTOMATION_TEMPLATES,
+    type AutomationTemplate,
 } from "./constants";
 import { createAutomationError } from "./error";
 import {
@@ -84,38 +85,20 @@ export interface AutomationInput {
     payloadScope: AutomationPayloadScope;
     prompt: string;
     schedule: AutomationScheduleData;
+    templateKey?: AutomationTemplateKey | null;
     title: string;
 }
 
 export type AutomationListItem = ReturnType<typeof toAutomationListItem>;
 
-export async function seedDefaultUserAutomations(userId: string) {
-    await prisma.$transaction(async (tx) => {
-        for (const definition of AUTOMATION_TEMPLATE_DEFINITIONS) {
-            await tx.automation.upsert({
-                create: {
-                    payloadScope: AutomationPayloadScope.all_library_items,
-                    prompt: definition.prompt,
-                    status: AutomationStatus.paused,
-                    templateKey: definition.templateKey,
-                    title: definition.title,
-                    userId,
-                },
-                update: {},
-                where: {
-                    userId_templateKey: {
-                        templateKey: definition.templateKey,
-                        userId,
-                    },
-                },
-            });
-        }
-    });
+export interface AutomationListResult {
+    automations: AutomationListItem[];
+    suggestions: readonly AutomationTemplate[];
 }
 
 export async function listAutomations(args: {
     userId: string;
-}): Promise<AutomationListItem[]> {
+}): Promise<AutomationListResult> {
     const automations = await prisma.automation.findMany({
         orderBy: [{ templateKey: "asc" }, { createdAt: "desc" }],
         select: AUTOMATION_SELECT,
@@ -124,7 +107,19 @@ export async function listAutomations(args: {
         },
     });
 
-    return automations.map(toAutomationListItem);
+    const existingTemplateKeys = new Set<AutomationTemplateKey>();
+    for (const automation of automations) {
+        if (automation.templateKey !== null) {
+            existingTemplateKeys.add(automation.templateKey);
+        }
+    }
+
+    return {
+        automations: automations.map(toAutomationListItem),
+        suggestions: AUTOMATION_TEMPLATES.filter(
+            (template) => !existingTemplateKeys.has(template.templateKey)
+        ),
+    };
 }
 
 export function countEnabledAutomations({
@@ -185,6 +180,25 @@ export async function createAutomation(args: {
     await requireCanUseAutomations(args.userId, "createAutomation");
 
     return prisma.$transaction(async (tx) => {
+        if (args.input.templateKey) {
+            // A stale suggestion can outlive the row it represents, for
+            // example when the user has the page open in a second tab.
+            // Return that automation instead of failing on the unique
+            // constraint.
+            const existing = await tx.automation.findUnique({
+                select: AUTOMATION_SELECT,
+                where: {
+                    userId_templateKey: {
+                        templateKey: args.input.templateKey,
+                        userId: args.userId,
+                    },
+                },
+            });
+            if (existing) {
+                return toAutomationListItem(existing);
+            }
+        }
+
         const now = new Date();
         const normalized = await normalizeAutomationInput(tx, {
             input: args.input,
@@ -207,6 +221,7 @@ export async function createAutomation(args: {
                 payloadScope: normalized.payloadScope,
                 prompt: normalized.prompt,
                 status: AutomationStatus.active,
+                templateKey: args.input.templateKey ?? null,
                 timeOfDayMinutes: normalized.schedule.timeOfDayMinutes,
                 timezone: normalized.schedule.timezone,
                 title: normalized.title,

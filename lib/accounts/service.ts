@@ -4,23 +4,11 @@ import { AccountError } from "@/lib/accounts/error";
 import { auth } from "@/lib/auth/server";
 import { cancelUserNonterminalSubscriptions } from "@/lib/billing/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { seedDefaultUserAutomations } from "@/lib/session/automations/service";
 
 const log = createLogger("accounts:service");
 
 interface DeleteUserAccountResult {
     redirect: string;
-}
-
-export async function onUserCreated(userId: string): Promise<void> {
-    try {
-        await seedDefaultUserAutomations(userId);
-    } catch (error) {
-        log.error("Failed to seed built-in automations", error, {
-            operation: "onUserCreated",
-            userId,
-        });
-    }
 }
 
 export async function prepareUserDeletion(userId: string): Promise<void> {

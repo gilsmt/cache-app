@@ -10,6 +10,7 @@ import { resolveRegisteredModel } from "@/lib/session/ai/resolver";
 import { createAgentRunState } from "@/lib/session/ai/runner";
 import { summarizeStepUsage } from "@/lib/session/ai/usage";
 import { normalizeGeneratedMarkdown } from "@/lib/session/formatter/markdown";
+import { getFinalStepSystem } from "@/lib/session/instructions/final-step";
 import type { AutomationAgentSource } from "@/lib/session/tool/web";
 import { uniqueSources } from "@/lib/session/tool/web";
 
@@ -46,7 +47,7 @@ export async function prepareAutomationRunForWorkflow(args: {
 export async function executeReadOnlyAutomationRun(
     ready: AutomationAgentInput
 ) {
-    const instructions = automationAgent.instructions(ready);
+    const { instructions } = automationAgent;
     const userMessage = automationAgent.userMessage(ready);
 
     try {
@@ -139,6 +140,16 @@ async function runAutomationAgentForWorkflow(args: {
         instructions: args.instructions,
         maxOutputTokens: automationAgent.outputTokenLimit,
         model: resolveRegisteredModel(automationAgent.operation),
+        prepareStep: ({ stepNumber }) => {
+            const system = getFinalStepSystem({
+                instructions: args.instructions,
+                maxSteps: automationAgent.maxSteps,
+                stepNumber,
+            });
+            return system === undefined
+                ? undefined
+                : { system, toolChoice: "none" };
+        },
         temperature: automationAgent.temperature,
         tools: automationAgent.tools({
             input: args.input,

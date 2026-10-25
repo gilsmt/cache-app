@@ -7,6 +7,7 @@ import {
     handleActionError,
 } from "@/lib/common/action";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { AutomationTemplateKey } from "@/prisma/client/enums";
 import { AutomationError } from "./error";
 import * as service from "./service";
 
@@ -35,6 +36,7 @@ const AutomationInputSchema = z.object({
     payloadScope: z.enum(["all_library_items", "collection"]),
     prompt: z.string().trim().min(1).max(5000),
     schedule: AutomationScheduleInputSchema,
+    templateKey: z.enum(AutomationTemplateKey).nullable().optional(),
     title: z.string().trim().min(1).max(120),
 });
 
@@ -69,9 +71,14 @@ export async function listAutomations() {
         return actor;
     }
 
+    const { automations, suggestions } = await service.listAutomations({
+        userId: actor.userId,
+    });
+
     return {
-        automations: await service.listAutomations({ userId: actor.userId }),
+        automations,
         status: "SUCCESS" as const,
+        suggestions,
     };
 }
 
