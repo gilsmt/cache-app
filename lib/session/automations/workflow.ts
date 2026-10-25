@@ -7,12 +7,10 @@ import {
 } from "@/lib/session/ai/agents";
 import type { GenerationUsage } from "@/lib/session/ai/generate";
 import { resolveRegisteredModel } from "@/lib/session/ai/resolver";
-import {
-    createAgentRunState,
-    getFinalStepSystem,
-} from "@/lib/session/ai/runner";
+import { createAgentRunState } from "@/lib/session/ai/runner";
 import { summarizeStepUsage } from "@/lib/session/ai/usage";
 import { normalizeGeneratedMarkdown } from "@/lib/session/formatter/markdown";
+import { getFinalStepSystem } from "@/lib/session/instructions/final-step";
 import type { AutomationAgentSource } from "@/lib/session/tool/web";
 import { uniqueSources } from "@/lib/session/tool/web";
 
