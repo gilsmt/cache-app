@@ -3,15 +3,27 @@
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T } from "gt-next";
 import {
+    Activity,
+    AlarmClock,
     CalendarClock,
+    CalendarRange,
+    Copy,
     Ellipsis,
+    FileSearch,
+    GraduationCap,
     History,
+    Inbox,
     ListTodo,
     type LucideIcon,
+    MessageCircleQuestion,
+    Newspaper,
+    NotebookText,
     Pause,
     Pencil,
     Play,
+    Scale,
     Trash2,
+    Waypoints,
     Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -43,7 +55,10 @@ import {
     pauseAutomation,
     resumeAutomation,
 } from "@/lib/session/automations/actions";
-import { AUTOMATION_TEMPLATE_DEFINITIONS } from "@/lib/session/automations/constants";
+import {
+    AUTOMATION_TEMPLATE_DEFINITIONS,
+    type AutomationTemplate,
+} from "@/lib/session/automations/constants";
 import type { AutomationListItem } from "@/lib/session/automations/service";
 
 const DEFAULT_WEEK_DAY = 1;
@@ -72,8 +87,20 @@ type AutomationMutationResult =
     | Awaited<ReturnType<typeof deleteAutomation>>;
 
 const TEMPLATE_ICON: Record<AutomationTemplateKey, LucideIcon> = {
+    collection_brief: NotebookText,
+    collection_health: Activity,
     daily_digest: CalendarClock,
+    decision_memo: Scale,
+    duplicate_radar: Copy,
+    expiring_soon: AlarmClock,
+    learning_path: GraduationCap,
+    monthly_recap: CalendarRange,
     next_actions: ListTodo,
+    open_questions: MessageCircleQuestion,
+    research_digest: FileSearch,
+    story_follow_up: Newspaper,
+    theme_thread: Waypoints,
+    unsorted_triage: Inbox,
     worth_revisiting: History,
 };
 
@@ -90,6 +117,7 @@ const RUN_LABEL_BY_STATUS: Record<AutomationRunStatus, string | null> = {
 interface AutomationsListContext {
     automations: AutomationListItem[];
     collections: AutomationCollectionOption[];
+    suggestions: readonly AutomationTemplate[];
 }
 
 const AutomationsListContext =
@@ -106,9 +134,10 @@ function useAutomationsListContext(): AutomationsListContext {
 }
 
 function getTemplateDefinition(templateKey: AutomationListItem["templateKey"]) {
-    return AUTOMATION_TEMPLATE_DEFINITIONS.find(
-        (definition) => definition.templateKey === templateKey
-    );
+    if (!templateKey) {
+        return;
+    }
+    return AUTOMATION_TEMPLATE_DEFINITIONS[templateKey];
 }
 
 function getAutomationTemplateIcon(
@@ -117,7 +146,8 @@ function getAutomationTemplateIcon(
     if (!templateKey) {
         return Zap;
     }
-    return TEMPLATE_ICON[templateKey];
+    const icon: LucideIcon | undefined = TEMPLATE_ICON[templateKey];
+    return icon ?? Zap;
 }
 
 function toComposerAutomation(
@@ -126,7 +156,7 @@ function toComposerAutomation(
     return {
         cadence:
             automation.cadence ??
-            getTemplateDefinition(automation.templateKey)?.cadence ??
+            getTemplateDefinition(automation.templateKey)?.defaultCadence ??
             "weekly",
         collectionId: automation.collectionId ?? undefined,
         id: automation.id,
@@ -141,6 +171,21 @@ function toComposerAutomation(
             Intl.DateTimeFormat().resolvedOptions().timeZone,
         title: automation.title,
         weekDay: automation.weekDay ?? DEFAULT_WEEK_DAY,
+    };
+}
+
+function toComposerTemplate(
+    template: AutomationTemplate
+): AutomationComposerAutomation {
+    return {
+        cadence: template.defaultCadence,
+        payloadScope: "all_library_items",
+        prompt: template.prompt,
+        status: "paused",
+        templateKey: template.templateKey,
+        timeOfDayMinutes: DEFAULT_TIME_OF_DAY_MINUTES,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        title: template.title,
     };
 }
 
@@ -192,14 +237,6 @@ function isCompleteSchedule(
     return true;
 }
 
-function isSuggestedAutomation(automation: AutomationListItem) {
-    return (
-        automation.templateKey !== null &&
-        automation.status === "paused" &&
-        !isCompleteSchedule(automation)
-    );
-}
-
 function getLastRunLabel(
     run: AutomationListItem["recentRuns"][number] | undefined
 ): string | null {
@@ -220,13 +257,15 @@ function isTerminalRun(run: AutomationListItem["recentRuns"][number]): boolean {
 interface AutomationsListProps {
     automations: AutomationListItem[];
     collections: AutomationCollectionOption[];
+    suggestions: readonly AutomationTemplate[];
 }
 
 export function AutomationsList({
     automations,
     collections,
+    suggestions,
 }: AutomationsListProps) {
-    const contextValue = { automations, collections };
+    const contextValue = { automations, collections, suggestions };
 
     return (
         <AutomationsListContext value={contextValue}>
@@ -241,10 +280,10 @@ export function AutomationsList({
                     )}
                 </AutomationsListManaged>
                 <AutomationsListSuggestions>
-                    {(automation) => (
+                    {(template) => (
                         <AutomationsListSuggestionsItem
-                            automation={automation}
-                            key={automation.id}
+                            key={template.templateKey}
+                            template={template}
                         />
                     )}
                 </AutomationsListSuggestions>
@@ -254,9 +293,9 @@ export function AutomationsList({
 }
 
 function AutomationsListEmpty() {
-    const { automations } = useAutomationsListContext();
+    const { automations, suggestions } = useAutomationsListContext();
 
-    if (automations.length > 0) {
+    if (automations.length > 0 || suggestions.length > 0) {
         return null;
     }
 
@@ -290,35 +329,32 @@ interface AutomationsListManagedProps {
 function AutomationsListManaged({ children }: AutomationsListManagedProps) {
     const { automations } = useAutomationsListContext();
 
-    const managedAutomations = automations.filter(
-        (automation) => !isSuggestedAutomation(automation)
-    );
-
-    if (managedAutomations.length === 0) {
+    if (automations.length === 0) {
         return null;
     }
 
     return (
-        <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {managedAutomations.map(children)}
-        </ul>
+        <section className="flex flex-col gap-3">
+            <h2 className="font-medium text-muted-foreground text-sm">
+                <T>Your automations</T>
+            </h2>
+            <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {automations.map(children)}
+            </ul>
+        </section>
     );
 }
 
 interface AutomationsListSuggestionsProps {
-    children: (
-        automation: AutomationListItem,
-        index: number
-    ) => React.ReactNode;
+    children: (template: AutomationTemplate, index: number) => React.ReactNode;
 }
 
 function AutomationsListSuggestions({
     children,
 }: AutomationsListSuggestionsProps) {
-    const { automations } = useAutomationsListContext();
-    const suggestedAutomations = automations.filter(isSuggestedAutomation);
+    const { suggestions } = useAutomationsListContext();
 
-    if (suggestedAutomations.length === 0) {
+    if (suggestions.length === 0) {
         return null;
     }
 
@@ -328,7 +364,7 @@ function AutomationsListSuggestions({
                 <T>Suggested</T>
             </h2>
             <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {suggestedAutomations.map(children)}
+                {suggestions.map(children)}
             </ul>
         </section>
     );
@@ -552,14 +588,14 @@ function AutomationsListItemMenu({
 }
 
 interface AutomationsListSuggestedItemProps {
-    automation: AutomationListItem;
+    template: AutomationTemplate;
 }
 
 function AutomationsListSuggestionsItem({
-    automation,
+    template,
 }: AutomationsListSuggestedItemProps) {
     const { collections } = useAutomationsListContext();
-    const Icon = getAutomationTemplateIcon(automation.templateKey);
+    const Icon = getAutomationTemplateIcon(template.templateKey);
 
     return (
         <li className="flex list-none flex-col gap-3 rounded-2xl bg-muted/60 p-4">
@@ -568,10 +604,11 @@ function AutomationsListSuggestionsItem({
                     <Icon aria-hidden className="size-4" focusable="false" />
                 </span>
                 <AutomationComposerDialog
-                    automation={toComposerAutomation(automation)}
+                    automation={toComposerTemplate(template)}
                     collections={collections}
                     trigger={
                         <Button
+                            aria-label={`Add ${template.title}`}
                             className="rounded-full"
                             size="xs"
                             variant="outline"
@@ -583,10 +620,10 @@ function AutomationsListSuggestionsItem({
             </div>
             <div className="flex min-w-0 flex-col gap-1">
                 <p className="truncate font-medium text-foreground text-sm">
-                    {automation.title}
+                    {template.title}
                 </p>
                 <p className="line-clamp-2 text-muted-foreground text-xs leading-5">
-                    {getAutomationDescription(automation)}
+                    {template.summary}
                 </p>
             </div>
         </li>

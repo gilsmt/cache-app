@@ -46,18 +46,6 @@ export const auth = betterAuth({
     appName: APP_NAME,
     baseURL: BASE_AUTH_URL,
     database: prismaAdapter(prisma, { provider: "postgresql" }),
-    databaseHooks: {
-        user: {
-            create: {
-                after: async (user) => {
-                    const { onUserCreated } = await import(
-                        "@/lib/accounts/service"
-                    );
-                    await onUserCreated(user.id);
-                },
-            },
-        },
-    },
     plugins: [
         i18nPlugin(),
         multiSession(),
