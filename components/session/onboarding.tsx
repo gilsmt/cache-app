@@ -39,7 +39,7 @@ import {
     MenuPopup,
     MenuTrigger,
 } from "@/components/ui/menu";
-import { RadialIcon } from "@/components/ui/radial-icon";
+import { ProgressCircle } from "@/components/ui/progress-circle";
 import { useSidebarContext } from "@/components/ui/sidebar";
 import { buildPublicCollectionShareUrl } from "@/lib/collections/sharing/url";
 import type {
@@ -394,7 +394,7 @@ export function OnboardingMenu({
                         openOnHover
                         render={render}
                     >
-                        <RadialIcon
+                        <ProgressCircle
                             aria-hidden
                             className="inline-block size-4 shrink-0"
                             size={9}
@@ -475,7 +475,7 @@ function OnboardingTaskStateIcon({ isCompleted }: { isCompleted: boolean }) {
     }
 
     return (
-        <RadialIcon
+        <ProgressCircle
             aria-hidden
             className="inline-block size-4 shrink-0"
             value={0}

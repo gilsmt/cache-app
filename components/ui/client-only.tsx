@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-function useClientBoundaryValue() {
+function useClientBoundary() {
     return React.useSyncExternalStore(
         () => () => {
             // No-op
@@ -12,12 +12,12 @@ function useClientBoundaryValue() {
     );
 }
 
-export function useClientOnlyValue<T>(value: T, fallback?: T): T | null {
-    const boundaryValue = useClientBoundaryValue();
+export function useClientOnly<T>(value: T, fallback?: T): T | null {
+    const boundaryValue = useClientBoundary();
     return boundaryValue === "server" ? (fallback ?? null) : value;
 }
 
 export function ClientOnly({ children }: React.PropsWithChildren) {
-    const boundaryValue = useClientBoundaryValue();
+    const boundaryValue = useClientBoundary();
     return boundaryValue === "server" ? null : children;
 }

@@ -2,7 +2,7 @@
 
 import { cn } from "cn";
 import type * as React from "react";
-import { useClientOnlyValue } from "@/components/ui/client-only";
+import { useClientOnly } from "@/components/ui/client-only";
 import {
     getSystemAltKey,
     getSystemControlKey,
@@ -58,15 +58,15 @@ export function KbdCombo({ keys }: { keys: string }) {
 }
 
 export function CmdKbd() {
-    return useClientOnlyValue(getSystemControlKey());
+    return useClientOnly(getSystemControlKey());
 }
 
 export function AltKbd() {
-    return useClientOnlyValue(getSystemAltKey());
+    return useClientOnly(getSystemAltKey());
 }
 
 export function ShiftKbd() {
-    return useClientOnlyValue(getSystemShiftKey());
+    return useClientOnly(getSystemShiftKey());
 }
 
 function ComboKeyPart({ part }: { part: string }) {

@@ -40,7 +40,6 @@ interface OfflineOnlyProps {
 
 export function OfflineOnly({ children }: OfflineOnlyProps) {
     const isOffline = useOffline();
-
     return isOffline ? children : null;
 }
 
@@ -55,6 +54,5 @@ interface OnlineOnlyProps {
 
 export function OnlineOnly({ children }: OnlineOnlyProps) {
     const isOffline = useOffline();
-
     return isOffline ? null : children;
 }

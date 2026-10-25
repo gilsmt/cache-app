@@ -30,6 +30,14 @@ export function Footer() {
                                 </Link>
                                 <Link
                                     className="underline"
+                                    href="/llms.txt"
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    <p>llms.txt</p>
+                                </Link>
+                                <Link
+                                    className="underline"
                                     href={CHANGELOG_URL}
                                     rel="noopener noreferrer"
                                     target="_blank"

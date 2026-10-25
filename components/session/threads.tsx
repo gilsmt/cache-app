@@ -52,6 +52,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/error-message";
+import { HighlightMark } from "@/components/ui/highlight-mark";
 import { ChevronDownFilledIcon } from "@/components/ui/icons";
 import { CmdKbd, Kbd } from "@/components/ui/kbd";
 import {
@@ -63,7 +64,6 @@ import {
     MenuTrigger,
 } from "@/components/ui/menu";
 import { SidebarItem, SidebarItemValue } from "@/components/ui/sidebar";
-import { TextMatch } from "@/components/ui/text-match";
 import { Ticker } from "@/components/ui/ticker";
 import {
     RELATIVE_DATE_GROUP_IDS,
@@ -788,9 +788,9 @@ function ThreadsListItem({ entry }: ThreadsListItemProps) {
                     </span>
                     <SidebarItemValue className="mask-r-from-90%">
                         <Ticker className="font-medium text-sm leading-none tracking-tight [--accent-color:var(--primary)]">
-                            <TextMatch query={textMatchQuery}>
+                            <HighlightMark query={textMatchQuery}>
                                 {entry.title}
-                            </TextMatch>
+                            </HighlightMark>
                         </Ticker>
                     </SidebarItemValue>
                 </ActivePathname>

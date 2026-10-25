@@ -8,7 +8,7 @@ const FADE_IN_DURATION_SECONDS = 0.5;
 const STAY_DURATION_SECONDS = 1.5;
 const FADE_OUT_DURATION_SECONDS = 0.3;
 
-interface HighlightInProps
+interface FadeInProps
     extends Omit<
         React.ComponentProps<typeof motion.span>,
         "animate" | "initial" | "transition" | "inert"
@@ -17,12 +17,12 @@ interface HighlightInProps
     shouldFadeOut?: boolean;
 }
 
-export function HighlightIn({
+export function FadeIn({
     className,
     delay = 0,
     shouldFadeOut = true,
     ...props
-}: HighlightInProps) {
+}: FadeInProps) {
     const totalSeconds =
         FADE_IN_DURATION_SECONDS +
         STAY_DURATION_SECONDS +

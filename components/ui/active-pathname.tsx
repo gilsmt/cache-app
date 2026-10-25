@@ -16,10 +16,12 @@ export function isPathnameActive(
     const separatorIndex = href.search(HREF_SUFFIX_RE);
     const bareHref =
         separatorIndex === -1 ? href : href.slice(0, separatorIndex);
+
     if (bareHref === "") {
         // A query- or hash-only value (`#section`) does not address a route.
         return false;
     }
+
     const normalizedPathname = normalizePathname(pathname);
     const normalizedHref = normalizePathname(bareHref);
 

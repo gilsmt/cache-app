@@ -104,6 +104,7 @@ import {
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/error-message";
 import { GradientWaveText } from "@/components/ui/gradient-wave-text";
+import { HighlightMark } from "@/components/ui/highlight-mark";
 import {
     HOVER_HOTKEY_REGIONS,
     useHoverHotkeyRegionClaim,
@@ -148,7 +149,6 @@ import {
 import { SidebarItem } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { TextMatch } from "@/components/ui/text-match";
 import { Textarea } from "@/components/ui/textarea";
 import {
     type CollectionCreateResult,
@@ -3861,7 +3861,9 @@ function CollectionsListItemValue() {
                 className="max-w-full shrink-0 truncate font-medium text-sm tracking-tight"
                 title={collection.name}
             >
-                <TextMatch query={textMatchQuery}>{collection.name}</TextMatch>
+                <HighlightMark query={textMatchQuery}>
+                    {collection.name}
+                </HighlightMark>
             </span>
             {isSelected || collection.sources.length === 0 ? null : (
                 <span className="invisible max-w-full flex-1 truncate py-px text-[11px] text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible">

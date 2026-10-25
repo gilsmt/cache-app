@@ -1,5 +1,7 @@
 import { Fragment } from "react";
 
+const QUERY_TERM_SEPARATOR = /\s+/;
+
 interface MatchChunk {
     chunk: string;
     highlight: boolean;
@@ -12,8 +14,6 @@ function escapeRegExpLiteral(value: string): string {
     }
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-
-const QUERY_TERM_SEPARATOR = /\s+/;
 
 /**
  * Splits text around each whitespace-separated query term (literal,
@@ -63,13 +63,19 @@ export function splitMatches(
     return chunks;
 }
 
-interface TextMatchProps {
+interface HighlightMarkProps {
     children: string;
     query: string;
 }
 
-export function TextMatch({ children, query }: TextMatchProps) {
-    return splitMatches(children, query).map(({ highlight, start, chunk }) =>
+export function HighlightMark({ children, query }: HighlightMarkProps) {
+    if (typeof children !== "string") {
+        throw new Error("children must be a string");
+    }
+
+    const chunks = splitMatches(children, query);
+
+    return chunks.map(({ highlight, start, chunk }) =>
         highlight ? (
             <mark className="bg-(--accent-color)/50" key={start}>
                 {chunk}

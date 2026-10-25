@@ -15,7 +15,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Group } from "@/components/ui/group";
 import "@blossom-carousel/react/style.css";
-import { RadialIcon } from "./radial-icon";
+import { ProgressCircle } from "./progress-circle";
 
 function runAfter(delayMs: number, callback: () => void): () => void {
     const timeoutId = setTimeout(callback, delayMs);
@@ -237,7 +237,7 @@ export function CarouselAutoplayIndicator({
     }, []);
 
     return (
-        <RadialIcon
+        <ProgressCircle
             aria-hidden
             className="ml-9 size-3.5 shrink-0 motion-reduce:hidden"
             transitionDurationMs={autoPlayMs}

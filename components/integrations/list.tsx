@@ -30,7 +30,7 @@ import {
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { CollapsibleListVertical } from "@/components/ui/collapsible-list";
-import { HighlightIn } from "@/components/ui/highlight-in";
+import { FadeIn } from "@/components/ui/fade-in";
 import { ChevronDownFilledIcon } from "@/components/ui/icons";
 import { Kbd, KbdCombo } from "@/components/ui/kbd";
 import {
@@ -410,11 +410,11 @@ function IntegrationsListTrigger({
                     className="-ml-0.5"
                     focusable="false"
                 />
-                <HighlightIn className="absolute right-2 text-[11px] text-muted-foreground group-hover:hidden">
+                <FadeIn className="absolute right-2 text-[11px] text-muted-foreground group-hover:hidden">
                     <T>
                         <Var>{connectedCount}</Var> connected
                     </T>
-                </HighlightIn>
+                </FadeIn>
                 <Kbd className="invisible ml-auto bg-transparent opacity-80 group-hover:visible group-focus-visible:visible group-has-data-open/collapsible:hidden">
                     <KbdCombo keys="mod+shift+i" />
                 </Kbd>
