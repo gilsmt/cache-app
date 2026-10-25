@@ -15,6 +15,7 @@ import {
     Search,
     Trash2,
     X,
+    Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -63,6 +64,13 @@ import {
     MenuRadioItem,
     MenuTrigger,
 } from "@/components/ui/menu";
+import {
+    PreviewCard,
+    PreviewCardDescription,
+    PreviewCardPopup,
+    PreviewCardTitle,
+    PreviewCardTrigger,
+} from "@/components/ui/preview-card";
 import { SidebarItem, SidebarItemValue } from "@/components/ui/sidebar";
 import { Ticker } from "@/components/ui/ticker";
 import {
@@ -92,6 +100,15 @@ const THREADS_LIST_GROUP_LABELS: Record<RelativeDateGroupId, React.ReactNode> =
         older: <T>Older</T>,
         today: <T>Today</T>,
     };
+
+const THREADS_LIST_PREVIEW_LABELS: Record<
+    ThreadListItem["preview"]["kind"],
+    React.ReactNode
+> = {
+    automation: <T>Automation run</T>,
+    prompt: <T>Initial prompt</T>,
+    response: <T>Chat preview</T>,
+};
 
 type ThreadListView = "show-all" | "exclude-archives";
 
@@ -354,8 +371,8 @@ export function Threads({ threads }: ThreadsProps) {
                 <ThreadsListPanel>
                     <ThreadsListEmpty />
                     <ThreadsListContent>
-                        {(entry) => (
-                            <ThreadsListItem entry={entry} key={entry.id} />
+                        {(item) => (
+                            <ThreadsListItem item={item} key={item.id} />
                         )}
                     </ThreadsListContent>
                 </ThreadsListPanel>
@@ -608,13 +625,13 @@ function ThreadsListSearch(
 }
 
 interface ThreadsListContentProps {
-    children: (entry: ThreadListItem, index: number) => React.ReactNode;
+    children: (item: ThreadListItem, index: number) => React.ReactNode;
 }
 
 function ThreadsListContent({ children }: ThreadsListContentProps) {
     const { visibleThreads } = useThreadsListContext();
-    const now = dayjs();
 
+    const now = dayjs();
     const activeThreads = visibleThreads.filter((thread) => !thread.isArchived);
     const archivedThreads = visibleThreads.filter(
         (thread) => thread.isArchived
@@ -646,7 +663,7 @@ function ThreadsListContent({ children }: ThreadsListContentProps) {
 }
 
 interface ThreadsListGroupProps {
-    children: (entry: ThreadListItem, index: number) => React.ReactNode;
+    children: (item: ThreadListItem, index: number) => React.ReactNode;
     collapsible?: boolean;
     label: React.ReactNode;
     threads: ThreadListItem[];
@@ -746,60 +763,32 @@ function ThreadsListEmpty() {
 }
 
 interface ThreadsListItemProps {
-    entry: ThreadListItem;
+    item: ThreadListItem;
 }
 
-function ThreadsListItem({ entry }: ThreadsListItemProps) {
-    const { textMatchQuery } = useThreadsListContext();
+function ThreadsListItem({ item }: ThreadsListItemProps) {
     const { errorMessage, isPending, setArchived } = useSetThreadArchived(
-        entry.id,
-        !entry.isArchived
+        item.id,
+        !item.isArchived
     );
     const { setPendingDeleteThreadId } = useThreadsListStore();
 
-    const href = `/c/${entry.id}`;
-
     const requestDelete = useStableCallback(() =>
-        setPendingDeleteThreadId(entry.id)
+        setPendingDeleteThreadId(item.id)
     );
 
     return (
         <div>
             <div className="group/thread-item relative">
-                <ActivePathname
-                    href={href}
-                    render={
-                        <SidebarItem
-                            className={cn(
-                                "pointer-fine:pr-8 pr-15 pl-8.5",
-                                entry.isArchived &&
-                                    "pointer-fine:group-focus-within/thread-item:pr-13.5 pointer-fine:group-hover/thread-item:pr-13.5"
-                            )}
-                            render={<Link href={href} title={entry.title} />}
-                        />
-                    }
-                >
-                    <span className="pointer-events-none absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md bg-muted/90">
-                        <MessageCircle
-                            aria-hidden
-                            className="size-4"
-                            focusable="false"
-                        />
-                    </span>
-                    <SidebarItemValue className="mask-r-from-90%">
-                        <Ticker className="font-medium text-sm leading-none tracking-tight [--accent-color:var(--primary)]">
-                            <HighlightMark query={textMatchQuery}>
-                                {entry.title}
-                            </HighlightMark>
-                        </Ticker>
-                    </SidebarItemValue>
-                </ActivePathname>
+                <ThreadsListItemTrigger item={item}>
+                    <ThreadsListItemValue>{item.title}</ThreadsListItemValue>
+                </ThreadsListItemTrigger>
                 <ThreadsListItemControls
-                    isArchived={entry.isArchived}
+                    isArchived={item.isArchived}
                     isPending={isPending}
                     onArchiveToggle={setArchived}
                     onDelete={requestDelete}
-                    updatedAt={entry.updatedAt}
+                    updatedAt={item.updatedAt}
                 />
             </div>
             <ErrorMessage className="px-2 py-1 text-[11px]">
@@ -892,6 +881,110 @@ function ThreadsListItemControls({
     );
 }
 
+interface ThreadsListItemTriggerProps
+    extends Omit<React.ComponentProps<typeof PreviewCardTrigger>, "render"> {
+    item: ThreadListItem;
+}
+
+function ThreadsListItemTrigger({
+    children,
+    item,
+    ...props
+}: ThreadsListItemTriggerProps) {
+    const href = `/c/${item.id}`;
+
+    return (
+        <PreviewCard>
+            <PreviewCardTrigger
+                {...props}
+                render={
+                    <SidebarItem
+                        className={cn(
+                            "pointer-fine:pr-8 pr-15 pl-8.5",
+                            item.isArchived &&
+                                "pointer-fine:group-focus-within/thread-item:pr-13.5 pointer-fine:group-hover/thread-item:pr-13.5"
+                        )}
+                        render={
+                            <ActivePathname
+                                href={href}
+                                render={<Link href={href} title={item.title} />}
+                            />
+                        }
+                    />
+                }
+            >
+                {children}
+            </PreviewCardTrigger>
+            <PreviewCardPopup
+                align="start"
+                className="p-3"
+                positionMethod="fixed"
+                side="right"
+            >
+                <div className="flex min-w-0 flex-col gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                            {item.preview.kind === "automation" ? (
+                                <Zap
+                                    aria-hidden
+                                    className="size-3.5"
+                                    focusable="false"
+                                />
+                            ) : (
+                                <MessageCircle
+                                    aria-hidden
+                                    className="size-3.5"
+                                    focusable="false"
+                                />
+                            )}
+                        </span>
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                            <PreviewCardTitle className="truncate">
+                                {item.preview.kind === "automation"
+                                    ? item.preview.automationTitle
+                                    : item.title}
+                            </PreviewCardTitle>
+                            <span className="text-[11px] text-muted-foreground">
+                                {THREADS_LIST_PREVIEW_LABELS[item.preview.kind]}
+                            </span>
+                        </div>
+                    </div>
+                    <PreviewCardDescription className="line-clamp-4 border-t pt-2">
+                        {item.preview.text || <T>No preview available.</T>}
+                    </PreviewCardDescription>
+                </div>
+            </PreviewCardPopup>
+        </PreviewCard>
+    );
+}
+
+interface ThreadsListItemValueProps {
+    children: string;
+}
+
+function ThreadsListItemValue({ children }: ThreadsListItemValueProps) {
+    const { textMatchQuery } = useThreadsListContext();
+
+    return (
+        <>
+            <span className="pointer-events-none absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md bg-muted/90">
+                <MessageCircle
+                    aria-hidden
+                    className="size-4"
+                    focusable="false"
+                />
+            </span>
+            <SidebarItemValue className="mask-r-from-90%">
+                <Ticker className="font-medium text-sm leading-none tracking-tight [--accent-color:var(--primary)]">
+                    <HighlightMark query={textMatchQuery}>
+                        {children}
+                    </HighlightMark>
+                </Ticker>
+            </SidebarItemValue>
+        </>
+    );
+}
+
 function ThreadsListDeleteDialog() {
     const { threads } = useThreadsListContext();
     const { pendingDeleteThreadId, setPendingDeleteThreadId } =
@@ -906,7 +999,7 @@ function ThreadsListDeleteDialog() {
         handleDeleted
     );
 
-    const thread = threads.find((entry) => entry.id === pendingDeleteThreadId);
+    const thread = threads.find((item) => item.id === pendingDeleteThreadId);
     const shouldOpen = thread !== undefined;
 
     const handleOpenChange = useStableCallback((isOpen: boolean) => {

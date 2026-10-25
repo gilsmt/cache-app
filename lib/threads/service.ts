@@ -18,12 +18,19 @@ import { parseThreadSources, type ThreadSource } from "./sources";
 
 const log = createLogger("threads:service");
 
+const THREAD_LIST_PREVIEW_MAX_LENGTH = 240;
+
 const THREAD_LIST_SELECT = {
     archivedAt: true,
     automationRun: {
-        select: { status: true },
+        select: { automation: { select: { title: true } } },
     },
     id: true,
+    messages: {
+        orderBy: { sequence: "asc" },
+        select: { content: true, role: true },
+        take: 1,
+    },
     title: true,
     updatedAt: true,
 } satisfies Prisma.ChatSelect;
@@ -59,10 +66,15 @@ type ThreadRunContextRecord = Prisma.ChatGetPayload<{
 export interface ThreadListItem {
     id: string;
     isArchived: boolean;
-    runStatus: AutomationRunStatus | null;
+    preview: ThreadListPreview;
     title: string;
     updatedAt: Date;
 }
+
+type ThreadListPreview =
+    | { automationTitle: string; kind: "automation"; text: string }
+    | { kind: "prompt"; text: string }
+    | { kind: "response"; text: string };
 
 export interface ThreadMessageItem {
     content: string;
@@ -138,10 +150,40 @@ function toThreadListItem(thread: ThreadListRecord): ThreadListItem {
     return {
         id: thread.id,
         isArchived: thread.archivedAt !== null,
-        runStatus: thread.automationRun?.status ?? null,
+        preview: getThreadListPreview(thread),
         title: thread.title,
         updatedAt: thread.updatedAt,
     };
+}
+
+function getThreadListPreview(thread: ThreadListRecord): ThreadListPreview {
+    const firstMessage = thread.messages[0];
+    if (thread.automationRun) {
+        return {
+            automationTitle: thread.automationRun.automation.title,
+            kind: "automation",
+            text: getThreadListPreviewText(firstMessage?.content ?? ""),
+        };
+    }
+
+    if (firstMessage?.role === ChatMessageRole.user) {
+        return {
+            kind: "prompt",
+            text: getThreadListPreviewText(firstMessage.content),
+        };
+    }
+
+    return {
+        kind: "response",
+        text: getThreadListPreviewText(firstMessage?.content ?? ""),
+    };
+}
+
+function getThreadListPreviewText(content: string): string {
+    return truncateText(
+        normalizeWhitespace(content),
+        THREAD_LIST_PREVIEW_MAX_LENGTH
+    );
 }
 
 export async function getThreadTitle(args: {
