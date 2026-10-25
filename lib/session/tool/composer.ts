@@ -188,7 +188,6 @@ const AssistantRuntimeContextSchema = z.strictObject({
         .min(1)
         .max(ASSISTANT_TIME_ZONE_MAX_LENGTH)
         .optional(),
-    surface: z.literal("library_composer"),
 });
 
 export const AssistantRequestSchema = z.strictObject({

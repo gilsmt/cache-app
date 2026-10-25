@@ -3911,7 +3911,6 @@ export function ItemsList({
                 clientLocale: navigator.language,
                 clientTimeZone:
                     Intl.DateTimeFormat().resolvedOptions().timeZone,
-                surface: "library_composer",
             },
             visibleContext: {
                 availableCollections: collections

@@ -3,6 +3,7 @@ import "server-only";
 import { tool } from "ai";
 import { resolveAgentViewPage } from "./agent-view";
 import {
+    AGENT_VIEW_PAGE_ITEM_LIMIT,
     type AgentViewPage,
     ASSISTANT_OPERATION_LIMIT,
     type AssistantComposerPatch,
@@ -35,8 +36,7 @@ export function createComposerTools(args: {
 
     const tools = {
         define_view: tool({
-            description:
-                "Define the ephemeral library view for show, find, or filter requests. Prefer this over update_composer for navigation. Returns server-resolved item ids in recency order with a truncated flag. One view per run; the last call wins.",
+            description: `Define the ephemeral library view: use it when the user asks to see, narrow, or filter the list, and prefer it over update_composer for navigation. Resolves items on the server in recency order and returns their ids with a truncated flag; one page holds up to ${AGENT_VIEW_PAGE_ITEM_LIMIT} items. One view per run; the last call wins.`,
             execute: async (toolInput) => {
                 latestViewSequence += 1;
                 const viewSequence = latestViewSequence;
@@ -85,8 +85,7 @@ export function createComposerTools(args: {
             inputSchema: DefineAgentViewToolInputSchema,
         }),
         update_composer: tool({
-            description:
-                "Apply a validated composer patch. Batch all state changes into one call. Only include fields that differ from the current composer state; noop patches are rejected. Prefer high-confidence concrete filters (domains, collections, sources, entity names) over generic category searchTerms.",
+            description: `Apply a validated composer patch. Batch all state changes into one call. Only include fields that differ from the current composer state; noop patches are rejected. At most ${ASSISTANT_OPERATION_LIMIT} changes apply per run; later calls are rejected. Prefer high-confidence concrete filters (domains, collections, sources, entity names) over generic category searchTerms.`,
             execute: (toolInput) => {
                 if (state.operations.length >= ASSISTANT_OPERATION_LIMIT) {
                     return {
