@@ -8,12 +8,14 @@ import type * as React from "react";
 interface TextareaProps extends React.ComponentProps<"textarea"> {
     isUnstyled?: boolean;
     size?: "sm" | "default" | "lg";
+    textareaClassName?: string;
 }
 
 export function Textarea({
     className,
     size = "default",
     isUnstyled = false,
+    textareaClassName,
     ref,
     ...props
 }: TextareaProps) {
@@ -43,7 +45,8 @@ export function Textarea({
                             size === "sm" &&
                                 "min-h-14.5 px-[calc(--spacing(2.5)-1px)] py-[calc(--spacing(1.5)-1px)] max-sm:min-h-16.5",
                             size === "lg" &&
-                                "min-h-18.5 py-[calc(--spacing(2)-1px)] max-sm:min-h-21.5"
+                                "min-h-18.5 py-[calc(--spacing(2)-1px)] max-sm:min-h-21.5",
+                            textareaClassName
                         )}
                         data-slot="textarea"
                     />

@@ -503,10 +503,12 @@ function ThreadComposerInput() {
                 <Textarea
                     aria-label={gt("Chat message")}
                     className="block w-full text-base sm:text-sm"
+                    enterKeyHint="send"
                     isUnstyled
                     placeholder={gt("Ask a follow-up")}
                     size="sm"
                     style={{ minHeight: "2.5rem" }}
+                    textareaClassName="max-h-[min(30vh,600px)] overflow-y-auto overscroll-y-contain md:max-h-[min(40vh,600px)] pointer-coarse:max-h-[calc(4lh+0.75rem)] md:pointer-coarse:max-h-[calc(4lh+0.75rem)]"
                 />
             }
         >
