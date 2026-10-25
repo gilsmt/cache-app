@@ -13,22 +13,13 @@ import {
     INTEGRATION_OAUTH_PROVIDER_IDS,
 } from "./plugins/integrations";
 import { BASE_AUTH_URL, trustedOrigins } from "./plugins/origins";
-import { getStripeAuthPlugin } from "./plugins/stripe";
+import { stripePlugin } from "./plugins/stripe";
 
 const trustedProviders = [
     "google",
     ...genericOAuthConfig.map((c) => c.providerId),
 ];
 
-/**
- * The registry connects an integration through a better-auth provider ID.
- * A provider the auth layer does not know would leave the integration
- * permanently disconnected, so the mismatch fails at boot instead.
- *
- * The check covers the provider IDs the app can authenticate, not the ones
- * with credentials configured: a deployment without the credentials for one
- * provider must still boot.
- */
 const knownProviderIds = new Set<string>([
     "google",
     ...Object.values(INTEGRATION_OAUTH_PROVIDER_IDS),
@@ -42,7 +33,7 @@ for (const providerId of listIntegrationAccountProviderIds()) {
     }
 }
 
-const stripeAuthPlugin = getStripeAuthPlugin();
+const stripeAuthPlugin = stripePlugin();
 
 export const auth = betterAuth({
     account: {

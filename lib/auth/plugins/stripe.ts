@@ -3,7 +3,7 @@ import { serverEnv } from "@/env/server";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/billing/client";
 import { getPlanPriceIds } from "@/lib/billing/prices";
 
-export function getStripeAuthPlugin() {
+export function stripePlugin() {
     if (serverEnv.SELF_HOSTED) {
         return null;
     }
