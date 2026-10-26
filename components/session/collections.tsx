@@ -555,6 +555,12 @@ interface CollectionsListItemContext {
     source: CollectionListSource;
 }
 
+interface CollectionsListSuggestionsItemContext {
+    handleClick: (event: React.SyntheticEvent) => void;
+    isPending: boolean;
+    template: CollectionTemplateOption;
+}
+
 interface CollectionsListStateContext {
     pendingDelete: LibraryCollectionSummary | null;
     pendingPriorityComboboxOpen: PriorityComboboxOpenTarget | null;
@@ -719,6 +725,19 @@ function useCollectionsListItemContext() {
     if (!context) {
         throw new Error(
             "CollectionsListItem compound components must be used within CollectionsListItem."
+        );
+    }
+    return context;
+}
+
+const CollectionsListSuggestionsItemContext =
+    React.createContext<CollectionsListSuggestionsItemContext | null>(null);
+
+function useCollectionsListSuggestionsItemContext() {
+    const context = React.use(CollectionsListSuggestionsItemContext);
+    if (!context) {
+        throw new Error(
+            "CollectionsListSuggestionsItem compound components must be used within CollectionsListSuggestionsItem."
         );
     }
     return context;
@@ -2277,11 +2296,15 @@ export function Collections() {
                         )}
                     </CollectionsListContent>
                     <CollectionsListSuggestions>
-                        {(template) => (
+                        {(collection) => (
                             <CollectionsListSuggestionsItem
-                                key={template.value}
-                                template={template}
-                            />
+                                collection={collection}
+                                key={collection.value}
+                            >
+                                <CollectionsListSuggestionsItemTrigger>
+                                    <CollectionsListSuggestionsItemValue />
+                                </CollectionsListSuggestionsItemTrigger>
+                            </CollectionsListSuggestionsItem>
                         )}
                     </CollectionsListSuggestions>
                 </CollectionsListPanel>
@@ -3513,18 +3536,18 @@ function CollectionsListSuggestions({
     }
 
     return (
-        <div className="ml-1.25 flex flex-col gap-1 pt-1">
-            {items.map(children)}
-        </div>
+        <div className="ml-1.25 flex flex-col gap-1">{items.map(children)}</div>
     );
 }
 
 interface CollectionsListSuggestionsItemProps {
-    template: CollectionTemplateOption;
+    children: React.ReactNode;
+    collection: CollectionTemplateOption;
 }
 
 function CollectionsListSuggestionsItem({
-    template,
+    children,
+    collection,
 }: CollectionsListSuggestionsItemProps) {
     const { showError, showSuccess } = useCollectionStatus();
     const { syncCreated } = useCollectionsListActionsContext();
@@ -3538,8 +3561,8 @@ function CollectionsListSuggestionsItem({
         }
         startTransition(async () => {
             const result = await createCollectionAndSync({
-                description: template.description,
-                name: template.name,
+                description: collection.description,
+                name: collection.name,
                 syncCreated,
             });
             if (result.status !== ACTION_STATUS.CREATED) {
@@ -3550,60 +3573,90 @@ function CollectionsListSuggestionsItem({
                 mutateSuggestions,
                 "Failed to refresh collection suggestions after creating from template"
             );
-            showSuccess(`${template.name} created from template.`);
+            showSuccess(`${collection.name} created from template.`);
         });
     });
 
+    const contextValue = { handleClick, isPending, template: collection };
+
     return (
-        <div className="group relative flex select-none items-center">
-            <PreviewCard>
-                <PreviewCardTrigger
-                    render={
-                        <SidebarItem
-                            className="w-full min-w-0 flex-1 justify-start rounded-lg pr-8 pl-9.5 text-left hover:bg-transparent"
-                            render={
-                                <button
-                                    disabled={isPending}
-                                    onClick={handleClick}
-                                    type="button"
-                                />
-                            }
-                        />
-                    }
-                >
-                    <span className="absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border border-border border-dashed text-muted-foreground">
-                        <PlusIcon
-                            aria-hidden
-                            className="size-4"
-                            focusable="false"
-                        />
+        <CollectionsListSuggestionsItemContext value={contextValue}>
+            <div className="group relative flex select-none items-center">
+                {children}
+            </div>
+        </CollectionsListSuggestionsItemContext>
+    );
+}
+
+interface CollectionsListSuggestionsItemTriggerProps {
+    children: React.ReactNode;
+}
+
+function CollectionsListSuggestionsItemTrigger({
+    children,
+}: CollectionsListSuggestionsItemTriggerProps) {
+    const { handleClick, isPending, template } =
+        useCollectionsListSuggestionsItemContext();
+
+    return (
+        <PreviewCard>
+            <PreviewCardTrigger
+                render={
+                    <SidebarItem
+                        className="w-full min-w-0 flex-1 justify-start rounded-lg pr-8 pl-9.5 text-left hover:bg-transparent"
+                        render={
+                            <button
+                                disabled={isPending}
+                                onClick={handleClick}
+                                type="button"
+                            />
+                        }
+                    />
+                }
+            >
+                {children}
+                {isPending ? (
+                    <Spinner className="absolute right-3 size-3.5" />
+                ) : (
+                    <span className="absolute right-3 text-muted-foreground text-xs opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
+                        <T>Add</T>
                     </span>
-                    <span className="min-w-0 flex-1 truncate font-medium text-sm">
-                        {template.name}
-                    </span>
-                    {isPending ? (
-                        <Spinner className="absolute right-3 size-3.5" />
-                    ) : (
-                        <span className="absolute right-3 text-muted-foreground text-xs opacity-0 group-hover:opacity-100">
-                            <T>Add</T>
-                        </span>
-                    )}
-                </PreviewCardTrigger>
-                <PreviewCardPopup
-                    align="start"
-                    className="p-3"
-                    positionMethod="fixed"
-                    side="right"
+                )}
+            </PreviewCardTrigger>
+            <PreviewCardPopup
+                align="start"
+                className="p-3"
+                positionMethod="fixed"
+                side="right"
+            >
+                <div className="flex max-w-64 flex-col gap-1">
+                    <PreviewCardTitle>{template.name}</PreviewCardTitle>
+                    <PreviewCardDescription>
+                        {template.description}
+                    </PreviewCardDescription>
+                </div>
+            </PreviewCardPopup>
+        </PreviewCard>
+    );
+}
+
+function CollectionsListSuggestionsItemValue() {
+    const { template } = useCollectionsListSuggestionsItemContext();
+
+    return (
+        <>
+            <span className="absolute top-1/2 left-1.25 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border border-input border-dashed text-muted-foreground">
+                <PlusIcon aria-hidden className="size-4" focusable="false" />
+            </span>
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span
+                    className="max-w-full shrink-0 truncate font-medium text-sm tracking-tight"
+                    title={template.name}
                 >
-                    <div className="flex max-w-64 flex-col gap-1">
-                        <PreviewCardTitle>{template.name}</PreviewCardTitle>
-                        <PreviewCardDescription>
-                            {template.description}
-                        </PreviewCardDescription>
-                    </div>
-                </PreviewCardPopup>
-            </PreviewCard>
-        </div>
+                    {template.name}
+                </span>
+            </div>
+        </>
     );
 }
 

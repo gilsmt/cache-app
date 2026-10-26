@@ -161,8 +161,8 @@ export interface IntegrationDefinition {
     description: string;
     direction: IntegrationDirection;
     hint: string;
-    hintImage?: string;
     id: string;
+    image?: string;
     label: string;
     libraryItemSources: readonly LibraryItemSource[];
     /**
