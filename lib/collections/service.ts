@@ -398,30 +398,34 @@ async function insertSharedCollectionItems(
         return;
     }
 
-    // Chunk the cross product so no statement exceeds
-    // COLLECTION_ITEMS_INSERT_CHUNK_SIZE rows. Sequential awaits are
-    // required: the interactive transaction holds a single connection.
+    // Chunk the full cross product so query count depends on edge count, not
+    // collection count. Sequential awaits are required: the interactive
+    // transaction holds a single connection.
+    let values: Prisma.Sql[] = [];
+
+    async function insertChunk() {
+        if (values.length === 0) {
+            return;
+        }
+
+        await tx.$executeRaw`
+            INSERT INTO "_CollectionToLibraryItem" ("A", "B")
+            VALUES ${Prisma.join(values)}
+            ON CONFLICT DO NOTHING
+        `;
+        values = [];
+    }
+
     for (const collectionId of args.collectionIds) {
-        for (
-            let offset = 0;
-            offset < args.itemIds.length;
-            offset += COLLECTION_ITEMS_INSERT_CHUNK_SIZE
-        ) {
-            const chunk = args.itemIds.slice(
-                offset,
-                offset + COLLECTION_ITEMS_INSERT_CHUNK_SIZE
-            );
-            await tx.$executeRaw`
-                INSERT INTO "_CollectionToLibraryItem" ("A", "B")
-                VALUES ${Prisma.join(
-                    chunk.map(
-                        (itemId) => Prisma.sql`(${collectionId}, ${itemId})`
-                    )
-                )}
-                ON CONFLICT DO NOTHING
-            `;
+        for (const itemId of args.itemIds) {
+            values.push(Prisma.sql`(${collectionId}, ${itemId})`);
+            if (values.length === COLLECTION_ITEMS_INSERT_CHUNK_SIZE) {
+                await insertChunk();
+            }
         }
     }
+
+    await insertChunk();
 }
 
 async function requireLibraryItemOwnedWithCollections(
