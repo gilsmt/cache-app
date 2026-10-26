@@ -7,7 +7,7 @@ import {
 import { normalizeCollectionName } from "@/lib/common/string";
 import { prisma } from "@/prisma";
 
-const MAX_SUGGESTIONS = 2;
+const MAX_SUGGESTIONS = 1;
 
 export async function getCollectionSuggestions(args: {
     userId: string;
