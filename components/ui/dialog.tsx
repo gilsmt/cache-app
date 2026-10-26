@@ -172,6 +172,10 @@ function DialogViewport({
             {...props}
             className={cn(
                 "fixed inset-0 z-50 grid grid-rows-[1fr_auto_3fr] justify-items-center p-4",
+                "before:pointer-events-none before:fixed before:inset-x-0 before:top-0 before:h-3 before:bg-black/32 before:opacity-100 before:content-['']",
+                "before:transition-opacity before:duration-200 data-ending-style:before:opacity-0 data-starting-style:before:opacity-0",
+                "after:pointer-events-none after:fixed after:inset-x-0 after:bottom-0 after:h-3 after:bg-black/32 after:opacity-100 after:content-['']",
+                "after:transition-opacity after:duration-200 data-ending-style:after:opacity-0 data-starting-style:after:opacity-0",
                 className
             )}
             data-slot="dialog-viewport"
