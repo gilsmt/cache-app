@@ -150,6 +150,7 @@ import { SidebarItem } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useSession } from "@/lib/auth/client";
 import {
     type CollectionCreateResult,
     createCollection,
@@ -283,8 +284,6 @@ const COLLECTIONS_LIST_FAVORITE_IDS_STORAGE_KEY =
 const COLLECTIONS_LIST_OPEN_STORAGE_KEY = "cache:collections:list-open";
 const COLLECTIONS_FAVORITES_LIST_OPEN_STORAGE_KEY =
     "cache:collections:favorites-open";
-const COLLECTIONS_SUGGESTIONS_OPEN_STORAGE_KEY =
-    "cache:collections:suggestions-open";
 
 const COMPACT_NUMBER_FORMATTER = new Intl.NumberFormat("en-US", {
     compactDisplay: "short",
@@ -510,7 +509,7 @@ const COLLECTION_ACCESS_UPGRADE_MESSAGE: Record<
         `Upgrade to share every item in ${collectionName}.`,
 };
 
-type PriorityBreakdownEntry = PriorityOption & { count: number };
+type PrioritySummaryItem = PriorityOption & { count: number };
 
 type SummarySorter = Record<
     Exclude<CollectionSortField, "text-match">,
@@ -647,9 +646,6 @@ const { useStore: useCollectionsListStore, getState: getCollectionsListState } =
         isCreateOpen: false,
         isFavoritesListOpen: storage(true, {
             storageKey: COLLECTIONS_FAVORITES_LIST_OPEN_STORAGE_KEY,
-        }),
-        isSuggestionsOpen: storage(true, {
-            storageKey: COLLECTIONS_SUGGESTIONS_OPEN_STORAGE_KEY,
         }),
         sortField: storage<CollectionSortField>("priority", {
             storageKey: COLLECTIONS_LIST_SORT_FIELD_STORAGE_KEY,
@@ -2094,9 +2090,9 @@ function getFavoriteItemLabel(item: LibraryItemWithCollections): string {
     return item.caption?.trim() || parseDisplayUrl(item.url) || "Saved item";
 }
 
-function buildPriorityBreakdownEntries(
+function buildPrioritySummary(
     priorityCounts: Partial<Record<CollectionPriority, number>> | undefined
-): PriorityBreakdownEntry[] {
+): PrioritySummaryItem[] {
     return PRIORITIES.flatMap((option) => {
         const optionCount = priorityCounts?.[option.value] ?? 0;
         return optionCount > 0 ? [{ ...option, count: optionCount }] : [];
@@ -2622,95 +2618,115 @@ function CollectionsListGroup({
 interface CollectionsListGroupTriggerProps
     extends React.ComponentProps<typeof CollapsibleTrigger> {
     count: number;
-    description?: string;
-    isOpen: boolean;
-    labels: string[];
-    placeholder: string;
-    priorityCounts?: Partial<Record<CollectionPriority, number>>;
 }
 
 function CollectionsListGroupTrigger({
     children,
     count,
+    render,
+    ...props
+}: CollectionsListGroupTriggerProps) {
+    return (
+        <CollapsibleTrigger
+            {...props}
+            render={render ?? <SidebarItem render={<button type="button" />} />}
+        >
+            <span className="min-w-0 text-xs">
+                {children}&nbsp;
+                <TextMorph className="mx-0.5 opacity-80">{count}</TextMorph>
+            </span>
+            <ChevronDownFilledIcon
+                aria-hidden
+                className="-ml-0.5"
+                focusable="false"
+            />
+        </CollapsibleTrigger>
+    );
+}
+
+interface CollectionsListSummaryTriggerProps
+    extends Omit<
+        React.ComponentProps<typeof PreviewCardTrigger>,
+        "children" | "render"
+    > {
+    children: React.ReactElement;
+    description?: string;
+    isOpen: boolean;
+    labels: string[];
+    placeholder: string;
+    priorityCounts?: Partial<Record<CollectionPriority, number>>;
+    sectionTitle: React.ReactNode;
+}
+
+function CollectionsListSummaryTrigger({
+    children,
     description,
     isOpen,
     labels,
     placeholder,
     priorityCounts,
-    render,
+    sectionTitle,
     ...props
-}: CollectionsListGroupTriggerProps) {
+}: CollectionsListSummaryTriggerProps) {
+    const { data: session } = useSession();
+
+    const items = buildPrioritySummary(priorityCounts);
+
     return (
         <PreviewCard>
-            <PreviewCardTrigger
-                render={
-                    <CollapsibleTrigger
-                        {...props}
-                        render={
-                            render ?? (
-                                <SidebarItem
-                                    render={<button type="button" />}
-                                />
-                            )
-                        }
-                    />
-                }
-            >
-                <span className="min-w-0 text-xs">
-                    {children}&nbsp;
-                    <TextMorph className="mx-0.5 opacity-80">{count}</TextMorph>
-                </span>
-                <ChevronDownFilledIcon
-                    aria-hidden
-                    className="-ml-0.5"
-                    focusable="false"
-                />
-            </PreviewCardTrigger>
+            <PreviewCardTrigger {...props} render={children} />
             <PreviewCardPopup
                 align="start"
                 className="p-3"
                 positionMethod="fixed"
                 side="right"
             >
-                <CollectionsListGroupSummary
-                    description={description}
-                    isOpen={isOpen}
-                    labels={labels}
-                    placeholder={placeholder}
-                    priorityCounts={priorityCounts}
-                />
+                <PreviewCardTitle className="flex min-w-0 items-center gap-1">
+                    <Badge
+                        className="min-w-0 max-w-32 truncate"
+                        size="lg"
+                        variant="outline"
+                    >
+                        {session?.user.name ?? <T>Account</T>}
+                    </Badge>
+                    <ChevronRight
+                        aria-hidden
+                        className="inline-block size-3.5 shrink-0 text-muted-foreground"
+                        focusable="false"
+                    />
+                    <span className="min-w-0 truncate">{sectionTitle}</span>
+                </PreviewCardTitle>
+                {isOpen && items.length > 0 ? (
+                    <DataList>
+                        <DataListGroup className="mt-0">
+                            {items.map(
+                                ({ count, icon: Icon, label, value }) => (
+                                    <DataListItem key={value}>
+                                        <DataListLabel>{label}</DataListLabel>
+                                        <DataListValue>
+                                            <Icon
+                                                aria-hidden
+                                                className="size-4 text-muted-foreground sm:size-3.5"
+                                                focusable="false"
+                                            />
+                                            {count}
+                                        </DataListValue>
+                                    </DataListItem>
+                                )
+                            )}
+                        </DataListGroup>
+                    </DataList>
+                ) : (
+                    <PreviewCardDescription>
+                        {description ??
+                            (labels.length > 0
+                                ? LIST_FORMATTER.format(labels)
+                                : placeholder)}
+                    </PreviewCardDescription>
+                )}
             </PreviewCardPopup>
         </PreviewCard>
     );
-}
-
-interface CollectionsListGroupSummaryProps {
-    description?: string;
-    isOpen: boolean;
-    labels: string[];
-    placeholder: string;
-    priorityCounts?: Partial<Record<CollectionPriority, number>>;
-}
-
-function CollectionsListGroupSummary({
-    description,
-    isOpen,
-    labels,
-    placeholder,
-    priorityCounts,
-}: CollectionsListGroupSummaryProps) {
-    const priorityBreakdownEntries =
-        buildPriorityBreakdownEntries(priorityCounts);
-
-    if (isOpen && priorityBreakdownEntries.length > 0) {
-        return <CollectionsListBreakdown entries={priorityBreakdownEntries} />;
-    }
-
-    const summary =
-        description ??
-        (labels.length > 0 ? LIST_FORMATTER.format(labels) : placeholder);
-
-    return <PreviewCardTitle>{summary}</PreviewCardTitle>;
 }
 
 function CollectionsListTrigger(
@@ -2728,14 +2744,18 @@ function CollectionsListTrigger(
     );
 
     return (
-        <CollectionsListGroupTrigger
-            {...props}
-            count={collectionSummaries.length}
+        <CollectionsListSummaryTrigger
             isOpen={isCollectionsListOpen}
             labels={collectionLabels}
             placeholder="No collections yet"
             priorityCounts={priorityCounts}
-        />
+            sectionTitle={<T>Collections</T>}
+        >
+            <CollectionsListGroupTrigger
+                {...props}
+                count={collectionSummaries.length}
+            />
+        </CollectionsListSummaryTrigger>
     );
 }
 
@@ -2779,9 +2799,7 @@ function CollectionsListFavoritesTrigger(
     );
 
     return (
-        <CollectionsListGroupTrigger
-            {...props}
-            count={favoriteCollections.length + favoriteItems.length}
+        <CollectionsListSummaryTrigger
             description={formatFavoritesGroupSummary(
                 collectionLabels,
                 favoriteItems.length
@@ -2790,7 +2808,13 @@ function CollectionsListFavoritesTrigger(
             labels={collectionLabels}
             placeholder="No favorites yet"
             priorityCounts={priorityCounts}
-        />
+            sectionTitle={<T>Favorites</T>}
+        >
+            <CollectionsListGroupTrigger
+                {...props}
+                count={favoriteCollections.length + favoriteItems.length}
+            />
+        </CollectionsListSummaryTrigger>
     );
 }
 
@@ -3305,7 +3329,7 @@ function CollectionsListCombobox({
                             <CmdKbd />F
                         </Kbd>
                     }
-                    placeholder="Filter…"
+                    placeholder="Filter or search…"
                 />
                 <ComboboxEmpty>No matching options</ComboboxEmpty>
                 <ComboboxList>
@@ -3482,8 +3506,6 @@ function CollectionsListSuggestions({
     children,
 }: CollectionsListChildrenProps<CollectionTemplateOption>) {
     const { collectionSummaries } = useCollectionsContext();
-    const { isSuggestionsOpen, setIsSuggestionsOpen } =
-        useCollectionsListStore();
     const { items, isLoading } = useCollectionsSuggestions();
 
     if (!(collectionSummaries.length && items.length) || isLoading) {
@@ -3491,53 +3513,9 @@ function CollectionsListSuggestions({
     }
 
     return (
-        <Collapsible
-            className="ml-1.25 flex flex-col gap-1 pt-0.5"
-            onOpenChange={setIsSuggestionsOpen}
-            open={isSuggestionsOpen}
-        >
-            <PreviewCard>
-                <PreviewCardTrigger
-                    render={
-                        <CollapsibleTrigger
-                            className="flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground"
-                            title={
-                                isSuggestionsOpen
-                                    ? "Hide suggested collections"
-                                    : "Show suggested collections"
-                            }
-                        />
-                    }
-                >
-                    {isSuggestionsOpen ? (
-                        <T>Hide suggestions</T>
-                    ) : (
-                        <T>Show suggestions</T>
-                    )}
-                </PreviewCardTrigger>
-                <PreviewCardPopup
-                    align="start"
-                    className="p-3"
-                    positionMethod="fixed"
-                    side="right"
-                >
-                    <div className="flex max-w-64 flex-col gap-1">
-                        <PreviewCardTitle>
-                            <T>Collection suggestions</T>
-                        </PreviewCardTitle>
-                        <PreviewCardDescription>
-                            <T>
-                                Suggestions show ways to organize your saved
-                                items into collections.
-                            </T>
-                        </PreviewCardDescription>
-                    </div>
-                </PreviewCardPopup>
-            </PreviewCard>
-            <CollapsiblePanel>
-                <div className="flex flex-col gap-1">{items.map(children)}</div>
-            </CollapsiblePanel>
-        </Collapsible>
+        <div className="ml-1.25 flex flex-col gap-1 pt-1">
+            {items.map(children)}
+        </div>
     );
 }
 
@@ -3593,7 +3571,7 @@ function CollectionsListSuggestionsItem({
                         />
                     }
                 >
-                    <span className="absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border-none bg-muted text-muted-foreground">
+                    <span className="absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border border-border border-dashed text-muted-foreground">
                         <PlusIcon
                             aria-hidden
                             className="size-4"
@@ -3626,32 +3604,6 @@ function CollectionsListSuggestionsItem({
                 </PreviewCardPopup>
             </PreviewCard>
         </div>
-    );
-}
-
-interface CollectionsListBreakdownProps {
-    entries: PriorityBreakdownEntry[];
-}
-
-function CollectionsListBreakdown({ entries }: CollectionsListBreakdownProps) {
-    return (
-        <DataList>
-            <DataListGroup className="mt-0">
-                {entries.map(({ count, icon: Icon, label, value }) => (
-                    <DataListItem key={value}>
-                        <DataListLabel>{label}</DataListLabel>
-                        <DataListValue>
-                            <Icon
-                                aria-hidden
-                                className="size-4 text-muted-foreground sm:size-3.5"
-                                focusable="false"
-                            />
-                            {count}
-                        </DataListValue>
-                    </DataListItem>
-                ))}
-            </DataListGroup>
-        </DataList>
     );
 }
 
