@@ -146,10 +146,12 @@ import {
     PreviewCardTitle,
     PreviewCardTrigger,
 } from "@/components/ui/preview-card";
+import { Separator } from "@/components/ui/separator";
 import { SidebarItem } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useSession } from "@/lib/auth/client";
 import {
     type CollectionCreateResult,
     createCollection,
@@ -283,8 +285,6 @@ const COLLECTIONS_LIST_FAVORITE_IDS_STORAGE_KEY =
 const COLLECTIONS_LIST_OPEN_STORAGE_KEY = "cache:collections:list-open";
 const COLLECTIONS_FAVORITES_LIST_OPEN_STORAGE_KEY =
     "cache:collections:favorites-open";
-const COLLECTIONS_SUGGESTIONS_OPEN_STORAGE_KEY =
-    "cache:collections:suggestions-open";
 
 const COMPACT_NUMBER_FORMATTER = new Intl.NumberFormat("en-US", {
     compactDisplay: "short",
@@ -510,7 +510,7 @@ const COLLECTION_ACCESS_UPGRADE_MESSAGE: Record<
         `Upgrade to share every item in ${collectionName}.`,
 };
 
-type PriorityBreakdownEntry = PriorityOption & { count: number };
+type PrioritySummaryItem = PriorityOption & { count: number };
 
 type SummarySorter = Record<
     Exclude<CollectionSortField, "text-match">,
@@ -554,6 +554,12 @@ interface CollectionsListItemContext {
     collection: LibraryCollectionSummary;
     isSelected: boolean;
     source: CollectionListSource;
+}
+
+interface CollectionsListSuggestionsItemContext {
+    handleClick: (event: React.SyntheticEvent) => void;
+    isPending: boolean;
+    template: CollectionTemplateOption;
 }
 
 interface CollectionsListStateContext {
@@ -648,9 +654,6 @@ const { useStore: useCollectionsListStore, getState: getCollectionsListState } =
         isFavoritesListOpen: storage(true, {
             storageKey: COLLECTIONS_FAVORITES_LIST_OPEN_STORAGE_KEY,
         }),
-        isSuggestionsOpen: storage(true, {
-            storageKey: COLLECTIONS_SUGGESTIONS_OPEN_STORAGE_KEY,
-        }),
         sortField: storage<CollectionSortField>("priority", {
             storageKey: COLLECTIONS_LIST_SORT_FIELD_STORAGE_KEY,
         }),
@@ -723,6 +726,19 @@ function useCollectionsListItemContext() {
     if (!context) {
         throw new Error(
             "CollectionsListItem compound components must be used within CollectionsListItem."
+        );
+    }
+    return context;
+}
+
+const CollectionsListSuggestionsItemContext =
+    React.createContext<CollectionsListSuggestionsItemContext | null>(null);
+
+function useCollectionsListSuggestionsItemContext() {
+    const context = React.use(CollectionsListSuggestionsItemContext);
+    if (!context) {
+        throw new Error(
+            "CollectionsListSuggestionsItem compound components must be used within CollectionsListSuggestionsItem."
         );
     }
     return context;
@@ -2094,9 +2110,9 @@ function getFavoriteItemLabel(item: LibraryItemWithCollections): string {
     return item.caption?.trim() || parseDisplayUrl(item.url) || "Saved item";
 }
 
-function buildPriorityBreakdownEntries(
+function buildPrioritySummary(
     priorityCounts: Partial<Record<CollectionPriority, number>> | undefined
-): PriorityBreakdownEntry[] {
+): PrioritySummaryItem[] {
     return PRIORITIES.flatMap((option) => {
         const optionCount = priorityCounts?.[option.value] ?? 0;
         return optionCount > 0 ? [{ ...option, count: optionCount }] : [];
@@ -2281,11 +2297,15 @@ export function Collections() {
                         )}
                     </CollectionsListContent>
                     <CollectionsListSuggestions>
-                        {(template) => (
+                        {(collection) => (
                             <CollectionsListSuggestionsItem
-                                key={template.value}
-                                template={template}
-                            />
+                                collection={collection}
+                                key={collection.value}
+                            >
+                                <CollectionsListSuggestionsItemTrigger>
+                                    <CollectionsListSuggestionsItemValue />
+                                </CollectionsListSuggestionsItemTrigger>
+                            </CollectionsListSuggestionsItem>
                         )}
                     </CollectionsListSuggestions>
                 </CollectionsListPanel>
@@ -2622,95 +2642,119 @@ function CollectionsListGroup({
 interface CollectionsListGroupTriggerProps
     extends React.ComponentProps<typeof CollapsibleTrigger> {
     count: number;
-    description?: string;
-    isOpen: boolean;
-    labels: string[];
-    placeholder: string;
-    priorityCounts?: Partial<Record<CollectionPriority, number>>;
 }
 
 function CollectionsListGroupTrigger({
     children,
     count,
-    description,
-    isOpen,
-    labels,
-    placeholder,
-    priorityCounts,
     render,
     ...props
 }: CollectionsListGroupTriggerProps) {
     return (
-        <PreviewCard>
-            <PreviewCardTrigger
-                render={
-                    <CollapsibleTrigger
-                        {...props}
-                        render={
-                            render ?? (
-                                <SidebarItem
-                                    render={<button type="button" />}
-                                />
-                            )
-                        }
-                    />
-                }
-            >
-                <span className="min-w-0 text-xs">
-                    {children}&nbsp;
-                    <TextMorph className="mx-0.5 opacity-80">{count}</TextMorph>
-                </span>
-                <ChevronDownFilledIcon
-                    aria-hidden
-                    className="-ml-0.5"
-                    focusable="false"
-                />
-            </PreviewCardTrigger>
-            <PreviewCardPopup
-                align="start"
-                className="p-3"
-                positionMethod="fixed"
-                side="right"
-            >
-                <CollectionsListGroupSummary
-                    description={description}
-                    isOpen={isOpen}
-                    labels={labels}
-                    placeholder={placeholder}
-                    priorityCounts={priorityCounts}
-                />
-            </PreviewCardPopup>
-        </PreviewCard>
+        <CollapsibleTrigger
+            {...props}
+            render={render ?? <SidebarItem render={<button type="button" />} />}
+        >
+            <span className="min-w-0 text-xs">
+                {children}&nbsp;
+                <TextMorph className="mx-0.5 opacity-80">{count}</TextMorph>
+            </span>
+            <ChevronDownFilledIcon
+                aria-hidden
+                className="-ml-0.5"
+                focusable="false"
+            />
+        </CollapsibleTrigger>
     );
 }
 
-interface CollectionsListGroupSummaryProps {
+interface CollectionsListSummaryTriggerProps
+    extends Omit<
+        React.ComponentProps<typeof PreviewCardTrigger>,
+        "children" | "render"
+    > {
+    children: React.ReactElement;
     description?: string;
     isOpen: boolean;
     labels: string[];
     placeholder: string;
     priorityCounts?: Partial<Record<CollectionPriority, number>>;
+    sectionTitle: React.ReactNode;
 }
 
-function CollectionsListGroupSummary({
+function CollectionsListSummaryTrigger({
+    children,
     description,
     isOpen,
     labels,
     placeholder,
     priorityCounts,
-}: CollectionsListGroupSummaryProps) {
-    const priorityBreakdownEntries =
-        buildPriorityBreakdownEntries(priorityCounts);
+    sectionTitle,
+    ...props
+}: CollectionsListSummaryTriggerProps) {
+    const { data: session } = useSession();
 
-    if (isOpen && priorityBreakdownEntries.length > 0) {
-        return <CollectionsListBreakdown entries={priorityBreakdownEntries} />;
-    }
+    const items = buildPrioritySummary(priorityCounts);
 
-    const summary =
-        description ??
-        (labels.length > 0 ? LIST_FORMATTER.format(labels) : placeholder);
-
-    return <PreviewCardTitle>{summary}</PreviewCardTitle>;
+    return (
+        <PreviewCard>
+            <PreviewCardTrigger {...props} render={children} />
+            <PreviewCardPopup
+                align="start"
+                className="flex-col gap-2 p-3"
+                positionMethod="fixed"
+                side="right"
+            >
+                <PreviewCardTitle className="flex items-center gap-1">
+                    <LibraryBig
+                        aria-hidden
+                        className="inline-block size-3.5 shrink-0 text-muted-foreground"
+                        focusable="false"
+                    />
+                    <span className="min-w-0 truncate text-xs">
+                        {session?.user.name ?? <T>Account</T>}
+                    </span>
+                    <ChevronRight
+                        aria-hidden
+                        className="inline-block size-3.5 shrink-0 text-muted-foreground"
+                        focusable="false"
+                    />
+                    <span className="min-w-0 truncate text-xs">
+                        {sectionTitle}
+                    </span>
+                </PreviewCardTitle>
+                <Separator />
+                {isOpen && items.length > 0 ? (
+                    <DataList>
+                        <DataListGroup className="pb-0">
+                            {items.map(
+                                ({ count, icon: Icon, label, value }) => (
+                                    <DataListItem key={value}>
+                                        <DataListLabel>{label}</DataListLabel>
+                                        <DataListValue>
+                                            <Icon
+                                                aria-hidden
+                                                className="size-4 text-muted-foreground sm:size-3.5"
+                                                focusable="false"
+                                            />
+                                            {count}
+                                        </DataListValue>
+                                    </DataListItem>
+                                )
+                            )}
+                        </DataListGroup>
+                    </DataList>
+                ) : (
+                    <PreviewCardDescription>
+                        {description ??
+                            (labels.length > 0
+                                ? LIST_FORMATTER.format(labels)
+                                : placeholder)}
+                    </PreviewCardDescription>
+                )}
+            </PreviewCardPopup>
+        </PreviewCard>
+    );
 }
 
 function CollectionsListTrigger(
@@ -2728,14 +2772,18 @@ function CollectionsListTrigger(
     );
 
     return (
-        <CollectionsListGroupTrigger
-            {...props}
-            count={collectionSummaries.length}
+        <CollectionsListSummaryTrigger
             isOpen={isCollectionsListOpen}
             labels={collectionLabels}
             placeholder="No collections yet"
             priorityCounts={priorityCounts}
-        />
+            sectionTitle={<T>Collections</T>}
+        >
+            <CollectionsListGroupTrigger
+                {...props}
+                count={collectionSummaries.length}
+            />
+        </CollectionsListSummaryTrigger>
     );
 }
 
@@ -2779,9 +2827,7 @@ function CollectionsListFavoritesTrigger(
     );
 
     return (
-        <CollectionsListGroupTrigger
-            {...props}
-            count={favoriteCollections.length + favoriteItems.length}
+        <CollectionsListSummaryTrigger
             description={formatFavoritesGroupSummary(
                 collectionLabels,
                 favoriteItems.length
@@ -2790,7 +2836,13 @@ function CollectionsListFavoritesTrigger(
             labels={collectionLabels}
             placeholder="No favorites yet"
             priorityCounts={priorityCounts}
-        />
+            sectionTitle={<T>Favorites</T>}
+        >
+            <CollectionsListGroupTrigger
+                {...props}
+                count={favoriteCollections.length + favoriteItems.length}
+            />
+        </CollectionsListSummaryTrigger>
     );
 }
 
@@ -3305,7 +3357,7 @@ function CollectionsListCombobox({
                             <CmdKbd />F
                         </Kbd>
                     }
-                    placeholder="Filter…"
+                    placeholder="Filter or search…"
                 />
                 <ComboboxEmpty>No matching options</ComboboxEmpty>
                 <ComboboxList>
@@ -3482,8 +3534,6 @@ function CollectionsListSuggestions({
     children,
 }: CollectionsListChildrenProps<CollectionTemplateOption>) {
     const { collectionSummaries } = useCollectionsContext();
-    const { isSuggestionsOpen, setIsSuggestionsOpen } =
-        useCollectionsListStore();
     const { items, isLoading } = useCollectionsSuggestions();
 
     if (!(collectionSummaries.length && items.length) || isLoading) {
@@ -3491,62 +3541,18 @@ function CollectionsListSuggestions({
     }
 
     return (
-        <Collapsible
-            className="ml-1.25 flex flex-col gap-1 pt-0.5"
-            onOpenChange={setIsSuggestionsOpen}
-            open={isSuggestionsOpen}
-        >
-            <PreviewCard>
-                <PreviewCardTrigger
-                    render={
-                        <CollapsibleTrigger
-                            className="flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground"
-                            title={
-                                isSuggestionsOpen
-                                    ? "Hide suggested collections"
-                                    : "Show suggested collections"
-                            }
-                        />
-                    }
-                >
-                    {isSuggestionsOpen ? (
-                        <T>Hide suggestions</T>
-                    ) : (
-                        <T>Show suggestions</T>
-                    )}
-                </PreviewCardTrigger>
-                <PreviewCardPopup
-                    align="start"
-                    className="p-3"
-                    positionMethod="fixed"
-                    side="right"
-                >
-                    <div className="flex max-w-64 flex-col gap-1">
-                        <PreviewCardTitle>
-                            <T>Collection suggestions</T>
-                        </PreviewCardTitle>
-                        <PreviewCardDescription>
-                            <T>
-                                Suggestions show ways to organize your saved
-                                items into collections.
-                            </T>
-                        </PreviewCardDescription>
-                    </div>
-                </PreviewCardPopup>
-            </PreviewCard>
-            <CollapsiblePanel>
-                <div className="flex flex-col gap-1">{items.map(children)}</div>
-            </CollapsiblePanel>
-        </Collapsible>
+        <div className="ml-1.25 flex flex-col gap-1">{items.map(children)}</div>
     );
 }
 
 interface CollectionsListSuggestionsItemProps {
-    template: CollectionTemplateOption;
+    children: React.ReactNode;
+    collection: CollectionTemplateOption;
 }
 
 function CollectionsListSuggestionsItem({
-    template,
+    children,
+    collection,
 }: CollectionsListSuggestionsItemProps) {
     const { showError, showSuccess } = useCollectionStatus();
     const { syncCreated } = useCollectionsListActionsContext();
@@ -3560,8 +3566,8 @@ function CollectionsListSuggestionsItem({
         }
         startTransition(async () => {
             const result = await createCollectionAndSync({
-                description: template.description,
-                name: template.name,
+                description: collection.description,
+                name: collection.name,
                 syncCreated,
             });
             if (result.status !== ACTION_STATUS.CREATED) {
@@ -3572,86 +3578,90 @@ function CollectionsListSuggestionsItem({
                 mutateSuggestions,
                 "Failed to refresh collection suggestions after creating from template"
             );
-            showSuccess(`${template.name} created from template.`);
+            showSuccess(`${collection.name} created from template.`);
         });
     });
 
+    const contextValue = { handleClick, isPending, template: collection };
+
     return (
-        <div className="group relative flex select-none items-center">
-            <PreviewCard>
-                <PreviewCardTrigger
-                    render={
-                        <SidebarItem
-                            className="w-full min-w-0 flex-1 justify-start rounded-lg pr-8 pl-9.5 text-left hover:bg-transparent"
-                            render={
-                                <button
-                                    disabled={isPending}
-                                    onClick={handleClick}
-                                    type="button"
-                                />
-                            }
-                        />
-                    }
-                >
-                    <span className="absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border-none bg-muted text-muted-foreground">
-                        <PlusIcon
-                            aria-hidden
-                            className="size-4"
-                            focusable="false"
-                        />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate font-medium text-sm">
-                        {template.name}
-                    </span>
-                    {isPending ? (
-                        <Spinner className="absolute right-3 size-3.5" />
-                    ) : (
-                        <span className="absolute right-3 text-muted-foreground text-xs opacity-0 group-hover:opacity-100">
-                            <T>Add</T>
-                        </span>
-                    )}
-                </PreviewCardTrigger>
-                <PreviewCardPopup
-                    align="start"
-                    className="p-3"
-                    positionMethod="fixed"
-                    side="right"
-                >
-                    <div className="flex max-w-64 flex-col gap-1">
-                        <PreviewCardTitle>{template.name}</PreviewCardTitle>
-                        <PreviewCardDescription>
-                            {template.description}
-                        </PreviewCardDescription>
-                    </div>
-                </PreviewCardPopup>
-            </PreviewCard>
-        </div>
+        <CollectionsListSuggestionsItemContext value={contextValue}>
+            <div className="group relative flex select-none items-center">
+                {children}
+            </div>
+        </CollectionsListSuggestionsItemContext>
     );
 }
 
-interface CollectionsListBreakdownProps {
-    entries: PriorityBreakdownEntry[];
+interface CollectionsListSuggestionsItemTriggerProps {
+    children: React.ReactNode;
 }
 
-function CollectionsListBreakdown({ entries }: CollectionsListBreakdownProps) {
+function CollectionsListSuggestionsItemTrigger({
+    children,
+}: CollectionsListSuggestionsItemTriggerProps) {
+    const { handleClick, isPending, template } =
+        useCollectionsListSuggestionsItemContext();
+
     return (
-        <DataList>
-            <DataListGroup className="mt-0">
-                {entries.map(({ count, icon: Icon, label, value }) => (
-                    <DataListItem key={value}>
-                        <DataListLabel>{label}</DataListLabel>
-                        <DataListValue>
-                            <Icon
-                                aria-hidden
-                                className="size-4 text-muted-foreground sm:size-3.5"
-                                focusable="false"
+        <PreviewCard>
+            <PreviewCardTrigger
+                render={
+                    <SidebarItem
+                        className="w-full min-w-0 flex-1 justify-start rounded-lg pr-8 pl-9.5 text-left hover:bg-transparent"
+                        render={
+                            <button
+                                disabled={isPending}
+                                onClick={handleClick}
+                                type="button"
                             />
-                            {count}
-                        </DataListValue>
-                    </DataListItem>
-                ))}
-            </DataListGroup>
-        </DataList>
+                        }
+                    />
+                }
+            >
+                {children}
+                {isPending ? (
+                    <Spinner className="absolute right-3 size-3.5" />
+                ) : (
+                    <span className="absolute right-3 text-muted-foreground text-xs opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
+                        <T>Add</T>
+                    </span>
+                )}
+            </PreviewCardTrigger>
+            <PreviewCardPopup
+                align="start"
+                className="p-3"
+                positionMethod="fixed"
+                side="right"
+            >
+                <div className="flex max-w-64 flex-col gap-1">
+                    <PreviewCardTitle>{template.name}</PreviewCardTitle>
+                    <PreviewCardDescription>
+                        {template.description}
+                    </PreviewCardDescription>
+                </div>
+            </PreviewCardPopup>
+        </PreviewCard>
+    );
+}
+
+function CollectionsListSuggestionsItemValue() {
+    const { template } = useCollectionsListSuggestionsItemContext();
+
+    return (
+        <>
+            <span className="absolute top-1/2 left-1.25 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border border-input border-dashed text-muted-foreground">
+                <PlusIcon aria-hidden className="size-4" focusable="false" />
+            </span>
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span
+                    className="max-w-full shrink-0 truncate font-medium text-sm tracking-tight"
+                    title={template.name}
+                >
+                    {template.name}
+                </span>
+            </div>
+        </>
     );
 }
 
@@ -3736,20 +3746,18 @@ function CollectionsListItemTrigger({
     const { onSelectCollection } = useCollectionsContext();
     const { collectionPreviewThumbnailUrlsById } = useItemsContext();
     const { collection, isSelected } = useCollectionsListItemContext();
-    const [isHoverIntent, setIsHoverIntent] = React.useState(false);
-    const [isPointerOver, setIsPointerOver] = React.useState(false);
+    const [isOpen, setIsOpen] = React.useState(false);
+    const [preloadFromHover, setPreloadFromHover] = React.useState(false);
 
     const thumbnails =
         collectionPreviewThumbnailUrlsById.get(collection.id) ?? [];
-    const shouldLoad = isPointerOver || isHoverIntent;
+    const shouldLoad = preloadFromHover || isOpen;
 
     const { activeSlide, reportSlideError } = useCollectionPreviewPlayback({
-        isCycling: isHoverIntent,
+        isCycling: isOpen,
         shouldLoad,
         thumbnails,
     });
-
-    const isOpen = isHoverIntent && activeSlide !== null;
 
     const onClick = useStableCallback(onClickProp);
     const handleClick = useStableCallback(
@@ -3758,22 +3766,21 @@ function CollectionsListItemTrigger({
         ) => {
             onClick?.(event);
             onSelectCollection(collection.id);
-            setIsHoverIntent(false);
-            setIsPointerOver(false);
+            setIsOpen(false);
+            setPreloadFromHover(false);
         }
     );
 
     const handleOpenChange = useStableCallback((nextOpen: boolean) => {
-        setIsHoverIntent(nextOpen);
+        setIsOpen(nextOpen);
     });
 
     const handlePointerEnter = useStableCallback(() => {
-        setIsPointerOver(true);
+        setPreloadFromHover(true);
     });
 
     const handlePointerLeave = useStableCallback(() => {
-        setIsPointerOver(false);
-        setIsHoverIntent(false);
+        setPreloadFromHover(false);
     });
 
     return (
@@ -3792,14 +3799,14 @@ function CollectionsListItemTrigger({
                 }
             />
             <PreviewCardPopup
-                className="p-0"
+                className={activeSlide === null ? "p-3" : "p-0"}
                 positionMethod="fixed"
                 side="right"
             >
-                {activeSlide ? (
+                {isOpen ? (
                     <CollectionsListItemPreview
                         activeSlide={activeSlide}
-                        name={collection.name}
+                        collection={collection}
                         onSlideError={reportSlideError}
                     />
                 ) : null}
@@ -3809,19 +3816,51 @@ function CollectionsListItemTrigger({
 }
 
 interface CollectionsListItemPreviewProps {
-    activeSlide: ReadyPreviewSlide;
-    name: string;
+    activeSlide: ReadyPreviewSlide | null;
+    collection: Pick<
+        LibraryCollectionSummary,
+        "createdAt" | "description" | "name" | "updatedAt"
+    >;
     onSlideError: (src: string) => void;
 }
 
 function CollectionsListItemPreview({
     activeSlide,
-    name,
+    collection,
     onSlideError,
 }: CollectionsListItemPreviewProps) {
     const handleError = useStableCallback(() => {
+        if (activeSlide === null) {
+            return;
+        }
         onSlideError(activeSlide.src);
     });
+
+    if (activeSlide === null) {
+        const createdAt = dayjs(collection.createdAt);
+        const updatedAt = dayjs(collection.updatedAt);
+
+        return (
+            <div className="flex max-w-64 flex-col gap-1">
+                <PreviewCardTitle>{collection.name}</PreviewCardTitle>
+                {collection.description ? (
+                    <PreviewCardDescription>
+                        {collection.description}
+                    </PreviewCardDescription>
+                ) : null}
+                <PreviewCardDescription className="truncate text-muted-foreground">
+                    <T>Created</T>{" "}
+                    <time dateTime={createdAt.toISOString()}>
+                        {createdAt.fromNow()}
+                    </time>
+                    , <T>updated</T>{" "}
+                    <time dateTime={updatedAt.toISOString()}>
+                        {updatedAt.fromNow()}
+                    </time>
+                </PreviewCardDescription>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -3831,7 +3870,7 @@ function CollectionsListItemPreview({
             <AnimatePresence initial={false}>
                 {/* biome-ignore lint/correctness/useImageSize: parent aspect-ratio drives layout */}
                 <motion.img
-                    alt={`${name} preview`}
+                    alt={`${collection.name} preview`}
                     animate={{ opacity: 1 }}
                     className="drag-none absolute inset-0 size-full object-cover"
                     decoding="async"

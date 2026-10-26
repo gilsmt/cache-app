@@ -230,7 +230,7 @@ export function CloudHostOnly({ children }: CloudHostOnlyProps) {
     return children;
 }
 
-export function SubscriptionStatusBadge() {
+export function SubscriptionStatus() {
     return (
         <WithSubscriptionOnly
             fallback={<Skeleton className="h-7 w-full rounded-full" />}

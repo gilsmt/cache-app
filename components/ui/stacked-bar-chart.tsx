@@ -23,13 +23,17 @@ function buildStackedBarAriaLabel(
         .join(", ");
 }
 
-interface StackedBarChartProps extends React.ComponentProps<"div"> {
+interface StackedBarChartProps
+    extends Omit<React.ComponentProps<"div">, "aria-hidden" | "role"> {
+    isDecorative?: boolean;
     segments: readonly StackedBarChartSegment[];
 }
 
 export function StackedBarChart({
     className,
+    isDecorative = false,
     segments,
+    "aria-label": ariaLabel,
     ...props
 }: StackedBarChartProps) {
     const visibleSegments = segments.filter(
@@ -40,24 +44,25 @@ export function StackedBarChart({
         0
     );
     const isEmpty = visibleSegments.length === 0;
+    const chartAriaLabel =
+        isDecorative || isEmpty
+            ? undefined
+            : ariaLabel?.trim() ||
+              buildStackedBarAriaLabel(visibleSegments, total);
 
     return (
         // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is "img" exactly when aria-label is set
         <div
             {...props}
-            aria-hidden={isEmpty}
-            aria-label={
-                isEmpty
-                    ? undefined
-                    : buildStackedBarAriaLabel(visibleSegments, total)
-            }
+            aria-hidden={chartAriaLabel === undefined}
+            aria-label={chartAriaLabel}
             className={cn(
                 "h-2 w-full overflow-hidden rounded-full bg-muted",
                 !isEmpty && "flex gap-px",
                 className
             )}
             data-slot="stacked-bar-chart"
-            role={isEmpty ? undefined : "img"}
+            role={chartAriaLabel === undefined ? undefined : "img"}
         >
             {visibleSegments.map((segment, index) => {
                 const isFirst = index === 0;
@@ -66,7 +71,7 @@ export function StackedBarChart({
                 return (
                     <div
                         className={cn(
-                            "min-w-0 transition-[flex-grow] ease-out",
+                            "min-w-0 transition-[flex-grow] ease-out motion-reduce:transition-none",
                             isFirst && "rounded-s-full",
                             isLast && "rounded-e-full"
                         )}

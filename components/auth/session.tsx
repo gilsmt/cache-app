@@ -113,7 +113,7 @@ export function WithSessionOnly({
     return children(session.user);
 }
 
-interface SessionHintProps {
+interface SessionStatusProps {
     serverSession?: Session | null;
 }
 
@@ -122,7 +122,7 @@ interface SessionHintProps {
  * client session still owns the sign-out button's loading state as it reflects
  * the live request.
  */
-export function SessionHint({ serverSession }: SessionHintProps) {
+export function SessionStatus({ serverSession }: SessionStatusProps) {
     const { data: clientSession, isPending } = useSession();
 
     const session = serverSession ?? clientSession;

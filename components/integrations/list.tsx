@@ -595,14 +595,14 @@ function IntegrationsListItemPreviewTrigger({
                 positionMethod="fixed"
                 side="right"
             >
-                {integration.hintImage ? (
+                {integration.image ? (
                     <div className="relative aspect-3/2 w-full shrink-0">
                         <Image
                             alt=""
                             className="object-cover"
                             fill
                             sizes="256px"
-                            src={integration.hintImage}
+                            src={integration.image}
                         />
                     </div>
                 ) : null}

@@ -21,7 +21,7 @@ import {
     CloudHostOnly,
     SubscribedOnly,
     SubscriptionLoadingOnly,
-    SubscriptionStatusBadge,
+    SubscriptionStatus,
     UnsubscribedOnly,
     useSubscriptionBillingPortalAction,
     useSubscriptionUpgradeAction,
@@ -175,7 +175,7 @@ export function AccountMenuHeader() {
                     </AccountSwitcherSubMenu>
                     <CloudHostOnly>
                         <div className="flex items-center px-2 py-1">
-                            <SubscriptionStatusBadge />
+                            <SubscriptionStatus />
                         </div>
                     </CloudHostOnly>
                 </div>

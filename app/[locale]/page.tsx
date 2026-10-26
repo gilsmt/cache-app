@@ -19,7 +19,7 @@ import Image from "next/image";
 import type * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
 import { DesktopRedirect } from "@/components/auth/desktop-redirect";
-import { GoogleOneTapTrigger, SessionHint } from "@/components/auth/session";
+import { GoogleOneTapTrigger, SessionStatus } from "@/components/auth/session";
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -224,7 +224,7 @@ export default async function Home() {
                             </p>
                         </T>
                         <SignInButton hasServerSession={!!session} />
-                        <SessionHint serverSession={session} />
+                        <SessionStatus serverSession={session} />
                     </SidebarContent>
                     <SidebarFooter>
                         <div className="hidden items-center gap-3 lg:flex">
