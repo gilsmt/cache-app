@@ -25,7 +25,7 @@ interface NormalizedFile extends File {
 export const normalizeFile = async (file_: File) => {
     let file = file_ as NormalizedFile;
 
-    // to prevent double normalization (perf optim)
+    // Skip files that have already passed through normalization.
     if (file[normalizedFileSymbol]) {
         return file;
     }

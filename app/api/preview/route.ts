@@ -71,13 +71,11 @@ const PREVIEW_BLOCKED_CACHE_TTL_SECONDS = 60;
 const PREVIEW_RESOLUTION_LEASE_TTL_SECONDS = 12;
 const PREVIEW_RESOLUTION_WAIT_MS = 12_000;
 const PREVIEW_RESOLUTION_POLL_MS = 250;
-// Process-local L1 in front of Redis. Bench (remote Redis ~500ms RTT): cache-hit
-// redirect p50 614ms → sub-ms on warm L1; load-test p99 collapses when the same
-// URLs repeat within an isolate. Cap entries to bound memory. The L1 TTL is
-// short and independent of the Redis TTL: a Redis delete/update in another
-// isolate is invisible to this process's Map, so a brief L1 lifetime bounds how
-// long a stale target can be served (signed-URL expiry is still re-checked on
-// every hit).
+// Process-local L1 in front of Redis. A hit returns from the Map before any
+// Redis read. Cap entries to bound memory. The L1 TTL is short and independent
+// of the Redis TTL: a Redis delete/update in another isolate is invisible to
+// this process's Map, so a brief L1 lifetime bounds how long a stale target can
+// be served (signed-URL expiry is still re-checked on every hit).
 const MEMORY_CACHE_MAX_ENTRIES = 256;
 const PREVIEW_IMAGE_MEMORY_CACHE_TTL_SECONDS = 5 * 60;
 // Upstream-controlled content-types we will proxy. Anything outside these lists
@@ -237,8 +235,8 @@ function loadCobaltService() {
     return cobaltServicePromise;
 }
 
-// Lazy-loaded on first cache op. Static `redis` import was ~90% of route cold-start
-// (p50 62ms → ~6ms without it). First request pays import; subsequent share the module.
+// Load Redis on the first cache operation. Concurrent operations share the
+// same import promise.
 let redisModulePromise: Promise<typeof import("@/lib/common/redis")> | null =
     null;
 
@@ -1794,11 +1792,9 @@ async function readPreviewRecord(
 }
 
 /**
- * Writes the record to L1 synchronously and to Redis without blocking the
- * response (miss-path p50 was ~1.5s with remote Redis at ~500ms write RTT).
- * The returned promise never rejects: awaiting it (lease-holders do, so
- * waiters see the state before the lease releases) or ignoring it (hot
- * success writes) are both safe.
+ * Writes the record to L1 synchronously and returns the Redis write promise.
+ * Lease holders await it before releasing the lease; success writes may leave
+ * it running in the background. Redis errors are logged and absorbed.
  */
 function writePreviewRecord(
     targetHref: string,
@@ -2026,8 +2022,7 @@ async function releasePreviewResolutionLease(
 }
 
 function isSignedUrlExpired(imageUrl: string): boolean {
-    // Hot path: most CDN URLs have no signed expiry. Avoid URL parse when the
-    // param substring is absent (bench: pure check ~10x cheaper than new URL).
+    // Skip URL parsing when the expiry parameter cannot be present.
     if (!imageUrl.includes(SIGNED_URL_EXPIRY_PARAM)) {
         return false;
     }

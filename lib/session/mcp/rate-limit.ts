@@ -8,10 +8,10 @@
  * before that revocation lands.
  *
  * Implementation: a fixed-window counter in Redis, keyed by `userId` and
- * the bucket name. We pick fixed window over a sliding log because it stays
- * O(1) per request and gives the operator an easy knob (the `limit`
- * constant). The window is short enough that an attacker can't amortize
- * the burst and long enough not to feel like a quota.
+ * the bucket name. Each request increments the counter and repairs its TTL
+ * when it is missing. The bucket limit gives the operator an easy knob. The
+ * window is short enough that an attacker can't amortize the burst and long
+ * enough not to feel like a quota.
  *
  * When Redis is unavailable, `checkMcpRateLimit` reports not-limited
  * (fail-open) because we'd rather degrade UX than block legitimate user

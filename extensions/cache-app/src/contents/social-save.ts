@@ -1676,7 +1676,7 @@ async function runYouTubeWatchLaterSync() {
     initial.tokens.forEach((token) => seenTokens.add(token));
 
     // Phase 1: Continuation API — fetch pages via YouTube's internal browse
-    // endpoint using continuation tokens. Efficient: no scrolling required.
+    // endpoint using continuation tokens, so no page scrolling is required.
     // Skipped entirely when the initial page data has no continuation token
     // (some Watch Later pages don't); Phase 2 handles the rest.
     while (queue.length > 0 && accumulated.size < MAX_YOUTUBE_ITEMS) {
