@@ -212,6 +212,7 @@ function SummaryDataList({
                         hasSourceSegments ? (
                             <DataListChart
                                 className="ml-auto max-w-1/3 group-data-open/collapsible:hidden"
+                                isDecorative
                                 segments={sourceSegments}
                             />
                         ) : null
@@ -222,7 +223,10 @@ function SummaryDataList({
                 <DataListSectionContent>
                     {hasSourceSegments ? (
                         <>
-                            <DataListChart segments={sourceSegments} />
+                            <DataListChart
+                                isDecorative
+                                segments={sourceSegments}
+                            />
                             <DataListGroup>
                                 {sourceSegments.map((segment) => (
                                     <DataListItem key={segment.key}>

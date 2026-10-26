@@ -3746,20 +3746,18 @@ function CollectionsListItemTrigger({
     const { onSelectCollection } = useCollectionsContext();
     const { collectionPreviewThumbnailUrlsById } = useItemsContext();
     const { collection, isSelected } = useCollectionsListItemContext();
-    const [isHoverIntent, setIsHoverIntent] = React.useState(false);
-    const [isPointerOver, setIsPointerOver] = React.useState(false);
+    const [isOpen, setIsOpen] = React.useState(false);
+    const [preloadFromHover, setPreloadFromHover] = React.useState(false);
 
     const thumbnails =
         collectionPreviewThumbnailUrlsById.get(collection.id) ?? [];
-    const shouldLoad = isPointerOver || isHoverIntent;
+    const shouldLoad = preloadFromHover || isOpen;
 
     const { activeSlide, reportSlideError } = useCollectionPreviewPlayback({
-        isCycling: isHoverIntent,
+        isCycling: isOpen,
         shouldLoad,
         thumbnails,
     });
-
-    const isOpen = isHoverIntent && activeSlide !== null;
 
     const onClick = useStableCallback(onClickProp);
     const handleClick = useStableCallback(
@@ -3768,22 +3766,21 @@ function CollectionsListItemTrigger({
         ) => {
             onClick?.(event);
             onSelectCollection(collection.id);
-            setIsHoverIntent(false);
-            setIsPointerOver(false);
+            setIsOpen(false);
+            setPreloadFromHover(false);
         }
     );
 
     const handleOpenChange = useStableCallback((nextOpen: boolean) => {
-        setIsHoverIntent(nextOpen);
+        setIsOpen(nextOpen);
     });
 
     const handlePointerEnter = useStableCallback(() => {
-        setIsPointerOver(true);
+        setPreloadFromHover(true);
     });
 
     const handlePointerLeave = useStableCallback(() => {
-        setIsPointerOver(false);
-        setIsHoverIntent(false);
+        setPreloadFromHover(false);
     });
 
     return (
@@ -3802,14 +3799,14 @@ function CollectionsListItemTrigger({
                 }
             />
             <PreviewCardPopup
-                className="p-0"
+                className={activeSlide === null ? "p-3" : "p-0"}
                 positionMethod="fixed"
                 side="right"
             >
-                {activeSlide ? (
+                {isOpen ? (
                     <CollectionsListItemPreview
                         activeSlide={activeSlide}
-                        name={collection.name}
+                        collection={collection}
                         onSlideError={reportSlideError}
                     />
                 ) : null}
@@ -3819,19 +3816,51 @@ function CollectionsListItemTrigger({
 }
 
 interface CollectionsListItemPreviewProps {
-    activeSlide: ReadyPreviewSlide;
-    name: string;
+    activeSlide: ReadyPreviewSlide | null;
+    collection: Pick<
+        LibraryCollectionSummary,
+        "createdAt" | "description" | "name" | "updatedAt"
+    >;
     onSlideError: (src: string) => void;
 }
 
 function CollectionsListItemPreview({
     activeSlide,
-    name,
+    collection,
     onSlideError,
 }: CollectionsListItemPreviewProps) {
     const handleError = useStableCallback(() => {
+        if (activeSlide === null) {
+            return;
+        }
         onSlideError(activeSlide.src);
     });
+
+    if (activeSlide === null) {
+        const createdAt = dayjs(collection.createdAt);
+        const updatedAt = dayjs(collection.updatedAt);
+
+        return (
+            <div className="flex max-w-64 flex-col gap-1">
+                <PreviewCardTitle>{collection.name}</PreviewCardTitle>
+                {collection.description ? (
+                    <PreviewCardDescription>
+                        {collection.description}
+                    </PreviewCardDescription>
+                ) : null}
+                <PreviewCardDescription className="truncate text-muted-foreground">
+                    <T>Created</T>{" "}
+                    <time dateTime={createdAt.toISOString()}>
+                        {createdAt.fromNow()}
+                    </time>
+                    , <T>updated</T>{" "}
+                    <time dateTime={updatedAt.toISOString()}>
+                        {updatedAt.fromNow()}
+                    </time>
+                </PreviewCardDescription>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -3841,7 +3870,7 @@ function CollectionsListItemPreview({
             <AnimatePresence initial={false}>
                 {/* biome-ignore lint/correctness/useImageSize: parent aspect-ratio drives layout */}
                 <motion.img
-                    alt={`${name} preview`}
+                    alt={`${collection.name} preview`}
                     animate={{ opacity: 1 }}
                     className="drag-none absolute inset-0 size-full object-cover"
                     decoding="async"
