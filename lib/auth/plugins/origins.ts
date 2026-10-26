@@ -66,12 +66,36 @@ function parseEnvTrustedOrigins(rawOrigins: string | undefined): string[] {
     return trustedOrigins;
 }
 
+/** Vercel preview traffic can use the deployment URL or the branch alias. */
+function getVercelPreviewOrigins(): string[] {
+    if (serverEnv.VERCEL_ENV !== "preview") {
+        return [];
+    }
+
+    const origins: string[] = [];
+    for (const host of [serverEnv.VERCEL_URL, serverEnv.VERCEL_BRANCH_URL]) {
+        if (!host) {
+            continue;
+        }
+
+        const origin = `https://${host}`;
+        if (!isExactTrustedOrigin(origin)) {
+            log.warn("Ignoring invalid Vercel preview origin", { origin });
+            continue;
+        }
+        origins.push(origin);
+    }
+    return origins;
+}
+
 const extensionId = resolveChromeExtensionId();
 
 const envTrustedOrigins = parseEnvTrustedOrigins(serverEnv.TRUSTED_ORIGINS);
+const VERCEL_PREVIEW_ORIGINS = getVercelPreviewOrigins();
 
 export const trustedOrigins = [
     BASE_AUTH_URL,
     `chrome-extension://${extensionId}`,
     ...envTrustedOrigins,
+    ...VERCEL_PREVIEW_ORIGINS,
 ];
