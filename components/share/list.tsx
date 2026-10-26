@@ -45,8 +45,8 @@ export function PublicShareGrid({
     if (items.length === 0) {
         return (
             <div className="flex min-h-[50vh] items-center justify-center">
-                <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/70 border-dashed bg-card/30 px-6 py-14 text-center">
-                    <p className="max-w-md text-balance text-muted-foreground text-sm leading-snug">
+                <div className="border-border/70 bg-card/30 flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-14 text-center">
+                    <p className="text-muted-foreground max-w-md text-sm leading-snug text-balance">
                         <T>This collection is empty.</T>
                     </p>
                 </div>
@@ -124,7 +124,7 @@ function PublicShareGridCard({
             )}
             <div
                 aria-hidden
-                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/5 ring-inset"
+                className="squircle ring-foreground/5 pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset"
             />
         </div>
     );
@@ -132,7 +132,7 @@ function PublicShareGridCard({
     const titleElement = (
         <div className="flex items-center py-1.5">
             <span
-                className="block w-full min-w-0 truncate text-left text-foreground text-xs"
+                className="text-foreground block w-full min-w-0 truncate text-left text-xs"
                 title={data.title}
             >
                 <Ticker>{data.title}</Ticker>
@@ -141,10 +141,10 @@ function PublicShareGridCard({
     );
 
     return (
-        <div className="group relative flex shrink-0 flex-col ease-out before:absolute before:-inset-x-2 before:-top-2 before:bottom-0 before:-z-10 before:rounded-xl before:bg-muted/50 before:opacity-0 before:transition-transform before:ease-out hover:before:opacity-100 active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80!">
+        <div className="group before:bg-muted/50 relative flex shrink-0 flex-col ease-out before:absolute before:-inset-x-2 before:-top-2 before:bottom-0 before:-z-10 before:rounded-xl before:opacity-0 before:transition-transform before:ease-out hover:before:opacity-100 active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80!">
             {data.href ? (
                 <a
-                    className="flex flex-col focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="focus-visible:border-ring focus-visible:ring-ring flex flex-col focus-visible:ring-2 focus-visible:outline-none"
                     href={data.href}
                     rel="noopener noreferrer nofollow"
                     target="_blank"

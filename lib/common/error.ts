@@ -21,6 +21,7 @@ export abstract class NamedError extends Error {
 
         const result = class extends NamedError {
             static readonly Schema = schema;
+            readonly #schema = schema;
             readonly data: DataInput;
             override readonly name: Name = name;
 
@@ -47,7 +48,7 @@ export abstract class NamedError extends Error {
             }
 
             schema() {
-                return schema;
+                return this.#schema;
             }
 
             toObject() {

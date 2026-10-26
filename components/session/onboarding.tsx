@@ -509,7 +509,7 @@ function ShareDialog({
             <DialogPopup>
                 <DialogHeader>
                     <div className="flex items-center gap-1.5">
-                        <LibraryBig className="size-4 text-muted-foreground" />
+                        <LibraryBig className="text-muted-foreground size-4" />
                         <DialogTitle>Share collection?</DialogTitle>
                     </div>
                     <DialogDescription>
@@ -528,7 +528,7 @@ function ShareDialog({
                         ))}
                     </DialogPanel>
                 ) : null}
-                <ErrorMessage className="px-1 italic leading-tight">
+                <ErrorMessage className="px-1 leading-tight italic">
                     {shareErrorMessage}
                 </ErrorMessage>
                 <DialogFooter>
@@ -586,10 +586,10 @@ function SurveyDialog({
                         <DialogPanel className="grid gap-3">
                             {selectedOptions.map((option) => (
                                 <div
-                                    className="grid gap-1 rounded-md border border-border p-3"
+                                    className="border-border grid gap-1 rounded-md border p-3"
                                     key={option.id}
                                 >
-                                    <p className="font-medium text-foreground text-sm leading-tight">
+                                    <p className="text-foreground text-sm leading-tight font-medium">
                                         {option.label}
                                     </p>
                                     <p className="text-muted-foreground text-sm leading-snug">
@@ -694,18 +694,18 @@ function PainPointOption({
 
     return (
         <label
-            className="flex cursor-pointer items-start gap-3 rounded-md border border-transparent p-2 outline-none transition-colors hover:border-border hover:transition-none has-focus-visible:border-ring data-checked:border-border"
+            className="hover:border-border has-focus-visible:border-ring data-checked:border-border flex cursor-pointer items-start gap-3 rounded-md border border-transparent p-2 transition-colors outline-none hover:transition-none"
             data-checked={isChecked || undefined}
             htmlFor={`pain-point-${id}`}
         >
             <Checkbox.Root
                 aria-label={label}
                 checked={isChecked}
-                className="relative inline-flex size-4.5 shrink-0 items-center justify-center rounded-lg border border-input bg-background not-dark:bg-clip-padding shadow-xs/5 outline-none ring-ring transition-shadow before:pointer-events-none before:absolute before:inset-0 before:rounded-[3px] not-data-disabled:not-data-checked:not-aria-invalid:before:shadow-[0_1px_--theme(--color-black/4%)] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-background aria-invalid:border-destructive/36 focus-visible:aria-invalid:border-destructive/64 focus-visible:aria-invalid:ring-destructive/48 data-disabled:cursor-not-allowed data-disabled:opacity-64 sm:size-4 dark:not-data-checked:bg-input/32 dark:aria-invalid:ring-destructive/24 dark:not-data-disabled:not-data-checked:not-aria-invalid:before:shadow-[0_-1px_--theme(--color-white/6%)] [[data-disabled],[data-checked],[aria-invalid]]:shadow-none"
+                className="border-input bg-background ring-ring focus-visible:ring-offset-background aria-invalid:border-destructive/36 focus-visible:aria-invalid:border-destructive/64 focus-visible:aria-invalid:ring-destructive/48 dark:not-data-checked:bg-input/32 dark:aria-invalid:ring-destructive/24 relative inline-flex size-4.5 shrink-0 items-center justify-center rounded-lg border shadow-xs/5 transition-shadow outline-none not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[3px] not-data-disabled:not-data-checked:not-aria-invalid:before:shadow-[0_1px_--theme(--color-black/4%)] focus-visible:ring-2 focus-visible:ring-offset-1 data-disabled:cursor-not-allowed data-disabled:opacity-64 sm:size-4 dark:not-data-disabled:not-data-checked:not-aria-invalid:before:shadow-[0_-1px_--theme(--color-white/6%)] [[data-disabled],[data-checked],[aria-invalid]]:shadow-none"
                 id={`pain-point-${id}`}
                 onCheckedChange={handleCheckedChange}
             >
-                <Checkbox.Indicator className="absolute -inset-px flex items-center justify-center rounded-lg text-primary-foreground data-unchecked:hidden data-checked:bg-primary data-indeterminate:text-foreground">
+                <Checkbox.Indicator className="text-primary-foreground data-checked:bg-primary data-indeterminate:text-foreground absolute -inset-px flex items-center justify-center rounded-lg data-unchecked:hidden">
                     <Check
                         aria-hidden
                         className="size-3.5 sm:size-3"
@@ -714,7 +714,7 @@ function PainPointOption({
                 </Checkbox.Indicator>
             </Checkbox.Root>
             <span className="grid min-w-0 flex-1 gap-0.5 text-sm leading-tight">
-                <span className="font-medium text-foreground">{label}</span>
+                <span className="text-foreground font-medium">{label}</span>
                 <span className="text-muted-foreground">{description}</span>
             </span>
         </label>

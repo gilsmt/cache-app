@@ -2,8 +2,8 @@ import { escapeLikePattern } from "@/lib/common/string";
 import { tryParseUrl } from "@/lib/common/url";
 import type { Prisma } from "@/prisma/client/client";
 
-const WHITESPACE_SPLIT_PATTERN = /\s+/;
-const WWW_DOMAIN_PREFIX_PATTERN = /^www\./;
+const WHITESPACE_SPLIT_PATTERN = /\s+/u;
+const WWW_DOMAIN_PREFIX_PATTERN = /^www\./u;
 
 export function buildLibraryTextSearchConditions(
     searchText: string,

@@ -114,7 +114,7 @@ function renderAttachmentImage(url: string, filename: string | undefined) {
 }
 
 function renderAttachmentIcon(Icon: typeof ImageIcon) {
-    return <Icon className="size-3 text-muted-foreground" />;
+    return <Icon className="text-muted-foreground size-3" />;
 }
 
 function renderAttachmentPreviewContent(
@@ -181,9 +181,9 @@ export function Attachment({
             <div
                 {...props}
                 className={cn(
-                    "group relative flex h-8 cursor-pointer select-none items-center gap-1",
-                    "rounded-md border border-border px-1.5",
-                    "font-medium text-sm",
+                    "group relative flex h-8 cursor-pointer items-center gap-1 select-none",
+                    "border-border rounded-md border px-1.5",
+                    "text-sm font-medium",
                     "hover:bg-accent hover:text-accent-foreground",
                     className
                 )}
@@ -208,7 +208,7 @@ export function AttachmentPreview({
         <div
             {...props}
             className={cn(
-                "flex size-5 shrink-0 items-center justify-center overflow-hidden rounded bg-background",
+                "bg-background flex size-5 shrink-0 items-center justify-center overflow-hidden rounded",
                 className
             )}
             data-slot="attachment-preview"
@@ -239,7 +239,7 @@ export function AttachmentInfo({
         >
             <span className="block truncate">{label}</span>
             {shouldShowMediaType && data.mediaType ? (
-                <span className="block truncate text-muted-foreground text-xs">
+                <span className="text-muted-foreground block truncate text-xs">
                     {data.mediaType}
                 </span>
             ) : null}

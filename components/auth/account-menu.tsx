@@ -110,7 +110,7 @@ export function AccountMenuTrigger(
                                 {getInitials(user.name, user.email)}
                             </AvatarFallback>
                         </Avatar>
-                        <span className="min-w-0 max-w-full truncate text-left font-medium text-sm">
+                        <span className="max-w-full min-w-0 truncate text-left text-sm font-medium">
                             {user.name ?? <T>Account</T>}
                         </span>
                     </span>
@@ -118,7 +118,7 @@ export function AccountMenuTrigger(
             </WithSessionOnly>
             <ChevronDown
                 aria-hidden
-                className="pointer-events-none invisible inline-block size-4 shrink-0 text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
+                className="text-muted-foreground pointer-events-none invisible inline-block size-4 shrink-0 opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
                 focusable="false"
             />
             <Kbd
@@ -165,10 +165,10 @@ export function AccountMenuHeader() {
                 <div className="w-full min-w-0 flex-1 pb-1">
                     <AccountSwitcherSubMenu className="gap-5 rounded-xl">
                         <div className="min-w-0">
-                            <span className="block truncate font-medium text-sm">
+                            <span className="block truncate text-sm font-medium">
                                 {user.name ?? <T>Cache account</T>}
                             </span>
-                            <span className="block truncate text-muted-foreground text-xs">
+                            <span className="text-muted-foreground block truncate text-xs">
                                 {user.email}
                             </span>
                         </div>
@@ -191,7 +191,7 @@ export function AccountMenuContent() {
         <>
             <MenuGroup>
                 <div className="flex items-center justify-between pr-2 pl-2.5">
-                    <span className="font-normal text-foreground text-sm">
+                    <span className="text-foreground text-sm font-normal">
                         <T>Theme</T>
                     </span>
                     <ThemeSelector />
@@ -203,7 +203,7 @@ export function AccountMenuContent() {
                     <SubscriptionLoadingOnly>
                         <MenuItem disabled>
                             <Skeleton className="h-5 w-24" />
-                            <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground/50" />
+                            <ArrowUpRight className="text-muted-foreground/50 ml-auto! inline-block size-3.5" />
                         </MenuItem>
                     </SubscriptionLoadingOnly>
                     <SubscribedOnly>
@@ -236,7 +236,7 @@ export function AccountMenuFooter() {
             <MenuSeparator />
             <div className="flex w-full items-center px-1.5 py-1">
                 <LocaleSelector
-                    className="w-full font-normal text-sm opacity-50"
+                    className="w-full text-sm font-normal opacity-50"
                     id="language-selector"
                     name="language"
                 />
@@ -337,7 +337,7 @@ function AccountSwitcherSubMenuContent() {
     if (isLoadingDeviceSessions) {
         return (
             <MenuItem disabled>
-                <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+                <LoaderCircle className="text-muted-foreground size-4 animate-spin" />
                 <T>Loading accounts</T>
             </MenuItem>
         );
@@ -397,12 +397,12 @@ function AccountSwitcherSubMenuContent() {
                                             <T>Cache account</T>
                                         )}
                                     </span>
-                                    <span className="block truncate text-muted-foreground text-xs">
+                                    <span className="text-muted-foreground block truncate text-xs">
                                         {deviceSession.user.email}
                                     </span>
                                 </span>
                                 {isPendingSession ? (
-                                    <LoaderCircle className="ml-auto size-4 animate-spin text-muted-foreground" />
+                                    <LoaderCircle className="text-muted-foreground ml-auto size-4 animate-spin" />
                                 ) : null}
                             </span>
                         </MenuRadioItem>
@@ -421,9 +421,9 @@ function AccountSwitcherSubMenuContent() {
                 onClick={handleAddAccount}
             >
                 {isAddingAccount ? (
-                    <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+                    <LoaderCircle className="text-muted-foreground size-4 animate-spin" />
                 ) : (
-                    <UserRoundPlus className="size-4 text-muted-foreground" />
+                    <UserRoundPlus className="text-muted-foreground size-4" />
                 )}
                 <T>Add another account…</T>
             </MenuItem>
@@ -488,7 +488,7 @@ function AccountMenuDesktopDownloadSubMenu() {
                         }
                     >
                         <T>All releases</T>
-                        <ArrowUpRight className="ml-auto inline-block size-4 text-muted-foreground" />
+                        <ArrowUpRight className="text-muted-foreground ml-auto inline-block size-4" />
                     </MenuItem>
                 </MenuGroup>
             </MenuSubPopup>
@@ -525,7 +525,7 @@ function DesktopDownloadMenuItem({
                     </span>
                 ) : null}
             </span>
-            <Download className="ml-auto inline-block size-3.5 text-muted-foreground" />
+            <Download className="text-muted-foreground ml-auto inline-block size-3.5" />
         </MenuItem>
     );
 }
@@ -542,9 +542,9 @@ function AccountMenuUpgradeItem() {
             >
                 <T>Upgrade to Pro</T>
                 {isPending ? (
-                    <LoaderCircle className="ml-auto size-4 animate-spin text-muted-foreground" />
+                    <LoaderCircle className="text-muted-foreground ml-auto size-4 animate-spin" />
                 ) : (
-                    <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
+                    <ArrowUpRight className="text-muted-foreground ml-auto size-4" />
                 )}
             </MenuItem>
             <ErrorMessage className="px-2">{errorMessage}</ErrorMessage>
@@ -565,9 +565,9 @@ function AccountMenuBillingItem() {
             >
                 <T>Billing</T>
                 {isPending ? (
-                    <LoaderCircle className="ml-auto size-4 animate-spin text-muted-foreground" />
+                    <LoaderCircle className="text-muted-foreground ml-auto size-4 animate-spin" />
                 ) : (
-                    <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
+                    <ArrowUpRight className="text-muted-foreground ml-auto size-4" />
                 )}
             </MenuItem>
             <ErrorMessage className="px-2">{errorMessage}</ErrorMessage>
@@ -603,7 +603,7 @@ function AccountActionsSubMenu(
                         }
                     >
                         <T>Support</T>
-                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
+                        <ArrowUpRight className="text-muted-foreground ml-auto! inline-block size-3.5" />
                     </MenuItem>
                     <MenuItem
                         className="justify-between"
@@ -616,7 +616,7 @@ function AccountActionsSubMenu(
                         }
                     >
                         <T>Changelog</T>
-                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
+                        <ArrowUpRight className="text-muted-foreground ml-auto! inline-block size-3.5" />
                     </MenuItem>
                     <MenuItem
                         className="justify-between"
@@ -629,7 +629,7 @@ function AccountActionsSubMenu(
                         }
                     >
                         <T>Documentation</T>
-                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
+                        <ArrowUpRight className="text-muted-foreground ml-auto! inline-block size-3.5" />
                     </MenuItem>
                     <MenuItem
                         className="justify-between"
@@ -642,7 +642,7 @@ function AccountActionsSubMenu(
                         }
                     >
                         <T>Cache App status</T>
-                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
+                        <ArrowUpRight className="text-muted-foreground ml-auto! inline-block size-3.5" />
                     </MenuItem>
                     <MenuItem
                         className="justify-between"
@@ -655,7 +655,7 @@ function AccountActionsSubMenu(
                         }
                     >
                         <T>GitHub</T>
-                        <ArrowUpRight className="ml-auto! inline-block size-3.5 text-muted-foreground" />
+                        <ArrowUpRight className="text-muted-foreground ml-auto! inline-block size-3.5" />
                     </MenuItem>
                     <ShortcutsDialogTrigger
                         nativeButton={false}

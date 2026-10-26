@@ -3,7 +3,7 @@ import { Parser } from "htmlparser2";
 import { normalizeWhitespace } from "@/lib/common/string";
 import { tryParseUrl } from "@/lib/common/url";
 
-const HEAD_END_RE = /<\/head\s*>/i;
+const HEAD_END_RE = /<\/head\s*>/iu;
 
 export interface PreviewVideoMeta {
     height: string | undefined;

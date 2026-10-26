@@ -903,14 +903,14 @@ export function HomepageHero() {
                                 {scene ? (
                                     <motion.span
                                         animate={{ opacity: 1, scale: 1 }}
-                                        className="inline-flex h-9 w-fit max-w-full origin-top-left items-center gap-2 whitespace-nowrap rounded-lg border border-border/50 bg-muted px-3 text-foreground text-xs"
+                                        className="border-border/50 bg-muted text-foreground inline-flex h-9 w-fit max-w-full origin-top-left items-center gap-2 rounded-lg border px-3 text-xs whitespace-nowrap"
                                         exit={{ opacity: 0, scale: 0.99 }}
                                         initial={{ opacity: 0, scale: 1.01 }}
                                         key={scene.id}
                                     >
                                         <Sparkles className="size-3.5" />
                                         <span>{m(scene.label)}</span>
-                                        <span className="hidden text-muted-foreground sm:inline">
+                                        <span className="text-muted-foreground hidden sm:inline">
                                             {m(scene.detail)}
                                         </span>
                                         <CarouselAutoplayIndicator
@@ -935,7 +935,7 @@ export function HomepageHero() {
                                 />
                             ))}
                         </CarouselPanel>
-                        <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-foreground/10 ring-inset" />
+                        <div className="ring-foreground/10 pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset" />
                     </div>
                 )}
             </CarouselActiveSlide>
@@ -969,7 +969,7 @@ function LibraryScene({ isActive, scene }: LibrarySceneProps) {
         <motion.div
             animate={controls}
             className={cn(
-                "flex w-full select-none overflow-hidden",
+                "flex w-full overflow-hidden select-none",
                 SCENE_HEIGHT
             )}
             initial="hidden"
@@ -991,7 +991,7 @@ function SceneSidebar({ scene }: SceneSidebarProps) {
     return (
         <motion.aside
             className={cn(
-                "hidden shrink-0 flex-col border-border/70 border-r bg-background p-3 py-5 sm:flex lg:p-6",
+                "border-border/70 bg-background hidden shrink-0 flex-col border-r p-3 py-5 sm:flex lg:p-6",
                 SIDEBAR_WIDTH
             )}
             variants={PANEL_VARIANTS}
@@ -1012,7 +1012,7 @@ function SceneSidebar({ scene }: SceneSidebarProps) {
                 label={m(LABEL_FAVORITES)}
             />
             <div className="mt-5 flex items-center gap-1.5 px-1.5">
-                <span className="font-medium text-[9px] text-muted-foreground">
+                <span className="text-muted-foreground text-[9px] font-medium">
                     {m(LABEL_COLLECTIONS)}
                     <span className="ml-1 opacity-80">
                         {scene.collectionCount}
@@ -1023,13 +1023,13 @@ function SceneSidebar({ scene }: SceneSidebarProps) {
                     className="-ml-0.5 size-3 rotate-90"
                     focusable="false"
                 />
-                <span className="ml-auto flex items-center gap-2 text-muted-foreground/70">
+                <span className="text-muted-foreground/70 ml-auto flex items-center gap-2">
                     <ListFilter className="size-3" />
                     <Plus className="size-3" />
                 </span>
             </div>
-            <div className="mt-2 flex items-center px-1.5 text-[8px] text-muted-foreground">
-                <span className="w-fit text-foreground underline decoration-muted-foreground/20 decoration-dotted underline-offset-2">
+            <div className="text-muted-foreground mt-2 flex items-center px-1.5 text-[8px]">
+                <span className="text-foreground decoration-muted-foreground/20 w-fit underline decoration-dotted underline-offset-2">
                     {m(LABEL_SMART_COLLECTIONS)}
                 </span>
                 <span>&nbsp;{m(LABEL_SMART_COLLECTIONS_STATE)}</span>
@@ -1037,7 +1037,7 @@ function SceneSidebar({ scene }: SceneSidebarProps) {
             <div className="mt-1.5 flex flex-col gap-2">
                 {scene.collectionGroups.map((group) => (
                     <div className="flex flex-col" key={group.label}>
-                        <div className="flex items-center p-1.5 text-[8px] text-muted-foreground">
+                        <div className="text-muted-foreground flex items-center p-1.5 text-[8px]">
                             {m(group.label)}
                         </div>
                         <div className="flex flex-col gap-px">
@@ -1068,14 +1068,14 @@ function SceneNavRow({ count, icon: Icon, isActive, label }: SceneNavRowProps) {
             className={cn(
                 "flex h-[23px] items-center gap-1 rounded-md px-1.5 text-[9.5px]",
                 isActive
-                    ? "bg-muted font-medium text-foreground"
-                    : "font-medium text-foreground/70"
+                    ? "bg-muted text-foreground font-medium"
+                    : "text-foreground/70 font-medium"
             )}
         >
             <Icon className="size-3 shrink-0" />
             <span className="truncate">{label}</span>
             {count ? (
-                <span className="ml-auto text-[9px] text-muted-foreground tabular-nums">
+                <span className="text-muted-foreground ml-auto text-[9px] tabular-nums">
                     {count}
                 </span>
             ) : null}
@@ -1091,7 +1091,7 @@ interface SceneGroupHeaderProps {
 
 function SceneGroupHeader({ count, isOpen, label }: SceneGroupHeaderProps) {
     return (
-        <div className="mt-5 flex items-center gap-1 px-1.5 text-[9px] text-muted-foreground">
+        <div className="text-muted-foreground mt-5 flex items-center gap-1 px-1.5 text-[9px]">
             <span className="min-w-0 truncate">{label}</span>
             {count === undefined ? null : (
                 <span className="opacity-80">{count}</span>
@@ -1124,10 +1124,10 @@ function SceneCollectionRow({ collection }: SceneCollectionRowProps) {
             >
                 <Icon aria-hidden className="size-3" focusable="false" />
             </span>
-            <span className="truncate font-medium text-[10px] text-foreground/90">
+            <span className="text-foreground/90 truncate text-[10px] font-medium">
                 {m(collection.name)}
             </span>
-            <span className="ml-auto text-[9px] text-muted-foreground tabular-nums">
+            <span className="text-muted-foreground ml-auto text-[9px] tabular-nums">
                 {collection.count}
             </span>
         </div>
@@ -1147,23 +1147,23 @@ function SceneMain({ scene }: SceneMainProps) {
             variants={PANEL_VARIANTS}
         >
             <motion.div
-                className="squircle space-y-3 rounded-xl bg-background px-3 pt-1 pb-2 shadow-xs/10 ring-1 ring-foreground/10 ring-inset dark:bg-muted"
+                className="squircle bg-background ring-foreground/10 dark:bg-muted space-y-3 rounded-xl px-3 pt-1 pb-2 shadow-xs/10 ring-1 ring-inset"
                 variants={ITEM_VARIANTS}
             >
                 <div className="flex h-[29px] items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate text-[10px] text-foreground">
+                    <span className="text-foreground min-w-0 flex-1 truncate text-[10px]">
                         {m(scene.query)}
                     </span>
-                    <span className="shrink-0 text-[8px] text-muted-foreground opacity-50">
+                    <span className="text-muted-foreground shrink-0 text-[8px] opacity-50">
                         <CmdKbd />G
                     </span>
                 </div>
                 <div className="mt-0.5 flex items-center gap-3">
-                    <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                    <span className="text-muted-foreground flex items-center gap-1 text-[9px]">
                         <SquarePen className="size-2.5" />
                         {m(LABEL_ADD_NEW)}
                     </span>
-                    <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                    <span className="text-muted-foreground flex items-center gap-1 text-[9px]">
                         <Grid2x2 className="size-2.5" />
                         {m(LABEL_SHOWING, { count: scene.resultCount })}
                     </span>
@@ -1171,7 +1171,7 @@ function SceneMain({ scene }: SceneMainProps) {
             </motion.div>
 
             <motion.div
-                className="flex items-center gap-5 whitespace-nowrap px-3 text-[9px] text-muted-foreground"
+                className="text-muted-foreground flex items-center gap-5 px-3 text-[9px] whitespace-nowrap"
                 variants={ITEM_VARIANTS}
             >
                 {scene.suggestions.map((suggestion) => {
@@ -1231,7 +1231,7 @@ function SceneCardView({ card }: SceneCardViewProps) {
         <motion.div variants={ITEM_VARIANTS}>
             <div
                 className={cn(
-                    "squircle relative w-full overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/5 ring-inset",
+                    "squircle bg-muted ring-foreground/5 relative w-full overflow-hidden rounded-lg ring-1 ring-inset",
                     card.aspect
                 )}
             >
@@ -1247,17 +1247,17 @@ function SceneCardView({ card }: SceneCardViewProps) {
                 {card.hasCollections ? (
                     <Squircle
                         aria-hidden
-                        className="size-3 shrink-0 text-muted-foreground"
+                        className="text-muted-foreground size-3 shrink-0"
                         focusable="false"
                     />
                 ) : (
                     <SquircleDashed
                         aria-hidden
-                        className="size-3 shrink-0 text-muted-foreground"
+                        className="text-muted-foreground size-3 shrink-0"
                         focusable="false"
                     />
                 )}
-                <span className="truncate text-[9px] text-foreground">
+                <span className="text-foreground truncate text-[9px]">
                     {m(card.title)}
                 </span>
             </div>
@@ -1310,15 +1310,15 @@ interface PreviewProps {
 
 function ArticlePreview({ tone }: PreviewProps) {
     return (
-        <div className="flex size-full flex-col gap-1 bg-background p-2">
+        <div className="bg-background flex size-full flex-col gap-1 p-2">
             <span
                 className="h-1 w-5 rounded-full"
                 style={{ backgroundColor: tone }}
             />
-            <span className="h-1.5 w-4/5 rounded-full bg-foreground/70" />
-            <span className="h-1.5 w-3/5 rounded-full bg-foreground/30" />
-            <span className="mt-1 h-1 w-full rounded-full bg-foreground/15" />
-            <span className="h-1 w-11/12 rounded-full bg-foreground/15" />
+            <span className="bg-foreground/70 h-1.5 w-4/5 rounded-full" />
+            <span className="bg-foreground/30 h-1.5 w-3/5 rounded-full" />
+            <span className="bg-foreground/15 mt-1 h-1 w-full rounded-full" />
+            <span className="bg-foreground/15 h-1 w-11/12 rounded-full" />
             <div
                 className="relative mt-auto h-1/3 w-full overflow-hidden rounded-md"
                 style={{
@@ -1335,10 +1335,10 @@ function ArticlePreview({ tone }: PreviewProps) {
 
 function ChartPreview({ tone }: PreviewProps) {
     return (
-        <div className="flex size-full flex-col gap-1.5 bg-background p-2">
-            <span className="h-1.5 w-2/5 rounded-full bg-foreground/55" />
-            <span className="h-1 w-3/4 rounded-full bg-foreground/12" />
-            <div className="flex h-1/2 items-end gap-1 rounded-md bg-muted/70 p-1.5">
+        <div className="bg-background flex size-full flex-col gap-1.5 p-2">
+            <span className="bg-foreground/55 h-1.5 w-2/5 rounded-full" />
+            <span className="bg-foreground/12 h-1 w-3/4 rounded-full" />
+            <div className="bg-muted/70 flex h-1/2 items-end gap-1 rounded-md p-1.5">
                 {CHART_BARS.map((bar) => (
                     <span
                         className="flex-1 rounded-t-[2px]"
@@ -1351,7 +1351,7 @@ function ChartPreview({ tone }: PreviewProps) {
                     />
                 ))}
             </div>
-            <span className="mt-auto h-1 w-1/2 rounded-full bg-foreground/12" />
+            <span className="bg-foreground/12 mt-auto h-1 w-1/2 rounded-full" />
         </div>
     );
 }
@@ -1406,8 +1406,8 @@ function MapPreview({ tone }: PreviewProps) {
 
 function RecipePreview({ tone }: PreviewProps) {
     return (
-        <div className="flex size-full flex-col gap-1.5 bg-background p-2">
-            <span className="h-1.5 w-1/3 rounded-full bg-foreground/55" />
+        <div className="bg-background flex size-full flex-col gap-1.5 p-2">
+            <span className="bg-foreground/55 h-1.5 w-1/3 rounded-full" />
             {RECIPE_STEPS.map((step) => (
                 <span className="flex items-center gap-1" key={step.id}>
                     <span
@@ -1415,7 +1415,7 @@ function RecipePreview({ tone }: PreviewProps) {
                         style={{ borderColor: tone }}
                     />
                     <span
-                        className={`h-1 rounded-full bg-foreground/12 ${step.width}`}
+                        className={`bg-foreground/12 h-1 rounded-full ${step.width}`}
                     />
                 </span>
             ))}
@@ -1429,13 +1429,13 @@ function RecipePreview({ tone }: PreviewProps) {
 
 function TextPreview({ tone }: PreviewProps) {
     return (
-        <div className="flex size-full flex-col gap-1.5 bg-background p-2">
-            <span className="h-1.5 w-4/5 rounded-full bg-foreground/80" />
-            <span className="h-1.5 w-2/5 rounded-full bg-foreground/80" />
+        <div className="bg-background flex size-full flex-col gap-1.5 p-2">
+            <span className="bg-foreground/80 h-1.5 w-4/5 rounded-full" />
+            <span className="bg-foreground/80 h-1.5 w-2/5 rounded-full" />
             <div className="mt-1 flex flex-col gap-1">
                 {TEXT_LINES.map((line) => (
                     <span
-                        className={`h-1 rounded-full bg-foreground/20 ${line.width}`}
+                        className={`bg-foreground/20 h-1 rounded-full ${line.width}`}
                         key={line.id}
                     />
                 ))}
@@ -1460,7 +1460,7 @@ function VideoPreview({ tone }: PreviewProps) {
             <span className="relative flex size-7 items-center justify-center rounded-full bg-white/25 backdrop-blur-sm">
                 <Play className="size-3 fill-white text-white" />
             </span>
-            <span className="absolute right-1.5 bottom-1.5 rounded bg-black/60 px-1 font-medium text-[7px] text-white">
+            <span className="absolute right-1.5 bottom-1.5 rounded bg-black/60 px-1 text-[7px] font-medium text-white">
                 12:04
             </span>
             <span className="absolute inset-x-0 bottom-0 h-6 bg-linear-to-t from-black/70 to-transparent" />
@@ -1474,10 +1474,10 @@ function VideoPreview({ tone }: PreviewProps) {
  */
 function FailedPreview() {
     return (
-        <div className="texture-screen relative flex size-full flex-col items-center justify-center bg-muted/80">
+        <div className="texture-screen bg-muted/80 relative flex size-full flex-col items-center justify-center">
             <GlobeX
                 aria-hidden
-                className="size-4 text-muted-foreground opacity-50"
+                className="text-muted-foreground size-4 opacity-50"
                 focusable="false"
             />
         </div>

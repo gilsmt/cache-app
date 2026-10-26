@@ -32,8 +32,8 @@ export { HotkeysProvider as ShortcutsProvider } from "react-hotkeys-hook";
 
 const SYSTEM_MODIFIER_KEYS = new Set(["mod", "alt", "shift"]);
 const NAVIGATION_ACTION_DESCRIPTION_PATTERN =
-    /^(?:navigate to|go to|open (?:parent )?issue|open team archive)\b/;
-const NAVIGATION_CONTROL_DESCRIPTION_PATTERN = /(?:sidebar|panel|preview)$/;
+    /^(?:navigate to|go to|open (?:parent )?issue|open team archive)\b/u;
+const NAVIGATION_CONTROL_DESCRIPTION_PATTERN = /(?:sidebar|panel|preview)$/u;
 
 interface ShortcutItem {
     description: string;
@@ -180,7 +180,7 @@ export function ShortcutsDialogTrigger(
         <Dialog onOpenChange={setIsOpen} open={isOpen}>
             <DialogTrigger {...props} />
             <DialogPopup
-                className="w-[calc(100%-(--spacing(12)))] max-w-md rounded-none rounded-s-2xl border-s transition-[translate,opacity,box-shadow] ease-[cubic-bezier(0.32,0.72,0,1)] before:rounded-none before:rounded-s-[calc(var(--radius-2xl)-1px)] data-ending-style:translate-x-6 data-starting-style:translate-x-6 data-ending-style:translate-y-0 data-starting-style:translate-y-0 data-ending-style:shadow-transparent data-starting-style:shadow-transparent data-ending-style:ease-[cubic-bezier(0.32,0.72,0,1)]"
+                className="w-[calc(100%-(--spacing(12)))] max-w-md rounded-none rounded-s-2xl border-s transition-[translate,opacity,box-shadow] ease-[cubic-bezier(0.32,0.72,0,1)] before:rounded-none before:rounded-s-[calc(var(--radius-2xl)-1px)] data-ending-style:translate-x-6 data-ending-style:translate-y-0 data-ending-style:shadow-transparent data-ending-style:ease-[cubic-bezier(0.32,0.72,0,1)] data-starting-style:translate-x-6 data-starting-style:translate-y-0 data-starting-style:shadow-transparent"
                 viewportClassName="flex justify-end p-0"
             >
                 <DialogHeader className="p-5">
@@ -202,7 +202,7 @@ export function ShortcutsDialogTrigger(
                             <AutocompleteStartAddon>
                                 <SearchIcon
                                     aria-hidden
-                                    className="size-4 text-muted-foreground"
+                                    className="text-muted-foreground size-4"
                                 />
                             </AutocompleteStartAddon>
                             <AutocompleteInput
@@ -222,7 +222,7 @@ export function ShortcutsDialogTrigger(
                                     items={group.items}
                                     key={group.name}
                                 >
-                                    <AutocompleteGroupLabel className="px-2 pt-3 pb-2 font-medium text-foreground text-sm">
+                                    <AutocompleteGroupLabel className="text-foreground px-2 pt-3 pb-2 text-sm font-medium">
                                         {group.label}
                                     </AutocompleteGroupLabel>
                                     <AutocompleteCollection>
@@ -232,7 +232,7 @@ export function ShortcutsDialogTrigger(
                                                 value={item.label}
                                             >
                                                 <div className="flex w-full min-w-0 items-center justify-between gap-3">
-                                                    <span className="min-w-0 truncate font-medium text-muted-foreground text-sm">
+                                                    <span className="text-muted-foreground min-w-0 truncate text-sm font-medium">
                                                         {item.description}
                                                     </span>
                                                     <ShortcutHotkeys
@@ -262,14 +262,14 @@ function ShortcutHotkeys({ hotkeys }: ShortcutHotkeysProps) {
             {hotkeys.map((hotkey, hotkeyIndex) => (
                 <React.Fragment key={hotkey}>
                     {hotkeyIndex > 0 ? (
-                        <span className="text-nowrap text-muted-foreground text-xs">
+                        <span className="text-muted-foreground text-xs text-nowrap">
                             <T>or</T>
                         </span>
                     ) : null}
                     <KbdGroup className="gap-1">
                         {hotkey.split("+").map((key) => (
                             <Kbd
-                                className="h-6 min-w-6 rounded-sm border border-border/60 bg-background px-1.5 font-normal text-muted-foreground text-xs normal-case shadow-none max-sm:inline-flex"
+                                className="border-border/60 bg-background text-muted-foreground h-6 min-w-6 rounded-sm border px-1.5 text-xs font-normal normal-case shadow-none max-sm:inline-flex"
                                 key={key}
                             >
                                 {SYSTEM_MODIFIER_KEYS.has(key.toLowerCase()) ? (

@@ -9,11 +9,11 @@ import {
 export const GithubReleaseSchema = z.object({
     assets: z.array(
         z.object({
-            browser_download_url: z.url({ protocol: /^https$/ }),
+            browser_download_url: z.url({ protocol: /^https$/u }),
             name: z.string(),
         })
     ),
-    html_url: z.url({ protocol: /^https$/ }),
+    html_url: z.url({ protocol: /^https$/u }),
     tag_name: z.string(),
 });
 

@@ -31,18 +31,18 @@ export async function generateMetadata({
 
 export default function DPAPage() {
     return (
-        <article className="flex flex-col gap-8 text-[0.95rem] text-foreground/90 leading-relaxed">
-            <header className="flex flex-col gap-6 text-pretty border-border border-b pb-8">
-                <h1 className="font-semibold text-3xl text-foreground tracking-tight sm:text-[2.2rem] sm:leading-none">
+        <article className="text-foreground/90 flex flex-col gap-8 text-[0.95rem] leading-relaxed">
+            <header className="border-border flex flex-col gap-6 border-b pb-8 text-pretty">
+                <h1 className="text-foreground text-3xl font-semibold tracking-tight sm:text-[2.2rem] sm:leading-none">
                     Data Processing Agreement
                 </h1>
-                <p className="max-w-2xl text-base text-muted-foreground leading-relaxed">
+                <p className="text-muted-foreground max-w-2xl text-base leading-relaxed">
                     This Data Processing Agreement (&quot;DPA&quot;) regulates
                     how we collect, process, and secure customer personal data
                     on behalf of your organization to ensure compliance with
                     global data protection laws.
                 </p>
-                <div className="grid gap-5 border-border border-t pt-5 text-[0.9rem] text-muted-foreground leading-relaxed sm:grid-cols-2">
+                <div className="border-border text-muted-foreground grid gap-5 border-t pt-5 text-[0.9rem] leading-relaxed sm:grid-cols-2">
                     <p>
                         This DPA acts as a binding supplement to our Terms of
                         Service, outlining commitments to GDPR, CCPA, and
@@ -63,7 +63,7 @@ export default function DPAPage() {
                         ensure your library data remains secure at all times.
                     </p>
                 </div>
-                <p className="text-[0.88rem] text-muted-foreground leading-relaxed">
+                <p className="text-muted-foreground text-[0.88rem] leading-relaxed">
                     Effective April 21, 2026. This DPA governs all processing of
                     Customer Personal Data initiated by the use of {APP_NAME}.
                 </p>
@@ -89,7 +89,7 @@ export default function DPAPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     1. Definitions
                 </h2>
                 <ul className="list-disc space-y-2 pl-5">
@@ -139,7 +139,7 @@ export default function DPAPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     2. Relationship of the Parties; Processing of Data
                 </h2>
                 <p>
@@ -172,7 +172,7 @@ export default function DPAPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     3. Authorized Sub-Processors
                 </h2>
                 <p>
@@ -198,7 +198,7 @@ export default function DPAPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     4. Security of Personal Data
                 </h2>
                 <p>
@@ -218,7 +218,7 @@ export default function DPAPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     5. Transfers of Personal Data
                 </h2>
                 <p>
@@ -239,7 +239,7 @@ export default function DPAPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     6. Rights of Data Subjects
                 </h2>
                 <p>
@@ -259,7 +259,7 @@ export default function DPAPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     7. Audits and Inspections
                 </h2>
                 <p>
@@ -282,7 +282,7 @@ export default function DPAPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     8. Conflict
                 </h2>
                 <p>
@@ -294,11 +294,11 @@ export default function DPAPage() {
                 </p>
             </section>
 
-            <hr className="my-4 border-border" />
+            <hr className="border-border my-4" />
 
             <section className="flex flex-col gap-4">
                 <h2
-                    className="font-semibold text-foreground text-xl tracking-tight"
+                    className="text-foreground text-xl font-semibold tracking-tight"
                     id="exhibit-a"
                 >
                     Exhibit A: Details of Processing
@@ -334,7 +334,7 @@ export default function DPAPage() {
 
             <section className="flex flex-col gap-4">
                 <h2
-                    className="font-semibold text-foreground text-xl tracking-tight"
+                    className="text-foreground text-xl font-semibold tracking-tight"
                     id="exhibit-b"
                 >
                     Exhibit B: List of Authorized Sub-Processors
@@ -348,75 +348,75 @@ export default function DPAPage() {
                     <table className="w-full border-collapse text-left text-sm">
                         <thead>
                             <tr className="border-border border-b">
-                                <th className="py-2 pr-4 font-semibold text-foreground">
+                                <th className="text-foreground py-2 pr-4 font-semibold">
                                     Company
                                 </th>
-                                <th className="px-4 py-2 font-semibold text-foreground">
+                                <th className="text-foreground px-4 py-2 font-semibold">
                                     Purpose
                                 </th>
-                                <th className="py-2 pl-4 font-semibold text-foreground">
+                                <th className="text-foreground py-2 pl-4 font-semibold">
                                     Location
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border">
+                        <tbody className="divide-border divide-y">
                             <tr>
-                                <td className="py-3 pr-4 font-medium text-foreground">
+                                <td className="text-foreground py-3 pr-4 font-medium">
                                     Google LLC
                                 </td>
-                                <td className="px-4 py-3 text-muted-foreground">
+                                <td className="text-muted-foreground px-4 py-3">
                                     Cloud platform, database hosting, and Google
                                     API integration services
                                 </td>
-                                <td className="py-3 pl-4 text-muted-foreground">
+                                <td className="text-muted-foreground py-3 pl-4">
                                     United States
                                 </td>
                             </tr>
                             <tr>
-                                <td className="py-3 pr-4 font-medium text-foreground">
+                                <td className="text-foreground py-3 pr-4 font-medium">
                                     Stripe, Inc.
                                 </td>
-                                <td className="px-4 py-3 text-muted-foreground">
+                                <td className="text-muted-foreground px-4 py-3">
                                     Billing, payment processing, and
                                     subscription management
                                 </td>
-                                <td className="py-3 pl-4 text-muted-foreground">
+                                <td className="text-muted-foreground py-3 pl-4">
                                     United States
                                 </td>
                             </tr>
                             <tr>
-                                <td className="py-3 pr-4 font-medium text-foreground">
+                                <td className="text-foreground py-3 pr-4 font-medium">
                                     Arcjet, Inc.
                                 </td>
-                                <td className="px-4 py-3 text-muted-foreground">
+                                <td className="text-muted-foreground px-4 py-3">
                                     API security, rate limiting, and sensitive
                                     data redaction
                                 </td>
-                                <td className="py-3 pl-4 text-muted-foreground">
+                                <td className="text-muted-foreground py-3 pl-4">
                                     United States
                                 </td>
                             </tr>
                             <tr>
-                                <td className="py-3 pr-4 font-medium text-foreground">
+                                <td className="text-foreground py-3 pr-4 font-medium">
                                     Tavily, Inc.
                                 </td>
-                                <td className="px-4 py-3 text-muted-foreground">
+                                <td className="text-muted-foreground px-4 py-3">
                                     AI search, metadata enrichment, and
                                     information retrieval
                                 </td>
-                                <td className="py-3 pl-4 text-muted-foreground">
+                                <td className="text-muted-foreground py-3 pl-4">
                                     United States
                                 </td>
                             </tr>
                             <tr>
-                                <td className="py-3 pr-4 font-medium text-foreground">
+                                <td className="text-foreground py-3 pr-4 font-medium">
                                     OpenAI OpCo, LLC
                                 </td>
-                                <td className="px-4 py-3 text-muted-foreground">
+                                <td className="text-muted-foreground px-4 py-3">
                                     AI-assisted categorizations, summaries, and
                                     smart collection features
                                 </td>
-                                <td className="py-3 pl-4 text-muted-foreground">
+                                <td className="text-muted-foreground py-3 pl-4">
                                     United States
                                 </td>
                             </tr>
@@ -427,7 +427,7 @@ export default function DPAPage() {
 
             <section className="flex flex-col gap-4">
                 <h2
-                    className="font-semibold text-foreground text-xl tracking-tight"
+                    className="text-foreground text-xl font-semibold tracking-tight"
                     id="exhibit-c"
                 >
                     Exhibit C: Technical and Organizational Security Measures
@@ -436,20 +436,20 @@ export default function DPAPage() {
                     <table className="w-full border-collapse text-left text-sm">
                         <thead>
                             <tr className="border-border border-b">
-                                <th className="py-2 pr-4 font-semibold text-foreground">
+                                <th className="text-foreground py-2 pr-4 font-semibold">
                                     Security Measure
                                 </th>
-                                <th className="py-2 pl-4 font-semibold text-foreground">
+                                <th className="text-foreground py-2 pl-4 font-semibold">
                                     Implementation Details
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border">
+                        <tbody className="divide-border divide-y">
                             <tr>
-                                <td className="py-3 pr-4 align-top font-medium text-foreground">
+                                <td className="text-foreground py-3 pr-4 align-top font-medium">
                                     Encryption of Personal Data
                                 </td>
-                                <td className="py-3 pl-4 text-muted-foreground">
+                                <td className="text-muted-foreground py-3 pl-4">
                                     All data is encrypted in transit using
                                     industry-standard TLS 1.3 encryption.
                                     Storage databases are encrypted at rest
@@ -457,10 +457,10 @@ export default function DPAPage() {
                                 </td>
                             </tr>
                             <tr>
-                                <td className="py-3 pr-4 align-top font-medium text-foreground">
+                                <td className="text-foreground py-3 pr-4 align-top font-medium">
                                     Logical Instance Separation
                                 </td>
-                                <td className="py-3 pl-4 text-muted-foreground">
+                                <td className="text-muted-foreground py-3 pl-4">
                                     Data is isolated logically at the PostgreSQL
                                     query level to ensure tenant instances and
                                     libraries can never access other accounts
@@ -468,10 +468,10 @@ export default function DPAPage() {
                                 </td>
                             </tr>
                             <tr>
-                                <td className="py-3 pr-4 align-top font-medium text-foreground">
+                                <td className="text-foreground py-3 pr-4 align-top font-medium">
                                     Backups and Disaster Recovery
                                 </td>
-                                <td className="py-3 pl-4 text-muted-foreground">
+                                <td className="text-muted-foreground py-3 pl-4">
                                     Daily automated database backups are
                                     retained for up to 30 days and tested
                                     regularly to guarantee recovery options in
@@ -479,10 +479,10 @@ export default function DPAPage() {
                                 </td>
                             </tr>
                             <tr>
-                                <td className="py-3 pr-4 align-top font-medium text-foreground">
+                                <td className="text-foreground py-3 pr-4 align-top font-medium">
                                     Access Control and 2FA
                                 </td>
-                                <td className="py-3 pl-4 text-muted-foreground">
+                                <td className="text-muted-foreground py-3 pl-4">
                                     Provider employees access core
                                     infrastructure via secure single sign-on
                                     (SSO) with mandatory multi-factor
@@ -491,10 +491,10 @@ export default function DPAPage() {
                                 </td>
                             </tr>
                             <tr>
-                                <td className="py-3 pr-4 align-top font-medium text-foreground">
+                                <td className="text-foreground py-3 pr-4 align-top font-medium">
                                     Vulnerability Scanning
                                 </td>
-                                <td className="py-3 pl-4 text-muted-foreground">
+                                <td className="text-muted-foreground py-3 pl-4">
                                     Continuous code scanning, dependency
                                     auditing, and Biome linting checks are
                                     integrated directly into our build and

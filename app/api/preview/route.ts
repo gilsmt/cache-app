@@ -106,8 +106,8 @@ const GOOGLEBOT_USER_AGENT =
 const APP_USER_AGENT = "CacheApp/1.0 (+https://www.cachd.app)";
 // const BROWSER_USER_AGENT =
 //     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36";
-const HTTP_SINGLE_RANGE_HEADER_PATTERN = /^bytes=(\d*)-(\d*)$/;
-const XHTML_CONTENT_TYPE_PATTERN = /^application\/xhtml\+xml/i;
+const HTTP_SINGLE_RANGE_HEADER_PATTERN = /^bytes=(\d*)-(\d*)$/u;
+const XHTML_CONTENT_TYPE_PATTERN = /^application\/xhtml\+xml/iu;
 const ABORTED_RESPONSE = new Response(null, { status: 499 });
 const INSTAGRAM_HOST = "instagram.com";
 const GOOGLE_PHOTOS_CDN_HOST = "lh3.googleusercontent.com";
@@ -1630,21 +1630,23 @@ async function readTextBodyWithLimit(
 
     try {
         for (;;) {
-            const { value, done } = await reader.read().catch((error) => {
-                // A in-flight cancel can surface as a DOMException other than
-                // AbortError, or as a TypeError on already-cancelled readers.
-                // Treat any error observed while (or after) we asked for cancel
-                // as a benign end-of-stream — otherwise the rejection bubbles
-                // through resolveImagePreview and gets surfaced as a 404.
+            let readResult: Awaited<ReturnType<typeof reader.read>>;
+            try {
+                readResult = await reader.read();
+            } catch (error) {
+                // A pending cancel can reject as a non-AbortError. Treat it as
+                // end-of-stream after an abort, or the rejection reaches the
+                // preview handler and becomes a 404.
                 if (hasAborted || isAbortError(error)) {
-                    return { done: true as const, value: undefined };
+                    break;
                 }
                 throw error;
-            });
-            if (done || !value) {
+            }
+            if (readResult.done || !readResult.value) {
                 break;
             }
 
+            const { value } = readResult;
             bodyBytes += value.byteLength;
             if (bodyBytes > maxBodyBytes) {
                 const overflow = bodyBytes - maxBodyBytes;

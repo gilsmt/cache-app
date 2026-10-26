@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { renderUntrustedData } from "./untrusted-data";
 
-const CLOSING_TAG_PATTERN = /<\/untrusted-data>/g;
-const VALUE_PATTERN = /\n(\{.*\})\n<\/untrusted-data>/s;
+const CLOSING_TAG_PATTERN = /<\/untrusted-data>/gu;
+const VALUE_PATTERN = /\n(\{.*\})\n<\/untrusted-data>/su;
 
 function parseValue(rendered: string): unknown {
     const match = rendered.match(VALUE_PATTERN);

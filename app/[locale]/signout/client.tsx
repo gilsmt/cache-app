@@ -35,7 +35,7 @@ export function SignoutPageClient() {
     }, [router, isDesktopApp]);
 
     return (
-        <div className="flex h-dvh w-full flex-col items-center justify-center bg-muted">
+        <div className="bg-muted flex h-dvh w-full flex-col items-center justify-center">
             <div className="flex flex-col items-center gap-4">
                 <Spinner aria-hidden className="size-8" />
                 <p

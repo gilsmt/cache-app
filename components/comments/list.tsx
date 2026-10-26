@@ -67,13 +67,13 @@ function CommentsListEmpty() {
     }
 
     return (
-        <div className="flex min-h-64 flex-col items-center justify-center gap-2 rounded-2xl bg-muted/50 p-8 text-center">
+        <div className="bg-muted/50 flex min-h-64 flex-col items-center justify-center gap-2 rounded-2xl p-8 text-center">
             <MessageSquare
                 aria-hidden
-                className="size-5 text-muted-foreground"
+                className="text-muted-foreground size-5"
                 focusable="false"
             />
-            <p className="font-medium text-foreground text-sm">
+            <p className="text-foreground text-sm font-medium">
                 <T>No comments yet</T>
             </p>
             <p className="text-muted-foreground text-xs">
@@ -92,7 +92,7 @@ function CommentsListItem({ comment }: CommentsListItemProps) {
 
     if (href === FALLBACK_URL) {
         return (
-            <li className="list-none rounded-2xl bg-muted/60">
+            <li className="bg-muted/60 list-none rounded-2xl">
                 <div className="flex items-start gap-4 p-4">
                     <CommentsListItemValue comment={comment} />
                 </div>
@@ -101,9 +101,9 @@ function CommentsListItem({ comment }: CommentsListItemProps) {
     }
 
     return (
-        <li className="list-none rounded-2xl bg-muted/60">
+        <li className="bg-muted/60 list-none rounded-2xl">
             <a
-                className="flex items-start gap-4 rounded-2xl p-4 hover:bg-muted"
+                className="hover:bg-muted flex items-start gap-4 rounded-2xl p-4"
                 href={href}
                 rel="noopener noreferrer"
                 target="_blank"
@@ -128,19 +128,19 @@ function CommentsListItemValue({ comment }: CommentsListItemValueProps) {
 
     return (
         <>
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <div className="bg-muted text-muted-foreground flex size-12 shrink-0 items-center justify-center rounded-lg">
                 <SourceIcon aria-hidden className="size-5" focusable="false" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <p className="truncate font-medium text-foreground text-sm">
+                <p className="text-foreground truncate text-sm font-medium">
                     {title}
                 </p>
                 {displayUrl ? (
-                    <p className="truncate text-muted-foreground text-xs">
+                    <p className="text-muted-foreground truncate text-xs">
                         {displayUrl}
                     </p>
                 ) : null}
-                <p className="wrap-break-words whitespace-pre-wrap text-foreground text-sm">
+                <p className="wrap-break-words text-foreground text-sm whitespace-pre-wrap">
                     {comment.contentText}
                 </p>
                 <time

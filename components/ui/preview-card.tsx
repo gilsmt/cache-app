@@ -47,7 +47,7 @@ export function PreviewCardPopup({
                 align={align}
                 alignOffset={alignOffset}
                 anchor={anchor}
-                className="z-50 select-none outline-none"
+                className="z-50 outline-none select-none"
                 data-slot="preview-card-positioner"
                 positionMethod={positionMethod}
                 side={side}
@@ -56,7 +56,7 @@ export function PreviewCardPopup({
                 <PreviewCardPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative flex w-64 origin-(--transform-origin) overflow-hidden text-balance rounded-xl border bg-popover not-dark:bg-clip-padding p-4 text-popover-foreground text-sm shadow-lg/8 outline-none transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle bg-popover text-popover-foreground relative flex w-64 origin-(--transform-origin) overflow-hidden rounded-xl border p-4 text-sm text-balance shadow-lg/8 transition-[scale,opacity] duration-100 outline-none not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-ending-style:opacity-0 data-starting-style:scale-98 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot="preview-card-popup"
@@ -73,7 +73,7 @@ export function PreviewCardTitle({
     return (
         <h2
             {...props}
-            className={cn("min-w-0 font-medium text-sm", className)}
+            className={cn("min-w-0 text-sm font-medium", className)}
             data-slot="preview-card-title"
         />
     );

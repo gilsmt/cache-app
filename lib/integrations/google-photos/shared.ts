@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-export const DURATION_SECONDS_PATTERN = /^(\d+)(\.\d+)?s$/;
+export const DURATION_SECONDS_PATTERN = /^(\d+)(\.\d+)?s$/u;
 
 export function parseGooglePhotosDuration(
     value: string | null | undefined

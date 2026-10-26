@@ -26,9 +26,9 @@ export async function generateMetadata({
 
 export default function TermsOfServicePage() {
     return (
-        <article className="flex flex-col gap-8 text-[0.95rem] text-foreground/90 leading-relaxed">
+        <article className="text-foreground/90 flex flex-col gap-8 text-[0.95rem] leading-relaxed">
             <header className="flex flex-col gap-3">
-                <h1 className="font-semibold text-2xl text-foreground tracking-tight">
+                <h1 className="text-foreground text-2xl font-semibold tracking-tight">
                     Cache App Terms of Service
                 </h1>
                 <p>
@@ -69,12 +69,12 @@ export default function TermsOfServicePage() {
             </header>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     Cover Page
                 </h2>
 
                 <div className="flex flex-col gap-3">
-                    <h3 className="font-semibold text-foreground text-lg">
+                    <h3 className="text-foreground text-lg font-semibold">
                         Order Form
                     </h3>
 
@@ -145,7 +145,7 @@ export default function TermsOfServicePage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     Key Terms
                 </h2>
 
@@ -216,7 +216,7 @@ export default function TermsOfServicePage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     Attachments and Supplements
                 </h2>
                 <p>
@@ -231,7 +231,7 @@ export default function TermsOfServicePage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     Copyright Infringement and DMCA Policy
                 </h2>
                 <p>
@@ -313,7 +313,7 @@ export default function TermsOfServicePage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     AI-Assisted Features
                 </h2>
                 <p>
@@ -336,7 +336,7 @@ export default function TermsOfServicePage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     Notice for California Users
                 </h2>
                 <p>
@@ -352,7 +352,7 @@ export default function TermsOfServicePage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     Contact Information
                 </h2>
                 <p>

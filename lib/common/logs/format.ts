@@ -1,5 +1,5 @@
 const SENSITIVE_LOG_KEY_PATTERN =
-    /pass|secret|token|key|otp|authorization|cookie/i;
+    /pass|secret|token|key|otp|authorization|cookie/iu;
 
 export const LOG_STRING_MAX_LENGTH = 2000;
 export const LOG_ARRAY_SAMPLE_LIMIT = 5;

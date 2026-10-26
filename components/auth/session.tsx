@@ -134,7 +134,7 @@ export function SessionStatus({ serverSession }: SessionStatusProps) {
     return (
         <div className="flex items-center gap-2">
             <Info className="size-4 opacity-50" />
-            <div className="font-medium text-xs leading-tight tracking-tighter opacity-50">
+            <div className="text-xs leading-tight font-medium tracking-tighter opacity-50">
                 {session.user.email ? (
                     <T>
                         You are signed in as <Var>{session.user.email}</Var>

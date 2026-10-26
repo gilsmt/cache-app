@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 
-const QUERY_TERM_SEPARATOR = /\s+/;
+const QUERY_TERM_SEPARATOR = /\s+/u;
 
 interface MatchChunk {
     chunk: string;
@@ -12,7 +12,7 @@ function escapeRegExpLiteral(value: string): string {
     if (typeof RegExp.escape === "function") {
         return RegExp.escape(value);
     }
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 /**

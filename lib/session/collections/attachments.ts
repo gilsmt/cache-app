@@ -31,9 +31,9 @@ const ATTACHMENT_FETCH_TIMEOUT_MS = 20_000;
 const ATTACHMENT_FETCH_MAX_REDIRECTS = 5;
 const ATTACHMENT_DISPLAY_NAME_MAX_LENGTH = 128;
 
-const PATTERN_HTML_TITLE = /<title[^>]*>([\s\S]*?)<\/title>/i;
+const PATTERN_HTML_TITLE = /<title[^>]*>([\s\S]*?)<\/title>/iu;
 const PATTERN_HTML_DESCRIPTION =
-    /<meta[^>]+name=["']description["'][^>]+content=["']([\s\S]*?)["'][^>]*>/i;
+    /<meta[^>]+name=["']description["'][^>]+content=["']([\s\S]*?)["'][^>]*>/iu;
 
 export interface SmartCollectionItem {
     caption: string | null;
@@ -125,11 +125,11 @@ function extractHtmlContent(input: string): string {
     const title = input.match(PATTERN_HTML_TITLE)?.[1]?.trim();
     const description = input.match(PATTERN_HTML_DESCRIPTION)?.[1]?.trim();
     const body = input
-        .replace(/<script[\s\S]*?<\/script>/gi, " ")
-        .replace(/<style[\s\S]*?<\/style>/gi, " ")
-        .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
-        .replace(/<!--[\s\S]*?-->/g, " ")
-        .replace(/<[^>]+>/g, " ");
+        .replace(/<script[\s\S]*?<\/script>/giu, " ")
+        .replace(/<style[\s\S]*?<\/style>/giu, " ")
+        .replace(/<noscript[\s\S]*?<\/noscript>/giu, " ")
+        .replace(/<!--[\s\S]*?-->/gu, " ")
+        .replace(/<[^>]+>/gu, " ");
 
     return normalizeWhitespace(
         decodeHTML(

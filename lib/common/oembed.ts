@@ -51,26 +51,26 @@ const OEMBED_PROVIDERS: OembedProvider[] = [
             ),
         name: "youtube",
         pattern:
-            /(?:youtube\.com\/watch\?(?:[^#]*&)?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/,
+            /(?:youtube\.com\/watch\?(?:[^#]*&)?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/u,
     },
     {
         endpoint: (url) =>
             oembedEndpoint("https://vimeo.com/api/oembed.json", url),
         name: "vimeo",
-        pattern: /vimeo\.com\/(\d+)/,
+        pattern: /vimeo\.com\/(\d+)/u,
     },
     {
         endpoint: (url) =>
             oembedEndpoint("https://publish.twitter.com/oembed", url),
         name: "twitter",
-        pattern: /(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/,
+        pattern: /(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/u,
     },
     {
         endpoint: (url) =>
             oembedEndpoint("https://open.spotify.com/oembed", url),
         name: "spotify",
         pattern:
-            /open\.spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)/,
+            /open\.spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)/u,
     },
     {
         endpoint: (url) =>
@@ -80,12 +80,12 @@ const OEMBED_PROVIDERS: OembedProvider[] = [
                 "&format=json"
             ),
         name: "soundcloud",
-        pattern: /soundcloud\.com\/[\w-]+\/[\w-]+/,
+        pattern: /soundcloud\.com\/[\w-]+\/[\w-]+/u,
     },
     {
         endpoint: (url) => oembedEndpoint("https://www.tiktok.com/oembed", url),
         name: "tiktok",
-        pattern: /tiktok\.com\/@[\w.-]+\/video\/(\d+)/,
+        pattern: /tiktok\.com\/@[\w.-]+\/video\/(\d+)/u,
     },
     {
         // Instagram's oEmbed needs the Graph API (access token), which the
@@ -94,7 +94,7 @@ const OEMBED_PROVIDERS: OembedProvider[] = [
         // api.instagram.com/oembed endpoint.
         endpoint: () => null,
         name: "instagram",
-        pattern: /instagram\.com\/(?:p|reel)\/([a-zA-Z0-9_-]+)/,
+        pattern: /instagram\.com\/(?:p|reel)\/([a-zA-Z0-9_-]+)/u,
     },
     {
         endpoint: (url) =>
@@ -104,18 +104,18 @@ const OEMBED_PROVIDERS: OembedProvider[] = [
                 "&format=json"
             ),
         name: "codepen",
-        pattern: /codepen\.io\/[\w-]+\/pen\/([a-zA-Z0-9]+)/,
+        pattern: /codepen\.io\/[\w-]+\/pen\/([a-zA-Z0-9]+)/u,
     },
     {
         endpoint: (url) => oembedEndpoint("https://codesandbox.io/oembed", url),
         name: "codesandbox",
-        pattern: /codesandbox\.io\/s\/([a-zA-Z0-9-]+)/,
+        pattern: /codesandbox\.io\/s\/([a-zA-Z0-9-]+)/u,
     },
     {
         endpoint: (url) =>
             oembedEndpoint("https://www.figma.com/api/oembed", url),
         name: "figma",
-        pattern: /figma\.com\/(file|design|proto)\/([a-zA-Z0-9]+)/,
+        pattern: /figma\.com\/(file|design|proto)\/([a-zA-Z0-9]+)/u,
     },
 ];
 

@@ -135,7 +135,7 @@ export default async function LocaleLayout(props: React.PropsWithChildren) {
 
     return (
         <html
-            className={`${inter.variable} scrollbar-gutter-stable h-full antialiased`}
+            className={`${inter.variable} h-full scrollbar-gutter-stable antialiased`}
             dir="ltr"
             lang={locale}
             suppressHydrationWarning
@@ -156,9 +156,9 @@ export default async function LocaleLayout(props: React.PropsWithChildren) {
                 <div aria-hidden="true" className="edge-bottom" />
                 <ThemeSync />
                 <ConsoleBanner version={packageJson.version} />
-                <div className="not-has-focus-visible:sr-only pointer-events-none fixed inset-x-0 top-0 z-50 mt-4 flex select-none justify-center">
+                <div className="pointer-events-none fixed inset-x-0 top-0 z-50 mt-4 flex justify-center select-none not-has-focus-visible:sr-only">
                     <a
-                        className="pointer-events-auto rounded-2xl bg-background px-4 py-2 text-base text-foreground outline-2 outline-offset-2 focus-visible:outline focus-visible:outline-ring print:hidden"
+                        className="bg-background text-foreground focus-visible:outline-ring pointer-events-auto rounded-2xl px-4 py-2 text-base outline-2 outline-offset-2 focus-visible:outline print:hidden"
                         href="#main"
                     >
                         Skip to content

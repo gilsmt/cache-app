@@ -72,7 +72,7 @@ function getSidebarToggleTitle(
 function readSidebarCookieOpen(): boolean {
     try {
         const match = getOwnerDocument().cookie.match(
-            new RegExp(`(?:^|; )${SIDEBAR_COOKIE_NAME}=([^;]*)`)
+            new RegExp(`(?:^|; )${SIDEBAR_COOKIE_NAME}=([^;]*)`, "u")
         );
         return match?.[1] !== "false";
     } catch {
@@ -286,7 +286,7 @@ export function Sidebar({ className, side = "left", ...props }: SidebarProps) {
             {...props}
             aria-label="Sidebar"
             className={cn(
-                "peer group/sidebar relative inset-y-0 flex min-h-full w-full shrink-0 flex-col gap-8 overscroll-contain px-8 py-7 transition-[left,right,width,padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] data-[side=right]:right-0 data-[side=left]:left-0 motion-reduce:transition-none lg:w-[400px] lg:max-w-[400px] lg:justify-between lg:data-[state=collapsed]:w-16 lg:data-[state=collapsed]:px-3 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:starting:opacity-0 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-[opacity,display] lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-discrete lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:duration-150 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:ease-out motion-reduce:lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-none lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:hidden lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:opacity-0 lg:[&_[data-sidebar-label]]:min-w-0 lg:[&_[data-sidebar-label]]:overflow-hidden lg:[&_[data-sidebar-label]]:text-nowrap lg:data-[state=collapsed]:[&_[data-sidebar=item]]:justify-center lg:data-[state=collapsed]:[&_[data-sidebar=item]]:px-0",
+                "peer group/sidebar relative inset-y-0 flex min-h-full w-full shrink-0 flex-col gap-8 overscroll-contain px-8 py-7 transition-[left,right,width,padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] data-[side=left]:left-0 data-[side=right]:right-0 motion-reduce:transition-none lg:w-[400px] lg:max-w-[400px] lg:justify-between lg:data-[state=collapsed]:w-16 lg:data-[state=collapsed]:px-3 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-[opacity,display] lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-discrete lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:duration-150 lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:ease-out lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:hidden lg:data-[state=collapsed]:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:opacity-0 motion-reduce:lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:transition-none lg:[&_[data-sidebar-collapsible],&_[data-sidebar-label]]:starting:opacity-0 lg:[&_[data-sidebar-label]]:min-w-0 lg:[&_[data-sidebar-label]]:overflow-hidden lg:[&_[data-sidebar-label]]:text-nowrap lg:data-[state=collapsed]:[&_[data-sidebar=item]]:justify-center lg:data-[state=collapsed]:[&_[data-sidebar=item]]:px-0",
                 className
             )}
             data-side={side}
@@ -304,7 +304,7 @@ export function SidebarContent({
         <section
             {...props}
             className={cn(
-                "no-scrollbar -mx-1 flex max-h-full min-h-0 w-full min-w-0 select-none flex-col gap-6 overflow-auto p-1 lg:sticky lg:top-8 lg:max-h-[calc(100vh-(var(--spacing)*8))]",
+                "no-scrollbar -mx-1 flex max-h-full min-h-0 w-full min-w-0 flex-col gap-6 overflow-auto p-1 select-none lg:sticky lg:top-8 lg:max-h-[calc(100vh-(var(--spacing)*8))]",
                 className
             )}
             data-sidebar="content"
@@ -404,7 +404,7 @@ export function SidebarItem({
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
         className: cn(
-            "group relative flex h-8 max-h-8 min-h-8 min-w-0 flex-1 cursor-default select-none items-center gap-1.5 truncate rounded-lg bg-clip-padding px-2.5 text-left font-medium text-[13px] text-foreground leading-[normal] opacity-70 before:absolute before:inset-0 before:-z-10 before:rounded-lg before:bg-muted before:opacity-0 before:transition-transform before:duration-100 before:will-change-transform hover:opacity-100 hover:before:opacity-100 focus-visible:opacity-100 active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80! data-[active=true]:before:opacity-100",
+            "group text-foreground before:bg-muted relative flex h-8 max-h-8 min-h-8 min-w-0 flex-1 cursor-default items-center gap-1.5 truncate rounded-lg bg-clip-padding px-2.5 text-left text-[13px] leading-[normal] font-medium opacity-70 select-none before:absolute before:inset-0 before:-z-10 before:rounded-lg before:opacity-0 before:transition-transform before:duration-100 before:will-change-transform hover:opacity-100 hover:before:opacity-100 focus-visible:opacity-100 active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80! data-[active=true]:before:opacity-100",
             className
         ),
         "data-sidebar": "item",
@@ -445,7 +445,7 @@ export function SidebarRail({
         <button
             {...props}
             className={cn(
-                "absolute inset-y-0 z-20 hidden w-2 ease-linear after:absolute after:inset-s-1/2 after:inset-y-0 after:w-px after:bg-muted/70 hover:after:w-0.5 group-data-[side=left]/sidebar:right-0 group-data-[side=right]/sidebar:left-0 lg:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
+                "after:bg-muted/70 absolute inset-y-0 z-20 hidden w-2 ease-linear group-data-[side=left]/sidebar:right-0 group-data-[side=right]/sidebar:left-0 after:absolute after:inset-y-0 after:inset-s-1/2 after:w-px hover:after:w-0.5 lg:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
                 "in-data-[side=left]:cursor-w-resize! in-data-[side=right]:cursor-e-resize!",
                 "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize! [[data-side=right][data-state=collapsed]_&]:cursor-w-resize!",
                 className
@@ -581,7 +581,7 @@ export function SidebarMenuTrigger({
             <SidebarItemValue>{children}</SidebarItemValue>
             <ChevronRight
                 aria-hidden
-                className="invisible ml-auto inline-block size-4.5 shrink-0 text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
+                className="text-muted-foreground invisible ml-auto inline-block size-4.5 shrink-0 opacity-80 group-hover:visible group-focus-visible:visible group-data-popup-open:visible group-data-popup-open:opacity-30"
                 data-sidebar-label=""
                 focusable="false"
             />
@@ -660,7 +660,7 @@ export function SidebarMenuLinkItem({
                         className={cn(
                             "min-w-0 shrink-0 [grid-area:1/1]",
                             shortcutKeys &&
-                                "sm:group-focus-visible:hidden sm:group-hover:hidden"
+                                "sm:group-hover:hidden sm:group-focus-visible:hidden"
                         )}
                     >
                         {trailing}
@@ -688,7 +688,7 @@ export function SidebarMenuShortcut({
         <MenuShortcut
             {...props}
             className={cn(
-                "invisible text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible group-data-highlighted:visible",
+                "text-muted-foreground invisible opacity-80 group-hover:visible group-focus-visible:visible group-data-highlighted:visible",
                 className
             )}
         >

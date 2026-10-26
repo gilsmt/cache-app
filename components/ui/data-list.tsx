@@ -94,7 +94,7 @@ export function DataListSectionTrigger({
         <CollapsibleTrigger
             {...props}
             className={cn(
-                "group col-span-2 flex min-h-8 pointer-coarse:min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-left text-muted-foreground text-xs outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:min-h-7",
+                "group text-muted-foreground hover:bg-accent focus-visible:ring-ring focus-visible:ring-offset-background col-span-2 flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-left text-xs outline-none focus-visible:ring-2 focus-visible:ring-offset-1 sm:min-h-7 pointer-coarse:min-h-11",
                 FULL_WIDTH_BLEED,
                 className
             )}
@@ -179,7 +179,7 @@ export function DataListLabel({
 }: useRender.ComponentProps<"dt">) {
     const defaultProps = {
         children: <span className="min-w-0 truncate">{children}</span>,
-        className: cn("flex min-w-0 items-center text-foreground", className),
+        className: cn("text-foreground flex min-w-0 items-center", className),
         "data-slot": "data-list-label",
     };
 
@@ -197,7 +197,7 @@ export function DataListValue({
 }: useRender.ComponentProps<"dd">) {
     const defaultProps = {
         className: cn(
-            "flex min-w-0 items-center justify-start gap-1.5 text-left text-foreground tabular-nums [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5",
+            "text-foreground flex min-w-0 items-center justify-start gap-1.5 text-left tabular-nums [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5",
             className
         ),
         "data-slot": "data-list-value",
@@ -225,7 +225,7 @@ export function DataListItemButton({
             <Button
                 {...props}
                 className={cn(
-                    "flex shrink-0 justify-start font-normal text-muted-foreground text-xs!",
+                    "text-muted-foreground flex shrink-0 justify-start text-xs! font-normal",
                     FULL_WIDTH_BLEED,
                     className
                 )}

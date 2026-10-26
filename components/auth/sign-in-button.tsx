@@ -46,7 +46,7 @@ export function SignInButton({ hasServerSession }: SignInButtonProps) {
                     }
                     size="xl"
                 />
-                <span className="mx-auto hidden text-center text-muted-foreground text-xs md:block">
+                <span className="text-muted-foreground mx-auto hidden text-center text-xs md:block">
                     Press <Kbd>P</Kbd>
                 </span>
             </div>
@@ -86,7 +86,7 @@ function GoogleSignInButton() {
     return (
         <div className="flex flex-col gap-1">
             <Button
-                className="border border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f8f9fa] *:data-[slot=spinner]:text-[#1f1f1f] dark:border-input dark:bg-popover dark:text-foreground dark:hover:bg-accent/50 dark:*:data-[slot=spinner]:text-foreground"
+                className="dark:border-input dark:bg-popover dark:text-foreground dark:hover:bg-accent/50 dark:*:data-[slot=spinner]:text-foreground border border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f8f9fa] *:data-[slot=spinner]:text-[#1f1f1f]"
                 isLoading={isPending}
                 onClick={handleSignIn}
                 size="xl"

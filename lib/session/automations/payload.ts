@@ -257,12 +257,13 @@ export async function automationWebFetch(args: { url: string }) {
                 };
             }
 
+            const requestHeaders = hopHeaders;
             let response: Response;
             try {
                 response = await withRetry(
                     async () => {
                         const res = await fetchPublicHop(host, {
-                            headers: hopHeaders,
+                            headers: requestHeaders,
                             method: "GET",
                             redirect: "manual",
                             signal: totalTimeout.signal,

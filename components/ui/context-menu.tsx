@@ -46,7 +46,7 @@ export function ContextMenuPopup({
                 align={align}
                 alignOffset={alignOffset}
                 anchor={anchor}
-                className="z-50 select-none outline-none"
+                className="z-50 outline-none select-none"
                 data-slot="context-menu-positioner"
                 positionMethod={positionMethod}
                 side={side}
@@ -55,7 +55,7 @@ export function ContextMenuPopup({
                 <ContextMenuPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative not-[class*='w-']:min-w-52 origin-(--transform-origin) overflow-hidden rounded-xl border bg-popover not-dark:bg-clip-padding text-popover-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle bg-popover text-popover-foreground relative origin-(--transform-origin) overflow-hidden rounded-xl border shadow-lg/8 transition-[scale,opacity] duration-100 outline-none not-dark:bg-clip-padding not-[class*='w-']:min-w-52 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-ending-style:opacity-0 data-starting-style:scale-98 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot={dataSlot}
@@ -82,7 +82,7 @@ export function ContextMenuItem({
         <ContextMenuPrimitive.Item
             {...props}
             className={cn(
-                "squircle flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
+                "squircle data-highlighted:bg-accent flex cursor-default items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-64",
                 variant === "default" &&
                     "data-highlighted:text-accent-foreground",
                 variant === "destructive" &&
@@ -101,7 +101,7 @@ export function ContextMenuSeparator({
     return (
         <ContextMenuPrimitive.Separator
             {...props}
-            className={cn("my-1 h-px shrink-0 bg-border/50", className)}
+            className={cn("bg-border/50 my-1 h-px shrink-0", className)}
             data-slot="context-menu-separator"
         />
     );
@@ -127,7 +127,7 @@ export function ContextMenuGroupLabel({
         <ContextMenuPrimitive.GroupLabel
             {...props}
             className={cn(
-                "px-2 py-1.5 font-medium text-muted-foreground text-xs data-inset:ps-9 sm:data-inset:ps-8",
+                "text-muted-foreground px-2 py-1.5 text-xs font-medium data-inset:ps-9 sm:data-inset:ps-8",
                 className
             )}
             data-inset={hasInset}
@@ -154,7 +154,7 @@ export function ContextMenuSubTrigger({
         <ContextMenuPrimitive.SubmenuTrigger
             {...props}
             className={cn(
-                "squircle group/trigger flex min-h-8 cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
+                "squircle group/trigger data-highlighted:bg-accent data-highlighted:text-accent-foreground flex min-h-8 cursor-default items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-64",
                 className
             )}
             data-slot="context-menu-sub-trigger"
@@ -162,7 +162,7 @@ export function ContextMenuSubTrigger({
             {children}
             <ChevronRightIcon
                 aria-hidden
-                className="ms-auto -me-0.5 size-4 text-muted-foreground group-data-popup-open/trigger:opacity-50"
+                className="text-muted-foreground ms-auto -me-0.5 size-4 group-data-popup-open/trigger:opacity-50"
                 focusable="false"
             />
         </ContextMenuPrimitive.SubmenuTrigger>

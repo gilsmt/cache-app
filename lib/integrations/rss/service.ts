@@ -19,7 +19,7 @@ import { parseFeed } from "./parser";
 const log = createLogger("integrations:rss");
 
 const REFRESH_MIN_INTERVAL_MS = 15 * 60 * 1000;
-const TRAILING_SLASH_RE = /\/+$/;
+const TRAILING_SLASH_RE = /\/+$/u;
 
 function normalizeFeedUrl(url: string): string {
     const trimmed = url.trim();

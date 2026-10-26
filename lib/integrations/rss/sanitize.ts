@@ -1,10 +1,10 @@
 const FETCH_FAILURE_RE =
-    /\b(?:fetch|request|network)\s+(?:failed|error|aborted|timed?[\s-]?out|refused)\b/i;
-const PARSE_FAILURE_RE = /\bparse\b/i;
+    /\b(?:fetch|request|network)\s+(?:failed|error|aborted|timed?[\s-]?out|refused)\b/iu;
+const PARSE_FAILURE_RE = /\bparse\b/iu;
 
 const INTERNAL_ERROR_RE =
-    /\bE[A-Z]+(?:REFUSED|RESET|TIMEDOUT|NOTFOUND|NOENT|ADDRINUSE)\b/;
-const STACK_FRAME_RE = /^\s+at\s/m;
+    /\bE[A-Z]+(?:REFUSED|RESET|TIMEDOUT|NOTFOUND|NOENT|ADDRINUSE)\b/u;
+const STACK_FRAME_RE = /^\s+at\s/mu;
 
 function looksLikeInternalError(message: string): boolean {
     if (INTERNAL_ERROR_RE.test(message)) {

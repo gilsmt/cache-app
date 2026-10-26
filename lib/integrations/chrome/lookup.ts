@@ -58,7 +58,7 @@ export function normalizeChromeCaption(
         .trim()
         .toLocaleLowerCase()
         .replace(/[^\p{L}\p{N}\s]/gu, " ")
-        .replace(/\s+/g, " ");
+        .replace(/\s+/gu, " ");
 }
 
 export function chromeDuplicateKey(

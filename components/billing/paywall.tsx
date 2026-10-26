@@ -21,7 +21,7 @@ export function InlinePaywallBanner() {
                         variant="link"
                     >
                         <T>Get Pro</T>
-                        <ArrowUpRight className="ml-auto inline-block size-4 shrink-0 text-muted-foreground" />
+                        <ArrowUpRight className="text-muted-foreground ml-auto inline-block size-4 shrink-0" />
                     </SubscriptionUpgradeButton>
                 </AlertTitle>
             </Alert>
@@ -37,19 +37,19 @@ export function BlockPaywallBanner({ length }: BlockPaywallBannerProps) {
     return (
         <CloudHostOnly>
             <aside className="sticky top-20 z-20 -mx-2 sm:-mx-4">
-                <div className="rounded-lg bg-background px-6 py-10 shadow-xl/10 sm:px-10">
+                <div className="bg-background rounded-lg px-6 py-10 shadow-xl/10 sm:px-10">
                     <div className="mx-auto flex max-w-2xl flex-col items-center justify-center gap-y-10 text-center">
                         <div className="flex flex-col items-center gap-y-5">
-                            <h1 className="font-semibold text-3xl md:text-4xl">
+                            <h1 className="text-3xl font-semibold md:text-4xl">
                                 <T>
                                     Access all <Var>{length}</Var> bookmarks.
                                 </T>
                             </h1>
                             <T>
-                                <p className="max-w-xl text-balance text-muted-foreground text-sm sm:text-base">
+                                <p className="text-muted-foreground max-w-xl text-sm text-balance sm:text-base">
                                     Keep exploring the whole library, unlock
                                     full browsing &amp; pro features from{" "}
-                                    <span className="font-semibold text-foreground">
+                                    <span className="text-foreground font-semibold">
                                         8€/month
                                     </span>{" "}
                                     — cancel anytime.
@@ -62,11 +62,11 @@ export function BlockPaywallBanner({ length }: BlockPaywallBannerProps) {
                                     size="xl"
                                 >
                                     <T>Get Pro Monthly</T>
-                                    <ArrowUpRight className="ml-auto inline-block size-4 shrink-0 text-muted-foreground" />
+                                    <ArrowUpRight className="text-muted-foreground ml-auto inline-block size-4 shrink-0" />
                                 </SubscriptionUpgradeButton>
                                 <SubscriptionUpgradeButton
                                     billingFrequency="yearly"
-                                    className="mx-auto w-fit text-muted-foreground text-sm underline underline-offset-2 hover:text-foreground"
+                                    className="text-muted-foreground hover:text-foreground mx-auto w-fit text-sm underline underline-offset-2"
                                     size="sm"
                                     variant="link"
                                 >

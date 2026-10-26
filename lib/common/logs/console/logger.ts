@@ -155,7 +155,7 @@ export class Logger {
         this.#module = module;
     }
 
-    #shouldLog(level: LogLevel, config: LogConfig): boolean {
+    static #shouldLog(level: LogLevel, config: LogConfig): boolean {
         if (!config.enabled) {
             return false;
         }
@@ -166,7 +166,7 @@ export class Logger {
     /**
      * Format arguments for logging, converting objects to JSON strings
      */
-    #formatArgs(args: unknown[], isDev: boolean): unknown[] {
+    static #formatArgs(args: unknown[], isDev: boolean): unknown[] {
         return args.map((arg) => {
             if (arg === null || arg === undefined) {
                 return arg;
@@ -184,7 +184,7 @@ export class Logger {
     #log(level: LogLevel, message: string, ...args: unknown[]) {
         const config = getLogConfigForEnvironment();
 
-        if (!this.#shouldLog(level, config)) {
+        if (!Logger.#shouldLog(level, config)) {
             return;
         }
 
@@ -193,7 +193,7 @@ export class Logger {
         const prefix = config.colorize
             ? `${colorizeLogPart(`[${timestamp}]`, ANSI_GRAY)} ${colorizeLogPart(`[${level}]`, ANSI_COLOR_BY_LEVEL[level])} ${colorizeLogPart(`[${this.#module}]`, ANSI_CYAN)}`
             : `[${timestamp}] [${level}] [${this.#module}]`;
-        const formattedArgs = this.#formatArgs(args, isDev);
+        const formattedArgs = Logger.#formatArgs(args, isDev);
 
         switch (level) {
             case LOG_LEVEL.DEBUG:
@@ -262,7 +262,7 @@ export class Logger {
      * using _ = logger.time("sync invoices", { tenantId })
      */
     time(message: string, meta: Record<string, unknown> = {}): LogSpan {
-        if (!this.#shouldLog(LOG_LEVEL.INFO, getLogConfigForEnvironment())) {
+        if (!Logger.#shouldLog(LOG_LEVEL.INFO, getLogConfigForEnvironment())) {
             const noop = () => undefined;
             return { stop: noop, [Symbol.dispose]: noop };
         }

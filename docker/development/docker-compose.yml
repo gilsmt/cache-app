@@ -1,63 +1,63 @@
 services:
-  app:
-    build:
-      context: ../..
-      dockerfile: docker/Dockerfile.dev
-    volumes:
-      # Bind-mount the repo for hot reload. The anonymous volumes below
-      # protect the image's node_modules / .next / generated Prisma client
-      # from being shadowed by the host's (which may be empty on a fresh
-      # checkout).
-      - ../../:/app
-      - /app/node_modules
-      - /app/.next
-      - /app/prisma/client
-    ports:
-      - "3000:3000"
-    env_file:
-      - ../../.env
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/cache}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      # On Docker Desktop (macOS/Windows) bind-mount file events are
-      # unreliable; polling makes hot reload work consistently.
-      - WATCHPACK_POLLING=true
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: ["sh", "-c", "bunx prisma migrate deploy && bun run dev"]
+    app:
+        build:
+            context: ../..
+            dockerfile: docker/Dockerfile.dev
+        volumes:
+            # Bind-mount the repo for hot reload. The anonymous volumes below
+            # protect the image's node_modules / .next / generated Prisma client
+            # from being shadowed by the host's (which may be empty on a fresh
+            # checkout).
+            - ../../:/app
+            - /app/node_modules
+            - /app/.next
+            - /app/prisma/client
+        ports:
+            - "3000:3000"
+        env_file:
+            - ../../.env
+        environment:
+            - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/cache}
+            - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+            # On Docker Desktop (macOS/Windows) bind-mount file events are
+            # unreliable; polling makes hot reload work consistently.
+            - WATCHPACK_POLLING=true
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        command: [ "sh", "-c", "bunx prisma migrate deploy && bun run dev" ]
 
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-cache}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    # Loopback-only: host tools (psql) reach the DB, the LAN does not.
-    ports:
-      - "127.0.0.1:5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    db:
+        image: postgres:16-alpine
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-postgres}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+            POSTGRES_DB: ${POSTGRES_DB:-cache}
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        # Loopback-only: host tools (psql) reach the DB, the LAN does not.
+        ports:
+            - "127.0.0.1:5432:5432"
+        healthcheck:
+            test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}" ]
+            interval: 5s
+            timeout: 5s
+            retries: 5
 
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redisdata:/data
-    ports:
-      - "127.0.0.1:6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    redis:
+        image: redis:7-alpine
+        volumes:
+            - redisdata:/data
+        ports:
+            - "127.0.0.1:6379:6379"
+        healthcheck:
+            test: [ "CMD", "redis-cli", "ping" ]
+            interval: 5s
+            timeout: 5s
+            retries: 5
 
 volumes:
-  pgdata:
-  redisdata:
+    pgdata:
+    redisdata:

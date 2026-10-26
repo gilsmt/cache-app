@@ -185,7 +185,7 @@ const YOUTUBE_IFRAME_HOSTS = new Set([
 
 const EDITOR_NAMESPACE = "cache-library-note";
 const EDITOR_READING_WORDS_PER_MINUTE = 250;
-const EDITOR_WORD_SEPARATOR = /\s+/;
+const EDITOR_WORD_SEPARATOR = /\s+/u;
 
 const EDITOR_HISTORY_ANNOUNCE_UNDONE = "Undone";
 const EDITOR_HISTORY_ANNOUNCE_REDONE = "Redone";
@@ -194,7 +194,7 @@ const EDITOR_HEADING_ANNOUNCE_CREATED = "Heading level %s";
 const EDITOR_HEADING_ANNOUNCE_DESTROYED = "Heading level %s removed";
 
 const EDITOR_NON_EMPTY_BLOCK_TAG_REGEX =
-    /<(h[1-3]|p)>(?!(?:\s|<br\s*\/?>)*<\/\1>)[\s\S]*?<\/\1>/gi;
+    /<(h[1-3]|p)>(?!(?:\s|<br\s*\/?>)*<\/\1>)[\s\S]*?<\/\1>/giu;
 
 const EDITOR_THEME = {
     heading: {
@@ -1457,7 +1457,9 @@ export function SidePanelContent() {
             // focus here for URL tabs so Escape on the aside stays reachable
             // and mobile screen readers enter the fixed panel.
             if (activeEntry?.type === "url") {
-                const tab = doc.getElementById(getSideTabId(activeEntry));
+                const tab = doc.querySelector<HTMLElement>(
+                    `#${CSS.escape(getSideTabId(activeEntry))}`
+                );
                 if (tab) {
                     tab.focus({ preventScroll: true });
                 } else {
@@ -1493,7 +1495,7 @@ export function SidePanelContent() {
             aria-hidden={!isOpen}
             aria-label={gt("Preview")}
             className={cn(
-                "group/side relative z-50 flex min-h-0 shrink-0 flex-col overflow-hidden border-s bg-background transition-[width,transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+                "group/side bg-background relative z-50 flex min-h-0 shrink-0 flex-col overflow-hidden border-s transition-[width,transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
                 "fixed inset-y-0 right-0 w-[calc(100%-3rem)] max-w-lg data-[state=collapsed]:translate-x-full",
                 "lg:w-1/2 lg:max-w-full",
                 "lg:sticky lg:top-0 lg:right-auto lg:h-dvh lg:max-h-dvh lg:translate-x-0 lg:data-[state=collapsed]:w-0 lg:data-[state=collapsed]:border-transparent lg:data-[state=collapsed]:opacity-0"
@@ -1580,7 +1582,7 @@ function SidePanelTabBar({ userId }: SidePanelTabBarProps) {
                 "p-0": !activeEntry,
             })}
         >
-            <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-1">
+            <div className="flex max-w-full min-w-0 flex-nowrap items-center gap-1">
                 <SidePanelTabsList
                     items={items}
                     trailingAction={
@@ -1702,7 +1704,7 @@ function SidePanelUrl({ entry }: SidePanelUrlProps) {
                 <iframe
                     allow={OEMBED_IFRAME_ALLOW}
                     allowFullScreen
-                    className="size-full border-0 bg-background"
+                    className="bg-background size-full border-0"
                     key={`${entry.url}:${attempt}`}
                     loading="lazy"
                     onError={markAsBlocked}
@@ -1728,14 +1730,14 @@ function SidePanelEmpty() {
                 <Placeholder className="bg-background">
                     <Globe
                         aria-hidden
-                        className="relative z-20 size-5.5 text-muted-foreground"
+                        className="text-muted-foreground relative z-20 size-5.5"
                         focusable="false"
                     />
                 </Placeholder>
             </div>
             {recentItems.length > 0 ? (
                 <section className="shrink-0 border-t p-4">
-                    <h2 className="font-medium text-foreground text-sm">
+                    <h2 className="text-foreground text-sm font-medium">
                         <T>Recents</T>
                     </h2>
                     <ul className="mt-2 flex list-none flex-col gap-1">
@@ -1801,7 +1803,7 @@ function SidePanelOembedPreview({ oembed }: SidePanelOembedPreviewProps) {
         <iframe
             allow={directSrc ? OEMBED_IFRAME_ALLOW : undefined}
             allowFullScreen={!!directSrc}
-            className="size-full border-0 bg-background"
+            className="bg-background size-full border-0"
             key={directSrc ?? oembed.html}
             loading="lazy"
             onError={directSrc ? handleDirectError : undefined}
@@ -1894,7 +1896,7 @@ function SidePanelTabsListItem({
     return (
         <div
             className={cn(
-                "relative flex min-w-24 max-w-48 flex-1 basis-0 items-center rounded-lg",
+                "relative flex max-w-48 min-w-24 flex-1 basis-0 items-center rounded-lg",
                 isActive ? "bg-secondary" : "hover:bg-accent"
             )}
         >
@@ -2024,7 +2026,7 @@ function SidePanelTabNewMenu() {
                 <MenuItem onClick={handleCreateNote}>
                     <SquarePen
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
                     <T>Add new</T>
@@ -2040,7 +2042,7 @@ function SidePanelTabNewMenu() {
                         ))
                     ) : (
                         <MenuItem disabled>
-                            <span className="flex-1 text-muted-foreground">
+                            <span className="text-muted-foreground flex-1">
                                 <T>No recent tabs</T>
                             </span>
                         </MenuItem>
@@ -2063,7 +2065,7 @@ function SidePanelNewMenuItem({ item }: SidePanelNewMenuItemProps) {
         <MenuItem onClick={handleOpen} title={item.url}>
             <Globe
                 aria-hidden
-                className="size-4 shrink-0 text-muted-foreground"
+                className="text-muted-foreground size-4 shrink-0"
                 focusable="false"
             />
             <span className="min-w-0 flex-1 truncate">{label}</span>
@@ -2081,12 +2083,12 @@ function SidePanelLoading() {
             className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-center"
             role="status"
         >
-            <Spinner className="size-5 text-muted-foreground" />
+            <Spinner className="text-muted-foreground size-5" />
             <div className="space-y-1">
-                <p className="font-medium text-foreground text-sm">
+                <p className="text-foreground text-sm font-medium">
                     <T>Loading preview…</T>
                 </p>
-                <p className="max-w-sm text-balance text-muted-foreground text-sm">
+                <p className="text-muted-foreground max-w-sm text-sm text-balance">
                     <T>Opening the page.</T>
                 </p>
             </div>
@@ -2106,14 +2108,14 @@ function SidePanelBlocked({ onRetry, url }: SidePanelBlockedProps) {
             className="flex size-full flex-col items-center justify-center gap-4 px-6 text-center"
             role="alert"
         >
-            <div className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <div className="bg-destructive/10 text-destructive flex size-12 items-center justify-center rounded-full">
                 <AlertCircleIcon className="size-5" />
             </div>
             <div className="space-y-2">
-                <p className="font-medium text-base text-foreground">
+                <p className="text-foreground text-base font-medium">
                     <T>Preview unavailable</T>
                 </p>
-                <p className="max-w-md text-balance text-muted-foreground text-sm">
+                <p className="text-muted-foreground max-w-md text-sm text-balance">
                     <T>This site can't be previewed.</T>
                 </p>
             </div>
@@ -2558,13 +2560,13 @@ function EditorExportControls() {
                         disabled={!hasPlainText || isSendingToNotion}
                         onClick={handleSendToNotion}
                     >
-                        <NotionIcon className="size-4 text-muted-foreground" />
+                        <NotionIcon className="text-muted-foreground size-4" />
                         <TextMorph className="flex-1">
                             {isSendingToNotion
                                 ? gt("Sending to Notion…")
                                 : gt("Send to Notion")}
                         </TextMorph>
-                        <ExternalLinkIcon className="size-4 text-muted-foreground" />
+                        <ExternalLinkIcon className="text-muted-foreground size-4" />
                     </MenuItem>
                     {notionStatus ? (
                         <p
@@ -2593,11 +2595,11 @@ function EditorExportControls() {
                         disabled={!hasPlainText}
                         onClick={handleExportMarkdown}
                     >
-                        <FileTextIcon className="size-4 text-muted-foreground" />
+                        <FileTextIcon className="text-muted-foreground size-4" />
                         <span className="flex-1">
                             <T>Export to Markdown</T>
                         </span>
-                        <DownloadIcon className="size-4 text-muted-foreground" />
+                        <DownloadIcon className="text-muted-foreground size-4" />
                     </MenuItem>
                 </MenuPopup>
             </Menu>
@@ -2612,7 +2614,7 @@ function EditorFooter() {
     const closeShortcut = `${getSystemControlKey()}+Enter`;
 
     return (
-        <div className="mt-3 flex items-center justify-end gap-4 border-border/60 border-t pt-3 text-muted-foreground text-xs">
+        <div className="border-border/60 text-muted-foreground mt-3 flex items-center justify-end gap-4 border-t pt-3 text-xs">
             <T>
                 <span className="mr-auto">
                     <Var>{closeShortcut}</Var> to close
@@ -2729,9 +2731,9 @@ function EditorExportMenuItem({
             disabled={!hasPlainText}
             render={<a href={href} rel="noopener noreferrer" target="_blank" />}
         >
-            <ProviderIcon className="size-4 text-muted-foreground" />
+            <ProviderIcon className="text-muted-foreground size-4" />
             <span className="flex-1">{label}</span>
-            <ExternalLinkIcon className="size-4 text-muted-foreground" />
+            <ExternalLinkIcon className="text-muted-foreground size-4" />
         </MenuItem>
     );
 }
@@ -2952,7 +2954,7 @@ function EditorContent() {
         <div className="relative min-h-96 w-full min-w-0 flex-1">
             <ContentEditable
                 className={cn(
-                    "prose prose-stone wrap-anywhere min-h-96 w-full min-w-0 max-w-full whitespace-pre-wrap text-[15px] leading-7 outline-none",
+                    "prose prose-stone min-h-96 w-full max-w-full min-w-0 text-[15px] leading-7 wrap-anywhere whitespace-pre-wrap outline-none",
                     "prose-p:my-0 prose-p:min-h-[1.75rem]",
                     "prose-mark:rounded-sm prose-mark:bg-amber-200/90 prose-mark:px-0.5",
                     "prose-strong:font-semibold prose-em:italic prose-u:underline prose-s:line-through"
@@ -2978,7 +2980,7 @@ function EditorPlaceholder() {
     return (
         <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 text-[15px] text-muted-foreground leading-7"
+            className="text-muted-foreground pointer-events-none absolute inset-0 text-[15px] leading-7"
         >
             <T>Start writing, or paste a link to add</T>
         </div>

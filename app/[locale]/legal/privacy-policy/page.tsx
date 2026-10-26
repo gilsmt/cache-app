@@ -45,13 +45,13 @@ function LinkText({
 
 export default function PrivacyPolicyPage() {
     return (
-        <article className="flex flex-col gap-8 text-[0.95rem] text-foreground/90 leading-relaxed">
-            <header className="flex flex-col gap-6 text-pretty border-border border-b pb-8">
-                <p className="max-w-2xl text-base text-muted-foreground leading-relaxed">
+        <article className="text-foreground/90 flex flex-col gap-8 text-[0.95rem] leading-relaxed">
+            <header className="border-border flex flex-col gap-6 border-b pb-8 text-pretty">
+                <p className="text-muted-foreground max-w-2xl text-base leading-relaxed">
                     This summary explains the main privacy choices behind Cache.
                     The full Privacy Policy below governs.
                 </p>
-                <div className="grid gap-5 border-border border-t pt-5 text-[0.9rem] text-muted-foreground leading-relaxed sm:grid-cols-2">
+                <div className="border-border text-muted-foreground grid gap-5 border-t pt-5 text-[0.9rem] leading-relaxed sm:grid-cols-2">
                     <p>
                         You choose what enters Cache: bookmarks, notes,
                         collections, and connected-source records you ask us to
@@ -71,14 +71,14 @@ export default function PrivacyPolicyPage() {
                         ads, or train generalized AI models on data you submit.
                     </p>
                 </div>
-                <p className="text-[0.88rem] text-muted-foreground leading-relaxed">
+                <p className="text-muted-foreground text-[0.88rem] leading-relaxed">
                     Effective April 21, 2026. Third-party services you connect
                     to Cache govern their own privacy practices unless their
                     data is processed inside Cache.
                 </p>
             </header>
             <section className="flex flex-col gap-3">
-                <h1 className="font-semibold text-2xl text-foreground tracking-tight">
+                <h1 className="text-foreground text-2xl font-semibold tracking-tight">
                     Privacy Policy
                 </h1>
                 <p>
@@ -97,12 +97,12 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     1. Collection of Personal Data
                 </h2>
 
                 <div className="flex flex-col gap-3">
-                    <h3 className="font-medium text-base text-foreground">
+                    <h3 className="text-foreground text-base font-medium">
                         Personal data you provide to us directly
                     </h3>
                     <ul className="list-disc space-y-2 pl-5">
@@ -137,7 +137,7 @@ export default function PrivacyPolicyPage() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    <h3 className="font-medium text-base text-foreground">
+                    <h3 className="text-foreground text-base font-medium">
                         Personal data we receive automatically
                     </h3>
                     <ul className="list-disc space-y-2 pl-5">
@@ -166,7 +166,7 @@ export default function PrivacyPolicyPage() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    <h3 className="font-medium text-base text-foreground">
+                    <h3 className="text-foreground text-base font-medium">
                         Personal data we collect from connected accounts and
                         imports
                     </h3>
@@ -202,7 +202,7 @@ export default function PrivacyPolicyPage() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    <h3 className="font-medium text-base text-foreground">
+                    <h3 className="text-foreground text-base font-medium">
                         AI-assisted feature inputs
                     </h3>
                     <p>
@@ -217,7 +217,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     2. Uses of Personal Data
                 </h2>
                 <p>We use personal data for the following purposes:</p>
@@ -276,7 +276,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     3. How We Disclose Personal Data
                 </h2>
                 <p>
@@ -329,7 +329,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     4. Rights and Choices
                 </h2>
                 <p>
@@ -390,7 +390,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     5. International Data Transfers
                 </h2>
                 <p>
@@ -407,7 +407,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     6. Data Retention and Security
                 </h2>
                 <p>
@@ -446,7 +446,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     7. Children&apos;s Privacy
                 </h2>
                 <p>
@@ -462,7 +462,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     8. Changes to This Privacy Policy
                 </h2>
                 <p>
@@ -474,7 +474,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     9. Contact Information
                 </h2>
                 <p>
@@ -489,7 +489,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     10. Links to Other Sites and Services
                 </h2>
                 <p>
@@ -503,7 +503,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     11. Legal Bases for Processing
                 </h2>
                 <p>
@@ -538,7 +538,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section className="flex flex-col gap-4">
-                <h2 className="font-semibold text-foreground text-xl tracking-tight">
+                <h2 className="text-foreground text-xl font-semibold tracking-tight">
                     12. Additional Google User Data Disclosures
                 </h2>
                 <p>

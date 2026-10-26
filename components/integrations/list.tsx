@@ -410,7 +410,7 @@ function IntegrationsListTrigger({
                     className="-ml-0.5"
                     focusable="false"
                 />
-                <FadeIn className="absolute right-2 text-[11px] text-muted-foreground group-hover:hidden">
+                <FadeIn className="text-muted-foreground absolute right-2 text-[11px] group-hover:hidden">
                     <T>
                         <Var>{connectedCount}</Var> connected
                     </T>
@@ -484,7 +484,7 @@ function IntegrationsListOverflowPreview() {
 
                 return (
                     <Avatar className="size-5 rounded-md" key={integration.id}>
-                        <AvatarFallback className="rounded-md bg-background ring-1 ring-border ring-inset">
+                        <AvatarFallback className="bg-background ring-border rounded-md ring-1 ring-inset">
                             <PreviewIcon
                                 aria-hidden
                                 className="size-3.5"
@@ -546,7 +546,7 @@ function IntegrationsListItem({
             </Avatar>
             {primaryAction ? (
                 <button
-                    className="min-w-0 flex-1 cursor-pointer text-left font-medium text-sm leading-snug after:absolute after:inset-0 disabled:cursor-default"
+                    className="min-w-0 flex-1 cursor-pointer text-left text-sm leading-snug font-medium after:absolute after:inset-0 disabled:cursor-default"
                     disabled={isAnyActionLoading}
                     onClick={handlePrimaryActionClick}
                     type="button"
@@ -554,14 +554,14 @@ function IntegrationsListItem({
                     {integration.label}
                 </button>
             ) : (
-                <span className="min-w-0 flex-1 font-medium text-sm leading-snug">
+                <span className="min-w-0 flex-1 text-sm leading-snug font-medium">
                     {integration.label}
                 </span>
             )}
-            <div className="pointer-events-none grid w-fit items-center justify-self-end text-muted-foreground leading-snug">
+            <div className="text-muted-foreground pointer-events-none grid w-fit items-center justify-self-end leading-snug">
                 <span
                     className={cn(
-                        "text-right text-[11px] opacity-0 [grid-area:1/1] sm:opacity-100 sm:group-hover:opacity-0 sm:group-focus-within:opacity-0",
+                        "text-right text-[11px] opacity-0 [grid-area:1/1] sm:opacity-100 sm:group-focus-within:opacity-0 sm:group-hover:opacity-0",
                         hasActionStatus && "sm:opacity-0"
                     )}
                 >
@@ -635,7 +635,7 @@ function IntegrationsListItemActions({
                 "z-10 -mr-2.5 flex w-fit min-w-0 shrink-0 items-center justify-end justify-self-end [grid-area:1/1]",
                 hasActionStatus
                     ? "pointer-events-auto opacity-100"
-                    : "pointer-events-auto opacity-100 sm:pointer-events-none sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100"
+                    : "pointer-events-auto opacity-100 sm:pointer-events-none sm:opacity-0 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100"
             )}
         >
             <IntegrationsListActionStatus tone={actionStatus?.tone}>
@@ -719,7 +719,7 @@ function IntegrationsListDisclaimer() {
             open={isIntegrationsDisclaimerVisible}
         >
             <CollapsiblePanel>
-                <p className="text-[11px] text-muted-foreground leading-tight">
+                <p className="text-muted-foreground text-[11px] leading-tight">
                     <T>
                         Only connect accounts you trust. Cache can access what
                         you choose to save with connected apps. You can always
@@ -749,7 +749,7 @@ function IntegrationsListDisclaimer() {
                         variant="link"
                     >
                         <T>Cache Privacy</T>
-                        <ArrowUpRight className="inline-block size-3 shrink-0 text-muted-foreground" />
+                        <ArrowUpRight className="text-muted-foreground inline-block size-3 shrink-0" />
                     </Button>
                 </p>
             </CollapsiblePanel>

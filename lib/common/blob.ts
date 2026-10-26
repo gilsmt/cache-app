@@ -1,6 +1,6 @@
 import { MIME_TYPES } from "@/lib/common/constants";
 
-const FILE_EXTENSION_RE = /^(.+)\.[^./\\]*$/;
+const FILE_EXTENSION_RE = /^(.+)\.[^./\\]*$/u;
 
 export const blobToFile = (
     blob: Blob,
@@ -61,15 +61,15 @@ export const normalizeFile = async (file_: File) => {
 // uint8 leading bytes
 const BYTES = {
     // https://en.wikipedia.org/wiki/GIF#Example_GIF_file
-    gif: /^71 73 70 56 (55|57) 97\b/,
+    gif: /^71 73 70 56 (55|57) 97\b/u,
     // https://en.wikipedia.org/wiki/JPEG#Syntax_and_structure
     // jpg is a bit wonky. Checking the first three bytes should be enough,
     // but may yield false positives. (https://stackoverflow.com/a/23360709/927631)
-    jpg: /^255 216 255\b/,
+    jpg: /^255 216 255\b/u,
     // https://en.wikipedia.org/wiki/Portable_Network_Graphics#File_header
-    png: /^137 80 78 71 13 10 26 10\b/,
+    png: /^137 80 78 71 13 10 26 10\b/u,
     // 4 bytes for RIFF + 4 bytes for chunk size + WEBP identifier
-    webp: /^82 73 70 70 \d+ \d+ \d+ \d+ 87 69 66 80/,
+    webp: /^82 73 70 70 \d+ \d+ \d+ \d+ 87 69 66 80/u,
 };
 
 /**

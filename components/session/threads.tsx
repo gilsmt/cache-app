@@ -473,7 +473,7 @@ function ThreadsListFilterTrigger(
                         <span className="flex items-center gap-2">
                             <LayoutList
                                 aria-hidden
-                                className="size-4 text-muted-foreground"
+                                className="text-muted-foreground size-4"
                                 focusable="false"
                             />
                             <T>Show all</T>
@@ -483,7 +483,7 @@ function ThreadsListFilterTrigger(
                         <span className="flex items-center gap-2">
                             <ArchiveX
                                 aria-hidden
-                                className="size-4 text-muted-foreground"
+                                className="text-muted-foreground size-4"
                                 focusable="false"
                             />
                             <T>Exclude archives</T>
@@ -667,8 +667,8 @@ function ThreadsListGroup({
 }: ThreadsListGroupProps) {
     return (
         <div className="flex flex-col">
-            <div className="sticky -top-9 flex items-center justify-between bg-background p-2.5">
-                <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+            <div className="bg-background sticky -top-9 flex items-center justify-between p-2.5">
+                <span className="text-muted-foreground min-w-0 truncate text-[11px]">
                     {label}
                 </span>
             </div>
@@ -697,15 +697,15 @@ function ThreadsListEmpty() {
     }
 
     return (
-        <div className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-border/30 border-dashed px-4 py-6 text-center">
+        <div className="border-border/30 flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed px-4 py-6 text-center">
             {threads.length > 0 ? (
                 <>
                     <ArchiveRestore
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
-                    <p className="font-medium text-muted-foreground text-xs leading-tight">
+                    <p className="text-muted-foreground text-xs leading-tight font-medium">
                         {textMatchQuery.trim().length > 0 ? (
                             <T>No chats match your search.</T>
                         ) : (
@@ -734,13 +734,13 @@ function ThreadsListEmpty() {
                 <>
                     <History
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
-                    <p className="font-medium text-muted-foreground text-xs leading-tight">
+                    <p className="text-muted-foreground text-xs leading-tight font-medium">
                         <T>No chats yet.</T>
                     </p>
-                    <p className="text-[11px] text-muted-foreground/70 leading-tight">
+                    <p className="text-muted-foreground/70 text-[11px] leading-tight">
                         <T>
                             Recent activity will appear here after your
                             automations run.
@@ -812,7 +812,7 @@ function ThreadsListItemControls({
         <div className="absolute top-1/2 right-1 flex h-9 -translate-y-1/2 items-center justify-end">
             <time
                 className={cn(
-                    "pointer-events-none min-w-5 shrink-0 text-nowrap text-[11px] text-muted-foreground/80 tabular-nums pointer-fine:group-focus-within/thread-item:opacity-0 pointer-fine:group-hover/thread-item:opacity-0",
+                    "text-muted-foreground/80 pointer-events-none min-w-5 shrink-0 text-[11px] text-nowrap tabular-nums pointer-fine:group-focus-within/thread-item:opacity-0 pointer-fine:group-hover/thread-item:opacity-0",
                     isPending && "opacity-0",
                     isArchived && "pointer-coarse:hidden"
                 )}
@@ -826,7 +826,7 @@ function ThreadsListItemControls({
                 <Button
                     aria-label={label}
                     className={cn(
-                        "pointer-fine:pointer-events-none relative size-6 shrink-0 pointer-fine:opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 group-focus-within/thread-item:pointer-events-auto group-focus-within/thread-item:opacity-100 pointer-fine:group-hover/thread-item:pointer-events-auto pointer-fine:group-hover/thread-item:opacity-100",
+                        "relative size-6 shrink-0 group-focus-within/thread-item:pointer-events-auto group-focus-within/thread-item:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 pointer-fine:pointer-events-none pointer-fine:opacity-0 pointer-fine:group-hover/thread-item:pointer-events-auto pointer-fine:group-hover/thread-item:opacity-100",
                         isPending &&
                             "pointer-fine:pointer-events-auto pointer-fine:opacity-100"
                     )}
@@ -853,7 +853,7 @@ function ThreadsListItemControls({
                 {isArchived ? (
                     <Button
                         aria-label={deleteLabel}
-                        className="pointer-fine:pointer-events-none relative size-6 shrink-0 pointer-fine:opacity-0 focus-visible:pointer-events-auto focus-visible:opacity-100 group-focus-within/thread-item:pointer-events-auto group-focus-within/thread-item:opacity-100 pointer-fine:group-hover/thread-item:pointer-events-auto pointer-fine:group-hover/thread-item:opacity-100"
+                        className="relative size-6 shrink-0 group-focus-within/thread-item:pointer-events-auto group-focus-within/thread-item:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 pointer-fine:pointer-events-none pointer-fine:opacity-0 pointer-fine:group-hover/thread-item:pointer-events-auto pointer-fine:group-hover/thread-item:opacity-100"
                         onClick={onDelete}
                         size="icon-xs"
                         title={deleteLabel}
@@ -889,7 +889,7 @@ function ThreadsListItemTrigger({
                 render={
                     <SidebarItem
                         className={cn(
-                            "pointer-fine:pr-8 pr-15 pl-8.5",
+                            "pr-15 pl-8.5 pointer-fine:pr-8",
                             item.isArchived &&
                                 "pointer-fine:group-focus-within/thread-item:pr-13.5 pointer-fine:group-hover/thread-item:pr-13.5"
                         )}
@@ -932,7 +932,7 @@ function ThreadsListItemValue({ children }: ThreadsListItemValueProps) {
 
     return (
         <>
-            <span className="pointer-events-none absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md bg-muted/90">
+            <span className="bg-muted/90 pointer-events-none absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md">
                 <MessageCircle
                     aria-hidden
                     className="size-4"
@@ -940,7 +940,7 @@ function ThreadsListItemValue({ children }: ThreadsListItemValueProps) {
                 />
             </span>
             <SidebarItemValue className="mask-r-from-90%">
-                <Ticker className="font-medium text-sm leading-none tracking-tight [--accent-color:var(--primary)]">
+                <Ticker className="text-sm leading-none font-medium tracking-tight [--accent-color:var(--primary)]">
                     <HighlightMark query={textMatchQuery}>
                         {children}
                     </HighlightMark>

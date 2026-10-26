@@ -51,7 +51,7 @@ export function PopoverPopup({
                 <PopoverPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative flex h-(--popup-height,auto) max-h-(--available-height) w-(--popup-width,auto) max-w-72 origin-(--transform-origin) flex-col overflow-y-auto overflow-x-clip rounded-xl border bg-popover not-dark:bg-clip-padding px-(--viewport-inline-padding) py-4 text-popover-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 [--viewport-inline-padding:--spacing(4)] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle bg-popover text-popover-foreground relative flex h-(--popup-height,auto) max-h-(--available-height) w-(--popup-width,auto) max-w-72 origin-(--transform-origin) flex-col overflow-x-clip overflow-y-auto rounded-xl border px-(--viewport-inline-padding) py-4 shadow-lg/8 transition-[scale,opacity] duration-100 outline-none [--viewport-inline-padding:--spacing(4)] not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-ending-style:opacity-0 data-starting-style:scale-98 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot="popover-popup"
@@ -74,7 +74,7 @@ export function PopoverTitle({
     return (
         <PopoverPrimitive.Title
             {...props}
-            className={cn("font-medium text-sm", className)}
+            className={cn("text-sm font-medium", className)}
             data-slot="popover-title"
         />
     );

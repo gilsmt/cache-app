@@ -33,10 +33,10 @@ export default function ErrorPage({
         <PageShell>
             <div className="mx-auto flex h-svh max-w-md flex-col items-center justify-center gap-5 text-center">
                 <BrandLogo className="scale-80" src={LogoIconImage} />
-                <h1 className="font-medium text-foreground text-lg">
+                <h1 className="text-foreground text-lg font-medium">
                     <T>Something went wrong</T>
                 </h1>
-                <p className="text-base text-muted-foreground">
+                <p className="text-muted-foreground text-base">
                     <T>We encountered an unexpected error…</T>
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-3">

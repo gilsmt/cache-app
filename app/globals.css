@@ -86,7 +86,11 @@
     --warning: oklch(0.75 0.15 75);
     --warning-foreground: oklch(0.48 0.12 60);
     --gradient-wave-base: oklch(0.2 0 0);
+
+    font-synthesis: none;
+    word-break: break-word;
     color-scheme: light;
+    text-rendering: optimizeLegibility;
 }
 
 /* ── Design tokens (dark) ── */
@@ -117,6 +121,7 @@
     --warning: oklch(0.78 0.14 80);
     --warning-foreground: oklch(0.86 0.1 85);
     --gradient-wave-base: oklch(0.97 0 0);
+
     color-scheme: dark;
 }
 
@@ -124,12 +129,6 @@
 @layer base {
     * {
         @apply border-border outline-ring/50;
-    }
-
-    :root {
-        font-synthesis: none;
-        word-break: break-word;
-        text-rendering: optimizeLegibility;
     }
 
     html,

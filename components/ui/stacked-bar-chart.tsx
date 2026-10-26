@@ -57,7 +57,7 @@ export function StackedBarChart({
             aria-hidden={chartAriaLabel === undefined}
             aria-label={chartAriaLabel}
             className={cn(
-                "h-2 w-full overflow-hidden rounded-full bg-muted",
+                "bg-muted h-2 w-full overflow-hidden rounded-full",
                 !isEmpty && "flex gap-px",
                 className
             )}

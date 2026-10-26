@@ -1,51 +1,51 @@
 services:
-  app:
-    build:
-      context: ../..
-      dockerfile: docker/Dockerfile
-    ports:
-      - "3000:3000"
-    env_file:
-      - ../../.env
-    # Default to the compose services when .env doesn't set them.
-    # `environment:` would override `env_file:`, so we use interpolation
-    # which lets a self-hoster point at an external DB/Redis via .env.
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/cache}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+    app:
+        build:
+            context: ../..
+            dockerfile: docker/Dockerfile
+        ports:
+            - "3000:3000"
+        env_file:
+            - ../../.env
+        # Default to the compose services when .env doesn't set them.
+        # `environment:` would override `env_file:`, so we use interpolation
+        # which lets a self-hoster point at an external DB/Redis via .env.
+        environment:
+            - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/cache}
+            - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        restart: unless-stopped
 
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-cache}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+    db:
+        image: postgres:16-alpine
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-postgres}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+            POSTGRES_DB: ${POSTGRES_DB:-cache}
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        healthcheck:
+            test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}" ]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+    redis:
+        image: redis:7-alpine
+        volumes:
+            - redisdata:/data
+        healthcheck:
+            test: [ "CMD", "redis-cli", "ping" ]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        restart: unless-stopped
 
 volumes:
-  pgdata:
-  redisdata:
+    pgdata:
+    redisdata:

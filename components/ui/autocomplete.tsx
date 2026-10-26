@@ -53,7 +53,7 @@ export function AutocompleteStartAddon({
             {...props}
             aria-hidden
             className={cn(
-                "pointer-events-none absolute inset-s-px inset-y-0 z-10 flex shrink-0 items-center ps-[calc(--spacing(5)-1px)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:-mx-0.5",
+                "pointer-events-none absolute inset-y-0 inset-s-px z-10 flex shrink-0 items-center ps-[calc(--spacing(5)-1px)] [&_svg]:-mx-0.5 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4",
                 className
             )}
             data-slot="autocomplete-start-addon"
@@ -94,7 +94,7 @@ export function AutocompleteInput({
             autoCapitalize="sentences"
             autoCorrect="on"
             className={cn(
-                "squircle min-h-11 bg-background p-1.5 shadow-xs outline-none ring-0 before:hidden has-focus-visible:border-border has-focus-visible:ring-0 has-focus-visible:ring-offset-0 group-has-[[data-slot=autocomplete-start-addon]]/input:*:data-[slot=input]:ps-[calc(--spacing(8.5)-1px)] group-has-[[data-slot=autocomplete-end-addon]]/input:*:data-[slot=input]:pe-[calc(--spacing(8.5)-1px)] sm:group-has-[[data-slot=autocomplete-start-addon]]/input:*:data-[slot=input]:ps-[calc(--spacing(9)-1px)] sm:group-has-[[data-slot=autocomplete-end-addon]]/input:*:data-[slot=input]:pe-[calc(--spacing(9)-1px)]",
+                "squircle bg-background has-focus-visible:border-border min-h-11 p-1.5 shadow-xs ring-0 outline-none before:hidden has-focus-visible:ring-0 has-focus-visible:ring-offset-0 group-has-[[data-slot=autocomplete-end-addon]]/input:*:data-[slot=input]:pe-[calc(--spacing(8.5)-1px)] group-has-[[data-slot=autocomplete-start-addon]]/input:*:data-[slot=input]:ps-[calc(--spacing(8.5)-1px)] sm:group-has-[[data-slot=autocomplete-end-addon]]/input:*:data-[slot=input]:pe-[calc(--spacing(9)-1px)] sm:group-has-[[data-slot=autocomplete-start-addon]]/input:*:data-[slot=input]:ps-[calc(--spacing(9)-1px)]",
                 className
             )}
             data-slot="autocomplete-input"
@@ -132,7 +132,7 @@ export function AutocompletePopup({
                 align={align}
                 alignOffset={alignOffset}
                 anchor={anchor}
-                className="z-50 select-none outline-none"
+                className="z-50 outline-none select-none"
                 data-slot="autocomplete-positioner"
                 positionMethod={positionMethod}
                 side={side}
@@ -142,7 +142,7 @@ export function AutocompletePopup({
                 <AutocompletePrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative w-full min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) rounded-xl border bg-popover not-dark:bg-clip-padding shadow-lg/8 outline-none before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle bg-popover relative w-full max-w-(--available-width) min-w-(--anchor-width) origin-(--transform-origin) rounded-xl border shadow-lg/8 outline-none not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot="autocomplete-popup"
@@ -167,8 +167,8 @@ export function AutocompleteList({
             {...props}
             className={cn(
                 shouldUseScrollArea &&
-                    "max-h-[min(32rem,var(--available-height))] in-data-has-overflow-y:pe-3 outline-0",
-                "not-empty:scroll-py-2 not-empty:p-2 outline-0",
+                    "max-h-[min(32rem,var(--available-height))] outline-0 in-data-has-overflow-y:pe-3",
+                "outline-0 not-empty:scroll-py-2 not-empty:p-2",
                 className
             )}
             data-slot="autocomplete-list"
@@ -190,7 +190,7 @@ export function AutocompleteItem({
         <AutocompletePrimitive.Item
             {...props}
             className={cn(
-                "squircle flex min-h-8 cursor-default select-none items-center rounded-sm px-2 py-1.5 text-base outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm",
+                "squircle data-highlighted:bg-accent data-highlighted:text-accent-foreground flex min-h-8 cursor-default items-center rounded-sm px-2 py-1.5 text-base outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm",
                 className
             )}
             data-slot="autocomplete-item"
@@ -219,7 +219,7 @@ export function AutocompleteGroupLabel({
         <AutocompletePrimitive.GroupLabel
             {...props}
             className={cn(
-                "px-2 py-1.5 font-medium text-muted-foreground text-xs",
+                "text-muted-foreground px-2 py-1.5 text-xs font-medium",
                 className
             )}
             data-slot="autocomplete-group-label"
@@ -235,7 +235,7 @@ export function AutocompleteEmpty({
         <AutocompletePrimitive.Empty
             {...props}
             className={cn(
-                "not-empty:p-2 not-empty:py-6 text-center text-base text-muted-foreground sm:text-sm",
+                "text-muted-foreground text-center text-base not-empty:p-2 not-empty:py-6 sm:text-sm",
                 className
             )}
             data-slot="autocomplete-empty"
@@ -267,7 +267,7 @@ export function AutocompleteShortcut({
     return (
         <Kbd
             {...props}
-            className={cn("ms-auto text-muted-foreground/50", className)}
+            className={cn("text-muted-foreground/50 ms-auto", className)}
             data-slot="autocomplete-shortcut"
         />
     );

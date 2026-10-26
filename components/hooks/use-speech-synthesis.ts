@@ -4,8 +4,8 @@ import { canUseDOM } from "@/lib/common/dom";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
 const SPEECH_CHUNK_MAX_LENGTH = 220;
-const SENTENCE_BOUNDARY_PATTERN = /(?<=[.!?;:\n])\s+/;
-const WORD_SEPARATOR_PATTERN = /\s+/;
+const SENTENCE_BOUNDARY_PATTERN = /(?<=[.!?;:\n])\s+/u;
+const WORD_SEPARATOR_PATTERN = /\s+/u;
 
 interface UseSpeechSynthesisResult {
     isSpeaking: boolean;
@@ -31,7 +31,7 @@ function getSpeechSynthesis(): SpeechSynthesis | null {
 }
 
 export function splitTextIntoSpeechChunks(value: string): string[] {
-    const normalizedText = value.replace(/\s+/g, " ").trim();
+    const normalizedText = value.replace(/\s+/gu, " ").trim();
     if (normalizedText === "") {
         return [];
     }

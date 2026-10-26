@@ -1,5 +1,5 @@
 const CSV_RECORD_SEPARATOR = "\r\n";
-const CSV_FORMULA_PREFIX_PATTERN = /^[=+\-@]/;
+const CSV_FORMULA_PREFIX_PATTERN = /^[=+\-@]/u;
 
 /**
  * Writes rows of cells as an RFC 4180 document, header row first.

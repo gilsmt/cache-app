@@ -33,7 +33,7 @@ const WebSearchInputSchema = z.object({
     timeRange: z.enum(WEB_SEARCH_TIME_RANGES).optional(),
 });
 
-const GITHUB_REPO_PATTERN = /^[\w.-]+\/[\w.-]+$/;
+const GITHUB_REPO_PATTERN = /^[\w.-]+\/[\w.-]+$/u;
 
 const GitHubRepoInputSchema = z.object({
     repo: z

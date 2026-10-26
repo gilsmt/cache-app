@@ -45,7 +45,7 @@ export function MenuPopup({
                 align={align}
                 alignOffset={alignOffset}
                 anchor={anchor}
-                className="z-50 select-none outline-none"
+                className="z-50 outline-none select-none"
                 collisionAvoidance={collisionAvoidance}
                 data-slot="menu-positioner"
                 positionMethod={positionMethod}
@@ -55,7 +55,7 @@ export function MenuPopup({
                 <MenuPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative min-w-52 origin-(--transform-origin) overflow-hidden rounded-xl border bg-popover not-dark:bg-clip-padding text-popover-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle bg-popover text-popover-foreground relative min-w-52 origin-(--transform-origin) overflow-hidden rounded-xl border shadow-lg/8 transition-[scale,opacity] duration-100 outline-none not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-ending-style:opacity-0 data-starting-style:scale-98 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot={dataSlot}
@@ -90,7 +90,7 @@ export function MenuGroupLabel({
         <MenuPrimitive.GroupLabel
             {...props}
             className={cn(
-                "px-2 py-1.5 font-medium text-muted-foreground text-xs data-inset:ps-9 sm:data-inset:ps-8",
+                "text-muted-foreground px-2 py-1.5 text-xs font-medium data-inset:ps-9 sm:data-inset:ps-8",
                 className
             )}
             data-inset={hasInset}
@@ -107,7 +107,7 @@ export function MenuShortcut({
         <kbd
             {...props}
             className={cn(
-                "ms-auto font-medium font-sans text-muted-foreground/72 text-xs uppercase tracking-widest max-sm:hidden",
+                "text-muted-foreground/72 ms-auto font-sans text-xs font-medium tracking-widest uppercase max-sm:hidden",
                 className
             )}
             data-slot="menu-shortcut"
@@ -128,7 +128,7 @@ export function MenuItem({
         <MenuPrimitive.Item
             {...props}
             className={cn(
-                "squircle flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
+                "squircle data-highlighted:bg-accent flex cursor-default items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-64",
                 variant === "default" &&
                     "data-highlighted:text-accent-foreground",
                 variant === "destructive" &&
@@ -156,7 +156,7 @@ export function MenuLinkItem({
         <MenuPrimitive.LinkItem
             {...props}
             className={cn(
-                "squircle flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-disabled:opacity-64",
+                "squircle data-highlighted:bg-accent flex cursor-default items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-64",
                 variant === "default" &&
                     "data-highlighted:text-accent-foreground",
                 variant === "destructive" &&
@@ -179,7 +179,7 @@ export function MenuRadioItem({
         <MenuPrimitive.RadioItem
             {...props}
             className={cn(
-                "squircle grid min-h-8 cursor-default select-none grid-cols-[1fr_1rem] items-center gap-5 rounded-lg px-2.5 py-1.5 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
+                "squircle data-highlighted:bg-accent data-highlighted:text-accent-foreground grid min-h-8 cursor-default grid-cols-[1fr_1rem] items-center gap-5 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-64",
                 className
             )}
             data-slot="menu-radio-item"
@@ -199,7 +199,7 @@ export function MenuSeparator({
     return (
         <MenuPrimitive.Separator
             {...props}
-            className={cn("my-1 h-px shrink-0 bg-border/50", className)}
+            className={cn("bg-border/50 my-1 h-px shrink-0", className)}
             data-slot="menu-separator"
         />
     );
@@ -218,7 +218,7 @@ export function MenuSubTrigger({
         <MenuPrimitive.SubmenuTrigger
             {...props}
             className={cn(
-                "squircle group/trigger flex min-h-8 cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64",
+                "squircle group/trigger data-highlighted:bg-accent data-highlighted:text-accent-foreground flex min-h-8 cursor-default items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-64",
                 className
             )}
             data-slot="menu-sub-trigger"
@@ -226,7 +226,7 @@ export function MenuSubTrigger({
             {children}
             <ChevronRightIcon
                 aria-hidden
-                className="ms-auto -me-0.5 size-4 text-muted-foreground group-data-popup-open/trigger:opacity-50"
+                className="text-muted-foreground ms-auto -me-0.5 size-4 group-data-popup-open/trigger:opacity-50"
                 focusable="false"
             />
         </MenuPrimitive.SubmenuTrigger>
@@ -289,7 +289,7 @@ export function MenuCheckboxItem({
             {...props}
             checked={checked}
             className={cn(
-                "squircle grid min-h-8 cursor-default items-center gap-2 rounded-lg py-1 ps-2 text-base text-foreground outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+                "squircle text-foreground data-highlighted:bg-accent data-highlighted:text-accent-foreground grid min-h-8 cursor-default items-center gap-2 rounded-lg py-1 ps-2 text-base outline-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4",
                 variant === "switch"
                     ? "grid-cols-[1fr_auto] gap-4 pe-1.5"
                     : "grid-cols-[.75rem_1fr] pe-2",
@@ -311,10 +311,10 @@ function MenuSwitchIndicator({ children }: { children: React.ReactNode }) {
         <>
             <span className="col-start-1">{children}</span>
             <MenuPrimitive.CheckboxItemIndicator
-                className="inset-shadow-[0_1px_--theme(--color-black/4%)] inline-flex h-[calc(var(--thumb-size)+2px)] w-[calc(var(--thumb-size)*2-2px)] shrink-0 items-center rounded-full p-px outline-none transition-[background-color,box-shadow] duration-200 [--thumb-size:--spacing(4)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background data-checked:bg-primary data-unchecked:bg-input data-disabled:opacity-64 sm:[--thumb-size:--spacing(3)]"
+                className="focus-visible:ring-ring focus-visible:ring-offset-background data-checked:bg-primary data-unchecked:bg-input inline-flex h-[calc(var(--thumb-size)+2px)] w-[calc(var(--thumb-size)*2-2px)] shrink-0 items-center rounded-full p-px inset-shadow-[0_1px_--theme(--color-black/4%)] transition-[background-color,box-shadow] duration-200 outline-none [--thumb-size:--spacing(4)] focus-visible:ring-2 focus-visible:ring-offset-1 data-disabled:opacity-64 sm:[--thumb-size:--spacing(3)]"
                 keepMounted
             >
-                <span className="pointer-events-none block aspect-square h-full in-[[data-slot=menu-checkbox-item][data-checked]]:origin-[var(--thumb-size)_50%] origin-left in-[[data-slot=menu-checkbox-item][data-checked]]:translate-x-[calc(var(--thumb-size)-4px)] in-[[data-slot=menu-checkbox-item]:active]:not-data-disabled:scale-x-110 in-[[data-slot=menu-checkbox-item]:active]:rounded-[var(--thumb-size)/calc(var(--thumb-size)*1.10)] rounded-(--thumb-size) bg-background shadow-sm/5 will-change-transform [transition:translate_.15s,border-radius_.15s,scale_.1s_.1s,transform-origin_.15s]" />
+                <span className="bg-background pointer-events-none block aspect-square h-full origin-left rounded-(--thumb-size) shadow-sm/5 will-change-transform [transition:translate_.15s,border-radius_.15s,scale_.1s_.1s,transform-origin_.15s] in-[[data-slot=menu-checkbox-item]:active]:rounded-[var(--thumb-size)/calc(var(--thumb-size)*1.10)] in-[[data-slot=menu-checkbox-item]:active]:not-data-disabled:scale-x-110 in-[[data-slot=menu-checkbox-item][data-checked]]:origin-[var(--thumb-size)_50%] in-[[data-slot=menu-checkbox-item][data-checked]]:translate-x-[calc(var(--thumb-size)-4px)]" />
             </MenuPrimitive.CheckboxItemIndicator>
         </>
     );

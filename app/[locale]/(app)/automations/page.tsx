@@ -51,7 +51,7 @@ function AutomationsPageHeader({ children }: { children: React.ReactNode }) {
     return (
         <header className="flex items-end justify-between gap-4">
             <div className="flex flex-col gap-1.5">
-                <h1 className="font-semibold text-2xl text-foreground tracking-tight">
+                <h1 className="text-foreground text-2xl font-semibold tracking-tight">
                     <T>Automations</T>
                 </h1>
                 <p className="text-muted-foreground text-sm">
@@ -130,7 +130,7 @@ function AutomationsPageSkeleton() {
                     role="status"
                 >
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        <div className="flex flex-col gap-3 rounded-2xl bg-muted/60 p-4">
+                        <div className="bg-muted/60 flex flex-col gap-3 rounded-2xl p-4">
                             <div className="flex items-start justify-between gap-3">
                                 <Skeleton className="size-9 rounded-xl" />
                                 <Skeleton className="size-7 rounded-full" />
@@ -139,7 +139,7 @@ function AutomationsPageSkeleton() {
                             <Skeleton className="h-3 w-full" />
                             <Skeleton className="h-3 w-2/3" />
                         </div>
-                        <div className="flex flex-col gap-3 rounded-2xl bg-muted/60 p-4">
+                        <div className="bg-muted/60 flex flex-col gap-3 rounded-2xl p-4">
                             <div className="flex items-start justify-between gap-3">
                                 <Skeleton className="size-9 rounded-xl" />
                                 <Skeleton className="size-7 rounded-full" />
@@ -148,7 +148,7 @@ function AutomationsPageSkeleton() {
                             <Skeleton className="h-3 w-full" />
                             <Skeleton className="h-3 w-2/3" />
                         </div>
-                        <div className="flex flex-col gap-3 rounded-2xl bg-muted/60 p-4">
+                        <div className="bg-muted/60 flex flex-col gap-3 rounded-2xl p-4">
                             <div className="flex items-start justify-between gap-3">
                                 <Skeleton className="size-9 rounded-xl" />
                                 <Skeleton className="size-7 rounded-full" />

@@ -29,7 +29,7 @@ function ProgressTrack({ className, ...props }: ProgressPrimitive.Track.Props) {
         <ProgressPrimitive.Track
             {...props}
             className={cn(
-                "relative flex h-1 w-full items-center overflow-x-clip rounded-full bg-muted",
+                "bg-muted relative flex h-1 w-full items-center overflow-x-clip rounded-full",
                 className
             )}
             data-slot="progress-track"
@@ -45,7 +45,7 @@ function ProgressIndicator({
         <ProgressPrimitive.Indicator
             {...props}
             className={cn(
-                "h-full bg-primary transition-all duration-500",
+                "bg-primary h-full transition-all duration-500",
                 className
             )}
             data-slot="progress-indicator"
@@ -58,7 +58,7 @@ function ProgressLabel({ className, ...props }: ProgressPrimitive.Label.Props) {
         // biome-ignore lint/a11y/noLabelWithoutControl: Wrong error
         <ProgressPrimitive.Label
             {...props}
-            className={cn("font-medium text-sm", className)}
+            className={cn("text-sm font-medium", className)}
             data-slot="progress-label"
         />
     );
@@ -69,7 +69,7 @@ function ProgressValue({ className, ...props }: ProgressPrimitive.Value.Props) {
         <ProgressPrimitive.Value
             {...props}
             className={cn(
-                "ml-auto text-right text-muted-foreground text-sm tabular-nums",
+                "text-muted-foreground ml-auto text-right text-sm tabular-nums",
                 className
             )}
             data-slot="progress-value"

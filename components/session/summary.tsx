@@ -320,7 +320,7 @@ function ActivityHeatGraph({ activity }: ActivityHeatGraphProps) {
                 role="img"
                 weekStart="monday"
             >
-                <div className="relative h-3 text-[10px] text-muted-foreground/80">
+                <div className="text-muted-foreground/80 relative h-3 text-[10px]">
                     <HeatGraph.MonthLabels>
                         {({ label, totalWeeks }) =>
                             label.month % 3 === 0 ? (
@@ -345,7 +345,7 @@ function ActivityHeatGraph({ activity }: ActivityHeatGraphProps) {
                         <HeatGraph.Cell className="aspect-square rounded-[1px]" />
                     )}
                 </HeatGraph.Grid>
-                <HeatGraph.Tooltip className="z-50 rounded-md border bg-popover px-2 py-1 text-popover-foreground text-xs shadow-md">
+                <HeatGraph.Tooltip className="bg-popover text-popover-foreground z-50 rounded-md border px-2 py-1 text-xs shadow-md">
                     {({ cell }) => (
                         <>
                             {formatItemCount(cell.count)} added{" "}
@@ -356,7 +356,7 @@ function ActivityHeatGraph({ activity }: ActivityHeatGraphProps) {
             </HeatGraph.Root>
             <div
                 aria-hidden="true"
-                className="flex items-center justify-end gap-0.75 text-[10px] text-muted-foreground"
+                className="text-muted-foreground flex items-center justify-end gap-0.75 text-[10px]"
             >
                 <span>Less</span>
                 {ACTIVITY_COLOR_SCALE.map((color) => (
@@ -385,13 +385,13 @@ function SummaryEmptyState({
 }: SummaryEmptyStateProps) {
     return (
         <div className="col-span-full flex flex-col items-center gap-1.5 px-2 py-6 text-center">
-            <span className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <span className="bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-full">
                 <Icon aria-hidden className="size-4" focusable="false" />
             </span>
-            <p className="font-medium text-foreground text-xs leading-tight">
+            <p className="text-foreground text-xs leading-tight font-medium">
                 {title}
             </p>
-            <p className="max-w-55 text-balance text-muted-foreground text-xs leading-snug">
+            <p className="text-muted-foreground max-w-55 text-xs leading-snug text-balance">
                 {description}
             </p>
         </div>

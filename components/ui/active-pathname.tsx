@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import type * as React from "react";
 import { normalizePathname } from "@/lib/common/url";
 
-const HREF_SUFFIX_RE = /[?#]/;
+const HREF_SUFFIX_RE = /[?#]/u;
 
 export function isPathnameActive(
     pathname: string,

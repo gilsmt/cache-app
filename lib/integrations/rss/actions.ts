@@ -33,7 +33,7 @@ const AddFeedInputSchema = z.object({
         .string()
         .trim()
         .min(1, "Enter a feed URL.")
-        .pipe(z.url({ error: "Enter a valid URL.", protocol: /^https?$/ })),
+        .pipe(z.url({ error: "Enter a valid URL.", protocol: /^https?$/u })),
 });
 
 const RemoveFeedInputSchema = z.object({

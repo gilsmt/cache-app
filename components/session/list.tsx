@@ -407,11 +407,11 @@ const FILTERABLE_LIBRARY_SOURCES = [
     LibraryItemSource.youtube_watch_later,
 ] as const satisfies LibraryItemSource[];
 
-const MATCH_WORD_SEPARATOR_PATTERN = /[\s:./_-]+/;
+const MATCH_WORD_SEPARATOR_PATTERN = /[\s:./_-]+/u;
 
 const SUGGESTION_LIMIT = 3;
 const SUGGESTION_ICON_CLASS = "size-3.5 shrink-0";
-const MULTI_WORD_QUERY_PATTERN = /\S+\s+\S+/;
+const MULTI_WORD_QUERY_PATTERN = /\S+\s+\S+/u;
 const COMBOBOX_ITEM_PRESS_REASON = "item-press";
 const COMBOBOX_ESCAPE_KEY_REASON = "escape-key";
 const COMPOSER_OPEN_HOTKEYS = [
@@ -3451,7 +3451,7 @@ function buildSearchCommands({
                           {
                               children: (
                                   <div className="flex items-center gap-2.5">
-                                      <History className="size-4 shrink-0 text-muted-foreground" />
+                                      <History className="text-muted-foreground size-4 shrink-0" />
                                       <span className="truncate">
                                           Pick up where you left off
                                       </span>
@@ -3468,7 +3468,7 @@ function buildSearchCommands({
                 ...availableHistory.slice(0, 5).map((term) => ({
                     children: (
                         <div className="flex items-center gap-2.5">
-                            <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+                            <SearchIcon className="text-muted-foreground size-4 shrink-0" />
                             <span className="truncate">{term}</span>
                         </div>
                     ),
@@ -5067,7 +5067,7 @@ function ItemsListEmpty() {
     return (
         <>
             <ItemsGroupHeader>
-                <h3 className="font-medium text-foreground text-sm">
+                <h3 className="text-foreground text-sm font-medium">
                     <GradientWaveText
                         ariaLabel="Welcome to your Cache"
                         className="inline"
@@ -5112,8 +5112,8 @@ function ItemsListEmptyWithFilters() {
     }
 
     return (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/70 border-dashed bg-card/30 px-6 py-14 text-center">
-            <p className="max-w-md text-balance text-muted-foreground text-sm leading-snug">
+        <div className="border-border/70 bg-card/30 flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-14 text-center">
+            <p className="text-muted-foreground max-w-md text-sm leading-snug text-balance">
                 No saved items match the current search and filters.
             </p>
             <Button onClick={clearLibraryPalette} size="sm" variant="outline">
@@ -5179,9 +5179,9 @@ function ItemsListLinkCheckPending() {
     }
 
     return (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/70 border-dashed bg-card/30 px-6 py-14 text-center">
-            <Spinner className="size-5 text-muted-foreground" />
-            <p className="max-w-md text-balance text-muted-foreground text-sm leading-snug">
+        <div className="border-border/70 bg-card/30 flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-14 text-center">
+            <Spinner className="text-muted-foreground size-5" />
+            <p className="text-muted-foreground max-w-md text-sm leading-snug text-balance">
                 Checking which links fail to load…
             </p>
         </div>
@@ -5250,9 +5250,9 @@ function AgentViewBar({
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-primary/25 bg-primary/3 px-3 py-2">
+        <div className="border-primary/25 bg-primary/3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-3 py-2">
             <p className="min-w-0 flex-1 truncate text-xs">
-                <span className="font-medium text-foreground">
+                <span className="text-foreground font-medium">
                     {view.title}
                 </span>
                 <span className="text-muted-foreground">
@@ -5260,7 +5260,7 @@ function AgentViewBar({
                     {view.explanation}
                 </span>
             </p>
-            <p className="shrink-0 text-muted-foreground text-xs tabular-nums">
+            <p className="text-muted-foreground shrink-0 text-xs tabular-nums">
                 {resolvedCount} match{resolvedCount === 1 ? "" : "es"}
                 {partialNotes.length > 0
                     ? ` · ${partialNotes.join(" · ")}`
@@ -5277,7 +5277,7 @@ function AgentViewBar({
                 </Button>
             ) : null}
             {loadMoreError ? (
-                <p className="w-full text-destructive text-xs">
+                <p className="text-destructive w-full text-xs">
                     {loadMoreError}
                 </p>
             ) : null}
@@ -5412,7 +5412,7 @@ function ItemsGroupResults() {
         <ContextMenu>
             <ContextMenuTrigger render={<div className="contents" />}>
                 <div
-                    className="sticky z-10 flex items-center justify-between gap-3 rounded-xl bg-muted pr-1 shadow-[0_8px_20px_-14px_rgba(0,0,0,0.18)]"
+                    className="bg-muted sticky z-10 flex items-center justify-between gap-3 rounded-xl pr-1 shadow-[0_8px_20px_-14px_rgba(0,0,0,0.18)]"
                     style={{
                         background: getColorGradientFromName(group.accentKey),
                         top: "var(--library-section-sticky-top)",
@@ -5441,11 +5441,11 @@ function ItemsGroupResults() {
                                 </span>
                             </Button>
                         ) : (
-                            <h2 className="font-medium text-lg">
+                            <h2 className="text-lg font-medium">
                                 {group.title}
                             </h2>
                         )}
-                        <span className="font-medium text-muted-foreground text-xs tabular-nums">
+                        <span className="text-muted-foreground text-xs font-medium tabular-nums">
                             {group.items.length}
                         </span>
                     </div>
@@ -5493,7 +5493,7 @@ function ItemsGroupResults() {
                                     <MenuItem
                                         onClick={onCreateCollectionFromResults}
                                     >
-                                        <CircleFadingPlus className="size-4.5 text-muted-foreground" />
+                                        <CircleFadingPlus className="text-muted-foreground size-4.5" />
                                         New collection with these results
                                     </MenuItem>
                                 ) : null}
@@ -5501,7 +5501,7 @@ function ItemsGroupResults() {
                                     <MenuSeparator />
                                 ) : null}
                                 <MenuItem onClick={handleExportSectionResults}>
-                                    <FileSpreadsheetIcon className="size-4.5 text-muted-foreground" />
+                                    <FileSpreadsheetIcon className="text-muted-foreground size-4.5" />
                                     Export to CSV
                                 </MenuItem>
                             </MenuPopup>
@@ -5515,23 +5515,23 @@ function ItemsGroupResults() {
                         disabled={!group.collapsed}
                         onClick={group.onToggle}
                     >
-                        <ChevronDown className="size-4.5 text-muted-foreground" />
+                        <ChevronDown className="text-muted-foreground size-4.5" />
                         Expand
                     </ContextMenuItem>
                     <ContextMenuItem
                         disabled={group.collapsed}
                         onClick={group.onToggle}
                     >
-                        <ChevronUp className="size-4.5 text-muted-foreground" />
+                        <ChevronUp className="text-muted-foreground size-4.5" />
                         Collapse
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem onClick={onExpandAllSections}>
-                        <ChevronsDown className="size-4.5 text-muted-foreground" />
+                        <ChevronsDown className="text-muted-foreground size-4.5" />
                         Expand all
                     </ContextMenuItem>
                     <ContextMenuItem onClick={onCollapseAllSections}>
-                        <ChevronsUp className="size-4.5 text-muted-foreground" />
+                        <ChevronsUp className="text-muted-foreground size-4.5" />
                         Collapse all
                     </ContextMenuItem>
                 </ContextMenuPopup>
@@ -5570,12 +5570,12 @@ function ItemsGroupOverview({
             <div className="flex items-center gap-1.5">
                 <Astroid
                     aria-hidden
-                    className="size-4 text-muted-foreground"
+                    className="text-muted-foreground size-4"
                     focusable="false"
                 />
                 <GradientWaveText
                     ariaLabel="Overview"
-                    className="w-fit font-medium text-muted-foreground text-xs"
+                    className="text-muted-foreground w-fit text-xs font-medium"
                 >
                     Overview
                 </GradientWaveText>
@@ -5625,7 +5625,7 @@ function ItemsGroupOverviewContent() {
             id={contentId}
         >
             <Streamdown
-                className={cn("min-w-0 flex-1 whitespace-pre-line pt-1.5", {
+                className={cn("min-w-0 flex-1 pt-1.5 whitespace-pre-line", {
                     "shimmer shimmer-duration-1000 text-muted-foreground":
                         isPending,
                 })}
@@ -5946,7 +5946,7 @@ function CreateFromResultsCollectionDialog({
                                 Cache
                             </Badge>
                             <ChevronRight className="inline-block size-3.5 shrink-0" />
-                            <DialogTitle className="font-medium text-sm">
+                            <DialogTitle className="text-sm font-medium">
                                 New collection with {resultItems.length} current
                                 result
                                 {resultItems.length === 1 ? "" : "s"}
@@ -5956,14 +5956,14 @@ function CreateFromResultsCollectionDialog({
                     <DialogPanel className="space-y-2">
                         <div>
                             <label
-                                className="sr-only font-medium text-sm"
+                                className="sr-only text-sm font-medium"
                                 htmlFor={createResultsNameInputId}
                             >
                                 Name
                             </label>
                             <Input
                                 autoFocus
-                                className="-mx-[calc(--spacing(3)-1px)] font-semibold text-xl"
+                                className="-mx-[calc(--spacing(3)-1px)] text-xl font-semibold"
                                 id={createResultsNameInputId}
                                 isUnstyled
                                 maxLength={COLLECTION_NAME_MAX_LENGTH}
@@ -5977,7 +5977,7 @@ function CreateFromResultsCollectionDialog({
                         </div>
                         <div>
                             <label
-                                className="sr-only font-medium text-sm"
+                                className="sr-only text-sm font-medium"
                                 htmlFor={createResultsDescriptionId}
                             >
                                 Description (optional)
@@ -6096,7 +6096,7 @@ function AssistantResponseSuccessPanel({
         <AssistantResponseShell prompt={prompt}>
             <div className="flex min-w-0 flex-1 flex-col py-1">
                 <AssistantMessageBody>
-                    <Streamdown className="whitespace-pre-line text-sm leading-relaxed">
+                    <Streamdown className="text-sm leading-relaxed whitespace-pre-line">
                         {markdown}
                     </Streamdown>
                     <AssistantMessageActions>
@@ -6184,11 +6184,11 @@ function PaletteInputEndAddon({ stackEntries }: PaletteInputEndAddonProps) {
 function PaletteInputEndAddonShortcut() {
     return (
         <>
-            <Kbd className="border-none text-muted-foreground opacity-50 group-data-popup-open/input:opacity-0">
+            <Kbd className="text-muted-foreground border-none opacity-50 group-data-popup-open/input:opacity-0">
                 <CmdKbd />G
             </Kbd>
             <span className="absolute right-3.5 flex items-center gap-0.5 text-nowrap opacity-0 group-data-popup-open/input:opacity-100 dark:gap-1">
-                <Kbd className="border-none text-muted-foreground opacity-50">
+                <Kbd className="text-muted-foreground border-none opacity-50">
                     Tab
                 </Kbd>
                 <span className="text-muted-foreground text-xs opacity-50">
@@ -6224,7 +6224,7 @@ function ComposerActionsList({
                 <div
                     {...props}
                     className={cn(
-                        "flex items-center gap-2 text-nowrap px-3",
+                        "flex items-center gap-2 px-3 text-nowrap",
                         className
                     )}
                 />
@@ -6312,7 +6312,7 @@ function ComposerCommandContent({ item }: { item: ComposerCommand }) {
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <div className="truncate">{item.label}</div>
             {item.description ? (
-                <span className="max-w-xs truncate text-muted-foreground/80 text-xs">
+                <span className="text-muted-foreground/80 max-w-xs truncate text-xs">
                     {item.description}
                 </span>
             ) : null}
@@ -6343,7 +6343,7 @@ function ComposerCollectionCommandCard({ item }: ComposerCommandRowProps) {
 
     return (
         <AutocompleteItem
-            className="group squircle relative flex-1 overflow-hidden rounded-xl bg-accent text-accent-foreground shadow-xs"
+            className="group squircle bg-accent text-accent-foreground relative flex-1 overflow-hidden rounded-xl shadow-xs"
             disabled={item.disabled}
             onClick={handleSelect}
             value={item.value}
@@ -6427,11 +6427,11 @@ function PaletteSuggestionsList({
                 className={cn("px-3", className)}
                 render={<ScrollArea />}
             >
-                <div className="flex w-max select-none flex-nowrap items-center gap-1.5 text-nowrap">
+                <div className="flex w-max flex-nowrap items-center gap-1.5 text-nowrap select-none">
                     {suggestions.map((suggestion, index) => (
                         <React.Fragment key={suggestion.id}>
                             {children(suggestion, index)}
-                            <span className="mr-0.5 -ml-0.5 font-medium text-muted-foreground text-xs">
+                            <span className="text-muted-foreground mr-0.5 -ml-0.5 text-xs font-medium">
                                 ·
                             </span>
                         </React.Fragment>
@@ -6522,7 +6522,7 @@ function ContinueInThreadButton({
         <span className="ml-auto inline-flex max-w-full items-center gap-2">
             {errorMessage ? (
                 <span
-                    className="truncate text-destructive text-xs"
+                    className="text-destructive truncate text-xs"
                     role="alert"
                 >
                     {errorMessage}

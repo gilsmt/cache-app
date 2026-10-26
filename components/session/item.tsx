@@ -762,11 +762,11 @@ export function ItemNotePreview({
     const isQuoted = hasWrappingQuotes(contentText);
 
     return (
-        <div className="mask-b-from-75% size-full max-h-60 select-none p-4">
+        <div className="size-full max-h-60 mask-b-from-75% p-4 select-none">
             {isQuoted && <Quote className="mx-auto mb-2 size-4" />}
             <Streamdown
                 className={cn(
-                    "text-[11px] text-foreground",
+                    "text-foreground text-[11px]",
                     isQuoted && "text-center text-base italic"
                 )}
                 mode="static"
@@ -870,7 +870,7 @@ export function ItemCardDownloadProvider({
                 <p
                     aria-atomic="true"
                     aria-live="assertive"
-                    className="mt-1 px-1 text-destructive text-xs leading-tight"
+                    className="text-destructive mt-1 px-1 text-xs leading-tight"
                     role="alert"
                 >
                     <T>Couldn't download this media. Please try again.</T>
@@ -947,7 +947,7 @@ export function ItemCardSurface({ children }: React.PropsWithChildren) {
         <ItemCardSurfaceContext value={contextValue}>
             <ContextMenu onOpenChange={setIsContextMenuOpen}>
                 <ContextMenuTrigger
-                    className="group relative flex shrink-0 flex-col ease-out before:absolute before:-inset-x-2 before:-top-2 before:bottom-0 before:-z-10 before:rounded-xl before:bg-muted/50 before:opacity-0 before:transition-transform before:ease-out hover:before:opacity-100 focus-visible:outline-none active:before:opacity-80!"
+                    className="group before:bg-muted/50 relative flex shrink-0 flex-col ease-out before:absolute before:-inset-x-2 before:-top-2 before:bottom-0 before:-z-10 before:rounded-xl before:opacity-0 before:transition-transform before:ease-out hover:before:opacity-100 focus-visible:outline-none active:before:opacity-80!"
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
                     role="group"
@@ -1015,7 +1015,7 @@ export function ItemCardTarget() {
                     : getLibraryItemTitle(item)
             }
             className={cn(
-                "squircle group/preview relative flex flex-col overflow-clip rounded-xl focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "squircle group/preview focus-visible:border-ring focus-visible:ring-ring relative flex flex-col overflow-clip rounded-xl focus-visible:ring-2 focus-visible:outline-none",
                 { "bg-muted/90": isNote }
             )}
             onClick={handleOpen}
@@ -1062,7 +1062,7 @@ export function ItemCardTarget() {
             )}
             <div
                 aria-hidden
-                className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/5 ring-inset"
+                className="squircle ring-foreground/5 pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset"
             />
         </div>
     );
@@ -1232,7 +1232,7 @@ function ItemCardToolbar({
             className={cn(
                 "squircle absolute right-2 bottom-2 z-10 w-auto justify-end gap-px overflow-hidden rounded-lg bg-black/55 p-0.5 text-white shadow-lg transition-opacity group-hover/preview:transition-none",
                 !isPinned &&
-                    "opacity-0 focus-within:opacity-100 group-hover/preview:opacity-100"
+                    "opacity-0 group-hover/preview:opacity-100 focus-within:opacity-100"
             )}
         >
             <AnimatePresence initial={false}>
@@ -1241,7 +1241,7 @@ function ItemCardToolbar({
                         key="visited"
                         transition={slotTransition}
                     >
-                        <span className="truncate px-1 font-medium text-[11px]">
+                        <span className="truncate px-1 text-[11px] font-medium">
                             <T>Last visited</T>
                         </span>
                     </ItemCardToolbarSlot>
@@ -1398,8 +1398,8 @@ function ItemCardColorSwatch({ name, value }: ItemCardColorSwatchProps) {
         >
             {isCopied ? (
                 <>
-                    <Check className="size-3 text-foreground" />
-                    <span className="absolute -bottom-4 text-nowrap rounded-xl bg-background text-[11px] text-success-foreground">
+                    <Check className="text-foreground size-3" />
+                    <span className="bg-background text-success-foreground absolute -bottom-4 rounded-xl text-[11px] text-nowrap">
                         Copied!
                     </span>
                 </>
@@ -1451,14 +1451,14 @@ function ItemCardDetails() {
                 </span>
                 <ChevronDown className="ml-auto inline-block size-4 -rotate-90 transition-transform group-data-open/collapsible:rotate-0" />
             </CollapsibleTrigger>
-            <CollapsiblePanel className="px-2.5 text-[11px] text-muted-foreground">
+            <CollapsiblePanel className="text-muted-foreground px-2.5 text-[11px]">
                 {shouldShowFullTitle ? (
-                    <p className="wrap-break-words max-w-52 whitespace-normal py-0.5 text-foreground">
+                    <p className="wrap-break-words text-foreground max-w-52 py-0.5 whitespace-normal">
                         {displayTitle}
                     </p>
                 ) : null}
                 {isNote ? null : (
-                    <span className="inline-block min-w-0 max-w-52 truncate py-0.5 text-muted-foreground underline">
+                    <span className="text-muted-foreground inline-block max-w-52 min-w-0 truncate py-0.5 underline">
                         {item.url}
                     </span>
                 )}
@@ -1551,7 +1551,7 @@ function ItemCardTitleMenu() {
             <MenuTrigger
                 render={
                     <Button
-                        className="*:mask-r-to-95% *:mask-r-from-80% min-w-0 flex-1 justify-start px-0 text-xs! *:w-full *:flex-1"
+                        className="min-w-0 flex-1 justify-start px-0 text-xs! *:w-full *:flex-1 *:mask-r-from-80% *:mask-r-to-95%"
                         size="xs"
                         title={displayTitle}
                         type="button"
@@ -1582,7 +1582,7 @@ function ItemCardFavoriteAction({
         <ItemCardActionItem onClick={handleToggle} surface={surface}>
             <Star
                 className={cn(
-                    "size-4.5 text-muted-foreground",
+                    "text-muted-foreground size-4.5",
                     isFavorite && "fill-current"
                 )}
             />
@@ -1602,7 +1602,7 @@ function ItemCardNoteAction({ surface }: { surface: ItemCardActionVariant }) {
 
     return (
         <ItemCardActionItem onClick={handleOpenNote} surface={surface}>
-            <FilePenLineIcon className="size-4.5 text-muted-foreground" />
+            <FilePenLineIcon className="text-muted-foreground size-4.5" />
             Edit note
         </ItemCardActionItem>
     );
@@ -1624,7 +1624,7 @@ function ItemCardQuickLookAction({
 
     return (
         <ItemCardActionItem onClick={handleOpen} surface={surface}>
-            <EyeIcon className="size-4.5 text-muted-foreground" />
+            <EyeIcon className="text-muted-foreground size-4.5" />
             Quick look
             <Kbd className="ml-auto">
                 <AltKbd />E
@@ -1638,7 +1638,7 @@ function ItemCardZoomAction({ surface }: { surface: ItemCardActionVariant }) {
 
     return (
         <ItemCardActionItem onClick={onZoomIn} surface={surface}>
-            <ZoomIn className="size-4.5 text-muted-foreground" />
+            <ZoomIn className="text-muted-foreground size-4.5" />
             Zoom in
         </ItemCardActionItem>
     );
@@ -1658,12 +1658,12 @@ function ItemCardOpenLinkAction({
             surface={surface}
         >
             {SourceIcon ? (
-                <SourceIcon className="size-4 text-muted-foreground" />
+                <SourceIcon className="text-muted-foreground size-4" />
             ) : (
-                <ExternalLinkIcon className="size-4.5 text-muted-foreground" />
+                <ExternalLinkIcon className="text-muted-foreground size-4.5" />
             )}
             Open in New Tab
-            <ArrowUpRight className="ml-auto size-4 text-muted-foreground" />
+            <ArrowUpRight className="text-muted-foreground ml-auto size-4" />
         </ItemCardActionItem>
     );
 }
@@ -1677,7 +1677,7 @@ function ItemCardCopyLinkAction({
 
     return (
         <ItemCardActionItem onClick={handleCopyLink} surface={surface}>
-            <LinkIcon className="size-4.5 text-muted-foreground" />
+            <LinkIcon className="text-muted-foreground size-4.5" />
             Copy link URL
         </ItemCardActionItem>
     );
@@ -1696,7 +1696,7 @@ function ItemCardDownloadAction({
             onClick={onDownload}
             surface={surface}
         >
-            <DownloadIcon className="size-4.5 text-muted-foreground" />
+            <DownloadIcon className="text-muted-foreground size-4.5" />
             {isDownloading ? "Downloading…" : "Download"}
         </ItemCardActionItem>
     );
@@ -1714,7 +1714,7 @@ function ItemCardFindSimilarAction({
 
     return (
         <ItemCardActionItem onClick={handleFindSimilar} surface={surface}>
-            <SearchIcon className="size-4.5 text-muted-foreground" />
+            <SearchIcon className="text-muted-foreground size-4.5" />
             Find similar
         </ItemCardActionItem>
     );
@@ -1740,7 +1740,7 @@ function ItemCardWaybackAction({
 }) {
     const triggerContent = (
         <>
-            <History className="size-4.5 text-muted-foreground" />
+            <History className="text-muted-foreground size-4.5" />
             Previous versions
         </>
     );
@@ -1804,7 +1804,7 @@ function ItemCardWaybackSnapshotItem({
 
     return (
         <ItemCardActionItem onClick={handleSnapshot} surface={surface}>
-            <History className="size-4 text-muted-foreground" />
+            <History className="text-muted-foreground size-4" />
             {label}
         </ItemCardActionItem>
     );

@@ -6,7 +6,7 @@ import { tryParseUrl } from "@/lib/common/url";
 
 const log = createLogger("auth:trusted-origins");
 
-const CHROME_EXTENSION_ID_PATTERN = /^[a-p]{32}$/;
+const CHROME_EXTENSION_ID_PATTERN = /^[a-p]{32}$/u;
 
 export const BASE_AUTH_URL = serverEnv.BETTER_AUTH_URL ?? BASE_URL;
 

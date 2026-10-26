@@ -54,13 +54,13 @@ export function ComboboxInput({
 }: ComboboxInputProps) {
     return (
         <ComboboxPrimitive.InputGroup
-            className="relative not-has-[>*.w-full]:w-fit w-full border-b text-foreground has-disabled:opacity-64"
+            className="text-foreground relative w-full border-b not-has-[>*.w-full]:w-fit has-disabled:opacity-64"
             data-slot="combobox-input-group"
         >
             {startAddon ? (
                 <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-s-px inset-y-0 z-10 flex items-center ps-[calc(--spacing(3)-1px)] opacity-80 has-[+[data-size=sm]]:ps-[calc(--spacing(2.5)-1px)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:-mx-0.5"
+                    className="pointer-events-none absolute inset-y-0 inset-s-px z-10 flex items-center ps-[calc(--spacing(3)-1px)] opacity-80 has-[+[data-size=sm]]:ps-[calc(--spacing(2.5)-1px)] [&_svg]:-mx-0.5 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4"
                     data-slot="combobox-start-addon"
                 >
                     {startAddon}
@@ -70,12 +70,12 @@ export function ComboboxInput({
                 {...props}
                 className={cn(
                     startAddon &&
-                        "data-[size=sm]:*:data-[slot=combobox-input]:ps-[calc(--spacing(7.5)-1px)] *:data-[slot=combobox-input]:ps-[calc(--spacing(8.5)-1px)] sm:data-[size=sm]:*:data-[slot=combobox-input]:ps-[calc(--spacing(7)-1px)] sm:*:data-[slot=combobox-input]:ps-[calc(--spacing(8)-1px)]",
+                        "*:data-[slot=combobox-input]:ps-[calc(--spacing(8.5)-1px)] data-[size=sm]:*:data-[slot=combobox-input]:ps-[calc(--spacing(7.5)-1px)] sm:*:data-[slot=combobox-input]:ps-[calc(--spacing(8)-1px)] sm:data-[size=sm]:*:data-[slot=combobox-input]:ps-[calc(--spacing(7)-1px)]",
                     endAddon &&
-                        "data-[size=sm]:*:data-[slot=combobox-input]:pe-[calc(--spacing(7.5)-1px)] *:data-[slot=combobox-input]:pe-[calc(--spacing(8.5)-1px)] sm:data-[size=sm]:*:data-[slot=combobox-input]:pe-[calc(--spacing(7)-1px)] sm:*:data-[slot=combobox-input]:pe-[calc(--spacing(8)-1px)]",
+                        "*:data-[slot=combobox-input]:pe-[calc(--spacing(8.5)-1px)] data-[size=sm]:*:data-[slot=combobox-input]:pe-[calc(--spacing(7.5)-1px)] sm:*:data-[slot=combobox-input]:pe-[calc(--spacing(8)-1px)] sm:data-[size=sm]:*:data-[slot=combobox-input]:pe-[calc(--spacing(7)-1px)]",
                     endAddon &&
                         shouldShowClear &&
-                        "data-[size=sm]:*:data-[slot=combobox-input]:pe-[calc(--spacing(13.5)-1px)] *:data-[slot=combobox-input]:pe-[calc(--spacing(14.5)-1px)] sm:data-[size=sm]:*:data-[slot=combobox-input]:pe-[calc(--spacing(12.5)-1px)] sm:*:data-[slot=combobox-input]:pe-[calc(--spacing(13.5)-1px)]",
+                        "*:data-[slot=combobox-input]:pe-[calc(--spacing(14.5)-1px)] data-[size=sm]:*:data-[slot=combobox-input]:pe-[calc(--spacing(13.5)-1px)] sm:*:data-[slot=combobox-input]:pe-[calc(--spacing(13.5)-1px)] sm:data-[size=sm]:*:data-[slot=combobox-input]:pe-[calc(--spacing(12.5)-1px)]",
                     size === "sm"
                         ? "has-[+[data-slot=combobox-trigger],+[data-slot=combobox-clear]]:*:data-[slot=combobox-input]:pe-6.5"
                         : "has-[+[data-slot=combobox-trigger],+[data-slot=combobox-clear]]:*:data-[slot=combobox-input]:pe-7",
@@ -95,7 +95,7 @@ export function ComboboxInput({
                 <div
                     aria-hidden
                     className={cn(
-                        "pointer-events-none absolute inset-e-px inset-y-0 z-10 flex items-center pe-[calc(--spacing(2)-1px)] opacity-80 has-[+[data-size=sm]]:pe-[calc(--spacing(2.5)-1px)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:-mx-0.5",
+                        "pointer-events-none absolute inset-y-0 inset-e-px z-10 flex items-center pe-[calc(--spacing(2)-1px)] opacity-80 has-[+[data-size=sm]]:pe-[calc(--spacing(2.5)-1px)] [&_svg]:-mx-0.5 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4",
                         shouldShowClear &&
                             (size === "sm" ? "inset-e-7" : "inset-e-8.5")
                     )}
@@ -108,7 +108,7 @@ export function ComboboxInput({
                 <ComboboxClear
                     {...clearProps}
                     className={cn(
-                        "absolute top-1/2 inline-flex size-8 shrink-0 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border border-transparent opacity-80 outline-none pointer-coarse:after:absolute pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:opacity-100 has-[+[data-slot=combobox-clear]]:hidden sm:size-7 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+                        "absolute top-1/2 inline-flex size-8 shrink-0 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border border-transparent opacity-80 outline-none hover:opacity-100 has-[+[data-slot=combobox-clear]]:hidden sm:size-7 pointer-coarse:after:absolute pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4",
                         size === "sm" ? "inset-e-0" : "inset-e-0.5"
                     )}
                 >
@@ -154,7 +154,7 @@ export function ComboboxPopup({
                 align={align}
                 alignOffset={alignOffset}
                 anchor={anchorProp ?? chipsRef}
-                className="z-50 select-none outline-none"
+                className="z-50 outline-none select-none"
                 data-slot="combobox-positioner"
                 positionMethod={positionMethod}
                 side={side}
@@ -163,7 +163,7 @@ export function ComboboxPopup({
                 <ComboboxPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative flex min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) flex-col rounded-xl border bg-popover not-dark:bg-clip-padding text-foreground shadow-lg/8 outline-none transition-[scale,opacity] duration-100 before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle bg-popover text-foreground relative flex max-w-(--available-width) min-w-(--anchor-width) origin-(--transform-origin) flex-col rounded-xl border shadow-lg/8 transition-[scale,opacity] duration-100 outline-none not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:scale-98 data-ending-style:opacity-0 data-starting-style:scale-98 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot="combobox-popup"
@@ -187,7 +187,7 @@ export function ComboboxItem({
         <ComboboxPrimitive.Item
             {...props}
             className={cn(
-                "squircle grid min-h-8 cursor-default grid-cols-[1rem_1fr] items-center gap-2 rounded-lg py-1 ps-2 pe-2 text-base outline-none data-disabled:pointer-events-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+                "squircle data-highlighted:bg-accent data-highlighted:text-accent-foreground grid min-h-8 cursor-default grid-cols-[1rem_1fr] items-center gap-2 rounded-lg py-1 ps-2 pe-2 text-base outline-none data-disabled:pointer-events-none data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4",
                 shouldShowIndicatorLast && "grid-cols-[1fr_1rem]",
                 className
             )}
@@ -217,7 +217,7 @@ export function ComboboxSeparator({
     return (
         <ComboboxPrimitive.Separator
             {...props}
-            className={cn("my-1 h-px shrink-0 bg-border/50", className)}
+            className={cn("bg-border/50 my-1 h-px shrink-0", className)}
             data-slot="combobox-separator"
         />
     );
@@ -244,7 +244,7 @@ export function ComboboxGroupLabel({
         <ComboboxPrimitive.GroupLabel
             {...props}
             className={cn(
-                "px-2 pt-1.5 pb-1 font-medium text-muted-foreground text-xs",
+                "text-muted-foreground px-2 pt-1.5 pb-1 text-xs font-medium",
                 className
             )}
             data-slot="combobox-group-label"
@@ -260,7 +260,7 @@ export function ComboboxEmpty({
         <ComboboxPrimitive.Empty
             {...props}
             className={cn(
-                "not-empty:p-2 text-center text-muted-foreground text-xs",
+                "text-muted-foreground text-center text-xs not-empty:p-2",
                 className
             )}
             data-slot="combobox-empty"
@@ -285,7 +285,7 @@ export function ComboboxList({
             <ComboboxPrimitive.List
                 {...props}
                 className={cn(
-                    "max-h-[min(var(--available-height),23rem)] not-empty:scroll-py-1 not-empty:px-1 not-empty:py-1 in-data-has-overflow-y:pe-3 outline-0",
+                    "max-h-[min(var(--available-height),23rem)] outline-0 not-empty:scroll-py-1 not-empty:px-1 not-empty:py-1 in-data-has-overflow-y:pe-3",
                     className
                 )}
                 data-slot="combobox-list"
@@ -306,7 +306,7 @@ export function ComboboxStatus({
         <ComboboxPrimitive.Status
             {...props}
             className={cn(
-                "px-3 py-2 font-medium text-muted-foreground text-xs empty:m-0 empty:p-0",
+                "text-muted-foreground px-3 py-2 text-xs font-medium empty:m-0 empty:p-0",
                 className
             )}
             data-slot="combobox-status"

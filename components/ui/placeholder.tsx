@@ -26,13 +26,13 @@ export function Placeholder({
         <div
             {...props}
             className={cn(
-                "texture-screen relative flex size-full flex-col items-center justify-center gap-2 bg-muted/80",
+                "texture-screen bg-muted/80 relative flex size-full flex-col items-center justify-center gap-2",
                 className
             )}
             style={{ ...textureStyle, ...style }}
         >
             {children ?? (
-                <GlobeX className="size-6 text-muted-foreground opacity-50" />
+                <GlobeX className="text-muted-foreground size-6 opacity-50" />
             )}
         </div>
     );

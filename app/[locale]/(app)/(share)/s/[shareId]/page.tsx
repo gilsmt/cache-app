@@ -161,8 +161,8 @@ async function CollectionShareBody(props: CollectionSharePageProps) {
     return (
         <div className="flex flex-col gap-6">
             {collection.name ? (
-                <div className="flex flex-col items-center justify-center text-muted-foreground text-sm">
-                    <h1 className="font-medium text-foreground text-xl">
+                <div className="text-muted-foreground flex flex-col items-center justify-center text-sm">
+                    <h1 className="text-foreground text-xl font-medium">
                         {collection.name}
                     </h1>
                     <span className="tabular-nums">

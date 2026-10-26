@@ -433,7 +433,7 @@ interface ThreadToolRowProps {
 function ThreadToolRow({ name, state }: ThreadToolRowProps) {
     if (isActiveThreadToolState(state)) {
         return (
-            <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
                 <ThinkingOrb size={20} state="shaping" />
                 <span>
                     <ThreadToolLabel name={name} />…
@@ -444,10 +444,10 @@ function ThreadToolRow({ name, state }: ThreadToolRowProps) {
 
     if (state === "output-error") {
         return (
-            <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
                 <TriangleAlert
                     aria-hidden
-                    className="size-3.5 text-destructive"
+                    className="text-destructive size-3.5"
                     focusable="false"
                 />
                 <span className="flex items-baseline gap-1">
@@ -460,17 +460,17 @@ function ThreadToolRow({ name, state }: ThreadToolRowProps) {
 
     if (state === "output-denied") {
         return (
-            <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
                 <ThreadToolLabel name={name} />
             </div>
         );
     }
 
     return (
-        <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+        <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
             <Check
                 aria-hidden
-                className="size-3.5 text-success"
+                className="text-success size-3.5"
                 focusable="false"
             />
             <ThreadToolLabel name={name} />

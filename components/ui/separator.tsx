@@ -10,7 +10,7 @@ export function Separator({
         <SeparatorPrimitive
             {...props}
             className={cn(
-                "shrink-0 bg-border/50 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:w-px data-[orientation=vertical]:self-stretch",
+                "bg-border/50 shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:w-px data-[orientation=vertical]:self-stretch",
                 className
             )}
             data-slot="separator"

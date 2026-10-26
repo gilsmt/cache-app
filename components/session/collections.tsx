@@ -1432,17 +1432,20 @@ function useCollectionPreviewPlayback({
         const urls =
             thumbnailsKey.length === 0 ? [] : thumbnailsKey.split("\0");
 
+        async function preloadAspect(url: string) {
+            const aspectRatio = await preloadImageAspect(url);
+            if (cancelled || aspectRatio === null) {
+                return;
+            }
+            setAspectsBySrc((previous) =>
+                previous[url] === undefined
+                    ? { ...previous, [url]: aspectRatio }
+                    : previous
+            );
+        }
+
         for (const url of urls) {
-            preloadImageAspect(url).then((aspectRatio) => {
-                if (cancelled || aspectRatio === null) {
-                    return;
-                }
-                setAspectsBySrc((previous) =>
-                    previous[url] === undefined
-                        ? { ...previous, [url]: aspectRatio }
-                        : previous
-                );
-            });
+            preloadAspect(url);
         }
 
         return () => {
@@ -2627,8 +2630,8 @@ function CollectionsListGroup({
 }: CollectionsListGroupProps) {
     return (
         <div className="flex flex-col">
-            <div className="sticky -top-9 flex items-center justify-between bg-background p-2.5">
-                <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+            <div className="bg-background sticky -top-9 flex items-center justify-between p-2.5">
+                <span className="text-muted-foreground min-w-0 truncate text-[11px]">
                     {label}
                 </span>
             </div>
@@ -2639,17 +2642,17 @@ function CollectionsListGroup({
     );
 }
 
-interface CollectionsListGroupTriggerProps
+interface CollectionsListTriggerImplProps
     extends React.ComponentProps<typeof CollapsibleTrigger> {
     count: number;
 }
 
-function CollectionsListGroupTrigger({
+function CollectionsListTriggerImpl({
     children,
     count,
     render,
     ...props
-}: CollectionsListGroupTriggerProps) {
+}: CollectionsListTriggerImplProps) {
     return (
         <CollapsibleTrigger
             {...props}
@@ -2708,7 +2711,7 @@ function CollectionsListSummaryTrigger({
                 <PreviewCardTitle className="flex items-center gap-1">
                     <LibraryBig
                         aria-hidden
-                        className="inline-block size-3.5 shrink-0 text-muted-foreground"
+                        className="text-muted-foreground inline-block size-3.5 shrink-0"
                         focusable="false"
                     />
                     <span className="min-w-0 truncate text-xs">
@@ -2716,7 +2719,7 @@ function CollectionsListSummaryTrigger({
                     </span>
                     <ChevronRight
                         aria-hidden
-                        className="inline-block size-3.5 shrink-0 text-muted-foreground"
+                        className="text-muted-foreground inline-block size-3.5 shrink-0"
                         focusable="false"
                     />
                     <span className="min-w-0 truncate text-xs">
@@ -2734,7 +2737,7 @@ function CollectionsListSummaryTrigger({
                                         <DataListValue>
                                             <Icon
                                                 aria-hidden
-                                                className="size-4 text-muted-foreground sm:size-3.5"
+                                                className="text-muted-foreground size-4 sm:size-3.5"
                                                 focusable="false"
                                             />
                                             {count}
@@ -2779,7 +2782,7 @@ function CollectionsListTrigger(
             priorityCounts={priorityCounts}
             sectionTitle={<T>Collections</T>}
         >
-            <CollectionsListGroupTrigger
+            <CollectionsListTriggerImpl
                 {...props}
                 count={collectionSummaries.length}
             />
@@ -2838,7 +2841,7 @@ function CollectionsListFavoritesTrigger(
             priorityCounts={priorityCounts}
             sectionTitle={<T>Favorites</T>}
         >
-            <CollectionsListGroupTrigger
+            <CollectionsListTriggerImpl
                 {...props}
                 count={favoriteCollections.length + favoriteItems.length}
             />
@@ -2903,7 +2906,7 @@ function CollectionsListFavoritesItem({
 
     return (
         <div
-            className="group relative flex select-none items-center"
+            className="group relative flex items-center select-none"
             onPointerEnter={handlePointerEnter}
             onPointerLeave={handlePointerLeave}
         >
@@ -2920,12 +2923,12 @@ function CollectionsListFavoritesItem({
                     onClick={handleClick}
                     render={
                         <SidebarItem
-                            className="justify-start pl-8.5 text-left focus-visible:pr-8 group-focus-within:pr-8 pointer-fine:group-hover:pr-8"
+                            className="justify-start pl-8.5 text-left group-focus-within:pr-8 focus-visible:pr-8 pointer-fine:group-hover:pr-8"
                             render={<Button variant="ghost" />}
                         />
                     }
                 >
-                    <span className="min-w-0 flex-1 truncate font-medium text-sm tracking-tight">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium tracking-tight">
                         {label}
                     </span>
                 </PreviewCardTrigger>
@@ -2935,7 +2938,7 @@ function CollectionsListFavoritesItem({
                     side="right"
                 >
                     {isNote ? (
-                        <p className="line-clamp-6 whitespace-pre-wrap text-left text-foreground text-xs leading-snug">
+                        <p className="text-foreground line-clamp-6 text-left text-xs leading-snug whitespace-pre-wrap">
                             {noteExcerpt || "Empty note"}
                         </p>
                     ) : (
@@ -2948,7 +2951,7 @@ function CollectionsListFavoritesItem({
             </PreviewCard>
             <Button
                 aria-label="Remove from favorites"
-                className="absolute top-1/2 right-1 z-10 size-6 -translate-y-1/2 text-muted-foreground opacity-100 pointer-fine:opacity-0 focus-visible:opacity-100 group-focus-within:opacity-100 pointer-fine:group-hover:opacity-100"
+                className="text-muted-foreground absolute top-1/2 right-1 z-10 size-6 -translate-y-1/2 opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
                 onClick={handleRemoveFavorite}
                 size="icon-xs"
                 title="Remove from favorites"
@@ -3005,7 +3008,7 @@ function CollectionsListFavoritesItemPreviewContent({
     videoSrc,
 }: CollectionsListFavoritesItemPreviewMediaProps): React.ReactElement {
     return (
-        <div className="relative min-h-32 w-full bg-background">
+        <div className="bg-background relative min-h-32 w-full">
             <CollectionsListFavoritesItemPreview
                 alt=""
                 className="aspect-auto h-auto w-full"
@@ -3098,7 +3101,7 @@ function CollectionsListEmpty({
         <div
             {...props}
             className={cn(
-                "flex flex-col items-center justify-center gap-4 rounded-2xl border border-border/30 border-dashed px-4 py-7 text-center font-medium text-muted-foreground text-xs italic leading-tight",
+                "border-border/30 text-muted-foreground flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed px-4 py-7 text-center text-xs leading-tight font-medium italic",
                 className
             )}
         >
@@ -3122,14 +3125,14 @@ function CollectionsListEmpty({
                     <>
                         <Image
                             alt="empty cluster"
-                            className="squircle mx-auto size-10 rounded-lg outline-1 outline-black/5 -outline-offset-1 dark:hidden dark:outline-white/5"
+                            className="squircle mx-auto size-10 rounded-lg outline-1 -outline-offset-1 outline-black/5 dark:hidden dark:outline-white/5"
                             height={40}
                             src={EmptyCollectionStateLightImage}
                             width={40}
                         />
                         <Image
                             alt="empty cluster"
-                            className="squircle mx-auto hidden size-10 rounded-lg outline-1 outline-black/5 -outline-offset-1 dark:block dark:outline-white/5"
+                            className="squircle mx-auto hidden size-10 rounded-lg outline-1 -outline-offset-1 outline-black/5 dark:block dark:outline-white/5"
                             height={40}
                             src={EmptyCollectionStateDarkImage}
                             width={40}
@@ -3178,7 +3181,7 @@ function CollectionsListStatus({
                 aria-atomic="true"
                 aria-live={tone === "error" ? "assertive" : "polite"}
                 className={cn(
-                    "truncate text-xs italic leading-tight",
+                    "truncate text-xs leading-tight italic",
                     tone === "error"
                         ? "text-destructive"
                         : "text-muted-foreground"
@@ -3404,10 +3407,10 @@ function CollectionsComboboxItem({
     children,
 }: CollectionsComboboxOptionItemProps) {
     return (
-        <span className="flex min-w-0 items-center gap-2 text-foreground text-sm">
+        <span className="text-foreground flex min-w-0 items-center gap-2 text-sm">
             <Icon
                 aria-hidden
-                className="size-4 text-muted-foreground"
+                className="text-muted-foreground size-4"
                 focusable="false"
             />
             <span className="min-w-0 truncate">{children}</span>
@@ -3463,7 +3466,7 @@ function CollectionsListSmartCollectionsPopover() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center gap-0.5 text-nowrap font-medium text-[11px] opacity-40">
+            <div className="flex items-center gap-0.5 text-[11px] font-medium text-nowrap opacity-40">
                 Smart Collections
                 <span>is</span>
                 <Skeleton className="h-3.5 w-14" />
@@ -3483,7 +3486,7 @@ function CollectionsListSmartCollectionsPopover() {
             </span>
             <PopoverTrigger
                 className={cn(
-                    "group not-sr-only flex items-center text-nowrap font-medium text-[11px]",
+                    "group not-sr-only flex items-center text-[11px] font-medium text-nowrap",
                     isActive
                         ? "opacity-70 data-popup-open:opacity-100"
                         : "opacity-50"
@@ -3492,7 +3495,7 @@ function CollectionsListSmartCollectionsPopover() {
             >
                 <GradientWaveText
                     ariaLabel="Smart Collections"
-                    className="w-fit underline decoration-muted-foreground/20 decoration-dotted underline-offset-2"
+                    className="decoration-muted-foreground/20 w-fit underline decoration-dotted underline-offset-2"
                 >
                     Smart Collections
                 </GradientWaveText>
@@ -3502,7 +3505,7 @@ function CollectionsListSmartCollectionsPopover() {
                 <Image
                     alt=""
                     aria-hidden
-                    className="-mx-(--viewport-inline-padding) -mt-4 aspect-32/9 h-auto max-h-24 w-(--positioner-width) min-w-0 max-w-(--positioner-width) rounded-t-lg"
+                    className="-mx-(--viewport-inline-padding) -mt-4 aspect-32/9 h-auto max-h-24 w-(--positioner-width) max-w-(--positioner-width) min-w-0 rounded-t-lg"
                     placeholder="blur"
                     sizes="auto,288px"
                     src={SmartCollectionsBackgroundImg}
@@ -3515,7 +3518,7 @@ function CollectionsListSmartCollectionsPopover() {
                         entries.
                     </PopoverDescription>
                     <Button
-                        className="w-fit px-0 text-muted-foreground text-xs"
+                        className="text-muted-foreground w-fit px-0 text-xs"
                         onClick={handleToggle}
                         size="xs"
                         variant="link"
@@ -3576,9 +3579,9 @@ function CollectionsListSuggestionsItem({
             }
             await refreshCollectionSuggestions(
                 mutateSuggestions,
-                "Failed to refresh collection suggestions after creating from template"
+                "Failed to refresh collection suggestions after creating from suggestion"
             );
-            showSuccess(`${collection.name} created from template.`);
+            showSuccess(`${collection.name} created from suggestion.`);
         });
     });
 
@@ -3586,7 +3589,7 @@ function CollectionsListSuggestionsItem({
 
     return (
         <CollectionsListSuggestionsItemContext value={contextValue}>
-            <div className="group relative flex select-none items-center">
+            <div className="group relative flex items-center select-none">
                 {children}
             </div>
         </CollectionsListSuggestionsItemContext>
@@ -3623,7 +3626,7 @@ function CollectionsListSuggestionsItemTrigger({
                 {isPending ? (
                     <Spinner className="absolute right-3 size-3.5" />
                 ) : (
-                    <span className="absolute right-3 text-muted-foreground text-xs opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
+                    <span className="text-muted-foreground absolute right-3 text-xs opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
                         <T>Add</T>
                     </span>
                 )}
@@ -3650,12 +3653,12 @@ function CollectionsListSuggestionsItemValue() {
 
     return (
         <>
-            <span className="absolute top-1/2 left-1.25 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border border-input border-dashed text-muted-foreground">
+            <span className="border-input text-muted-foreground absolute top-1/2 left-1.25 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border border-dashed">
                 <PlusIcon aria-hidden className="size-4" focusable="false" />
             </span>
             <div className="flex min-w-0 flex-1 items-center gap-3">
                 <span
-                    className="max-w-full shrink-0 truncate font-medium text-sm tracking-tight"
+                    className="max-w-full shrink-0 truncate text-sm font-medium tracking-tight"
                     title={template.name}
                 >
                     {template.name}
@@ -3728,7 +3731,7 @@ function CollectionsListItem({
             <div
                 {...props}
                 className={cn(
-                    "group relative flex select-none items-center",
+                    "group relative flex items-center select-none",
                     className
                 )}
                 onPointerEnter={onPointerEnter}
@@ -3793,7 +3796,7 @@ function CollectionsListItemTrigger({
                 onPointerLeave={handlePointerLeave}
                 render={
                     <SidebarItem
-                        className="w-full min-w-0 flex-1 justify-start pointer-fine:pr-8 pr-15 pl-8.5 text-left before:bg-(--collection-background) hover:bg-transparent focus-visible:ring-(--accent-color)"
+                        className="w-full min-w-0 flex-1 justify-start pr-15 pl-8.5 text-left before:bg-(--collection-background) hover:bg-transparent focus-visible:ring-(--accent-color) pointer-fine:pr-8"
                         render={<Button variant="ghost" />}
                     />
                 }
@@ -3803,13 +3806,11 @@ function CollectionsListItemTrigger({
                 positionMethod="fixed"
                 side="right"
             >
-                {isOpen ? (
-                    <CollectionsListItemPreview
-                        activeSlide={activeSlide}
-                        collection={collection}
-                        onSlideError={reportSlideError}
-                    />
-                ) : null}
+                <CollectionsListItemPreview
+                    activeSlide={activeSlide}
+                    collection={collection}
+                    onSlideError={reportSlideError}
+                />
             </PreviewCardPopup>
         </PreviewCard>
     );
@@ -3848,7 +3849,7 @@ function CollectionsListItemPreview({
                         {collection.description}
                     </PreviewCardDescription>
                 ) : null}
-                <PreviewCardDescription className="truncate text-muted-foreground">
+                <PreviewCardDescription className="text-muted-foreground truncate">
                     <T>Created</T>{" "}
                     <time dateTime={createdAt.toISOString()}>
                         {createdAt.fromNow()}
@@ -3897,7 +3898,7 @@ function CollectionsListItemValue() {
     return (
         <div className="flex min-w-0 flex-1 items-center gap-3">
             <span
-                className="max-w-full shrink-0 truncate font-medium text-sm tracking-tight"
+                className="max-w-full shrink-0 truncate text-sm font-medium tracking-tight"
                 title={collection.name}
             >
                 <HighlightMark query={textMatchQuery}>
@@ -3905,7 +3906,7 @@ function CollectionsListItemValue() {
                 </HighlightMark>
             </span>
             {isSelected || collection.sources.length === 0 ? null : (
-                <span className="invisible max-w-full flex-1 truncate py-px text-[11px] text-muted-foreground opacity-80 group-hover:visible group-focus-visible:visible">
+                <span className="text-muted-foreground invisible max-w-full flex-1 truncate py-px text-[11px] opacity-80 group-hover:visible group-focus-visible:visible">
                     {collection.sources.map(getSourceLabel).join(", ")}
                 </span>
             )}
@@ -4049,11 +4050,11 @@ function CollectionsListItemControls({
     );
 
     return (
-        <div className="absolute top-1/2 pointer-fine:right-0 right-1 flex pointer-fine:size-9 h-9 -translate-y-1/2 items-center justify-end pointer-fine:justify-center gap-1 pointer-fine:gap-0">
+        <div className="absolute top-1/2 right-1 flex h-9 -translate-y-1/2 items-center justify-end gap-1 pointer-fine:right-0 pointer-fine:size-9 pointer-fine:justify-center pointer-fine:gap-0">
             <span
                 {...props}
                 className={cn(
-                    "pointer-events-none shrink-0 text-nowrap text-(--text-muted-color) text-xs tabular-nums pointer-fine:focus-visible:opacity-0 pointer-fine:group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0",
+                    "pointer-events-none shrink-0 text-xs text-nowrap text-(--text-muted-color) tabular-nums pointer-fine:group-focus-within:opacity-0 pointer-fine:group-hover:opacity-0 pointer-fine:focus-visible:opacity-0",
                     className
                 )}
             >
@@ -4064,7 +4065,7 @@ function CollectionsListItemControls({
                     render={
                         <Button
                             aria-label={`Collection actions for ${collection.name}`}
-                            className="pointer-fine:absolute relative size-6 shrink-0 text-(--accent-color) pointer-fine:opacity-0 focus-visible:opacity-100 group-focus-within:opacity-100 pointer-fine:group-hover:opacity-100 group-focus:opacity-100 data-popup-open:bg-muted data-popup-open:opacity-100"
+                            className="data-popup-open:bg-muted relative size-6 shrink-0 text-(--accent-color) group-focus-within:opacity-100 group-focus:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 pointer-fine:absolute pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
                             size="icon-xs"
                             title={`Collection actions for ${collection.name}`}
                             variant="ghost"
@@ -4107,7 +4108,7 @@ function CollectionsListItemControls({
                             <Star
                                 aria-hidden
                                 className={cn(
-                                    "size-4 text-muted-foreground",
+                                    "text-muted-foreground size-4",
                                     isFavorite && "fill-current"
                                 )}
                                 focusable="false"
@@ -4120,7 +4121,7 @@ function CollectionsListItemControls({
                         <MenuItem onClick={handleRename}>
                             <PenLine
                                 aria-hidden
-                                className="size-4 text-muted-foreground"
+                                className="text-muted-foreground size-4"
                                 focusable="false"
                             />
                             Rename
@@ -4131,7 +4132,7 @@ function CollectionsListItemControls({
                         <MenuItem onClick={handleMakeCopy}>
                             <CopyPlus
                                 aria-hidden
-                                className="size-4 text-muted-foreground"
+                                className="text-muted-foreground size-4"
                                 focusable="false"
                             />
                             Make a copy
@@ -4143,13 +4144,13 @@ function CollectionsListItemControls({
                             {isArchived ? (
                                 <ArchiveX
                                     aria-hidden
-                                    className="size-4 text-muted-foreground"
+                                    className="text-muted-foreground size-4"
                                     focusable="false"
                                 />
                             ) : (
                                 <ArchiveIcon
                                     aria-hidden
-                                    className="size-4 text-muted-foreground"
+                                    className="text-muted-foreground size-4"
                                     focusable="false"
                                 />
                             )}
@@ -4173,7 +4174,7 @@ function CollectionsListItemControls({
                         </MenuItem>
                     </MenuGroup>
                     <MenuItem disabled>
-                        <div className="-mt-0.5 space-y-1 text-[10px] text-muted-foreground leading-none *:text-nowrap">
+                        <div className="text-muted-foreground -mt-0.5 space-y-1 text-[10px] leading-none *:text-nowrap">
                             <div>Last updated {updatedAt.fromNow()}</div>
                             <div>
                                 {updatedAt.format("MMM DD, YYYY, h:mm A")}
@@ -4265,7 +4266,7 @@ function CollectionsListItemShareSubmenu() {
             <MenuSubTrigger>
                 <ShareArrowSolidIcon
                     aria-hidden
-                    className="inline-block size-4 text-muted-foreground"
+                    className="text-muted-foreground inline-block size-4"
                     focusable="false"
                 />
                 Share
@@ -4278,7 +4279,7 @@ function CollectionsListItemShareSubmenu() {
                     >
                         <LinkIcon
                             aria-hidden
-                            className="size-4 text-muted-foreground"
+                            className="text-muted-foreground size-4"
                             focusable="false"
                         />
                         Copy public link
@@ -4291,7 +4292,7 @@ function CollectionsListItemShareSubmenu() {
                     >
                         <UserRoundPlus
                             aria-hidden
-                            className="size-4 text-muted-foreground"
+                            className="text-muted-foreground size-4"
                             focusable="false"
                         />
                         Create public link
@@ -4300,7 +4301,7 @@ function CollectionsListItemShareSubmenu() {
                 <MenuItem closeOnClick={false} disabled>
                     <LockKeyhole
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
                     {isShared ? "Anyone with the link" : "Just me"}
@@ -4364,7 +4365,7 @@ function CollectionsListItemExportSubmenu() {
             <MenuSubTrigger>
                 <Download
                     aria-hidden
-                    className="inline-block size-4 text-muted-foreground"
+                    className="text-muted-foreground inline-block size-4"
                     focusable="false"
                 />
                 Export
@@ -4373,7 +4374,7 @@ function CollectionsListItemExportSubmenu() {
                 <MenuItem onClick={handleCopyTitle}>
                     <CopyIcon
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
                     Copy title
@@ -4381,7 +4382,7 @@ function CollectionsListItemExportSubmenu() {
                 <MenuItem disabled={!hasItems} onClick={handleCopyLinks}>
                     <CopyCheck
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
                     Copy all links
@@ -4389,7 +4390,7 @@ function CollectionsListItemExportSubmenu() {
                 <MenuItem disabled={!hasItems} onClick={handleOpenLinks}>
                     <ExternalLinkIcon
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
                     Open all links
@@ -4398,7 +4399,7 @@ function CollectionsListItemExportSubmenu() {
                 <MenuItem disabled={!hasItems} onClick={handleExportCsv}>
                     <FileSpreadsheetIcon
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
                     Export to CSV
@@ -4409,7 +4410,7 @@ function CollectionsListItemExportSubmenu() {
                 >
                     <NotionIcon
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
                     {isNotionPending ? "Sending to Notion…" : "Send to Notion"}
@@ -4607,20 +4608,20 @@ function ItemCollectionsComboboxItem({
                     />
                 }
             >
-                <div className="flex min-w-0 max-w-56 items-center gap-3">
+                <div className="flex max-w-56 min-w-0 items-center gap-3">
                     <span
                         aria-hidden
                         className="size-2 shrink-0 rounded-full bg-(--accent-color)"
                         style={collectionItemStyle}
                     />
-                    <span className="min-w-0 max-w-full flex-1 truncate text-foreground text-sm">
+                    <span className="text-foreground max-w-full min-w-0 flex-1 truncate text-sm">
                         {collection.name}
                     </span>
                     <div className="relative flex w-fit items-center justify-end pl-4">
-                        <span className="shrink-0 text-nowrap text-muted-foreground text-xs tabular-nums group-data-highlighted/item:opacity-0">
+                        <span className="text-muted-foreground shrink-0 text-xs text-nowrap tabular-nums group-data-highlighted/item:opacity-0">
                             {collection.itemCount}
                         </span>
-                        <span className="absolute right-0 shrink-0 text-nowrap text-muted-foreground text-xs opacity-0 group-data-highlighted/item:opacity-100">
+                        <span className="text-muted-foreground absolute right-0 shrink-0 text-xs text-nowrap opacity-0 group-data-highlighted/item:opacity-100">
                             Save
                         </span>
                     </div>
@@ -4646,7 +4647,7 @@ function ItemCollectionsComboboxItem({
                             {collection.description}
                         </PreviewCardDescription>
                     ) : null}
-                    <div className="flex items-center justify-between gap-3 border-t pt-2 text-muted-foreground text-xs">
+                    <div className="text-muted-foreground flex items-center justify-between gap-3 border-t pt-2 text-xs">
                         <span className="flex min-w-0 items-center gap-1.5">
                             <LibraryBig
                                 aria-hidden
@@ -4933,7 +4934,7 @@ function CollectionsCreateDialog() {
                                 className="inline-block size-3.5 shrink-0"
                                 focusable="false"
                             />
-                            <DialogTitle className="font-medium text-sm">
+                            <DialogTitle className="text-sm font-medium">
                                 New collection
                             </DialogTitle>
                         </div>
@@ -4941,7 +4942,7 @@ function CollectionsCreateDialog() {
                     <DialogPanel className="space-y-2">
                         <div>
                             <label
-                                className="sr-only font-medium text-sm"
+                                className="sr-only text-sm font-medium"
                                 htmlFor={nameInputId}
                             >
                                 Name
@@ -4952,7 +4953,7 @@ function CollectionsCreateDialog() {
                                 }
                                 aria-invalid={errorMessage ? true : undefined}
                                 autoFocus
-                                className="-mx-[calc(--spacing(3)-1px)] font-semibold text-xl tracking-tight"
+                                className="-mx-[calc(--spacing(3)-1px)] text-xl font-semibold tracking-tight"
                                 id={nameInputId}
                                 isUnstyled
                                 maxLength={NAME_MAX_LENGTH}
@@ -4966,7 +4967,7 @@ function CollectionsCreateDialog() {
                         </div>
                         <div>
                             <label
-                                className="sr-only font-medium text-sm"
+                                className="sr-only text-sm font-medium"
                                 htmlFor={descriptionInputId}
                             >
                                 Description (optional)
@@ -5036,7 +5037,7 @@ function CollectionsCreateDialog() {
                                     extra work for you.{" "}
                                     {isEnabled === false ? (
                                         <Button
-                                            className="inline-flex h-fit! w-fit px-0 text-inherit! leading-tight"
+                                            className="inline-flex h-fit! w-fit px-0 leading-tight text-inherit!"
                                             onClick={
                                                 handleEnableSmartCollections
                                             }
@@ -5086,11 +5087,11 @@ function CollectionsCreateDialog() {
                                                 key={template.value}
                                                 value={template.value}
                                             >
-                                                <div className="flex min-w-0 max-w-80 flex-col gap-0.5">
-                                                    <span className="min-w-0 truncate text-foreground text-sm">
+                                                <div className="flex max-w-80 min-w-0 flex-col gap-0.5">
+                                                    <span className="text-foreground min-w-0 truncate text-sm">
                                                         {template.name}
                                                     </span>
-                                                    <span className="line-clamp-2 text-muted-foreground text-xs">
+                                                    <span className="text-muted-foreground line-clamp-2 text-xs">
                                                         {template.description}
                                                     </span>
                                                 </div>
@@ -5210,7 +5211,7 @@ function CollectionsRenameDialog() {
                     <DialogPanel>
                         <div>
                             <label
-                                className="sr-only font-medium text-sm"
+                                className="sr-only text-sm font-medium"
                                 htmlFor={inputId}
                             >
                                 Name

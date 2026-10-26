@@ -35,10 +35,12 @@
             },
             "suspicious": {
                 "noBitwiseOperators": "off",
-                "noUnnecessaryConditions": "off"
+                "noUnnecessaryConditions": "off",
+                "useBaseline": "off"
             },
             "style": {
-                "useDestructuring": "off"
+                "useDestructuring": "off",
+                "useNamedCaptureGroup": "off"
             }
         }
     }

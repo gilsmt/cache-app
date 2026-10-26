@@ -1,9 +1,9 @@
 import type { DesktopPlatform } from "@/lib/desktop/constants";
 
-const MOBILE_UA_RE = /Android|iPhone|iPad|iPod|Mobile/i;
-const WINDOWS_UA_RE = /Windows/i;
-const MACOS_UA_RE = /Mac OS X|Macintosh/i;
-const LINUX_UA_RE = /Linux|X11|CrOS/i;
+const MOBILE_UA_RE = /Android|iPhone|iPad|iPod|Mobile/iu;
+const WINDOWS_UA_RE = /Windows/iu;
+const MACOS_UA_RE = /Mac OS X|Macintosh/iu;
+const LINUX_UA_RE = /Linux|X11|CrOS/iu;
 
 /**
  * Best-effort desktop OS from a user-agent string.

@@ -10,7 +10,7 @@ export function JsonLdScript({ data }: JsonLdScriptProps) {
     return (
         <script
             dangerouslySetInnerHTML={{
-                __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+                __html: JSON.stringify(data).replace(/</gu, "\\u003c"),
             }}
             type="application/ld+json"
         />

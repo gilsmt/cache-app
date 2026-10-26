@@ -300,13 +300,13 @@ function AutomationsListEmpty() {
     }
 
     return (
-        <div className="flex min-h-64 flex-col items-center justify-center gap-2 rounded-2xl bg-muted/50 p-8 text-center">
+        <div className="bg-muted/50 flex min-h-64 flex-col items-center justify-center gap-2 rounded-2xl p-8 text-center">
             <Zap
                 aria-hidden
-                className="size-5 text-muted-foreground"
+                className="text-muted-foreground size-5"
                 focusable="false"
             />
-            <p className="font-medium text-foreground text-sm">
+            <p className="text-foreground text-sm font-medium">
                 <T>No automations yet</T>
             </p>
             <p className="text-muted-foreground text-xs">
@@ -335,7 +335,7 @@ function AutomationsListManaged({ children }: AutomationsListManagedProps) {
 
     return (
         <section className="flex flex-col gap-3">
-            <h2 className="font-medium text-muted-foreground text-sm">
+            <h2 className="text-muted-foreground text-sm font-medium">
                 <T>Your automations</T>
             </h2>
             <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -360,7 +360,7 @@ function AutomationsListSuggestions({
 
     return (
         <section className="flex flex-col gap-3">
-            <h2 className="font-medium text-muted-foreground text-sm">
+            <h2 className="text-muted-foreground text-sm font-medium">
                 <T>Suggested</T>
             </h2>
             <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -448,9 +448,9 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
     });
 
     return (
-        <li className="flex list-none flex-col gap-3 rounded-2xl bg-muted/60 p-4">
+        <li className="bg-muted/60 flex list-none flex-col gap-3 rounded-2xl p-4">
             <div className="flex items-start justify-between gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-background text-muted-foreground shadow-xs/5">
+                <span className="bg-background text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-xl shadow-xs/5">
                     <Icon aria-hidden className="size-4" focusable="false" />
                 </span>
                 <AutomationsListItemMenu
@@ -466,25 +466,25 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
             </div>
             <div className="flex min-w-0 flex-col gap-1">
                 <div className="flex min-w-0 items-center gap-2">
-                    <p className="truncate font-medium text-foreground text-sm">
+                    <p className="text-foreground truncate text-sm font-medium">
                         {automation.title}
                     </p>
                     {isActive ? null : (
                         <Badge variant="secondary">Paused</Badge>
                     )}
                 </div>
-                <p className="line-clamp-2 text-muted-foreground text-xs leading-5">
+                <p className="text-muted-foreground line-clamp-2 text-xs leading-5">
                     {getAutomationDescription(automation)}
                 </p>
                 {scheduleLabel || lastRunLabel ? (
                     <div className="flex items-center gap-4">
                         {scheduleLabel ? (
-                            <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                            <p className="text-muted-foreground/80 mt-0.5 text-[11px]">
                                 {scheduleLabel}
                             </p>
                         ) : null}
                         {lastRunLabel ? (
-                            <span className="text-[11px] text-muted-foreground/60">
+                            <span className="text-muted-foreground/60 text-[11px]">
                                 {lastRunLabel}
                             </span>
                         ) : null}
@@ -532,7 +532,7 @@ function AutomationsListItemMenu({
                 render={
                     <Button
                         aria-label={`Actions for ${title}`}
-                        className="rounded-full text-muted-foreground"
+                        className="text-muted-foreground rounded-full"
                         disabled={isPending}
                         size="icon-xs"
                         variant="ghost"
@@ -545,7 +545,7 @@ function AutomationsListItemMenu({
                 <MenuItem onClick={onEdit}>
                     <Pencil
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
                     Edit
@@ -554,7 +554,7 @@ function AutomationsListItemMenu({
                     <MenuItem disabled={isPending} onClick={onPause}>
                         <Pause
                             aria-hidden
-                            className="size-4 text-muted-foreground"
+                            className="text-muted-foreground size-4"
                             focusable="false"
                         />
                         Pause
@@ -563,7 +563,7 @@ function AutomationsListItemMenu({
                     <MenuItem disabled={isPending} onClick={onEnableOrResume}>
                         <Play
                             aria-hidden
-                            className="size-4 text-muted-foreground"
+                            className="text-muted-foreground size-4"
                             focusable="false"
                         />
                         {canResume ? "Resume" : "Enable"}
@@ -577,7 +577,7 @@ function AutomationsListItemMenu({
                 >
                     <Trash2
                         aria-hidden
-                        className="size-4 text-muted-foreground"
+                        className="text-muted-foreground size-4"
                         focusable="false"
                     />
                     Delete
@@ -598,9 +598,9 @@ function AutomationsListSuggestionsItem({
     const Icon = getAutomationTemplateIcon(template.templateKey);
 
     return (
-        <li className="flex list-none flex-col gap-3 rounded-2xl bg-muted/60 p-4">
+        <li className="bg-muted/60 flex list-none flex-col gap-3 rounded-2xl p-4">
             <div className="flex items-start justify-between gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-background text-muted-foreground shadow-xs/5">
+                <span className="bg-background text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-xl shadow-xs/5">
                     <Icon aria-hidden className="size-4" focusable="false" />
                 </span>
                 <AutomationComposerDialog
@@ -619,10 +619,10 @@ function AutomationsListSuggestionsItem({
                 </AutomationComposerDialog>
             </div>
             <div className="flex min-w-0 flex-col gap-1">
-                <p className="truncate font-medium text-foreground text-sm">
+                <p className="text-foreground truncate text-sm font-medium">
                     {template.title}
                 </p>
-                <p className="line-clamp-2 text-muted-foreground text-xs leading-5">
+                <p className="text-muted-foreground line-clamp-2 text-xs leading-5">
                     {template.summary}
                 </p>
             </div>

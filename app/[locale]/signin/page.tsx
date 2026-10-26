@@ -50,10 +50,10 @@ export default async function SignInPage() {
                         src={AppIconSmall}
                     />
                     <div className="flex w-full flex-col gap-2">
-                        <h1 className="font-medium text-2xl text-foreground tracking-tight">
+                        <h1 className="text-foreground text-2xl font-medium tracking-tight">
                             Cache App
                         </h1>
-                        <p className="text-base text-muted-foreground">
+                        <p className="text-muted-foreground text-base">
                             <T>Sign up or log in to continue</T>
                         </p>
                     </div>
@@ -62,7 +62,7 @@ export default async function SignInPage() {
             </div>
             <div className="flex flex-wrap justify-center gap-4 pb-5 md:gap-6">
                 <Link
-                    className="text-muted-foreground text-sm transition-colors hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
                     href={CHANGELOG_URL}
                     rel="noopener noreferrer"
                     target="_blank"
@@ -70,7 +70,7 @@ export default async function SignInPage() {
                     <T>Changelog</T>
                 </Link>
                 <Link
-                    className="text-muted-foreground text-sm transition-colors hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
                     href={`mailto:${SUPPORT_ADDRESS}`}
                     rel="noopener noreferrer"
                     target="_blank"
@@ -78,7 +78,7 @@ export default async function SignInPage() {
                     <T>Support</T>
                 </Link>
                 <Link
-                    className="text-muted-foreground text-sm transition-colors hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
                     href={GITHUB_URL}
                     rel="noopener noreferrer"
                     target="_blank"

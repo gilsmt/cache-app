@@ -6,9 +6,6 @@ import { readResponseJson } from "@/lib/common/http";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { fetchWithTimeout } from "@/lib/common/timeout";
 import { IntegrationApiError } from "@/lib/integrations/error";
-
-const log = createLogger("google-photos:api");
-
 import type {
     GooglePhotosPickedMediaItem,
     GooglePhotosPickerSession,
@@ -19,9 +16,11 @@ import {
     parseGooglePhotosDuration,
 } from "./shared";
 
+const log = createLogger("google-photos:api");
+
 const GOOGLE_PHOTOS_PICKER_API = "https://photospicker.googleapis.com/v1";
 const GOOGLE_PHOTOS_PICKER_TIMEOUT_MS = 30_000;
-const TRAILING_SLASHES_PATTERN = /\/+$/;
+const TRAILING_SLASHES_PATTERN = /\/+$/u;
 
 const PickerApiErrorSchema = z.object({
     error: z

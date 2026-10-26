@@ -37,7 +37,7 @@ const DEFAULT_SUMMARIZE_JSON_MAX_LENGTH = 1500;
 const COLLECTION_NAME_TOKEN_PATTERN = /[\p{L}\p{N}]+/gu;
 const COLLECTION_NAME_LETTER_PATTERN = /\p{L}/u;
 const COLLECTION_NAME_PUNCTUATION_NOISE_PATTERN =
-    /[()[\]{}"'`.,:;!?@#]|https?:|www\./i;
+    /[()[\]{}"'`.,:;!?@#]|https?:|www\./iu;
 
 const SmartCollectionDecisionSchema = z.object({
     applyCollectionNames: z

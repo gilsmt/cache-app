@@ -16,10 +16,10 @@ const TRUSTED_CACHE_WEB_ORIGINS = new Set([
 ]);
 
 /** Local development serves the app on arbitrary loopback ports. */
-const LOCALHOST_ORIGIN_PATTERN = /^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/;
+const LOCALHOST_ORIGIN_PATTERN = /^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/u;
 
 /** Chrome extension service-worker origins. Extension ids are `[a-p]{32}`. */
-const CHROME_EXTENSION_ORIGIN_PATTERN = /^chrome-extension:\/\/[a-p]{32}$/;
+const CHROME_EXTENSION_ORIGIN_PATTERN = /^chrome-extension:\/\/[a-p]{32}$/u;
 
 /** Parse configured web origins without allowing paths or wildcard hosts. */
 export function parseExactWebOrigins(rawOrigins: string | undefined): string[] {

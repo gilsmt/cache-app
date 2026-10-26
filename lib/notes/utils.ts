@@ -46,15 +46,15 @@ const NOTE_TAG_ALIASES: Record<string, string> = {
     i: "em",
     strike: "s",
 };
-const NOTE_BLOCK_END_TAGS = /<\/(blockquote|div|h[1-6]|li|ol|p|pre|ul)>/gi;
-const NOTE_BREAK_TAGS = /<br\s*\/?>/gi;
-const NOTE_TAGS = /<(\/?)([a-z0-9]+)((?:\s[^>]*)?)>/gi;
-const NOTE_STRIP_TAGS = /<[^>]+>/g;
+const NOTE_BLOCK_END_TAGS = /<\/(blockquote|div|h[1-6]|li|ol|p|pre|ul)>/giu;
+const NOTE_BREAK_TAGS = /<br\s*\/?>/giu;
+const NOTE_TAGS = /<(\/?)([a-z0-9]+)((?:\s[^>]*)?)>/giu;
+const NOTE_STRIP_TAGS = /<[^>]+>/gu;
 const NOTE_SCRIPT_STYLE_BLOCKS =
-    /<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi;
-const NOTE_COMMENTS = /<!--[\s\S]*?-->/g;
-const NOTE_HEADING_TAG = /^h[1-6]$/;
-const NOTE_SAFE_URL_PROTOCOLS = /^(https?:\/\/|mailto:|#)/i;
+    /<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/giu;
+const NOTE_COMMENTS = /<!--[\s\S]*?-->/gu;
+const NOTE_HEADING_TAG = /^h[1-6]$/u;
+const NOTE_SAFE_URL_PROTOCOLS = /^(https?:\/\/|mailto:|#)/iu;
 
 const NOTE_ALLOWED_ATTRS: Record<string, Set<string>> = {
     a: new Set(["href"]),
@@ -243,7 +243,7 @@ export function sanitizeNoteHtml(input: string): string {
             }
 
             const safeAttrs: string[] = [];
-            const attrRe = /(\S+)\s*=\s*"([^"]*?)"/g;
+            const attrRe = /(\S+)\s*=\s*"([^"]*?)"/gu;
             let attrMatch: RegExpExecArray | null = attrRe.exec(attrs);
             while (attrMatch !== null) {
                 const attrName = attrMatch[1];
@@ -269,7 +269,7 @@ export function sanitizeNoteHtml(input: string): string {
         }
     );
 
-    const normalizedParagraphs = sanitized.replaceAll(/\r\n?/g, "\n").trim();
+    const normalizedParagraphs = sanitized.replaceAll(/\r\n?/gu, "\n").trim();
 
     return normalizedParagraphs.length > 0
         ? normalizedParagraphs
@@ -284,9 +284,9 @@ export function extractNoteText(input: string): string {
             .replaceAll(NOTE_BREAK_TAGS, "\n")
             .replaceAll(NOTE_BLOCK_END_TAGS, "\n")
             .replaceAll(NOTE_STRIP_TAGS, "")
-            .replaceAll(/\n{3,}/g, "\n\n")
+            .replaceAll(/\n{3,}/gu, "\n\n")
     )
-        .replaceAll(/\u00a0/g, " ")
+        .replaceAll(/\u00a0/gu, " ")
         .trim();
 }
 

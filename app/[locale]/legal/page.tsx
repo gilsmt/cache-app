@@ -42,15 +42,15 @@ export default async function LegalIndexPage({
             />
 
             <header className="relative flex flex-col gap-3 text-pretty">
-                <p className="font-medium text-[0.7rem] text-muted-foreground uppercase tracking-[0.22em]">
+                <p className="text-muted-foreground text-[0.7rem] font-medium tracking-[0.22em] uppercase">
                     <T context="Legal section eyebrow label">
                         <Var>{APP_NAME}</Var>
                     </T>
                 </p>
-                <h1 className="font-semibold text-3xl text-foreground tracking-tight sm:text-[2rem] sm:leading-tight">
+                <h1 className="text-foreground text-3xl font-semibold tracking-tight sm:text-[2rem] sm:leading-tight">
                     <T>Legal and policies</T>
                 </h1>
-                <p className="max-w-2xl text-[0.95rem] text-muted-foreground leading-relaxed">
+                <p className="text-muted-foreground max-w-2xl text-[0.95rem] leading-relaxed">
                     <T>
                         Official documents that govern your relationship with us
                         and explain how we handle data. Choose a topic below to
@@ -62,19 +62,19 @@ export default async function LegalIndexPage({
             <ul className="relative m-0 flex list-none flex-col gap-3 p-0">
                 <li>
                     <Link
-                        className="group flex flex-col gap-3 rounded-2xl border border-border bg-card/80 p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
+                        className="group border-border bg-card/80 hover:border-foreground/20 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-3 rounded-2xl border p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
                         href={`${base}/terms-of-service`}
                     >
-                        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground shadow-inner transition-colors duration-200 group-hover:bg-foreground group-hover:text-background">
+                        <div className="bg-muted text-muted-foreground group-hover:bg-foreground group-hover:text-background flex size-12 shrink-0 items-center justify-center rounded-xl shadow-inner transition-colors duration-200">
                             <Scale aria-hidden className="size-5" />
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                                <span className="font-semibold text-foreground text-lg tracking-tight">
+                                <span className="text-foreground text-lg font-semibold tracking-tight">
                                     <T>Terms of Service</T>
                                 </span>
                             </div>
-                            <p className="mt-1 text-[0.9rem] text-muted-foreground leading-relaxed">
+                            <p className="text-muted-foreground mt-1 text-[0.9rem] leading-relaxed">
                                 <T>
                                     Rules governing use of the service,
                                     management of your account, and acceptable
@@ -84,25 +84,25 @@ export default async function LegalIndexPage({
                         </div>
                         <ArrowRight
                             aria-hidden
-                            className="size-5 shrink-0 text-muted-foreground transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:text-foreground/90 sm:mt-0"
+                            className="text-muted-foreground group-hover:text-foreground/90 size-5 shrink-0 transition-[color,transform] duration-200 group-hover:translate-x-0.5 sm:mt-0"
                         />
                     </Link>
                 </li>
                 <li>
                     <Link
-                        className="group flex flex-col gap-3 rounded-2xl border border-border bg-card/80 p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
+                        className="group border-border bg-card/80 hover:border-foreground/20 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-3 rounded-2xl border p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
                         href={`${base}/privacy-policy`}
                     >
-                        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground shadow-inner transition-colors duration-200 group-hover:bg-foreground group-hover:text-background">
+                        <div className="bg-muted text-muted-foreground group-hover:bg-foreground group-hover:text-background flex size-12 shrink-0 items-center justify-center rounded-xl shadow-inner transition-colors duration-200">
                             <Shield aria-hidden className="size-5" />
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                                <span className="font-semibold text-foreground text-lg tracking-tight">
+                                <span className="text-foreground text-lg font-semibold tracking-tight">
                                     <T>Privacy Policy</T>
                                 </span>
                             </div>
-                            <p className="mt-1 text-[0.9rem] text-muted-foreground leading-relaxed">
+                            <p className="text-muted-foreground mt-1 text-[0.9rem] leading-relaxed">
                                 <T>
                                     How we collect, use, and protect personal
                                     information.
@@ -111,25 +111,25 @@ export default async function LegalIndexPage({
                         </div>
                         <ArrowRight
                             aria-hidden
-                            className="size-5 shrink-0 text-muted-foreground transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:text-foreground/90 sm:mt-0"
+                            className="text-muted-foreground group-hover:text-foreground/90 size-5 shrink-0 transition-[color,transform] duration-200 group-hover:translate-x-0.5 sm:mt-0"
                         />
                     </Link>
                 </li>
                 <li>
                     <Link
-                        className="group flex flex-col gap-3 rounded-2xl border border-border bg-card/80 p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
+                        className="group border-border bg-card/80 hover:border-foreground/20 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-3 rounded-2xl border p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
                         href={`${base}/dpa`}
                     >
-                        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground shadow-inner transition-colors duration-200 group-hover:bg-foreground group-hover:text-background">
+                        <div className="bg-muted text-muted-foreground group-hover:bg-foreground group-hover:text-background flex size-12 shrink-0 items-center justify-center rounded-xl shadow-inner transition-colors duration-200">
                             <FileText aria-hidden className="size-5" />
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                                <span className="font-semibold text-foreground text-lg tracking-tight">
+                                <span className="text-foreground text-lg font-semibold tracking-tight">
                                     <T>Data Processing Agreement</T>
                                 </span>
                             </div>
-                            <p className="mt-1 text-[0.9rem] text-muted-foreground leading-relaxed">
+                            <p className="text-muted-foreground mt-1 text-[0.9rem] leading-relaxed">
                                 <T>
                                     How we process and safeguard customer
                                     personal data.
@@ -138,12 +138,12 @@ export default async function LegalIndexPage({
                         </div>
                         <ArrowRight
                             aria-hidden
-                            className="size-5 shrink-0 text-muted-foreground transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:text-foreground/90 sm:mt-0"
+                            className="text-muted-foreground group-hover:text-foreground/90 size-5 shrink-0 transition-[color,transform] duration-200 group-hover:translate-x-0.5 sm:mt-0"
                         />
                     </Link>
                 </li>
             </ul>
-            <p className="relative border-muted border-t pt-6 text-[0.85rem] text-muted-foreground leading-relaxed">
+            <p className="border-muted text-muted-foreground relative border-t pt-6 text-[0.85rem] leading-relaxed">
                 <T>
                     These pages may be updated periodically. The version on this
                     site is the version in effect at the time of your visit.

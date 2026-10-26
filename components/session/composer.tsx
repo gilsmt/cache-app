@@ -32,20 +32,20 @@ import { Button } from "@/components/ui/button";
 import { PreviewCardTitle } from "@/components/ui/preview-card";
 import type { FileAttachment } from "@/lib/common/file";
 
-const MARKDOWN_CODE_FENCE_PATTERN = /```[\s\S]*?(?:```|$)/g;
-const MARKDOWN_IMAGE_PATTERN = /!\[([^\]]*)\]\([^)]*\)/g;
-const MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\([^)]*\)/g;
-const MARKDOWN_INLINE_CODE_PATTERN = /`([^`]*)`/g;
-const MARKDOWN_BARE_URL_PATTERN = /https?:\/\/\S+/g;
-const MARKDOWN_HTML_TAG_PATTERN = /<[^>]*>/g;
-const MARKDOWN_HEADING_PATTERN = /^#{1,6}\s+/gm;
-const MARKDOWN_QUOTE_MARKER_PATTERN = /^>[ \t]?/gm;
-const MARKDOWN_LIST_MARKER_PATTERN = /^[ \t]*(?:[-*+]|\d+[.)])[ \t]+/gm;
-const MARKDOWN_TABLE_ROW_PATTERN = /^[ \t]*\|?[ \t:|-]+\|?[ \t]*$/gm;
-const MARKDOWN_TABLE_EDGE_PIPE_PATTERN = /^[ \t]*\||\|[ \t]*$/gm;
-const MARKDOWN_TABLE_PIPE_PATTERN = /\|/g;
-const MARKDOWN_EMPHASIS_PATTERN = /(\*\*|__|\*|~~)(.+?)\1/g;
-const WHITESPACE_COLLAPSE_PATTERN = /\s+/g;
+const MARKDOWN_CODE_FENCE_PATTERN = /```[\s\S]*?(?:```|$)/gu;
+const MARKDOWN_IMAGE_PATTERN = /!\[([^\]]*)\]\([^)]*\)/gu;
+const MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\([^)]*\)/gu;
+const MARKDOWN_INLINE_CODE_PATTERN = /`([^`]*)`/gu;
+const MARKDOWN_BARE_URL_PATTERN = /https?:\/\/\S+/gu;
+const MARKDOWN_HTML_TAG_PATTERN = /<[^>]*>/gu;
+const MARKDOWN_HEADING_PATTERN = /^#{1,6}\s+/gmu;
+const MARKDOWN_QUOTE_MARKER_PATTERN = /^>[ \t]?/gmu;
+const MARKDOWN_LIST_MARKER_PATTERN = /^[ \t]*(?:[-*+]|\d+[.)])[ \t]+/gmu;
+const MARKDOWN_TABLE_ROW_PATTERN = /^[ \t]*\|?[ \t:|-]+\|?[ \t]*$/gmu;
+const MARKDOWN_TABLE_EDGE_PIPE_PATTERN = /^[ \t]*\||\|[ \t]*$/gmu;
+const MARKDOWN_TABLE_PIPE_PATTERN = /\|/gu;
+const MARKDOWN_EMPHASIS_PATTERN = /(\*\*|__|\*|~~)(.+?)\1/gu;
+const WHITESPACE_COLLAPSE_PATTERN = /\s+/gu;
 
 export interface ComposerAttachment extends FileAttachment {
     id: string;
@@ -221,7 +221,7 @@ export function ComposerInput({
         >
             <AutocompleteInputGroup
                 className={cn(
-                    "squircle rounded-3xl bg-background pt-1.5 pb-2.5 shadow-xs/10 dark:bg-muted",
+                    "squircle bg-background dark:bg-muted rounded-3xl pt-1.5 pb-2.5 shadow-xs/10",
                     className
                 )}
             >
@@ -233,7 +233,7 @@ export function ComposerInput({
                 {children}
                 <div
                     aria-hidden
-                    className="squircle pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-foreground/10 ring-inset"
+                    className="squircle ring-foreground/10 pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset"
                 />
             </AutocompleteInputGroup>
         </Autocomplete>
@@ -283,8 +283,8 @@ export function ComposerChip({ label, onRemove }: ComposerChipProps) {
     });
 
     return (
-        <span className="inline-flex max-w-[min(100%,12rem)] items-center gap-0.5 rounded-xl border border-border/60 bg-background/90 py-0.5 ps-2 pe-0.5 font-medium text-foreground text-xs shadow-xs/5">
-            <span className="min-w-0 max-w-full truncate">{label}</span>
+        <span className="border-border/60 bg-background/90 text-foreground inline-flex max-w-[min(100%,12rem)] items-center gap-0.5 rounded-xl border py-0.5 ps-2 pe-0.5 text-xs font-medium shadow-xs/5">
+            <span className="max-w-full min-w-0 truncate">{label}</span>
             <Button
                 aria-label={`Remove ${label}`}
                 onClick={handleRemove}
@@ -318,7 +318,7 @@ export function ComposerAttachmentChip({
                 <AttachmentPreviewCardTrigger
                     render={
                         <Attachment
-                            className="max-w-[min(100%,12rem)] border-border/60 bg-background/90 py-0.5 ps-1 pe-0.5 text-xs shadow-xs/5"
+                            className="border-border/60 bg-background/90 max-w-[min(100%,12rem)] py-0.5 ps-1 pe-0.5 text-xs shadow-xs/5"
                             data={attachment}
                             onRemove={handleRemove}
                         />
@@ -350,7 +350,7 @@ export function ComposerAttachmentChip({
                                 {label}
                             </PreviewCardTitle>
                             {attachment.mediaType ? (
-                                <p className="font-mono text-muted-foreground text-xs">
+                                <p className="text-muted-foreground font-mono text-xs">
                                     {attachment.mediaType}
                                 </p>
                             ) : null}
@@ -384,9 +384,9 @@ export function CopyResponseButton({ value }: CopyResponseButtonProps) {
             variant="ghost"
         >
             {isCopied ? (
-                <Check className="size-3.5 text-success" />
+                <Check className="text-success size-3.5" />
             ) : (
-                <CopyIcon className="size-3.5 text-muted-foreground" />
+                <CopyIcon className="text-muted-foreground size-3.5" />
             )}
         </Button>
     );
@@ -436,9 +436,9 @@ export function ReadAloudResponseButton({
             variant="ghost"
         >
             {isSpeaking ? (
-                <Square className="size-3.5 fill-current text-foreground" />
+                <Square className="text-foreground size-3.5 fill-current" />
             ) : (
-                <Volume2 className="size-3.5 text-muted-foreground" />
+                <Volume2 className="text-muted-foreground size-3.5" />
             )}
         </Button>
     );

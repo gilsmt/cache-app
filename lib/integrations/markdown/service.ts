@@ -28,11 +28,11 @@ import {
     type InputJsonValue,
 } from "@/prisma/client/internal/prismaNamespace";
 
-const PATH_TRAVERSAL = /(?:^|\/|\\|%2f)\.\.(?:\/|\\|%2f|$)/i;
-const LEADING_SLASH = /^[/\\]+/;
-const WINDOWS_DRIVE = /^[A-Za-z]:[/\\]/;
-const MD_EXT = /\.md$/i;
-const LINK_SCHEME = /^([a-z][a-z0-9+.-]*):/i;
+const PATH_TRAVERSAL = /(?:^|\/|\\|%2f)\.\.(?:\/|\\|%2f|$)/iu;
+const LEADING_SLASH = /^[/\\]+/u;
+const WINDOWS_DRIVE = /^[A-Za-z]:[/\\]/u;
+const MD_EXT = /\.md$/iu;
+const LINK_SCHEME = /^([a-z][a-z0-9+.-]*):/iu;
 const MAX_FILE_SIZE_BYTES = 500_000;
 const MAX_RELATIVE_PATH_LENGTH = 512;
 const FILE_SIZE_SKIP_MESSAGE = `Exceeds the ${(MAX_FILE_SIZE_BYTES / 1000).toFixed(0)} KB file size limit.`;
@@ -93,8 +93,8 @@ export function normalizeMarkdownPath(
     }
 
     const normalized = `${trimmed
-        .replace(/\\/g, "/")
-        .replace(/\/+/g, "/")
+        .replace(/\\/gu, "/")
+        .replace(/\/+/gu, "/")
         .replace(MD_EXT, "")}.md`;
 
     return { normalized, ok: true };
@@ -104,7 +104,7 @@ export function splitFolderPath(relativePath: string): {
     folderPath: string;
     fileName: string;
 } {
-    const normalized = relativePath.replace(/\\/g, "/");
+    const normalized = relativePath.replace(/\\/gu, "/");
     const lastSlash = normalized.lastIndexOf("/");
     if (lastSlash === -1) {
         return { fileName: normalized, folderPath: "" };
@@ -114,7 +114,7 @@ export function splitFolderPath(relativePath: string): {
 }
 
 export function folderPathToCollectionName(folderPath: string): string {
-    const segments = folderPath.replace(/\\/g, "/").split("/").filter(Boolean);
+    const segments = folderPath.replace(/\\/gu, "/").split("/").filter(Boolean);
     return segments.join(" / ");
 }
 

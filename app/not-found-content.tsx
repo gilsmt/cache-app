@@ -13,10 +13,10 @@ export function NotFoundContent() {
         <PageShell>
             <div className="mx-auto flex h-svh max-w-md flex-col items-center justify-center gap-5 text-center">
                 <BrandLogo className="scale-80" src={LogoIconImage} />
-                <h1 className="font-medium text-foreground text-lg">
+                <h1 className="text-foreground text-lg font-medium">
                     <T>Page not found</T>
                 </h1>
-                <p className="text-base text-muted-foreground">
+                <p className="text-muted-foreground text-base">
                     <T>This page does not exist or has been moved.</T>
                 </p>
                 <Link

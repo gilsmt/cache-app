@@ -16,20 +16,20 @@ export const fileOpen = async <M extends boolean | undefined = false>(options: {
 }): Promise<M extends false | undefined ? File : File[]> => {
     type ReturnType = M extends false | undefined ? File : File[];
 
-    const mimeTypes = options.extensions?.reduce((acc, type) => {
+    const mimeTypes = options.extensions?.reduce<string[]>((acc, type) => {
         const mimeType = MIME_TYPES[type];
         if (!acc.includes(mimeType)) {
             acc.push(mimeType);
         }
         return acc;
-    }, [] as string[]);
+    }, []);
 
-    const extensions = options.extensions?.reduce((acc, ext) => {
+    const extensions = options.extensions?.reduce<string[]>((acc, ext) => {
         if (ext === "jpg") {
             return acc.concat(".jpg", ".jpeg");
         }
         return acc.concat(`.${ext}`);
-    }, [] as string[]);
+    }, []);
 
     const files = await _fileOpen({
         description: options.description,

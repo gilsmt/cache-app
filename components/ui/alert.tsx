@@ -11,7 +11,7 @@ const ALERT_ROLE_BY_VARIANT = {
 } as const;
 
 const alertVariants = cva({
-    base: "relative grid w-full items-center gap-x-2 gap-y-0.5 text-pretty rounded-xl px-3.5 py-2.5 text-foreground text-xs has-[>svg]:has-data-[slot=alert-action]:grid-cols-[calc(var(--spacing)*5)_1fr_auto] has-[>svg]:grid-cols-[calc(var(--spacing)*5)_1fr] has-data-[slot=alert-action]:grid-cols-[1fr_auto] [&>svg]:size-5",
+    base: "text-foreground relative grid w-full items-center gap-x-2 gap-y-0.5 rounded-xl px-3.5 py-2.5 text-xs text-pretty has-data-[slot=alert-action]:grid-cols-[1fr_auto] has-[>svg]:grid-cols-[calc(var(--spacing)*5)_1fr] has-[>svg]:has-data-[slot=alert-action]:grid-cols-[calc(var(--spacing)*5)_1fr_auto] [&>svg]:size-5",
     defaultVariants: {
         variant: "default",
     },
@@ -51,7 +51,7 @@ export function AlertTitle({
         <div
             {...props}
             className={cn(
-                "font-medium text-foreground [svg~&]:col-start-2",
+                "text-foreground font-medium [svg~&]:col-start-2",
                 className
             )}
             data-slot="alert-title"
@@ -67,7 +67,7 @@ export function AlertDescription({
         <div
             {...props}
             className={cn(
-                "flex flex-col gap-2.5 text-muted-foreground [svg~&]:col-start-2",
+                "text-muted-foreground flex flex-col gap-2.5 [svg~&]:col-start-2",
                 className
             )}
             data-slot="alert-description"

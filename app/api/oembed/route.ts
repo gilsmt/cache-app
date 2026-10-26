@@ -16,7 +16,7 @@ const CACHE_CONTROL_HEADER =
 const JSON_CONTENT_TYPE = `${MIME_TYPES.json}; charset=utf-8`;
 const MAX_TARGET_URL_LENGTH = 4096;
 const OEMBED_TIMEOUT_MS = 5000;
-const NUMERIC_PATH_SEGMENT_PATTERN = /^\d+$/;
+const NUMERIC_PATH_SEGMENT_PATTERN = /^\d+$/u;
 const YOUTUBE_HOSTS = new Set([
     "youtube.com",
     "www.youtube.com",

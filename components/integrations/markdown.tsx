@@ -498,12 +498,12 @@ export function MarkdownImportDialog() {
         <div className="flex flex-col gap-3 py-2">
             <div className="flex flex-col gap-1">
                 {errorMessage ? (
-                    <p className="px-1 py-4 text-center text-muted-foreground text-sm">
+                    <p className="text-muted-foreground px-1 py-4 text-center text-sm">
                         {errorMessage}
                     </p>
                 ) : null}
                 {!errorMessage && imports.length === 0 && !isLoading && (
-                    <p className="px-1 py-4 text-center text-muted-foreground text-sm">
+                    <p className="text-muted-foreground px-1 py-4 text-center text-sm">
                         No previous imports.
                     </p>
                 )}
@@ -614,11 +614,11 @@ export function MarkdownImportDialog() {
             })}
             {result.skipped.length > 0 && (
                 <details className="mt-1">
-                    <summary className="cursor-pointer text-muted-foreground text-xs">
+                    <summary className="text-muted-foreground cursor-pointer text-xs">
                         {result.skipped.length}{" "}
                         {pluralize(result.skipped.length, "file")} left out
                     </summary>
-                    <ul className="mt-1 max-h-32 list-none space-y-1 overflow-y-auto text-muted-foreground text-xs">
+                    <ul className="text-muted-foreground mt-1 max-h-32 list-none space-y-1 overflow-y-auto text-xs">
                         {result.skipped.map((skippedFile) => (
                             <li
                                 className="list-none"
@@ -633,11 +633,11 @@ export function MarkdownImportDialog() {
             )}
             {result.errors.length > 0 && (
                 <details className="mt-1">
-                    <summary className="cursor-pointer text-destructive text-xs">
+                    <summary className="text-destructive cursor-pointer text-xs">
                         {result.errors.length}{" "}
                         {pluralize(result.errors.length, "error")}
                     </summary>
-                    <ul className="mt-1 max-h-32 list-none space-y-1 overflow-y-auto text-muted-foreground text-xs">
+                    <ul className="text-muted-foreground mt-1 max-h-32 list-none space-y-1 overflow-y-auto text-xs">
                         {result.errors.map((error) => (
                             <li
                                 className="list-none"

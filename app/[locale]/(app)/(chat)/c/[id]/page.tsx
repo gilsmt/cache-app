@@ -120,7 +120,7 @@ async function ThreadPageBody({ params }: ThreadPageParams) {
 function ThreadPageHeader({ thread }: { thread: ThreadDetail }) {
     return (
         <header className="mx-auto flex w-full max-w-3xl flex-col gap-1 px-6 pt-2 pb-4">
-            <h1 className="sr-only font-semibold text-2xl text-foreground tracking-tight">
+            <h1 className="text-foreground sr-only text-2xl font-semibold tracking-tight">
                 {thread.title}
             </h1>
         </header>

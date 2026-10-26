@@ -1,9 +1,9 @@
 import * as z from "zod";
 
-const TRAILING_NUMBER_RE = /(\d+)$/;
-const WHITESPACE_PATTERN = /\s+/g;
+const TRAILING_NUMBER_RE = /(\d+)$/u;
+const WHITESPACE_PATTERN = /\s+/gu;
 const SLUG_DISALLOWED_PATTERN = /[^\p{L}\p{N}\p{M}]+/gu;
-const SLUG_EDGE_HYPHEN_PATTERN = /^-+|-+$/g;
+const SLUG_EDGE_HYPHEN_PATTERN = /^-+|-+$/gu;
 const SLUG_DEFAULT_MAX_LENGTH = 64;
 
 const GRAPHEME_SEGMENTER =
@@ -205,7 +205,7 @@ export const description = z
     .optional()
     .or(z.literal(""));
 
-const LIKE_ESCAPE_PATTERN = /[%_\\]/g;
+const LIKE_ESCAPE_PATTERN = /[%_\\]/gu;
 
 export function escapeLikePattern(value: string): string {
     return value.replace(LIKE_ESCAPE_PATTERN, "\\$&");

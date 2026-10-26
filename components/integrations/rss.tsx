@@ -225,10 +225,10 @@ function RssFeedItem({ feed, isRemoving, onRemove }: RssFeedItemProps) {
     const handleRemove = useStableCallback(() => onRemove(feed.id));
 
     return (
-        <div className="flex items-center gap-3 rounded-lg bg-muted p-3 text-sm">
+        <div className="bg-muted flex items-center gap-3 rounded-lg p-3 text-sm">
             <Rss
                 aria-hidden
-                className="size-4 shrink-0 text-muted-foreground"
+                className="text-muted-foreground size-4 shrink-0"
                 focusable="false"
             />
             <div className="min-w-0 flex-1">
@@ -236,7 +236,7 @@ function RssFeedItem({ feed, isRemoving, onRemove }: RssFeedItemProps) {
                     {feed.title ?? feed.feedUrl}
                 </p>
                 {feed.title ? (
-                    <p className="truncate text-muted-foreground">
+                    <p className="text-muted-foreground truncate">
                         {feed.feedUrl}
                     </p>
                 ) : null}

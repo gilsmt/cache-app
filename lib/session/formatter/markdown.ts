@@ -12,9 +12,9 @@ const JSON_MARKDOWN_FIELD_NAMES = [
 ] as const;
 
 const COMPLETE_CODE_FENCE_PATTERN =
-    /^```(?<language>[a-zA-Z0-9_-]+)?[^\S\r\n]*\r?\n(?<content>[\s\S]*?)\r?\n```$/;
-const ESCAPED_NEWLINE_PATTERN = /\\r\\n|\\n/g;
-const INLINE_LIST_MARKER_PATTERN = /([.!?:]) (?=(?:[-*+]|\d+\.) \*\*)/g;
+    /^```(?<language>[a-zA-Z0-9_-]+)?[^\S\r\n]*\r?\n(?<content>[\s\S]*?)\r?\n```$/u;
+const ESCAPED_NEWLINE_PATTERN = /\\r\\n|\\n/gu;
+const INLINE_LIST_MARKER_PATTERN = /([.!?:]) (?=(?:[-*+]|\d+\.) \*\*)/gu;
 
 /**
  * Normalizes generated markdown that may arrive wrapped in a model-authored
@@ -119,12 +119,12 @@ function parseJson(
 const SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH = 220;
 const SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH = 1600;
 
-const WHITESPACE_PATTERN = /\s+/g;
-const SUMMARY_PREFIX_PATTERN = /^summary:\s*/i;
-const SURROUNDING_QUOTES_PATTERN = /^["']|["']$/g;
-const FIRST_SENTENCE_PATTERN = /^.+?[.!?](?=\s|$)/;
-const GRAMMATICALLY_COMPLETE_PATTERN = /[.!?]$/;
-const MARKDOWN_CODE_FENCE_PATTERN = /^```(?:markdown|md)?\s*|\s*```$/gi;
+const WHITESPACE_PATTERN = /\s+/gu;
+const SUMMARY_PREFIX_PATTERN = /^summary:\s*/iu;
+const SURROUNDING_QUOTES_PATTERN = /^["']|["']$/gu;
+const FIRST_SENTENCE_PATTERN = /^.+?[.!?](?=\s|$)/u;
+const GRAMMATICALLY_COMPLETE_PATTERN = /[.!?]$/u;
+const MARKDOWN_CODE_FENCE_PATTERN = /^```(?:markdown|md)?\s*|\s*```$/giu;
 
 function firstSentence(value: string): string {
     const match = value.match(FIRST_SENTENCE_PATTERN);

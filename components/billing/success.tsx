@@ -47,10 +47,10 @@ export function SuccessfulUpgradeDialog() {
         <Dialog onOpenChange={handleOpenChange} open={isOpen}>
             <DialogPopup>
                 <DialogHeader className="items-center gap-3 text-center">
-                    <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <span className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
                         <CrownFilledIcon className="size-6" />
                     </span>
-                    <DialogTitle className="font-normal text-3xl">
+                    <DialogTitle className="text-3xl font-normal">
                         <T context="Upgrade success dialog title prefix">
                             Welcome to
                         </T>

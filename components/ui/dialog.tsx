@@ -33,7 +33,7 @@ export function DialogPopup({
                 <DialogPrimitive.Popup
                     {...props}
                     className={cn(
-                        "squircle before:squircle relative row-start-2 flex max-h-full min-h-0 w-full min-w-0 max-w-lg flex-col rounded-xl bg-popover not-dark:bg-clip-padding text-popover-foreground opacity-[calc(1-var(--nested-dialogs))] shadow-lg/5 outline-none transition-[translate,opacity] duration-200 ease-out will-change-transform before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:pointer-events-none data-ending-style:translate-y-5 data-starting-style:translate-y-4 data-ending-style:select-none data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-100 data-ending-style:ease-in dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+                        "squircle before:squircle bg-popover text-popover-foreground relative row-start-2 flex max-h-full min-h-0 w-full max-w-lg min-w-0 flex-col rounded-xl opacity-[calc(1-var(--nested-dialogs))] shadow-lg/5 transition-[translate,opacity] duration-200 ease-out will-change-transform outline-none not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-xl)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] data-ending-style:pointer-events-none data-ending-style:translate-y-5 data-ending-style:opacity-0 data-ending-style:duration-100 data-ending-style:ease-in data-ending-style:select-none data-starting-style:translate-y-4 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
                         className
                     )}
                     data-slot="dialog-popup"
@@ -59,7 +59,7 @@ export function DialogPanel({
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
         className: cn(
-            "min-h-0 p-6 in-[[data-slot=dialog-popup]:has([data-slot=dialog-header])]:pt-1 in-[[data-slot=dialog-popup]:has([data-slot=dialog-footer]:not(.border-t))]:pb-1",
+            "min-h-0 p-6 in-[[data-slot=dialog-popup]:has([data-slot=dialog-footer]:not(.border-t))]:pb-1 in-[[data-slot=dialog-popup]:has([data-slot=dialog-header])]:pt-1",
             className
         ),
         "data-slot": "dialog-panel",
@@ -103,7 +103,7 @@ export function DialogTitle({
     return (
         <DialogPrimitive.Title
             {...props}
-            className={cn("font-semibold text-lg", className)}
+            className={cn("text-lg font-semibold", className)}
             data-slot="dialog-title"
         />
     );
@@ -134,7 +134,7 @@ export function DialogFooter({
     const defaultProps = {
         className: cn(
             "flex flex-col-reverse gap-2 px-6 sm:flex-row sm:items-center sm:justify-end sm:rounded-b-[calc(var(--radius-xl)-1px)]",
-            "in-[[data-slot=dialog-popup]:has([data-slot=dialog-panel])]:pt-3 pt-4 pb-6",
+            "pt-4 pb-6 in-[[data-slot=dialog-popup]:has([data-slot=dialog-panel])]:pt-3",
             className
         ),
         "data-slot": "dialog-footer",
@@ -155,7 +155,7 @@ function DialogBackdrop({
         <DialogPrimitive.Backdrop
             {...props}
             className={cn(
-                "fixed inset-0 z-50 bg-black/32 transition-all duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:duration-100",
+                "fixed inset-0 z-50 bg-black/32 transition-all duration-200 data-ending-style:opacity-0 data-ending-style:duration-100 data-starting-style:opacity-0",
                 className
             )}
             data-slot="dialog-backdrop"

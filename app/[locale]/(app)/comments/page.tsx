@@ -52,7 +52,7 @@ function CommentsPageHeader() {
     return (
         <header className="flex items-end justify-between gap-4">
             <div className="flex flex-col gap-1.5">
-                <h1 className="font-semibold text-2xl text-foreground tracking-tight">
+                <h1 className="text-foreground text-2xl font-semibold tracking-tight">
                     <T>Comments</T>
                 </h1>
                 <p className="text-muted-foreground text-sm">
@@ -94,7 +94,7 @@ function CommentsPageSkeleton() {
             >
                 {COMMENTS_SKELETON_KEYS.map((key) => (
                     <div
-                        className="flex items-center gap-4 rounded-2xl bg-muted/60 p-4"
+                        className="bg-muted/60 flex items-center gap-4 rounded-2xl p-4"
                         key={key}
                     >
                         <Skeleton className="size-12 shrink-0 rounded-lg" />

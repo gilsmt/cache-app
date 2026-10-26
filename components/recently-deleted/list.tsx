@@ -346,13 +346,13 @@ function RecentlyDeletedListEmpty() {
     }
 
     return (
-        <div className="flex min-h-64 flex-col items-center justify-center gap-2 rounded-2xl bg-muted/50 p-8 text-center">
+        <div className="bg-muted/50 flex min-h-64 flex-col items-center justify-center gap-2 rounded-2xl p-8 text-center">
             <RotateCcw
                 aria-hidden
-                className="size-5 text-muted-foreground"
+                className="text-muted-foreground size-5"
                 focusable="false"
             />
-            <p className="font-medium text-foreground text-sm">
+            <p className="text-foreground text-sm font-medium">
                 <T>Nothing to restore right now</T>
             </p>
             <p className="text-muted-foreground text-xs">
@@ -389,16 +389,16 @@ function RecentlyDeletedListItem({ item }: RecentlyDeletedListItemProps) {
     const expiresSoon = daysRemaining <= RECENTLY_DELETED_EXPIRES_SOON_DAYS;
 
     return (
-        <li className="flex list-none items-start gap-4 rounded-2xl bg-muted/60 p-4">
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <li className="bg-muted/60 flex list-none items-start gap-4 rounded-2xl p-4">
+            <div className="bg-muted text-muted-foreground flex size-12 shrink-0 items-center justify-center rounded-lg">
                 <SourceIcon aria-hidden className="size-5" focusable="false" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <p className="truncate font-medium text-foreground text-sm">
+                <p className="text-foreground truncate text-sm font-medium">
                     {title}
                 </p>
                 {shouldShowDisplayUrl ? (
-                    <p className="truncate text-muted-foreground text-xs">
+                    <p className="text-muted-foreground truncate text-xs">
                         {displayUrl}
                     </p>
                 ) : null}
@@ -414,7 +414,7 @@ function RecentlyDeletedListItem({ item }: RecentlyDeletedListItemProps) {
                         {formatCountdownCopy(daysRemaining)}
                     </span>
                     {item.collections.length === 0 ? null : (
-                        <span className="truncate text-muted-foreground text-xs">
+                        <span className="text-muted-foreground truncate text-xs">
                             {item.collections.length === 1 ? (
                                 <T>
                                     <Var>{1}</Var> collection

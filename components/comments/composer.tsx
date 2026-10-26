@@ -100,7 +100,7 @@ function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
 
     if (error && data === undefined) {
         return (
-            <div className="flex h-20 items-center rounded-lg bg-muted px-2.5 py-2 text-muted-foreground text-xs">
+            <div className="bg-muted text-muted-foreground flex h-20 items-center rounded-lg px-2.5 py-2 text-xs">
                 <T>Comment unavailable</T>
             </div>
         );

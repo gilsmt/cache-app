@@ -2,9 +2,9 @@ import { sanitizeUrl } from "@braintree/sanitize-url";
 import { FALLBACK_URL } from "@/lib/common/constants";
 import { hasWindow } from "@/lib/common/environment";
 
-const URL_WHITESPACE_RE = /\s/;
+const URL_WHITESPACE_RE = /\s/u;
 const URL_ONLY_PROTOCOLS = new Set(["http:", "https:"]);
-const PROTOCOL_PREFIX_RE = /^[a-zA-Z]+:\/\//;
+const PROTOCOL_PREFIX_RE = /^[a-zA-Z]+:\/\//u;
 
 /**
  * Returns a URL object, or null when the URL parser rejects the value.
@@ -85,7 +85,7 @@ export const parseStandaloneUrl = (input: string): URL | null => {
     return url;
 };
 
-const WWW_REG = /^www\./i;
+const WWW_REG = /^www\./iu;
 
 function stripWwwPrefix(host: string): string {
     return host.replace(WWW_REG, "");

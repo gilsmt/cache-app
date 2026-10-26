@@ -509,8 +509,8 @@ export function AutomationComposerDialog({
                                 />
                                 Cache
                             </Badge>
-                            <ChevronRight className="inline-block size-3.5 shrink-0 text-muted-foreground" />
-                            <DialogTitle className="font-medium text-sm">
+                            <ChevronRight className="text-muted-foreground inline-block size-3.5 shrink-0" />
+                            <DialogTitle className="text-sm font-medium">
                                 {isEditing ? "Edit" : "New"} automation
                             </DialogTitle>
                         </div>
@@ -518,7 +518,7 @@ export function AutomationComposerDialog({
                     <DialogPanel className="space-y-4">
                         <div className="space-y-1">
                             <label
-                                className="sr-only font-medium text-sm"
+                                className="sr-only text-sm font-medium"
                                 htmlFor={titleId}
                             >
                                 Title
@@ -528,7 +528,7 @@ export function AutomationComposerDialog({
                                     formState.errorMessage ? errorId : undefined
                                 }
                                 autoFocus
-                                className="-mx-[calc(--spacing(3)-1px)] font-semibold text-xl"
+                                className="-mx-[calc(--spacing(3)-1px)] text-xl font-semibold"
                                 id={titleId}
                                 isUnstyled
                                 onChange={handleTitleChange}
@@ -539,7 +539,7 @@ export function AutomationComposerDialog({
                                 value={formState.title}
                             />
                             <label
-                                className="sr-only font-medium text-sm"
+                                className="sr-only text-sm font-medium"
                                 htmlFor={promptId}
                             >
                                 Instructions
@@ -561,7 +561,7 @@ export function AutomationComposerDialog({
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">
                             <span
-                                className="sr-only font-medium text-sm"
+                                className="sr-only text-sm font-medium"
                                 id={collectionId}
                             >
                                 Collection
@@ -576,7 +576,7 @@ export function AutomationComposerDialog({
                                 value={formState.collection}
                             />
                             <span
-                                className="sr-only font-medium text-sm"
+                                className="sr-only text-sm font-medium"
                                 id={cadenceId}
                             >
                                 Cadence
@@ -587,7 +587,7 @@ export function AutomationComposerDialog({
                                 value={formState.cadence}
                             />
                             <span
-                                className="sr-only font-medium text-sm"
+                                className="sr-only text-sm font-medium"
                                 id={timeId}
                             >
                                 Local time
@@ -604,7 +604,7 @@ export function AutomationComposerDialog({
                             {formState.cadence.value === "weekly" ? (
                                 <>
                                     <span
-                                        className="sr-only font-medium text-sm"
+                                        className="sr-only text-sm font-medium"
                                         id={weekDayId}
                                     >
                                         Weekday
@@ -621,7 +621,7 @@ export function AutomationComposerDialog({
                             {formState.cadence.value === "monthly" ? (
                                 <>
                                     <span
-                                        className="sr-only font-medium text-sm"
+                                        className="sr-only text-sm font-medium"
                                         id={monthDayId}
                                     >
                                         Month day
@@ -668,7 +668,7 @@ function AutomationOptionTrigger({
             render={
                 <Button
                     aria-labelledby={labelId}
-                    className="gap-1.5 text-muted-foreground hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground gap-1.5"
                     size="xs"
                     variant="ghost"
                 />

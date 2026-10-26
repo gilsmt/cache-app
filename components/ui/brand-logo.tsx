@@ -23,7 +23,7 @@ import { fetchWithTimeout } from "@/lib/common/timeout";
 const FETCH_TIMEOUT_MS = 10_000;
 
 /** Splits an asset URL pathname from its query or hash. */
-const QUERY_OR_HASH_PATTERN = /[?#]/;
+const QUERY_OR_HASH_PATTERN = /[?#]/u;
 
 type ImageFileExtension = keyof typeof IMAGE_MIME_TYPES;
 
@@ -103,7 +103,7 @@ export function BrandLogo({ href, src, className, ...props }: BrandLogoProps) {
 
     const interactiveLogoClassName = cn(
         logoClassName,
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        "focus-visible:ring-ring/60 focus-visible:ring-2 focus-visible:outline-none"
     );
 
     return (
@@ -133,7 +133,7 @@ export function BrandLogo({ href, src, className, ...props }: BrandLogoProps) {
             </ContextMenuTrigger>
             <ContextMenuPopup className="min-w-44">
                 <ContextMenuItem onClick={handleSaveLogo}>
-                    <DownloadIcon className="size-4 text-muted-foreground" />
+                    <DownloadIcon className="text-muted-foreground size-4" />
                     <T>Save logo image</T>
                 </ContextMenuItem>
             </ContextMenuPopup>

@@ -13,7 +13,7 @@ const PREVIEW_MIN_ASPECT_RATIO = 1 / 4;
 const PREVIEW_MAX_ASPECT_RATIO = 3;
 const PREVIEW_MIN_HEIGHT = 1;
 const PREVIEW_MAX_IMAGE_SIDE_PX = 32_768;
-const IMAGE_SIDE_INTEGER_PATTERN = /^\d+$/;
+const IMAGE_SIDE_INTEGER_PATTERN = /^\d+$/u;
 
 export interface DimensionsCache {
     dimensions: (src: string, dimensions: Dimensions) => void;

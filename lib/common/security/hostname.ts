@@ -1,4 +1,4 @@
-const TRAILING_DOTS_PATTERN = /\.+$/;
+const TRAILING_DOTS_PATTERN = /\.+$/u;
 
 /** The WHATWG parser brackets IPv6; strip the markers before IP matching. */
 export function unwrapIpv6Brackets(host: string): string {

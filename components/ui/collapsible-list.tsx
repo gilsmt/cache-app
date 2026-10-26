@@ -99,7 +99,7 @@ export function CollapsibleListHorizontal({
                         className={
                             badgeRender
                                 ? undefined
-                                : "inline-flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground"
+                                : "text-muted-foreground hover:text-foreground inline-flex items-center p-1.5 text-xs"
                         }
                         render={badgeRender}
                     >
@@ -147,7 +147,7 @@ function CollapsibleListOverflowTrigger({
             <CollapsibleTrigger
                 {...props}
                 className={cn(
-                    "flex items-center p-1.5 text-muted-foreground text-xs hover:text-foreground",
+                    "text-muted-foreground hover:text-foreground flex items-center p-1.5 text-xs",
                     collapsedPreview && !isOpen && "gap-2",
                     className
                 )}

@@ -17,13 +17,13 @@ export const serverEnv = createEnv({
         /** Optional override for local/unpacked Chrome extension origin trust. */
         CACHE_EXTENSION_ID: z
             .string()
-            .regex(/^[a-p]{32}$/)
+            .regex(/^[a-p]{32}$/u)
             .optional(),
         CRON_SECRET: z.string().optional(),
         DATABASE_URL: z
             .string()
             .regex(
-                /^postgres(ql)?:\/\//,
+                /^postgres(ql)?:\/\//u,
                 "DATABASE_URL must start with postgres:// or postgresql://"
             ),
         EMAIL_FROM: z.string().optional(),
