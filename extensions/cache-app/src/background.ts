@@ -1,6 +1,7 @@
 // @ts-nocheck — mechanical port of the production service worker; boundary
 // contracts live in @/lib/runtime and the overlay is fully typed.
 import {
+    CACHE_SITE_MATCHES,
     CHROME_SYNC_MODES,
     MESSAGE_TYPES,
     STORAGE_KEYS,
@@ -36,7 +37,7 @@ async function registerPageWorldScripts() {
         {
             id: PAGE_WORLD_SCRIPT_IDS.cacheSite,
             js: [cacheSiteJs],
-            matches: ["https://cachd.app/*", "https://www.cachd.app/*"],
+            matches: [...CACHE_SITE_MATCHES],
             runAt: "document_idle",
             world: "MAIN",
         },

@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
     isChromeExtensionOrigin,
+    isExactWebOrigin,
     isTrustedCacheWebOrigin,
+    parseExactWebOrigins,
 } from "@/lib/common/security/origins";
 
 describe("isTrustedCacheWebOrigin", () => {
@@ -47,5 +49,40 @@ describe("isChromeExtensionOrigin", () => {
         expect(isChromeExtensionOrigin("chrome-extension://not-an-id")).toBe(
             false
         );
+    });
+});
+
+describe("parseExactWebOrigins", () => {
+    test("accepts exact HTTP and HTTPS origins", () => {
+        expect(
+            parseExactWebOrigins(
+                "https://cache.example.com, http://localhost:3000"
+            )
+        ).toEqual(["https://cache.example.com", "http://localhost:3000"]);
+    });
+
+    test("rejects paths, wildcards, and non-web origins", () => {
+        expect(
+            parseExactWebOrigins(
+                "https://cache.example.com/app, https://*.example.com, chrome-extension://abcdefghijklmnopabcdefghijklmnop"
+            )
+        ).toEqual([]);
+    });
+});
+
+describe("isExactWebOrigin", () => {
+    test("accepts an exact HTTP or HTTPS origin", () => {
+        expect(isExactWebOrigin("https://cache.example.com")).toBe(true);
+        expect(isExactWebOrigin("http://localhost:3000")).toBe(true);
+    });
+
+    test("rejects paths, wildcards, and non-web origins", () => {
+        expect(isExactWebOrigin("https://cache.example.com/app")).toBe(false);
+        expect(isExactWebOrigin("https://*.example.com")).toBe(false);
+        expect(
+            isExactWebOrigin(
+                "chrome-extension://abcdefghijklmnopabcdefghijklmnop"
+            )
+        ).toBe(false);
     });
 });

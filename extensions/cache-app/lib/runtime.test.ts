@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+    cacheAppOriginFromSiteMatch,
+    getConfiguredCacheAppOrigin,
     ingestEndpointForSource,
     isCacheSiteUrl,
     isTrustedCacheWebOrigin,
@@ -36,6 +38,7 @@ describe("isTrustedCacheWebOrigin", () => {
         expect(isTrustedCacheWebOrigin("https://cachd.app")).toBe(true);
         expect(isTrustedCacheWebOrigin("https://www.cachd.app")).toBe(true);
         expect(isTrustedCacheWebOrigin("http://localhost:8080")).toBe(true);
+        expect(isTrustedCacheWebOrigin("http://127.0.0.1:8080")).toBe(true);
     });
 
     test("rejects a third-party cachd.app subdomain origin", () => {
@@ -43,6 +46,40 @@ describe("isTrustedCacheWebOrigin", () => {
         expect(isTrustedCacheWebOrigin("https://preview.cachd.app")).toBe(
             false
         );
+    });
+});
+
+describe("cacheAppOriginFromSiteMatch", () => {
+    test("resolves an exact HTTPS site match", () => {
+        expect(
+            cacheAppOriginFromSiteMatch("https://cache.example.com/*"),
+        ).toBe("https://cache.example.com");
+    });
+
+    test("allows HTTP only for loopback development", () => {
+        expect(
+            cacheAppOriginFromSiteMatch("http://localhost:3000/*"),
+        ).toBe("http://localhost:3000");
+        expect(
+            cacheAppOriginFromSiteMatch("http://127.0.0.1:3000/*"),
+        ).toBe("http://127.0.0.1:3000");
+    });
+
+    test("rejects wildcard hosts, paths, and insecure remote origins", () => {
+        expect(() =>
+            cacheAppOriginFromSiteMatch("https://*.example.com/*"),
+        ).toThrow();
+        expect(() =>
+            cacheAppOriginFromSiteMatch("https://cache.example.com/app/*"),
+        ).toThrow();
+        expect(() =>
+            cacheAppOriginFromSiteMatch("http://cache.example.com/*"),
+        ).toThrow();
+    });
+
+    test("keeps the cloud origin when no custom site match is configured", () => {
+        expect(cacheAppOriginFromSiteMatch(undefined)).toBeNull();
+        expect(getConfiguredCacheAppOrigin()).toBe("https://cachd.app");
     });
 });
 

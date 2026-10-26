@@ -66,7 +66,15 @@ const TRUSTED_WEB_ORIGINS = new Set([
 ]);
 
 /** Local development serves the app on arbitrary localhost ports. */
-const LOCALHOST_ORIGIN_PATTERN = /^http:\/\/localhost:\d+$/;
+const LOCALHOST_ORIGIN_PATTERN = /^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/;
+
+const CACHE_APP_SITE_MATCH =
+    process.env.PLASMO_PUBLIC_CACHE_APP_SITE_MATCH?.trim();
+const CONFIGURED_CACHE_APP_ORIGIN = cacheAppOriginFromSiteMatch(
+    CACHE_APP_SITE_MATCH,
+);
+const CACHE_DEV_SITE_MATCH =
+    process.env.PLASMO_PUBLIC_CACHE_DEV_SITE_MATCH?.trim();
 
 function normalizeOrigin(value: string): string {
     return value.trim().replace(/\/+$/, "");
@@ -87,12 +95,55 @@ function originFromUrl(raw: string): string {
 export function isTrustedCacheWebOrigin(origin: string): boolean {
     return (
         TRUSTED_WEB_ORIGINS.has(origin) ||
+        origin === CONFIGURED_CACHE_APP_ORIGIN ||
         LOCALHOST_ORIGIN_PATTERN.test(origin)
     );
 }
 
 export function getConfiguredCacheAppOrigin(): string {
-    return DEFAULT_CACHE_APP_ORIGIN;
+    return CONFIGURED_CACHE_APP_ORIGIN ?? DEFAULT_CACHE_APP_ORIGIN;
+}
+
+/** Resolve an exact HTTPS site match into the app origin used by the extension. */
+export function cacheAppOriginFromSiteMatch(
+    rawSiteMatch: string | undefined,
+): string | null {
+    const siteMatch = rawSiteMatch?.trim();
+    if (!siteMatch) {
+        return null;
+    }
+
+    if (!siteMatch.endsWith("/*")) {
+        throw new Error(
+            "PLASMO_PUBLIC_CACHE_APP_SITE_MATCH must be an exact origin match ending in /*.",
+        );
+    }
+
+    const origin = siteMatch.slice(0, -2);
+    let parsed: URL;
+    try {
+        parsed = new URL(origin);
+    } catch {
+        throw new Error(
+            "PLASMO_PUBLIC_CACHE_APP_SITE_MATCH must contain a valid HTTPS origin.",
+        );
+    }
+
+    const isSecureOrigin = parsed.protocol === "https:";
+    const isLocalhostOrigin =
+        parsed.protocol === "http:" &&
+        LOCALHOST_ORIGIN_PATTERN.test(parsed.origin);
+    if (
+        parsed.origin !== origin ||
+        parsed.hostname.includes("*") ||
+        !(isSecureOrigin || isLocalhostOrigin)
+    ) {
+        throw new Error(
+            "PLASMO_PUBLIC_CACHE_APP_SITE_MATCH must be one exact HTTPS origin (HTTP is allowed for localhost).",
+        );
+    }
+
+    return parsed.origin;
 }
 
 /**
@@ -236,6 +287,8 @@ export function isUnsupportedClipUrl(rawUrl: string): boolean {
 export const CACHE_SITE_MATCHES = [
     "https://cachd.app/*",
     "https://www.cachd.app/*",
+    ...(CACHE_APP_SITE_MATCH ? [CACHE_APP_SITE_MATCH] : []),
+    ...(CACHE_DEV_SITE_MATCH ? [CACHE_DEV_SITE_MATCH] : []),
 ] as const;
 
 export const SOCIAL_SAVE_MATCHES = [

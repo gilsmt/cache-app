@@ -6,6 +6,7 @@ export const config: PlasmoCSConfig = {
     matches: [
         "https://cachd.app/*",
         "https://www.cachd.app/*",
+        "$PLASMO_PUBLIC_CACHE_APP_SITE_MATCH",
         "$PLASMO_PUBLIC_CACHE_DEV_SITE_MATCH",
     ],
     run_at: "document_idle",

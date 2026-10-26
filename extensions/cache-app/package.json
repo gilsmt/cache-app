@@ -34,6 +34,7 @@
             "https://www.youtube.com/*",
             "https://cachd.app/*",
             "https://www.cachd.app/*",
+            "$PLASMO_PUBLIC_CACHE_APP_SITE_MATCH",
             "$PLASMO_PUBLIC_CACHE_DEV_SITE_MATCH"
         ],
         "permissions": [

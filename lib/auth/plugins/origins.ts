@@ -1,6 +1,7 @@
 import { serverEnv } from "@/env/server";
 import { BASE_URL, CACHE_EXTENSION_ID } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { isExactWebOrigin } from "@/lib/common/security/origins";
 import { tryParseUrl } from "@/lib/common/url";
 
 const log = createLogger("auth:trusted-origins");
@@ -18,22 +19,20 @@ function isChromeExtensionId(value: string): boolean {
  * wildcard values so a mis-set env cannot trust every chrome-extension origin.
  */
 function isExactTrustedOrigin(origin: string): boolean {
+    if (isExactWebOrigin(origin)) {
+        return true;
+    }
+
     const parsed = tryParseUrl(origin);
-    if (!parsed) {
+    if (parsed?.protocol !== "chrome-extension:") {
         return false;
     }
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-        return origin === parsed.origin;
-    }
-    if (parsed.protocol === "chrome-extension:") {
-        return (
-            (parsed.pathname === "" || parsed.pathname === "/") &&
-            parsed.search === "" &&
-            parsed.hash === "" &&
-            isChromeExtensionId(parsed.hostname)
-        );
-    }
-    return false;
+    return (
+        (parsed.pathname === "" || parsed.pathname === "/") &&
+        parsed.search === "" &&
+        parsed.hash === "" &&
+        isChromeExtensionId(parsed.hostname)
+    );
 }
 
 function resolveChromeExtensionId(): string {

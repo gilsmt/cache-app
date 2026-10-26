@@ -20,6 +20,27 @@ bun run package   # → build/chrome-mv3-prod.zip
 
 Upload the zip to the Chrome Web Store.
 
+## Build for a self-hosted Cache instance
+
+The default build targets `cachd.app`. To build an extension for your own Cache
+host, set an exact HTTPS match in `.env.production` in this directory:
+
+```env
+PLASMO_PUBLIC_CACHE_APP_SITE_MATCH=https://cache.example.com/*
+```
+
+Set `BETTER_AUTH_URL` in the Cache server environment to the same origin, then
+build and package the extension:
+
+```bash
+bun run package
+```
+
+The custom origin is added to the extension's site bridge and host permissions.
+The Cache server trusts its configured `BETTER_AUTH_URL` for the extension
+token CORS flow. If the web app uses a separate origin, add that exact origin
+to `TRUSTED_ORIGINS` as well.
+
 ## Architecture
 
 Single Plasmo/TypeScript tree — no dual legacy pipeline.
