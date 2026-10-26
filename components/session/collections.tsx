@@ -146,6 +146,7 @@ import {
     PreviewCardTitle,
     PreviewCardTrigger,
 } from "@/components/ui/preview-card";
+import { Separator } from "@/components/ui/separator";
 import { SidebarItem } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -2700,28 +2701,32 @@ function CollectionsListSummaryTrigger({
             <PreviewCardTrigger {...props} render={children} />
             <PreviewCardPopup
                 align="start"
-                className="p-3"
+                className="flex-col gap-2 p-3"
                 positionMethod="fixed"
                 side="right"
             >
-                <PreviewCardTitle className="flex min-w-0 items-center gap-1">
-                    <Badge
-                        className="min-w-0 max-w-32 truncate"
-                        size="lg"
-                        variant="outline"
-                    >
+                <PreviewCardTitle className="flex items-center gap-1">
+                    <LibraryBig
+                        aria-hidden
+                        className="inline-block size-3.5 shrink-0 text-muted-foreground"
+                        focusable="false"
+                    />
+                    <span className="min-w-0 truncate text-xs">
                         {session?.user.name ?? <T>Account</T>}
-                    </Badge>
+                    </span>
                     <ChevronRight
                         aria-hidden
                         className="inline-block size-3.5 shrink-0 text-muted-foreground"
                         focusable="false"
                     />
-                    <span className="min-w-0 truncate">{sectionTitle}</span>
+                    <span className="min-w-0 truncate text-xs">
+                        {sectionTitle}
+                    </span>
                 </PreviewCardTitle>
+                <Separator />
                 {isOpen && items.length > 0 ? (
                     <DataList>
-                        <DataListGroup className="mt-0">
+                        <DataListGroup className="pb-0">
                             {items.map(
                                 ({ count, icon: Icon, label, value }) => (
                                     <DataListItem key={value}>
