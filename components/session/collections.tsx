@@ -432,16 +432,16 @@ interface CollectionItemStyle extends React.CSSProperties {
     "--text-muted-color": string;
 }
 
-type CollectionListSource = "favorites" | "collections";
+type CollectionsListSource = "favorites" | "collections";
 
 interface HoveredCollectionTarget {
     collectionId: string;
-    source: CollectionListSource;
+    source: CollectionsListSource;
 }
 
 interface PriorityComboboxOpenTarget {
     collectionId: string;
-    source: CollectionListSource;
+    source: CollectionsListSource;
 }
 
 interface SyncCreatedCollectionInput {
@@ -553,7 +553,7 @@ interface CollectionsListHoverContext {
 interface CollectionsListItemContext {
     collection: LibraryCollectionSummary;
     isSelected: boolean;
-    source: CollectionListSource;
+    source: CollectionsListSource;
 }
 
 interface CollectionsListSuggestionsItemContext {
@@ -1148,7 +1148,11 @@ function useCollectionRowActions() {
                         }
                     );
                     showSuccess(`${collection.name} exported as CSV.`);
-                } catch {
+                } catch (error) {
+                    log.error("Failed to export collection as CSV", {
+                        collectionId: collection.id,
+                        error,
+                    });
                     showError(EXPORT_CSV_ERROR_MESSAGE);
                 }
             });
@@ -1690,7 +1694,7 @@ function getVisibleCollections(
         );
     }
     if (view === "show-shared-only") {
-        return collections.filter((collection) => collection.shareId !== null);
+        return collections.filter(isCollectionPubliclyShared);
     }
     return collections;
 }
@@ -1872,15 +1876,6 @@ function getFavoriteCollections(
     );
 }
 
-function getCreatedAssignedItemIds(
-    result: Extract<
-        CollectionCreateResult,
-        { status: typeof ACTION_STATUS.CREATED }
-    >
-): string[] {
-    return result.assignedItemId ? [result.assignedItemId] : [];
-}
-
 async function createCollectionAndSync({
     assignToItemId,
     description,
@@ -1898,7 +1893,7 @@ async function createCollectionAndSync({
     }
 
     syncCreated({
-        assignedItemIds: getCreatedAssignedItemIds(result),
+        assignedItemIds: result.assignedItemId ? [result.assignedItemId] : [],
         collection: result.collection,
     });
     return result;
@@ -2203,6 +2198,12 @@ function getSharedCollections(
         }
     }
     return [...sharedCollections.values()];
+}
+
+function isCollectionPubliclyShared(
+    collection: Pick<LibraryCollectionTag, "shareId" | "sharedAt">
+): boolean {
+    return collection.shareId !== null && collection.sharedAt !== null;
 }
 
 function getArchivedCollectionsStatus(count: number): string {
@@ -3670,7 +3671,7 @@ function CollectionsListSuggestionsItemValue() {
 
 interface CollectionsListItemProps extends React.ComponentProps<"div"> {
     collection: LibraryCollectionSummary;
-    source: CollectionListSource;
+    source: CollectionsListSource;
 }
 
 function CollectionsListItem({
@@ -4083,7 +4084,7 @@ function CollectionsListItemControls({
                         <MenuGroupLabel className="flex items-center gap-1.5">
                             Collection
                             <Badge size="sm" variant="secondary">
-                                {collection.shareId ? (
+                                {isCollectionPubliclyShared(collection) ? (
                                     <>
                                         <Globe
                                             aria-hidden
@@ -4196,7 +4197,7 @@ function CollectionsListItemShareSubmenu() {
     const { copyToClipboard } = useCopyToClipboard();
     const { runCollectionAction } = useCollectionActionRunner();
 
-    const isShared = !!collection.shareId;
+    const isShared = isCollectionPubliclyShared(collection);
     const isShareActionPending = isCollectionActionPending(
         "share",
         collection.id
@@ -4594,8 +4595,7 @@ interface ItemCollectionsComboboxItemProps {
 function ItemCollectionsComboboxItem({
     collection,
 }: ItemCollectionsComboboxItemProps) {
-    const isSharedPublicly =
-        collection.shareId !== null && collection.sharedAt !== null;
+    const isSharedPublicly = isCollectionPubliclyShared(collection);
     const collectionItemStyle = getCollectionItemStyle(collection.name, false);
 
     return (
