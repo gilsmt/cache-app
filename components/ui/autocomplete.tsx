@@ -77,6 +77,15 @@ export function AutocompleteEndAddon({
     );
 }
 
+export function AutocompleteClear(props: AutocompletePrimitive.Clear.Props) {
+    return (
+        <AutocompletePrimitive.Clear
+            {...props}
+            data-slot="autocomplete-clear"
+        />
+    );
+}
+
 interface AutocompleteInputProps
     extends Omit<AutocompletePrimitive.Input.Props, "size"> {
     ref?: React.Ref<HTMLInputElement>;

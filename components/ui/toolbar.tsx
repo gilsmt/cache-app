@@ -45,3 +45,18 @@ export function ToolbarButton({
         />
     );
 }
+
+export function ToolbarLink({
+    className,
+    ...props
+}: React.ComponentProps<typeof ToolbarPrimitive.Link>) {
+    return (
+        <ToolbarPrimitive.Link
+            {...props}
+            className={cn(
+                "hover:bg-accent focus-visible:ring-ring inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md outline-none select-none focus-visible:ring-2 [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+                className
+            )}
+        />
+    );
+}
