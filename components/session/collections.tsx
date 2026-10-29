@@ -517,7 +517,7 @@ type SummarySorter = Record<
     (a: SortableCollectionSummary, b: SortableCollectionSummary) => number
 >;
 
-interface CollectionsRootContext {
+interface CollectionsContext {
     collectionSummaries: LibraryCollectionSummary[];
     collections: LibraryCollectionSummary[];
     mergeCollectionSummaries: (collections: LibraryCollectionSummary[]) => void;
@@ -535,7 +535,7 @@ interface CollectionsRootContext {
     syncCollectionShare: (next: CollectionShareState) => void;
 }
 
-interface CollectionsRootPendingActionsContext {
+interface CollectionsPendingActionsContext {
     claimCollectionAction: (
         action: CollectionAction,
         collectionId: string
@@ -666,11 +666,10 @@ const { useStore: useCollectionsListStore, getState: getCollectionsListState } =
         }),
     });
 
-const CollectionsRootContext =
-    React.createContext<CollectionsRootContext | null>(null);
+const CollectionsContext = React.createContext<CollectionsContext | null>(null);
 
-export function useCollectionsContext(): CollectionsRootContext {
-    const context = React.use(CollectionsRootContext);
+export function useCollectionsContext(): CollectionsContext {
+    const context = React.use(CollectionsContext);
     if (!context) {
         throw new Error(
             "Collections context is required for collection controls."
@@ -744,11 +743,11 @@ function useCollectionsListSuggestionsItemContext() {
     return context;
 }
 
-const CollectionsRootPendingActionsContext =
-    React.createContext<CollectionsRootPendingActionsContext | null>(null);
+const CollectionsPendingActionsContext =
+    React.createContext<CollectionsPendingActionsContext | null>(null);
 
-export function useCollectionsPendingActionsContext(): CollectionsRootPendingActionsContext {
-    const context = React.use(CollectionsRootPendingActionsContext);
+export function useCollectionsPendingActionsContext(): CollectionsPendingActionsContext {
+    const context = React.use(CollectionsPendingActionsContext);
     if (!context) {
         throw new Error(
             "Pending collection actions must be read within a CollectionsProvider."
@@ -2248,7 +2247,7 @@ export function Collections() {
                             >
                                 <CollectionsListItemPriorityCombobox />
                                 <CollectionsListItemTrigger>
-                                    <CollectionsListItemValue />
+                                    <CollectionsListItemLabel />
                                 </CollectionsListItemTrigger>
                                 <CollectionsListItemControls>
                                     {dayjs(collection.updatedAt).fromNow(true)}
@@ -2290,7 +2289,7 @@ export function Collections() {
                             >
                                 <CollectionsListItemPriorityCombobox />
                                 <CollectionsListItemTrigger>
-                                    <CollectionsListItemValue />
+                                    <CollectionsListItemLabel />
                                 </CollectionsListItemTrigger>
                                 <CollectionsListItemControls>
                                     {COMPACT_NUMBER_FORMATTER.format(
@@ -2307,7 +2306,7 @@ export function Collections() {
                                 key={collection.value}
                             >
                                 <CollectionsListSuggestionsItemTrigger>
-                                    <CollectionsListSuggestionsItemValue />
+                                    <CollectionsListSuggestionsItemLabel />
                                 </CollectionsListSuggestionsItemTrigger>
                             </CollectionsListSuggestionsItem>
                         )}
@@ -2431,7 +2430,7 @@ export function CollectionsProvider({
         }
     );
 
-    const contextValue: CollectionsRootContext = {
+    const contextValue: CollectionsContext = {
         ...state,
         onCloseCreate: createDialog.onCloseCreate,
         requestCreate: createDialog.requestCreate,
@@ -2442,19 +2441,19 @@ export function CollectionsProvider({
         syncCollectionShare,
     };
 
-    const pendingActionsContextValue: CollectionsRootPendingActionsContext = {
+    const pendingActionsContextValue: CollectionsPendingActionsContext = {
         claimCollectionAction,
         isCollectionActionPending,
     };
 
     return (
-        <CollectionsRootContext value={contextValue}>
-            <CollectionsRootPendingActionsContext
+        <CollectionsContext value={contextValue}>
+            <CollectionsPendingActionsContext
                 value={pendingActionsContextValue}
             >
                 {children}
-            </CollectionsRootPendingActionsContext>
-        </CollectionsRootContext>
+            </CollectionsPendingActionsContext>
+        </CollectionsContext>
     );
 }
 
@@ -3163,8 +3162,6 @@ function CollectionsListStatus({
 }: React.ComponentProps<"div">) {
     const { dismissStatus, status } = useCollectionStatus();
 
-    const tone = status?.tone;
-
     if (!status?.message) {
         return null;
     }
@@ -3180,14 +3177,14 @@ function CollectionsListStatus({
         >
             <p
                 aria-atomic="true"
-                aria-live={tone === "error" ? "assertive" : "polite"}
+                aria-live={status.tone === "error" ? "assertive" : "polite"}
                 className={cn(
                     "truncate text-xs leading-tight italic",
-                    tone === "error"
+                    status.tone === "error"
                         ? "text-destructive"
                         : "text-muted-foreground"
                 )}
-                role={tone === "error" ? "alert" : "status"}
+                role={status.tone === "error" ? "alert" : "status"}
             >
                 {status.message}
             </p>
@@ -3649,7 +3646,7 @@ function CollectionsListSuggestionsItemTrigger({
     );
 }
 
-function CollectionsListSuggestionsItemValue() {
+function CollectionsListSuggestionsItemLabel() {
     const { template } = useCollectionsListSuggestionsItemContext();
 
     return (
@@ -3892,7 +3889,7 @@ function CollectionsListItemPreview({
     );
 }
 
-function CollectionsListItemValue() {
+function CollectionsListItemLabel() {
     const { collection, isSelected } = useCollectionsListItemContext();
     const { textMatchQuery } = useCollectionsListStore();
 
