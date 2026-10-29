@@ -2104,7 +2104,7 @@ interface SidePanelBlockedProps {
 function SidePanelBlocked({ onRetry, url }: SidePanelBlockedProps) {
     return (
         <div
-            aria-live="polite"
+            aria-live="assertive"
             className="flex size-full flex-col items-center justify-center gap-4 px-6 text-center"
             role="alert"
         >
@@ -2670,11 +2670,12 @@ function EditorStatus() {
 
     return (
         <span
-            aria-live="polite"
+            aria-live={isError ? "assertive" : "polite"}
             className={cn(
                 "px-1 text-xs",
                 isError ? "text-destructive" : "text-muted-foreground"
             )}
+            role={isError ? "alert" : "status"}
         >
             <TextMorph>{message}</TextMorph>
         </span>

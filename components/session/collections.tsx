@@ -3796,7 +3796,9 @@ function CollectionsListItemTrigger({
                 render={
                     <SidebarItem
                         className="w-full min-w-0 flex-1 justify-start pr-15 pl-8.5 text-left before:bg-(--collection-background) hover:bg-transparent focus-visible:ring-(--accent-color) pointer-fine:pr-8"
-                        render={<Button variant="ghost" />}
+                        render={
+                            <Button aria-pressed={isSelected} variant="ghost" />
+                        }
                     />
                 }
             />

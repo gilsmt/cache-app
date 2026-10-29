@@ -5182,7 +5182,11 @@ function ItemsListLinkCheckPending() {
     }
 
     return (
-        <div className="border-border/70 bg-card/30 flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-14 text-center">
+        <div
+            aria-live="polite"
+            className="border-border/70 bg-card/30 flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-14 text-center"
+            role="status"
+        >
             <Spinner className="text-muted-foreground size-5" />
             <p className="text-muted-foreground max-w-md text-sm leading-snug text-balance">
                 Checking which links fail to load…
