@@ -4798,6 +4798,7 @@ export function ItemsList({
                                         >
                                             <AutocompleteEndAddon>
                                                 <PaletteInputEndAddon
+                                                    hasQuery={query.length > 0}
                                                     stackEntries={stackEntries}
                                                 />
                                             </AutocompleteEndAddon>
@@ -4862,6 +4863,10 @@ export function ItemsList({
                                                     )}
                                                 </AutocompleteList>
                                             </AutocompletePopup>
+                                            {/* Option descendants are presentational, so keep this announcer outside them. */}
+                                            <AssistantResponseAnnouncement
+                                                response={assistantResponse}
+                                            />
                                             <ComposerActionsList
                                                 duplicatesFilterEnabled={
                                                     duplicatesFilterEnabled
@@ -6061,35 +6066,6 @@ function AssistantResponseShell({
     );
 }
 
-function AssistantResponseLoadingPanel({ prompt }: { prompt?: string }) {
-    return (
-        <AssistantResponseShell prompt={prompt}>
-            <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
-                <ThinkingOrb size={20} state="shaping" />
-                <span className="text-muted-foreground text-xs">
-                    <T>Thinking…</T>
-                </span>
-            </div>
-        </AssistantResponseShell>
-    );
-}
-
-function AssistantResponseErrorPanel({
-    message,
-    prompt,
-}: {
-    message: string;
-    prompt: string;
-}) {
-    return (
-        <AssistantResponseShell prompt={prompt}>
-            <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
-                <p className="text-sm">{message}</p>
-            </div>
-        </AssistantResponseShell>
-    );
-}
-
 function AssistantResponseSuccessPanel({
     markdown,
     prompt,
@@ -6124,15 +6100,25 @@ function AssistantResponsePanel({
     response: AssistantResponseState | null;
 }) {
     if (!response || response.status === "loading") {
-        return <AssistantResponseLoadingPanel prompt={response?.prompt} />;
+        return (
+            <AssistantResponseShell prompt={response?.prompt}>
+                <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
+                    <ThinkingOrb size={20} state="shaping" />
+                    <span className="text-muted-foreground text-xs">
+                        <T>Thinking…</T>
+                    </span>
+                </div>
+            </AssistantResponseShell>
+        );
     }
 
     if (response.status === "error") {
         return (
-            <AssistantResponseErrorPanel
-                message={response.message}
-                prompt={response.prompt}
-            />
+            <AssistantResponseShell prompt={response.prompt}>
+                <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
+                    <p className="text-sm">{response.message}</p>
+                </div>
+            </AssistantResponseShell>
         );
     }
 
@@ -6144,11 +6130,38 @@ function AssistantResponsePanel({
     );
 }
 
-interface PaletteInputEndAddonProps {
-    stackEntries: ComposerStackEntry[];
+interface AssistantResponseAnnouncementProps {
+    response: AssistantResponseState | null;
 }
 
-function PaletteStackEntryChip({ entry }: { entry: ComposerStackEntry }) {
+function AssistantResponseAnnouncement({
+    response,
+}: AssistantResponseAnnouncementProps) {
+    const isError = response?.status === "error";
+
+    return (
+        <div
+            aria-atomic="true"
+            aria-live={isError ? "assertive" : "polite"}
+            className="sr-only"
+            role={isError ? "alert" : "status"}
+        >
+            {response?.status === "loading" ? <T>Thinking…</T> : null}
+            {isError ? response.message : null}
+            {response?.status === "success" ? (
+                <>
+                    <T>Assistant response ready.</T> {response.markdown}
+                </>
+            ) : null}
+        </div>
+    );
+}
+
+interface PaletteStackEntryChipProps {
+    entry: ComposerStackEntry;
+}
+
+function PaletteStackEntryChip({ entry }: PaletteStackEntryChipProps) {
     if (entry.kind === "attachment") {
         return (
             <ComposerAttachmentChip
@@ -6161,38 +6174,59 @@ function PaletteStackEntryChip({ entry }: { entry: ComposerStackEntry }) {
     return <ComposerChip label={entry.label} onRemove={entry.onRemove} />;
 }
 
-function PaletteInputEndAddon({ stackEntries }: PaletteInputEndAddonProps) {
+interface PaletteInputEndAddonProps {
+    hasQuery: boolean;
+    stackEntries: ComposerStackEntry[];
+}
+
+function PaletteInputEndAddon({
+    hasQuery,
+    stackEntries,
+}: PaletteInputEndAddonProps) {
     return (
         <>
             {stackEntries.length === 0 ? (
-                <PaletteInputEndAddonShortcut />
+                <PaletteInputEndAddonShortcut hasQuery={hasQuery} />
             ) : null}
-            <CollapsibleListHorizontal
-                badgeRender={
-                    <Badge
-                        className="inline-flex h-7! cursor-pointer rounded-xl text-xs tabular-nums"
-                        render={<button type="button" />}
-                        variant="secondary"
-                    />
-                }
-                className="justify-end"
-                maxVisible={1}
-            >
-                {stackEntries.map((entry) => (
-                    <PaletteStackEntryChip entry={entry} key={entry.key} />
-                ))}
-            </CollapsibleListHorizontal>
+            <div className="flex items-center gap-0.5">
+                <CollapsibleListHorizontal
+                    badgeRender={
+                        <Badge
+                            className="inline-flex h-7! cursor-pointer rounded-xl text-xs tabular-nums"
+                            render={<button type="button" />}
+                            variant="secondary"
+                        />
+                    }
+                    className="justify-end"
+                    maxVisible={1}
+                >
+                    {stackEntries.map((entry) => (
+                        <PaletteStackEntryChip entry={entry} key={entry.key} />
+                    ))}
+                </CollapsibleListHorizontal>
+            </div>
         </>
     );
 }
 
-function PaletteInputEndAddonShortcut() {
+interface PaletteInputEndAddonShortcutProps {
+    hasQuery: boolean;
+}
+
+function PaletteInputEndAddonShortcut({
+    hasQuery,
+}: PaletteInputEndAddonShortcutProps) {
     return (
         <>
             <Kbd className="text-muted-foreground border-none opacity-50 group-data-popup-open/input:opacity-0">
                 <CmdKbd />G
             </Kbd>
-            <span className="absolute right-3.5 flex items-center gap-0.5 text-nowrap opacity-0 group-data-popup-open/input:opacity-100 dark:gap-1">
+            <span
+                className={cn(
+                    "absolute flex items-center gap-0.5 text-nowrap opacity-0 group-data-popup-open/input:opacity-100 dark:gap-1",
+                    hasQuery ? "right-10" : "right-3.5"
+                )}
+            >
                 <Kbd className="text-muted-foreground border-none opacity-50">
                     Tab
                 </Kbd>
@@ -6527,6 +6561,7 @@ function ContinueInThreadButton({
         <span className="ml-auto inline-flex max-w-full items-center gap-2">
             {errorMessage ? (
                 <span
+                    aria-live="assertive"
                     className="text-destructive truncate text-xs"
                     role="alert"
                 >
