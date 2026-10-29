@@ -149,7 +149,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarItem } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useSession } from "@/lib/auth/client";
 import {
@@ -557,8 +556,7 @@ interface CollectionsListItemContext {
 }
 
 interface CollectionsListSuggestionsItemContext {
-    handleClick: (event: React.SyntheticEvent) => void;
-    isPending: boolean;
+    handleClick: () => void;
     template: CollectionTemplateOption;
 }
 
@@ -566,15 +564,18 @@ interface CollectionsListStateContext {
     pendingDelete: LibraryCollectionSummary | null;
     pendingPriorityComboboxOpen: PriorityComboboxOpenTarget | null;
     pendingRename: LibraryCollectionSummary | null;
+    pendingSuggestion: CollectionTemplateOption | null;
 }
 
 interface CollectionsListActionsContext {
     closeCreateDialog: () => void;
     closePendingDelete: () => void;
     closePendingRename: () => void;
+    closePendingSuggestion: () => void;
     createSubmissionPendingRef: React.RefObject<boolean>;
     onCopyLinks: (collection: LibraryCollectionSummary) => Promise<void>;
     onCopyTitle: (collection: LibraryCollectionSummary) => Promise<void>;
+    onCreateFromSuggestion: (suggestion: CollectionTemplateOption) => void;
     onDelete: (collection: LibraryCollectionSummary) => void;
     onDuplicate: (collection: LibraryCollectionSummary) => void;
     onExportCsv: (collection: LibraryCollectionSummary) => void;
@@ -983,6 +984,8 @@ function useCollectionDialogRequests() {
         React.useState<LibraryCollectionSummary | null>(null);
     const [pendingDelete, setPendingDelete] =
         React.useState<LibraryCollectionSummary | null>(null);
+    const [pendingSuggestion, setPendingSuggestion] =
+        React.useState<CollectionTemplateOption | null>(null);
 
     const openCreateDialog = useStableCallback((itemId?: string) => {
         dismissStatus();
@@ -1003,12 +1006,23 @@ function useCollectionDialogRequests() {
         }
     );
 
+    const requestCreateFromSuggestion = useStableCallback(
+        (suggestion: CollectionTemplateOption) => {
+            dismissStatus();
+            setPendingSuggestion(suggestion);
+        }
+    );
+
     const closePendingDelete = useStableCallback(() => {
         setPendingDelete(null);
     });
 
     const closePendingRename = useStableCallback(() => {
         setPendingRename(null);
+    });
+
+    const closePendingSuggestion = useStableCallback(() => {
+        setPendingSuggestion(null);
     });
 
     const handleCreateShortcutPress = useStableCallback(() => {
@@ -1031,10 +1045,13 @@ function useCollectionDialogRequests() {
         closeCreateDialog: onCloseCreate,
         closePendingDelete,
         closePendingRename,
+        closePendingSuggestion,
         createSubmissionPendingRef,
         openCreateDialog,
         pendingDelete,
         pendingRename,
+        pendingSuggestion,
+        requestCreateFromSuggestion,
         requestDelete,
         requestRename,
     };
@@ -2316,6 +2333,7 @@ export function Collections() {
             <CollectionsListStatus />
             <CollectionsRenameDialog />
             <CollectionsCreateDialog />
+            <CollectionsCreateFromSuggestionDialog />
             <CollectionsDeleteDialog />
         </CollectionsListProvider>
     );
@@ -2518,15 +2536,18 @@ function CollectionsListProvider({ children }: React.PropsWithChildren) {
         pendingDelete: dialogs.pendingDelete,
         pendingPriorityComboboxOpen: rowActions.pendingPriorityComboboxOpen,
         pendingRename: dialogs.pendingRename,
+        pendingSuggestion: dialogs.pendingSuggestion,
     };
 
     const actionsContextValue: CollectionsListActionsContext = {
         closeCreateDialog: dialogs.closeCreateDialog,
         closePendingDelete: dialogs.closePendingDelete,
         closePendingRename: dialogs.closePendingRename,
+        closePendingSuggestion: dialogs.closePendingSuggestion,
         createSubmissionPendingRef: dialogs.createSubmissionPendingRef,
         onCopyLinks: rowActions.onCopyLinks,
         onCopyTitle: rowActions.onCopyTitle,
+        onCreateFromSuggestion: dialogs.requestCreateFromSuggestion,
         onDelete: dialogs.requestDelete,
         onDuplicate: rowActions.onDuplicate,
         onExportCsv: rowActions.onExportCsv,
@@ -3555,35 +3576,13 @@ function CollectionsListSuggestionsItem({
     children,
     collection,
 }: CollectionsListSuggestionsItemProps) {
-    const { showError, showSuccess } = useCollectionStatus();
-    const { syncCreated } = useCollectionsListActionsContext();
-    const { mutate: mutateSuggestions } = useCollectionsSuggestions();
-    const [isPending, startTransition] = React.useTransition();
+    const { onCreateFromSuggestion } = useCollectionsListActionsContext();
 
-    const handleClick = useStableCallback((event: React.SyntheticEvent) => {
-        if (isPending) {
-            event.preventDefault();
-            return;
-        }
-        startTransition(async () => {
-            const result = await createCollectionAndSync({
-                description: collection.description,
-                name: collection.name,
-                syncCreated,
-            });
-            if (result.status !== ACTION_STATUS.CREATED) {
-                showError(result.message);
-                return;
-            }
-            await refreshCollectionSuggestions(
-                mutateSuggestions,
-                "Failed to refresh collection suggestions after creating from suggestion"
-            );
-            showSuccess(`${collection.name} created from suggestion.`);
-        });
+    const handleClick = useStableCallback(() => {
+        onCreateFromSuggestion(collection);
     });
 
-    const contextValue = { handleClick, isPending, template: collection };
+    const contextValue = { handleClick, template: collection };
 
     return (
         <CollectionsListSuggestionsItemContext value={contextValue}>
@@ -3601,33 +3600,35 @@ interface CollectionsListSuggestionsItemTriggerProps {
 function CollectionsListSuggestionsItemTrigger({
     children,
 }: CollectionsListSuggestionsItemTriggerProps) {
-    const { handleClick, isPending, template } =
+    const { handleClick, template } =
         useCollectionsListSuggestionsItemContext();
+    const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+
+    const handleOpenChange = useStableCallback((nextOpen: boolean) => {
+        setIsPreviewOpen(nextOpen);
+    });
+
+    const handleAddClick = useStableCallback(() => {
+        setIsPreviewOpen(false);
+        handleClick();
+    });
 
     return (
-        <PreviewCard>
+        <PreviewCard onOpenChange={handleOpenChange} open={isPreviewOpen}>
             <PreviewCardTrigger
                 render={
                     <SidebarItem
                         className="w-full min-w-0 flex-1 justify-start rounded-lg pr-8 pl-9.5 text-left hover:bg-transparent"
                         render={
-                            <button
-                                disabled={isPending}
-                                onClick={handleClick}
-                                type="button"
-                            />
+                            <button onClick={handleAddClick} type="button" />
                         }
                     />
                 }
             >
                 {children}
-                {isPending ? (
-                    <Spinner className="absolute right-3 size-3.5" />
-                ) : (
-                    <span className="text-muted-foreground absolute right-3 text-xs opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
-                        <T>Add</T>
-                    </span>
-                )}
+                <span className="text-muted-foreground absolute right-3 text-xs opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
+                    <T>Add</T>
+                </span>
             </PreviewCardTrigger>
             <PreviewCardPopup
                 align="start"
@@ -5100,6 +5101,109 @@ function CollectionsCreateDialog() {
                         </Combobox>
                         <Button
                             disabled={!isNameValid || isDescriptionPending}
+                            isLoading={isSubmitting}
+                            size="sm"
+                            type="submit"
+                        >
+                            Create collection
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogPopup>
+        </Dialog>
+    );
+}
+
+function CollectionsCreateFromSuggestionDialog() {
+    const { pendingSuggestion } = useCollectionsListStateContext();
+    const { showSuccess } = useCollectionStatus();
+    const { closePendingSuggestion, syncCreated } =
+        useCollectionsListActionsContext();
+    const { mutate: mutateSuggestions } = useCollectionsSuggestions();
+    const { handleOpenChange, isSubmitting, runSubmission } =
+        useSubmissionDialog({ onClose: closePendingSuggestion });
+
+    const isOpen = pendingSuggestion !== null;
+
+    const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+    // Reset before paint so reopening never shows a stale error.
+    useIsoLayoutEffect(() => {
+        if (isOpen) {
+            setErrorMessage(null);
+        }
+    }, [isOpen]);
+
+    const handleSubmit = useStableCallback(() => {
+        const suggestion = pendingSuggestion;
+        if (!suggestion) {
+            return;
+        }
+
+        runSubmission(async () => {
+            const result = await createCollectionAndSync({
+                description: suggestion.description,
+                name: suggestion.name,
+                syncCreated,
+            });
+
+            if (result.status !== ACTION_STATUS.CREATED) {
+                setErrorMessage(result.message);
+                return;
+            }
+
+            await refreshCollectionSuggestions(
+                mutateSuggestions,
+                "Failed to refresh collection suggestions after creating from suggestion"
+            );
+            closePendingSuggestion();
+            showSuccess(`${result.collection.name} created from suggestion.`);
+        });
+    });
+
+    const handleFormSubmit = useStableCallback(
+        (event: React.SubmitEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            handleSubmit();
+        }
+    );
+
+    return (
+        <Dialog onOpenChange={handleOpenChange} open={isOpen}>
+            <DialogPopup>
+                <form className="contents" onSubmit={handleFormSubmit}>
+                    <DialogHeader>
+                        <DialogTitle>
+                            Create collection from suggestion?
+                        </DialogTitle>
+                        <DialogDescription>
+                            This will create{" "}
+                            <strong>
+                                {pendingSuggestion?.name || "a new collection"}
+                            </strong>{" "}
+                            with the suggested description.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogPanel>
+                        {pendingSuggestion ? (
+                            <p className="text-sm">
+                                {pendingSuggestion.description}
+                            </p>
+                        ) : null}
+                        {errorMessage ? (
+                            <ErrorMessage className="pt-2">
+                                {errorMessage}
+                            </ErrorMessage>
+                        ) : null}
+                    </DialogPanel>
+                    <DialogFooter>
+                        <DialogClose
+                            disabled={isSubmitting}
+                            render={<Button size="sm" variant="ghost" />}
+                        >
+                            Cancel
+                        </DialogClose>
+                        <Button
                             isLoading={isSubmitting}
                             size="sm"
                             type="submit"
