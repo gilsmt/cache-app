@@ -254,7 +254,7 @@ function SummaryDataList({
                             </DataListGroup>
                         </>
                     ) : (
-                        <SummaryEmptyState
+                        <SummaryEmpty
                             description="Saved items show up here grouped by source."
                             icon={ChartPie}
                             title="No sources yet"
@@ -302,7 +302,7 @@ function ActivityHeatGraph({ activity }: ActivityHeatGraphProps) {
 
     if (totalAddedCount <= 0) {
         return (
-            <SummaryEmptyState
+            <SummaryEmpty
                 description="New saves light up this year view."
                 icon={CalendarDays}
                 title="No activity yet"
@@ -372,17 +372,13 @@ function ActivityHeatGraph({ activity }: ActivityHeatGraphProps) {
     );
 }
 
-interface SummaryEmptyStateProps {
+interface SummaryEmptyProps {
     description: string;
     icon: LucideIcon;
     title: string;
 }
 
-function SummaryEmptyState({
-    description,
-    icon: Icon,
-    title,
-}: SummaryEmptyStateProps) {
+function SummaryEmpty({ description, icon: Icon, title }: SummaryEmptyProps) {
     return (
         <div className="col-span-full flex flex-col items-center gap-1.5 px-2 py-6 text-center">
             <span className="bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-full">

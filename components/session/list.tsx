@@ -4965,7 +4965,7 @@ export function ItemsList({
                                     view={agentView}
                                 />
                                 <ItemsListEmpty />
-                                <ItemsListEmptyWithFilters />
+                                <ItemsListFilteredEmpty />
                                 <ItemsListLinkCheckPending />
                                 <ItemsGroupList groups={groups}>
                                     {(group) => (
@@ -5106,8 +5106,8 @@ function ItemsListEmpty() {
     );
 }
 
-function ItemsListEmptyWithFilters() {
-    const { shouldShowNoFilteredResults, clearLibraryPalette } =
+function ItemsListFilteredEmpty() {
+    const { clearLibraryPalette, shouldShowNoFilteredResults } =
         useItemsListContext();
 
     if (!shouldShowNoFilteredResults) {

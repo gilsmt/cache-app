@@ -458,14 +458,20 @@ function OnboardingMenuItem({
 }: OnboardingMenuItemProps) {
     return (
         <MenuItem onClick={onSelect}>
-            <OnboardingTaskStateIcon isCompleted={isCompleted} />
+            <OnboardingTaskStateIndicator isCompleted={isCompleted} />
             <span className="mr-2 min-w-0 flex-1 truncate">{label}</span>
             <ChevronRight className="ml-auto inline-block size-3.5 shrink-0 opacity-50" />
         </MenuItem>
     );
 }
 
-function OnboardingTaskStateIcon({ isCompleted }: { isCompleted: boolean }) {
+interface OnboardingTaskStateIndicatorProps {
+    isCompleted: boolean;
+}
+
+function OnboardingTaskStateIndicator({
+    isCompleted,
+}: OnboardingTaskStateIndicatorProps) {
     if (isCompleted) {
         return (
             <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-600">

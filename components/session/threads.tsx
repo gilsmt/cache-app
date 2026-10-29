@@ -354,7 +354,7 @@ export function Threads({ threads }: ThreadsProps) {
                     </ThreadsListTrigger>
                     <div className="pointer-events-none absolute right-1 flex items-center justify-end gap-1 text-nowrap">
                         <ThreadsListClear className="pointer-events-auto" />
-                        <ThreadsListSearch className="pointer-events-auto" />
+                        <ThreadsListCombobox className="pointer-events-auto" />
                         <ThreadsListFilterTrigger className="pointer-events-auto" />
                     </div>
                 </div>
@@ -495,7 +495,7 @@ function ThreadsListFilterTrigger(
     );
 }
 
-function ThreadsListSearch(
+function ThreadsListCombobox(
     props: React.ComponentProps<typeof ComboboxTrigger>
 ) {
     const gt = useGT();
@@ -771,7 +771,7 @@ function ThreadsListItem({ item }: ThreadsListItemProps) {
         <div>
             <div className="group/thread-item relative">
                 <ThreadsListItemTrigger item={item}>
-                    <ThreadsListItemValue>{item.title}</ThreadsListItemValue>
+                    <ThreadsListItemLabel>{item.title}</ThreadsListItemLabel>
                 </ThreadsListItemTrigger>
                 <ThreadsListItemControls
                     isArchived={item.isArchived}
@@ -923,11 +923,11 @@ function ThreadsListItemTrigger({
     );
 }
 
-interface ThreadsListItemValueProps {
+interface ThreadsListItemLabelProps {
     children: string;
 }
 
-function ThreadsListItemValue({ children }: ThreadsListItemValueProps) {
+function ThreadsListItemLabel({ children }: ThreadsListItemLabelProps) {
     const { textMatchQuery } = useThreadsListContext();
 
     return (

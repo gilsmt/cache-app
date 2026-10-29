@@ -59,10 +59,7 @@ export function useSidebarContext() {
     return context;
 }
 
-function getSidebarToggleTitle(
-    gt: ReturnType<typeof useGT>,
-    open: boolean
-): string {
+function getTriggerTitle(gt: ReturnType<typeof useGT>, open: boolean): string {
     const shortcut = `${getSystemControlKey()}B`;
     return open
         ? gt("Close sidebar ({shortcut})", { shortcut })
@@ -313,7 +310,7 @@ export function SidebarContent({
     );
 }
 
-export function SidebarToggle({
+export function SidebarTrigger({
     className,
     onClick,
     ...props
@@ -343,7 +340,7 @@ export function SidebarToggle({
             data-slot="sidebar-trigger"
             onClick={handleClick}
             size="icon-sm"
-            title={getSidebarToggleTitle(gt, isOpen)}
+            title={getTriggerTitle(gt, isOpen)}
             variant="ghost"
         >
             {isOpen ? (
@@ -454,7 +451,7 @@ export function SidebarRail({
             data-slot="sidebar-rail"
             onClick={toggleSidebar}
             tabIndex={-1}
-            title={getSidebarToggleTitle(gt, isOpen)}
+            title={getTriggerTitle(gt, isOpen)}
         />
     );
 }

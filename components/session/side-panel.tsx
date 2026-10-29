@@ -466,7 +466,7 @@ const EditorActionsContext = createContext<EditorActionsContext | null>(null);
 function useEditorActionsContext(): EditorActionsContext {
     const context = use(EditorActionsContext);
     if (!context) {
-        throw new Error("Editor components must be used inside <EditorRoot>.");
+        throw new Error("Editor components must be used inside <Editor>.");
     }
     return context;
 }
@@ -476,7 +476,7 @@ const EditorDraftContext = createContext<EditorDraftContext | null>(null);
 function useEditorDraftContext(): EditorDraftContext {
     const context = use(EditorDraftContext);
     if (!context) {
-        throw new Error("Editor components must be used inside <EditorRoot>.");
+        throw new Error("Editor components must be used inside <Editor>.");
     }
     return context;
 }
@@ -1646,11 +1646,7 @@ function SidePanelListItem({ isActive, item }: SidePanelItemProps) {
                 keepMounted
                 value={getSideTabId(item)}
             >
-                <EditorRoot
-                    isActive={isActive}
-                    note={item.note}
-                    tabId={item.id}
-                >
+                <Editor isActive={isActive} note={item.note} tabId={item.id}>
                     <ScrollArea className="min-w-0 flex-1">
                         <div className="w-full min-w-0 p-4 pt-0">
                             <div className="mt-2 mb-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -1661,7 +1657,7 @@ function SidePanelListItem({ isActive, item }: SidePanelItemProps) {
                             <EditorFooter />
                         </div>
                     </ScrollArea>
-                </EditorRoot>
+                </Editor>
             </Tabs.Panel>
         );
     }
@@ -2143,14 +2139,14 @@ function SidePanelBlocked({ onRetry, url }: SidePanelBlockedProps) {
     );
 }
 
-interface EditorRootProps {
+interface EditorProps {
     children: ReactNode;
     isActive: boolean;
     note: SidePanelNote | null;
     tabId: string;
 }
 
-function EditorRoot({ children, isActive, note, tabId }: EditorRootProps) {
+function Editor({ children, isActive, note, tabId }: EditorProps) {
     const {
         closeNoteTab,
         onClosePreview,
