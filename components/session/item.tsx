@@ -232,7 +232,7 @@ export interface ItemPeekPlaceholder {
     id: string;
 }
 
-export interface ItemCardEnvironmentContext {
+export interface ItemCardProviderContext {
     hoveredItemIdRef: React.RefObject<string | null>;
     hoverPinnedItemIdRef: React.RefObject<string | null>;
     markVisited: (itemId: string) => void;
@@ -272,11 +272,11 @@ interface ItemCardSurfaceContext {
     onMenuOpenChange: (open: boolean) => void;
 }
 
-export const ItemCardEnvironmentContext =
-    React.createContext<ItemCardEnvironmentContext | null>(null);
+export const ItemCardProviderContext =
+    React.createContext<ItemCardProviderContext | null>(null);
 
-function useItemCardEnvironmentContext(): ItemCardEnvironmentContext {
-    const context = React.use(ItemCardEnvironmentContext);
+function useItemCardEnvironmentContext(): ItemCardProviderContext {
+    const context = React.use(ItemCardProviderContext);
     if (!context) {
         throw new Error(
             "ItemCard components must be used inside <ItemCardEnvironmentContext>."
@@ -292,9 +292,7 @@ const ItemCardDataContext = React.createContext<ItemCardDataContext | null>(
 function useItemCardDataContext(): ItemCardDataContext {
     const context = React.use(ItemCardDataContext);
     if (!context) {
-        throw new Error(
-            "ItemCard components must be used inside <ItemCardProvider>."
-        );
+        throw new Error("ItemCard components must be used inside <ItemCard>.");
     }
     return context;
 }
@@ -305,9 +303,7 @@ const ItemCardDownloadContext =
 function useItemCardDownloadContext(): ItemCardDownloadContext {
     const context = React.use(ItemCardDownloadContext);
     if (!context) {
-        throw new Error(
-            "ItemCard components must be used inside <ItemCardDownloadProvider>."
-        );
+        throw new Error("ItemCard components must be used inside <ItemCard>.");
     }
     return context;
 }
@@ -319,9 +315,7 @@ const ItemCardZoomContext = React.createContext<ItemCardZoomContext | null>(
 function useItemCardZoomContext(): ItemCardZoomContext {
     const context = React.use(ItemCardZoomContext);
     if (!context) {
-        throw new Error(
-            "ItemCard components must be used inside <ItemCardZoomProvider>."
-        );
+        throw new Error("ItemCard components must be used inside <ItemCard>.");
     }
     return context;
 }
@@ -751,18 +745,25 @@ export function ItemPreview({
 }
 
 interface ItemNotePreviewProps {
+    className?: string;
     contentHtml: string | null;
     contentText: string | null;
 }
 
 export function ItemNotePreview({
+    className,
     contentHtml,
     contentText,
 }: ItemNotePreviewProps): React.ReactElement {
     const isQuoted = hasWrappingQuotes(contentText);
 
     return (
-        <div className="size-full max-h-60 mask-b-from-75% p-4 select-none">
+        <div
+            className={cn(
+                "size-full max-h-60 mask-b-from-75% p-4 select-none",
+                className
+            )}
+        >
             {isQuoted && <Quote className="mx-auto mb-2 size-4" />}
             <Streamdown
                 className={cn(
@@ -777,18 +778,18 @@ export function ItemNotePreview({
     );
 }
 
-interface ItemCardProviderProps extends React.PropsWithChildren {
+interface ItemCardProps extends React.PropsWithChildren {
     isDeletePending?: boolean;
     isPickerOpen?: boolean;
     value: LibraryItemWithCollections;
 }
 
-export function ItemCardProvider({
+export function ItemCard({
     children,
     isDeletePending = false,
     isPickerOpen = false,
     value,
-}: ItemCardProviderProps) {
+}: ItemCardProps) {
     const contextValue: ItemCardDataContext = {
         displayTitle: getLibraryItemPrimaryText(value),
         isDeletePending,
@@ -801,82 +802,10 @@ export function ItemCardProvider({
 
     return (
         <ItemCardDataContext value={contextValue}>
-            {children}
+            <ItemCardZoomProvider>
+                <ItemCardDownloadProvider>{children}</ItemCardDownloadProvider>
+            </ItemCardZoomProvider>
         </ItemCardDataContext>
-    );
-}
-
-export function ItemCardZoomProvider({ children }: React.PropsWithChildren) {
-    const [isZoomed, setIsZoomed] = React.useState(false);
-
-    // Ignore zoom-in requests so clicks keep opening the item; zooming in is
-    // the card menu's job.
-    const handleZoomChange = useStableCallback((nextZoomed: boolean) => {
-        if (!nextZoomed) {
-            setIsZoomed(false);
-        }
-    });
-
-    const handleZoomIn = useStableCallback(() => {
-        setIsZoomed(true);
-    });
-
-    const contextValue: ItemCardZoomContext = {
-        isZoomed,
-        onZoomChange: handleZoomChange,
-        onZoomIn: handleZoomIn,
-    };
-
-    return (
-        <ItemCardZoomContext value={contextValue}>
-            {children}
-        </ItemCardZoomContext>
-    );
-}
-
-export function ItemCardDownloadProvider({
-    children,
-}: React.PropsWithChildren) {
-    const { item } = useItemCardDataContext();
-    const [isDownloading, startDownloadTransition] = React.useTransition();
-    const [hasDownloadError, setHasDownloadError] = React.useState(false);
-
-    const handleDownload = useStableCallback(() => {
-        setHasDownloadError(false);
-        startDownloadTransition(async () => {
-            try {
-                await saveItemMedia(item);
-            } catch (error) {
-                setHasDownloadError(true);
-                log.error("Failed to prepare media download", error, {
-                    itemId: item.id,
-                    url: item.url,
-                });
-            }
-        });
-    });
-
-    const contextValue: ItemCardDownloadContext = {
-        isDownloading,
-        onDownload: handleDownload,
-    };
-
-    return (
-        <>
-            <ItemCardDownloadContext value={contextValue}>
-                {children}
-            </ItemCardDownloadContext>
-            {hasDownloadError ? (
-                <p
-                    aria-atomic="true"
-                    aria-live="assertive"
-                    className="text-destructive mt-1 px-1 text-xs leading-tight"
-                    role="alert"
-                >
-                    <T>Couldn't download this media. Please try again.</T>
-                </p>
-            ) : null}
-        </>
     );
 }
 
@@ -962,8 +891,8 @@ export function ItemCardSurface({ children }: React.PropsWithChildren) {
     );
 }
 
-export function ItemCardTarget() {
-    const { isFavorite, isNote, item, previewImageUrl } =
+export function ItemCardTrigger() {
+    const { displayTitle, isFavorite, isNote, item, previewImageUrl } =
         useItemCardDataContext();
     const { markVisited, onItemFavoriteToggle, onOpenInNewTab, onOpenNote } =
         useItemCardEnvironmentContext();
@@ -988,6 +917,25 @@ export function ItemCardTarget() {
         onItemFavoriteToggle(item);
     });
 
+    const handleOpenKeyDown = useStableCallback(
+        (event: React.KeyboardEvent<HTMLElement>) => {
+            if (event.target !== event.currentTarget) {
+                return;
+            }
+
+            const isActivationKey =
+                event.key === "Enter" || (isNote && event.key === " ");
+            if (!isActivationKey) {
+                return;
+            }
+
+            if (event.key === " ") {
+                event.preventDefault();
+            }
+            handleOpen();
+        }
+    );
+
     const handlePointerEnter = useStableCallback(() => {
         hover.handlePointerEnter();
         reveal.handleRevealStart();
@@ -998,22 +946,12 @@ export function ItemCardTarget() {
         reveal.handleRevealEnd();
     });
 
-    const handleOpenKeyDown = useStableCallback(
-        (event: React.KeyboardEvent<HTMLElement>) => {
-            if (event.key === "Enter") {
-                handleOpen();
-            }
-        }
-    );
-
     return (
-        // biome-ignore lint/a11y/useSemanticElements: ControlledZoom conflicts with anchor elements
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: handlers
+        // biome-ignore lint/a11y/noStaticElementInteractions: handlers
+        // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is always link or button
         <div
-            aria-label={
-                isNote
-                    ? item.noteContentText?.trim() || "Note"
-                    : getLibraryItemTitle(item)
-            }
+            aria-label={displayTitle}
             className={cn(
                 "squircle group/preview focus-visible:border-ring focus-visible:ring-ring relative flex flex-col overflow-clip rounded-xl focus-visible:ring-2 focus-visible:outline-none",
                 { "bg-muted/90": isNote }
@@ -1023,7 +961,7 @@ export function ItemCardTarget() {
             onPointerDown={hover.handlePointerDown}
             onPointerEnter={handlePointerEnter}
             onPointerLeave={handlePointerLeave}
-            role="link"
+            role={isNote ? "button" : "link"}
             tabIndex={0}
         >
             {isNote ? (
@@ -1068,7 +1006,7 @@ export function ItemCardTarget() {
     );
 }
 
-export function ItemCardFooter() {
+export function ItemCardControls() {
     const { isPickerOpen, item } = useItemCardDataContext();
     const { setOpenPickerItemId } = useItemCardEnvironmentContext();
 
@@ -1826,5 +1764,77 @@ function ItemCardDeleteAction({ surface }: { surface: ItemCardActionVariant }) {
                 <CmdKbd />⌫
             </Kbd>
         </ItemCardActionItem>
+    );
+}
+
+function ItemCardZoomProvider({ children }: React.PropsWithChildren) {
+    const [isZoomed, setIsZoomed] = React.useState(false);
+
+    // Ignore zoom-in requests so clicks keep opening the item; zooming in is
+    // the card menu's job.
+    const handleZoomChange = useStableCallback((nextZoomed: boolean) => {
+        if (!nextZoomed) {
+            setIsZoomed(false);
+        }
+    });
+
+    const handleZoomIn = useStableCallback(() => {
+        setIsZoomed(true);
+    });
+
+    const contextValue: ItemCardZoomContext = {
+        isZoomed,
+        onZoomChange: handleZoomChange,
+        onZoomIn: handleZoomIn,
+    };
+
+    return (
+        <ItemCardZoomContext value={contextValue}>
+            {children}
+        </ItemCardZoomContext>
+    );
+}
+
+function ItemCardDownloadProvider({ children }: React.PropsWithChildren) {
+    const { item } = useItemCardDataContext();
+    const [isDownloading, startDownloadTransition] = React.useTransition();
+    const [hasDownloadError, setHasDownloadError] = React.useState(false);
+
+    const handleDownload = useStableCallback(() => {
+        setHasDownloadError(false);
+        startDownloadTransition(async () => {
+            try {
+                await saveItemMedia(item);
+            } catch (error) {
+                setHasDownloadError(true);
+                log.error("Failed to prepare media download", error, {
+                    itemId: item.id,
+                    url: item.url,
+                });
+            }
+        });
+    });
+
+    const contextValue: ItemCardDownloadContext = {
+        isDownloading,
+        onDownload: handleDownload,
+    };
+
+    return (
+        <>
+            <ItemCardDownloadContext value={contextValue}>
+                {children}
+            </ItemCardDownloadContext>
+            {hasDownloadError ? (
+                <p
+                    aria-atomic="true"
+                    aria-live="assertive"
+                    className="text-destructive mt-1 px-1 text-xs leading-tight"
+                    role="alert"
+                >
+                    <T>Couldn't download this media. Please try again.</T>
+                </p>
+            ) : null}
+        </>
     );
 }

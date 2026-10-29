@@ -79,14 +79,12 @@ import {
     ReadAloudResponseButton,
 } from "@/components/session/composer";
 import {
-    ItemCardDownloadProvider,
-    ItemCardEnvironmentContext,
-    ItemCardFooter,
-    ItemCardProvider,
+    ItemCard,
+    ItemCardControls,
+    ItemCardProviderContext,
     ItemCardSkeleton,
     ItemCardSurface,
-    ItemCardTarget,
-    ItemCardZoomProvider,
+    ItemCardTrigger,
     type ItemPeekPlaceholder,
 } from "@/components/session/item";
 import {
@@ -102,7 +100,7 @@ import {
     openSidePanel,
     SidePanel,
     SidePanelContent,
-    SidePanelToggle,
+    SidePanelTrigger,
 } from "@/components/session/side-panel";
 import {
     Summary,
@@ -4981,32 +4979,32 @@ export function ItemsList({
                                                     </ItemsGroupEmpty>
                                                 </>
                                             ) : null}
-                                            <ItemsMasonry>
-                                                {(item) => (
-                                                    <MasonryItem key={item.id}>
-                                                        <ItemCardProvider
-                                                            isDeletePending={
-                                                                pendingDeleteItem?.id ===
-                                                                item.id
-                                                            }
-                                                            isPickerOpen={
-                                                                openPickerItemId ===
-                                                                item.id
-                                                            }
-                                                            value={item}
+                                            <ItemCardProvider>
+                                                <ItemsMasonry>
+                                                    {(item) => (
+                                                        <MasonryItem
+                                                            key={item.id}
                                                         >
-                                                            <ItemCardZoomProvider>
-                                                                <ItemCardDownloadProvider>
-                                                                    <ItemCardSurface>
-                                                                        <ItemCardTarget />
-                                                                        <ItemCardFooter />
-                                                                    </ItemCardSurface>
-                                                                </ItemCardDownloadProvider>
-                                                            </ItemCardZoomProvider>
-                                                        </ItemCardProvider>
-                                                    </MasonryItem>
-                                                )}
-                                            </ItemsMasonry>
+                                                            <ItemCard
+                                                                isDeletePending={
+                                                                    pendingDeleteItem?.id ===
+                                                                    item.id
+                                                                }
+                                                                isPickerOpen={
+                                                                    openPickerItemId ===
+                                                                    item.id
+                                                                }
+                                                                value={item}
+                                                            >
+                                                                <ItemCardSurface>
+                                                                    <ItemCardTrigger />
+                                                                    <ItemCardControls />
+                                                                </ItemCardSurface>
+                                                            </ItemCard>
+                                                        </MasonryItem>
+                                                    )}
+                                                </ItemsMasonry>
+                                            </ItemCardProvider>
                                         </ItemsGroup>
                                     )}
                                 </ItemsGroupList>
@@ -5016,7 +5014,7 @@ export function ItemsList({
                                 />
                             </div>
                             <SidePanelContent />
-                            <SidePanelToggle />
+                            <SidePanelTrigger />
                         </div>
                         <DeleteItemDialog
                             deleteErrorMessage={deleteErrorMessage}
@@ -5667,8 +5665,28 @@ interface ItemsMasonryProps {
 
 function ItemsMasonry({ children }: ItemsMasonryProps) {
     const { collapsed, items } = useItemsGroupContext();
+    const { columnCount } = useItemsListContext();
+
+    if (collapsed || items.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="contain-layout contain-paint contain-style [overflow-clip-margin:0.5rem]">
+            <MasonryRoot
+                columnCount={columnCount}
+                gap={16}
+                items={items}
+                maxColumnCount={7}
+            >
+                {children}
+            </MasonryRoot>
+        </div>
+    );
+}
+
+function ItemCardProvider({ children }: React.PropsWithChildren) {
     const {
-        columnCount,
         hoveredItemIdRef,
         hoverPinnedItemIdRef,
         markVisited,
@@ -5683,7 +5701,7 @@ function ItemsMasonry({ children }: ItemsMasonryProps) {
         onOpenNote,
     } = useItemsActionsContext();
 
-    const contextValue: ItemCardEnvironmentContext = {
+    const contextValue: ItemCardProviderContext = {
         hoveredItemIdRef,
         hoverPinnedItemIdRef,
         markVisited,
@@ -5696,23 +5714,10 @@ function ItemsMasonry({ children }: ItemsMasonryProps) {
         setOpenPickerItemId,
     };
 
-    if (collapsed || items.length === 0) {
-        return null;
-    }
-
     return (
-        <ItemCardEnvironmentContext value={contextValue}>
-            <div className="contain-layout contain-paint contain-style [overflow-clip-margin:0.5rem]">
-                <MasonryRoot
-                    columnCount={columnCount}
-                    gap={16}
-                    items={items}
-                    maxColumnCount={7}
-                >
-                    {children}
-                </MasonryRoot>
-            </div>
-        </ItemCardEnvironmentContext>
+        <ItemCardProviderContext value={contextValue}>
+            {children}
+        </ItemCardProviderContext>
     );
 }
 

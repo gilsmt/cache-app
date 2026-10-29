@@ -1484,7 +1484,7 @@ export function SidePanelContent() {
                 invoker.focus({ preventScroll: true });
             } else {
                 doc.querySelector<HTMLElement>(
-                    '[data-slot="side-toggle"]'
+                    '[data-slot="side-trigger"]'
                 )?.focus({ preventScroll: true });
             }
         }
@@ -1527,13 +1527,13 @@ export function SidePanelContent() {
     );
 }
 
-export function SidePanelToggle() {
+export function SidePanelTrigger() {
     const gt = useGT();
     const { isOpen, setIsOpen } = useSideStore();
 
     const controlKey = getSystemControlKey();
     const shortcut = `${controlKey}J / ${controlKey}I`;
-    const toggleTitle = isOpen
+    const triggerTitle = isOpen
         ? gt("Close preview ({shortcut})", { shortcut })
         : gt("Open preview ({shortcut})", { shortcut });
 
@@ -1547,10 +1547,10 @@ export function SidePanelToggle() {
                 "fixed top-2 right-0.5 z-50 opacity-80 hover:opacity-100 lg:right-2",
                 isOpen ? "cursor-e-resize" : "cursor-w-resize"
             )}
-            data-slot="side-toggle"
+            data-slot="side-trigger"
             onClick={handleClick}
             size="icon-sm"
-            title={toggleTitle}
+            title={triggerTitle}
             variant={isOpen ? "secondary" : "ghost"}
         >
             <PanelRight aria-hidden className="size-4" focusable="false" />
