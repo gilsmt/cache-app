@@ -8,7 +8,12 @@ const HISTORY_LIMIT = 50;
 const LEGACY_STORAGE_KEY = "cache:lastVisitedItemIds";
 const STORAGE_KEY = "cache:lastVisitedItemIds:v1";
 
-let listeners: Array<() => void> = [];
+interface UseLastVisitedReturnType {
+    lastVisitedItemIds: string[];
+    markVisited: (itemId: string) => void;
+}
+
+const listeners = new Set<() => void>();
 let cachedSnapshot: string[] | null | undefined;
 
 function readLastVisitedItemIds(): string[] {
@@ -67,6 +72,14 @@ function emitChange() {
     }
 }
 
+function handleStorageChange(event: StorageEvent) {
+    if (event.key !== null && event.key !== STORAGE_KEY) {
+        return;
+    }
+    cachedSnapshot = undefined;
+    emitChange();
+}
+
 function getSnapshot(): string[] {
     // `undefined` distinguishes "not yet read" from a real `[]` (no
     // stored items), so the first read hits storage exactly once per
@@ -84,26 +97,26 @@ function getServerSnapshot(): string[] {
 }
 
 function subscribe(listener: () => void): () => void {
-    listeners.push(listener);
-
-    const handleStorage = (event: StorageEvent) => {
-        if (event.key === null || event.key === STORAGE_KEY) {
-            cachedSnapshot = undefined;
-            listener();
-        }
-    };
-    window.addEventListener("storage", handleStorage);
+    if (listeners.size === 0) {
+        cachedSnapshot = undefined;
+        window.addEventListener("storage", handleStorageChange);
+    }
+    listeners.add(listener);
 
     return () => {
-        listeners = listeners.filter((l) => l !== listener);
-        window.removeEventListener("storage", handleStorage);
+        listeners.delete(listener);
+        if (listeners.size === 0) {
+            window.removeEventListener("storage", handleStorageChange);
+        }
     };
 }
 
-interface UseLastVisitedReturnType {
-    isLastVisited: (itemId: string) => boolean;
-    lastVisitedItemIds: string[];
-    markVisited: (itemId: string) => void;
+export function useIsLastVisited(itemId: string): boolean {
+    return React.useSyncExternalStore(
+        subscribe,
+        () => getSnapshot()[0] === itemId,
+        () => false
+    );
 }
 
 export function useLastVisited(): UseLastVisitedReturnType {
@@ -115,6 +128,11 @@ export function useLastVisited(): UseLastVisitedReturnType {
 
     const markVisited = useStableCallback((itemId: string) => {
         const current = cachedSnapshot ?? readLastVisitedItemIds();
+        if (current[0] === itemId) {
+            cachedSnapshot = current;
+            return;
+        }
+        cachedSnapshot = current;
         const next = [itemId, ...current.filter((id) => id !== itemId)].slice(
             0,
             HISTORY_LIMIT
@@ -124,8 +142,5 @@ export function useLastVisited(): UseLastVisitedReturnType {
         emitChange();
     });
 
-    const isLastVisited = (itemId: string): boolean =>
-        itemId === lastVisitedItemIds[0];
-
-    return { isLastVisited, lastVisitedItemIds, markVisited };
+    return { lastVisitedItemIds, markVisited };
 }

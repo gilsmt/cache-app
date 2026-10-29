@@ -34,7 +34,7 @@ import { Streamdown } from "streamdown";
 import useSWR from "swr";
 import { CommentComposer } from "@/components/comments/composer";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
-import { useLastVisited } from "@/components/hooks/use-last-visited";
+import { useIsLastVisited } from "@/components/hooks/use-last-visited";
 import { ItemCollectionsCombobox } from "@/components/session/collections";
 import { openSidePanel } from "@/components/session/side-panel";
 import { AvatarGroup } from "@/components/ui/avatar";
@@ -1192,12 +1192,11 @@ function ItemCardToolbar({
     onToggleSound,
     shouldLoadVideo,
 }: ItemCardToolbarProps): React.ReactElement {
-    const { isLastVisited } = useLastVisited();
+    const isLastVisited = useIsLastVisited(itemId);
     const shouldReduceMotion = useReducedMotion();
 
-    const shouldShowVisitedStatus = isLastVisited(itemId);
     const shouldShowFavoriteControl = isFavorite || isRevealed;
-    const isPinned = isFavorite || shouldShowVisitedStatus;
+    const isPinned = isFavorite || isLastVisited;
 
     const slotTransition: Transition = {
         duration: shouldReduceMotion ? 0 : TOOLBAR_SLOT_DURATION_SECONDS,
@@ -1236,7 +1235,7 @@ function ItemCardToolbar({
             )}
         >
             <AnimatePresence initial={false}>
-                {shouldShowVisitedStatus ? (
+                {isLastVisited ? (
                     <ItemCardToolbarSlot
                         key="visited"
                         transition={slotTransition}
