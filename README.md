@@ -51,6 +51,8 @@ You can self-host the Cache App for total control over your data and design. Cac
 - An AI provider key: [Google Gemini](https://aistudio.google.com/apikey) for the default model, [OpenRouter](https://openrouter.ai/keys) for OpenRouter model references, or [AI Gateway](https://vercel.com/docs/ai-gateway) for its model catalog; see `.env.example`.
 - Docker (optional)
 
+To use an [AI Gateway Virtual Model](https://vercel.com/docs/ai-gateway/models-and-providers/virtual-models), set `CACHE_AI_MODEL=vmc/<slug>` alongside `AI_GATEWAY_API_KEY`. Cache uses it for text generation and automation workflows. Once configured, you can change the model behind the slug in Vercel without changing Cache's configuration or redeploying the app. Smart-collection file uploads still require `GEMINI_API_KEY` because the Gemini Files API does not route through AI Gateway.
+
 ### Local Development
 
 ```bash
