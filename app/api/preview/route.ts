@@ -24,10 +24,6 @@ import { parseStandaloneUrl, tryParseUrl } from "@/lib/common/url";
 import { resolveProviderAccountAccessToken } from "@/lib/integrations/account";
 import { isCobaltHost } from "@/lib/integrations/cobalt/utils";
 import { GOOGLE_PHOTOS_PICKER_SCOPE } from "@/lib/integrations/google-photos/shared";
-import {
-    tiktokOembedThumbnailUrl,
-    tiktokOembedUrl,
-} from "@/lib/integrations/tiktok/oembed";
 
 const log = createLogger("api:library:preview");
 
@@ -670,20 +666,6 @@ async function resolveImagePreview(
 ): Promise<ImagePreviewOutcome> {
     const targetHref = targetUrl.href;
 
-    const oembedUrl = tiktokOembedUrl(targetHref);
-    if (oembedUrl) {
-        const preview = await resolveTikTokImagePreview(
-            targetHref,
-            oembedUrl,
-            signal
-        );
-        if (preview) {
-            writeCachedImagePreview(targetHref, preview, "page");
-            return { status: "resolved", value: preview };
-        }
-        return { status: "not_found" };
-    }
-
     const page = await fetchPreviewPage(targetUrl, signal);
     if (page.directImageUrl) {
         const preview: ResolvedImage = {
@@ -975,46 +957,6 @@ async function resolveImagePreviewWithTimeout(
     } finally {
         clearTimeout();
     }
-}
-
-async function resolveTikTokImagePreview(
-    targetUrl: string,
-    oembedUrl: string,
-    signal?: AbortSignal
-): Promise<ResolvedImage | null> {
-    const response = await fetchWithRedirects(
-        parseHttpUrl(oembedUrl),
-        {
-            headers: {
-                Accept: MIME_TYPES.json,
-                "User-Agent": USER_AGENT,
-            },
-        },
-        signal
-    );
-    if (!response.ok) {
-        log.debug("TikTok oEmbed preview request failed", {
-            status: response.status,
-            targetUrl,
-        });
-        await response.body?.cancel().catch(() => undefined);
-        if (response.status === 404 || response.status === 410) {
-            return null;
-        }
-        throw new Error(
-            `TikTok oEmbed preview request failed with status ${response.status}`
-        );
-    }
-
-    const thumbnailUrl = tiktokOembedThumbnailUrl(await response.json());
-    if (!thumbnailUrl) {
-        return null;
-    }
-
-    return {
-        imageUrl: thumbnailUrl,
-        pageUrl: targetUrl,
-    };
 }
 
 async function proxyImageResponse(
