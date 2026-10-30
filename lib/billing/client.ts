@@ -35,7 +35,7 @@ export const getStripeClient = (): Stripe => {
     }
 
     stripeInstance = new Stripe(key, {
-        apiVersion: "2026-09-30.endive",
+        apiVersion: "2026-10-28.endive",
         typescript: true,
     });
 
