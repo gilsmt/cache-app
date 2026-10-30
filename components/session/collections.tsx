@@ -306,7 +306,7 @@ const PRIORITY_RANK: Record<CollectionPriority, number> = {
     very_relevant: 0,
 };
 
-const COLLECTIONS_LIST_GROUP_LABELS: Record<string, React.ReactNode> = {
+const COLLECTIONS_LIST_GROUP_LABELS = {
     "last-3-days": <T>Last 3 days</T>,
     "last-7-days": <T>Last 7 days</T>,
     "last-30-days": <T>Last 30 days</T>,
@@ -2228,6 +2228,10 @@ function getArchivedCollectionsStatus(count: number): string {
         : `${count} assigned collections are archived`;
 }
 
+function isRelativeDateGroupId(value: string): value is RelativeDateGroupId {
+    return Object.hasOwn(COLLECTIONS_LIST_GROUP_LABELS, value);
+}
+
 export function Collections() {
     return (
         <CollectionsListProvider>
@@ -2615,7 +2619,9 @@ function CollectionsListContent({
             collections={group.collections}
             key={group.groupId}
             label={
-                COLLECTIONS_LIST_GROUP_LABELS[group.groupId] ?? group.groupId
+                isRelativeDateGroupId(group.groupId)
+                    ? COLLECTIONS_LIST_GROUP_LABELS[group.groupId]
+                    : group.groupId
             }
         >
             {children}
