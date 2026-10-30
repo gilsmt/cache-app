@@ -19,7 +19,7 @@ export const DOCS_URL = "https://docs.cachd.app";
 
 export const CHANGELOG_URL = `${DOCS_URL}/docs/changelog`;
 
-export const STATUS_URL = "https://status.cachd.app";
+export const STATUS_URL = "https://cache-app.openstatus.dev";
 
 export const SUPPORT_ADDRESS = "support@cachd.app";
 
