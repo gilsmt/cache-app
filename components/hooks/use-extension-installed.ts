@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { CACHE_EXTENSION_READY_EVENT } from "@/lib/common/constants";
 import { getOwnerWindow } from "@/lib/common/dom";
+import { asRecord } from "@/lib/common/object";
 
 function readExtensionInstalledFlag(window: Window): boolean {
     try {
@@ -13,22 +14,25 @@ function readExtensionInstalledFlag(window: Window): boolean {
     }
 }
 
-// function hasExtensionReadyMessage(payload: unknown): boolean {
-//     return asRecord(payload)?.type === CACHE_EXTENSION_READY_EVENT;
-// }
-
 function subscribe(callbackFn: () => void) {
     const ownerWindow = getOwnerWindow();
 
+    const handleMessage = (event: MessageEvent<unknown>) => {
+        if (asRecord(event.data)?.type !== CACHE_EXTENSION_READY_EVENT) {
+            return;
+        }
+        callbackFn();
+    };
+
     ownerWindow.addEventListener(CACHE_EXTENSION_READY_EVENT, callbackFn);
-    ownerWindow.addEventListener("message", callbackFn);
+    ownerWindow.addEventListener("message", handleMessage);
 
     return () => {
         ownerWindow.removeEventListener(
             CACHE_EXTENSION_READY_EVENT,
             callbackFn
         );
-        ownerWindow.removeEventListener("message", callbackFn);
+        ownerWindow.removeEventListener("message", handleMessage);
     };
 }
 
