@@ -35,6 +35,7 @@ export function ToBottomButton({
     const prefersReducedMotion = useReducedMotion();
     const [isVisible, setIsVisible] = React.useState(false);
     const onStickChangeRef = React.useRef(onStickChange);
+    const previousShouldStickRef = React.useRef<boolean | undefined>(undefined);
 
     React.useEffect(() => {
         onStickChangeRef.current = onStickChange;
@@ -48,7 +49,12 @@ export function ToBottomButton({
         const updateStickState = () => {
             const isAway = isScrolledAway(viewport, stickDistancePx);
             setIsVisible(isAway);
-            onStickChangeRef.current?.(!isAway);
+            const shouldStick = !isAway;
+            if (previousShouldStickRef.current === shouldStick) {
+                return;
+            }
+            previousShouldStickRef.current = shouldStick;
+            onStickChangeRef.current?.(shouldStick);
         };
         updateStickState();
         viewport.addEventListener("scroll", updateStickState, {
@@ -67,6 +73,7 @@ export function ToBottomButton({
             if (!viewport) {
                 return;
             }
+            previousShouldStickRef.current = true;
             onStickChangeRef.current?.(true);
             setIsVisible(false);
             viewport.scrollTo({
