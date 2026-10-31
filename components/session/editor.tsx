@@ -858,7 +858,17 @@ function EditorExportControls() {
             const result = await sendNoteToNotion({
                 contentHtml,
                 title: getNotionNoteTitle(plainText),
+            }).catch(() => {
+                setNotionStatus({
+                    message: gt("We couldn't send this to Notion right now."),
+                    tone: "error",
+                });
+                return null;
             });
+
+            if (result === null) {
+                return;
+            }
 
             if (result.status === "SUCCESS") {
                 setNotionStatus({
