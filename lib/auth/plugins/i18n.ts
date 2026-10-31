@@ -1,12 +1,18 @@
 import { type BuiltInLocales, localization } from "better-auth-localization";
-import { DEFAULT_LOCALE } from "@/lib/common/constants";
+import { DEFAULT_LOCALE, type SupportedLocale } from "@/lib/common/constants";
 
-/** App locales that better-auth-localization also ships (excluding DEFAULT → plugin default). */
-const BUILT_IN_APP_LOCALES = {
-    "es-ES": "es-ES",
-} as const satisfies Record<string, BuiltInLocales>;
 const LOCALE_COOKIE_KEY = "generaltranslation.locale";
 const FALLBACK_LOCALE = "default" satisfies BuiltInLocales;
+
+type NonDefaultSupportedLocale = Exclude<
+    SupportedLocale,
+    typeof DEFAULT_LOCALE
+>;
+
+/** Map to `default` when Better Auth should keep its original error message. */
+const APP_TO_AUTH_LOCALE = {
+    "es-ES": "es-ES",
+} as const satisfies Record<NonDefaultSupportedLocale, BuiltInLocales>;
 
 /** @internal */
 function readCookieValue(header: string, key: string): string | undefined {
@@ -31,8 +37,8 @@ function readCookieValue(header: string, key: string): string | undefined {
 /** @internal */
 function isBuiltInAppLocale(
     locale: string
-): locale is keyof typeof BUILT_IN_APP_LOCALES {
-    return Object.hasOwn(BUILT_IN_APP_LOCALES, locale);
+): locale is keyof typeof APP_TO_AUTH_LOCALE {
+    return Object.hasOwn(APP_TO_AUTH_LOCALE, locale);
 }
 
 /** @internal */
@@ -41,7 +47,7 @@ function toBuiltInLocale(locale: string): BuiltInLocales {
         return FALLBACK_LOCALE;
     }
     if (isBuiltInAppLocale(locale)) {
-        return BUILT_IN_APP_LOCALES[locale];
+        return APP_TO_AUTH_LOCALE[locale];
     }
     return FALLBACK_LOCALE;
 }

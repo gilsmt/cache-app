@@ -6,7 +6,7 @@ export const SUPPORTED_LOCALES = ["en-US", "es-ES"] as const;
 
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
-export const DEFAULT_LOCALE: SupportedLocale = "en-US";
+export const DEFAULT_LOCALE = "en-US" satisfies SupportedLocale;
 
 export const FOUNDING_DATE = new Date("2026-04-09T00:00:00.000Z");
 
