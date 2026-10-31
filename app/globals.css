@@ -245,20 +245,6 @@
         @apply select-none drag-none;
     }
 
-    :is(input, textarea, select):not(
-        [type="checkbox"],
-        [type="radio"],
-        [type="range"],
-        [type="color"],
-        [type="button"],
-        [type="reset"],
-        [type="submit"],
-        [type="image"],
-        [type="hidden"]
-    ) {
-        font-size: max(16px, 1em);
-    }
-
     img,
     picture,
     video,
