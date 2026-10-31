@@ -50,7 +50,7 @@ import {
 } from "@/components/billing/paywall";
 import { useSubscriptionAccess } from "@/components/billing/subscription";
 import { SuccessfulUpgradeDialog } from "@/components/billing/success";
-import { useSectionDescription } from "@/components/hooks/queries/use-section-description";
+import { useOverview } from "@/components/hooks/queries/use-overview";
 import {
     type CollectionMembershipFilter,
     type ColumnCountMode,
@@ -254,12 +254,12 @@ import {
     DEFAULT_SORT_MODE,
 } from "@/lib/session/composer/defaults";
 import {
-    SECTION_DESCRIPTION_CONTEXT_ITEMS_LIMIT,
-    SECTION_DESCRIPTION_DOMAIN_MAX_LENGTH,
-    SECTION_DESCRIPTION_TEXT_MAX_LENGTH,
-    SECTION_DESCRIPTION_TITLE_MAX_LENGTH,
-    SECTION_DESCRIPTION_URL_MAX_LENGTH,
-    type SectionDescriptionContextItem,
+    OVERVIEW_CONTEXT_ITEMS_LIMIT,
+    OVERVIEW_DOMAIN_MAX_LENGTH,
+    OVERVIEW_TEXT_MAX_LENGTH,
+    OVERVIEW_TITLE_MAX_LENGTH,
+    OVERVIEW_URL_MAX_LENGTH,
+    type OverviewContextItem,
 } from "@/lib/session/summaries/schema";
 import type {
     AgentViewPage,
@@ -1726,45 +1726,39 @@ function toIsoTimestamp(value: Date | string | null | undefined) {
     return date?.toISOString();
 }
 
-function buildSectionDescriptionContextItem(
+function buildOverviewContextItem(
     item: LibraryItemWithCollections
-): SectionDescriptionContextItem {
+): OverviewContextItem {
     const title =
-        getNoteExcerpt(
-            getLibraryItemTitle(item),
-            SECTION_DESCRIPTION_TITLE_MAX_LENGTH
-        ) || "Untitled";
+        getNoteExcerpt(getLibraryItemTitle(item), OVERVIEW_TITLE_MAX_LENGTH) ||
+        "Untitled";
 
     const noteExcerpt =
         item.kind === "note"
-            ? getNoteExcerpt(
-                  item.noteContentText,
-                  SECTION_DESCRIPTION_TEXT_MAX_LENGTH
-              ) || undefined
+            ? getNoteExcerpt(item.noteContentText, OVERVIEW_TEXT_MAX_LENGTH) ||
+              undefined
             : undefined;
 
     const primaryText =
         noteExcerpt ??
         (getNoteExcerpt(
             getLibraryItemPrimaryText(item),
-            SECTION_DESCRIPTION_TEXT_MAX_LENGTH
+            OVERVIEW_TEXT_MAX_LENGTH
         ) ||
             title);
 
     const normalizedUrl =
         item.kind === "note"
             ? undefined
-            : getNoteExcerpt(
-                  normalizeURL(item.url),
-                  SECTION_DESCRIPTION_URL_MAX_LENGTH
-              ) || undefined;
+            : getNoteExcerpt(normalizeURL(item.url), OVERVIEW_URL_MAX_LENGTH) ||
+              undefined;
 
     const domain =
         item.kind === "note"
             ? undefined
             : getNoteExcerpt(
                   getLibraryItemDomain(item.url),
-                  SECTION_DESCRIPTION_DOMAIN_MAX_LENGTH
+                  OVERVIEW_DOMAIN_MAX_LENGTH
               ) || undefined;
 
     return {
@@ -5625,13 +5619,13 @@ function ItemsGroupOverviewContent() {
         JSON.stringify({
             expanded: isExpanded,
             items: items
-                .slice(0, SECTION_DESCRIPTION_CONTEXT_ITEMS_LIMIT)
-                .map(buildSectionDescriptionContextItem),
+                .slice(0, OVERVIEW_CONTEXT_ITEMS_LIMIT)
+                .map(buildOverviewContextItem),
             sectionTitle: title,
         })
     );
 
-    const { data, error, isLoading, isValidating } = useSectionDescription(
+    const { data, error, isLoading, isValidating } = useOverview(
         payload,
         items.length
     );

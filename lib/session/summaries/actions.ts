@@ -10,16 +10,16 @@ import {
 import {
     type CollectionDescriptionRequest,
     CollectionDescriptionRequestSchema,
-    type DescriptionRequest,
-    SectionDescriptionRequestSchema,
+    type OverviewRequest,
+    OverviewRequestSchema,
 } from "./schema";
 import {
     generateCollectionDescription,
-    generateCollectionSummary,
-    SECTION_DESCRIPTION_FALLBACK_TEXT,
+    generateOverview,
+    OVERVIEW_FALLBACK_TEXT,
 } from "./service";
 
-export type SectionDescriptionResult =
+export type OverviewResult =
     | {
           status: "SUCCESS";
           summary: string;
@@ -40,10 +40,10 @@ export type CollectionDescriptionResult =
           status: GenerationActionStatus;
       };
 
-export async function getSectionDescription(
-    input: DescriptionRequest
-): Promise<SectionDescriptionResult> {
-    const parsed = SectionDescriptionRequestSchema.safeParse(input);
+export async function getOverview(
+    input: OverviewRequest
+): Promise<OverviewResult> {
+    const parsed = OverviewRequestSchema.safeParse(input);
     if (!parsed.success) {
         return {
             message: getValidationErrorMessage(
@@ -62,7 +62,7 @@ export async function getSectionDescription(
     }
 
     try {
-        const result = await generateCollectionSummary({
+        const result = await generateOverview({
             expanded: parsed.data.expanded ?? false,
             items: parsed.data.items,
             request: await getArcjetRequest(),
@@ -78,7 +78,7 @@ export async function getSectionDescription(
         return mapGenerationFailure(error, {
             fallbackMessage: "We couldn't generate this overview right now.",
             logLabel: "generate library overview",
-            summaryFallback: SECTION_DESCRIPTION_FALLBACK_TEXT,
+            summaryFallback: OVERVIEW_FALLBACK_TEXT,
         });
     }
 }

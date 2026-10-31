@@ -116,8 +116,8 @@ function parseJson(
     }
 }
 
-const SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH = 220;
-const SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH = 1600;
+const SUMMARY_RESPONSE_MAX_LENGTH = 220;
+const EXPANDED_SUMMARY_RESPONSE_MAX_LENGTH = 1600;
 
 const WHITESPACE_PATTERN = /\s+/gu;
 const SUMMARY_PREFIX_PATTERN = /^summary:\s*/iu;
@@ -149,15 +149,11 @@ export function normalizeSummary(value: string | undefined): string | null {
         return null;
     }
 
-    if (cleaned.length <= SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH) {
+    if (cleaned.length <= SUMMARY_RESPONSE_MAX_LENGTH) {
         return isGrammaticallyComplete(cleaned) ? cleaned : `${cleaned}.`;
     }
 
-    return truncateText(
-        cleaned,
-        SECTION_DESCRIPTION_RESPONSE_MAX_LENGTH,
-        "..."
-    );
+    return truncateText(cleaned, SUMMARY_RESPONSE_MAX_LENGTH, "...");
 }
 
 export function normalizeExpandedSummary(
@@ -184,13 +180,9 @@ export function normalizeExpandedSummary(
         return null;
     }
 
-    if (cleaned.length <= SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH) {
+    if (cleaned.length <= EXPANDED_SUMMARY_RESPONSE_MAX_LENGTH) {
         return cleaned;
     }
 
-    return truncateText(
-        cleaned,
-        SECTION_DESCRIPTION_EXPANDED_RESPONSE_MAX_LENGTH,
-        "..."
-    );
+    return truncateText(cleaned, EXPANDED_SUMMARY_RESPONSE_MAX_LENGTH, "...");
 }

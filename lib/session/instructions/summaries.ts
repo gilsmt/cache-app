@@ -2,8 +2,8 @@ import { truncateText } from "@/lib/common/string";
 import { estimateTokens } from "../ai/usage";
 import type {
     CollectionDescriptionRequest,
-    DescriptionRequest,
-    SectionDescriptionContextItem,
+    OverviewContextItem,
+    OverviewRequest,
 } from "../summaries/schema";
 import { renderUntrustedData } from "./untrusted-data";
 
@@ -93,7 +93,7 @@ interface CompactItem {
     title: string;
 }
 
-function compactItem(item: SectionDescriptionContextItem): CompactItem {
+function compactItem(item: OverviewContextItem): CompactItem {
     return {
         primaryText: item.primaryText,
         title: item.title,
@@ -104,7 +104,7 @@ function compactItem(item: SectionDescriptionContextItem): CompactItem {
     };
 }
 
-function sectionContext(request: DescriptionRequest): string {
+function sectionContext(request: OverviewRequest): string {
     return renderUntrustedData({
         description: "Section title and saved-item context.",
         value: {
@@ -114,7 +114,7 @@ function sectionContext(request: DescriptionRequest): string {
     });
 }
 
-export function buildOverviewPrompt(request: DescriptionRequest): string {
+export function buildOverviewPrompt(request: OverviewRequest): string {
     return [
         "You write one-sentence UI summaries for personal library sections.",
         "Analyze the section context in the untrusted-data block and produce a single sentence that captures the shared themes and intent.",
@@ -161,9 +161,7 @@ export function buildCollectionDescriptionPrompt(
     ].join("\n");
 }
 
-export function buildExpandedSummaryPrompt(
-    request: DescriptionRequest
-): string {
+export function buildExpandedOverviewPrompt(request: OverviewRequest): string {
     return [
         "You write compact markdown overviews for saved library sections.",
         "Analyze the section context in the untrusted-data block, then return an at-a-glance overview that helps the user understand why this group matters.",
@@ -184,16 +182,16 @@ export function buildExpandedSummaryPrompt(
 }
 
 function countPromptTokens(
-    items: SectionDescriptionContextItem[],
+    items: OverviewContextItem[],
     sectionTitle: string
 ): number {
     return estimateTokens(buildOverviewPrompt({ items, sectionTitle }));
 }
 
 function truncateItem(
-    item: SectionDescriptionContextItem,
+    item: OverviewContextItem,
     maxChars: number
-): SectionDescriptionContextItem {
+): OverviewContextItem {
     const titleBudget = Math.min(item.title.length, Math.floor(maxChars * 0.3));
     const textBudget = Math.floor(maxChars * 0.7);
 
@@ -205,11 +203,11 @@ function truncateItem(
 }
 
 function truncateItemToPromptBudget(
-    item: SectionDescriptionContextItem,
-    keptItems: SectionDescriptionContextItem[],
+    item: OverviewContextItem,
+    keptItems: OverviewContextItem[],
     sectionTitle: string,
     promptBudget: number
-): SectionDescriptionContextItem | undefined {
+): OverviewContextItem | undefined {
     // The title and primary text take 30% and 70% of the raw character
     // budget. At this bound both fields stay whole, so the candidate equals
     // the full item, which is known not to fit.
@@ -220,7 +218,7 @@ function truncateItemToPromptBudget(
         ) + 1;
     let low = 0;
     let high = maxCharBudget;
-    let best: SectionDescriptionContextItem | undefined;
+    let best: OverviewContextItem | undefined;
 
     while (low <= high) {
         const maxChars = Math.floor((low + high) / 2);
@@ -246,12 +244,12 @@ function truncateItemToPromptBudget(
  * The rendered prompt is measured because the untrusted-data serializer
  * expands every `<` into a six-character escape.
  */
-export function truncateContextItems(
-    request: DescriptionRequest,
+export function truncateOverviewContextItems(
+    request: OverviewRequest,
     maxTokens: number = MAX_PROMPT_TOKENS
-): DescriptionRequest {
+): OverviewRequest {
     const promptBudget = maxTokens - PROMPT_OVERHEAD_TOKENS;
-    const truncatedItems: SectionDescriptionContextItem[] = [];
+    const truncatedItems: OverviewContextItem[] = [];
 
     for (const item of request.items) {
         if (
