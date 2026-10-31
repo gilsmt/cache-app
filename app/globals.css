@@ -162,6 +162,9 @@
 
     body {
         position: relative;
+        min-height: 100dvh;
+        padding-inline-start: env(safe-area-inset-left, 0px);
+        padding-inline-end: env(safe-area-inset-right, 0px);
         overflow-wrap: anywhere;
         isolation: isolate;
         @apply bg-background text-foreground;
@@ -240,6 +243,20 @@
     [type="range"],
     [draggable] {
         @apply select-none drag-none;
+    }
+
+    :is(input, textarea, select):not(
+        [type="checkbox"],
+        [type="radio"],
+        [type="range"],
+        [type="color"],
+        [type="button"],
+        [type="reset"],
+        [type="submit"],
+        [type="image"],
+        [type="hidden"]
+    ) {
+        font-size: max(16px, 1em);
     }
 
     img,
