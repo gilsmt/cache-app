@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useValueAsRef } from "@base-ui/utils/useValueAsRef";
 import { T, useGT } from "gt-next";
@@ -60,19 +61,22 @@ function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
     // A newer edit can match an old server value.
     const synchronizedEditVersionRef = React.useRef(0);
     const pendingSaveVersionRef = React.useRef<number | null>(null);
+    const previousSavedContentRef = React.useRef(savedContent);
 
-    const [prevSavedContent, setPrevSavedContent] =
-        React.useState(savedContent);
-    if (prevSavedContent !== savedContent) {
-        setPrevSavedContent(savedContent);
+    useIsoLayoutEffect(() => {
+        if (previousSavedContentRef.current === savedContent) {
+            return;
+        }
+        previousSavedContentRef.current = savedContent;
+
         if (content === savedContent) {
             synchronizedEditVersionRef.current = editVersionRef.current;
-        } else if (
-            editVersionRef.current === synchronizedEditVersionRef.current
-        ) {
+            return;
+        }
+        if (editVersionRef.current === synchronizedEditVersionRef.current) {
             setContent(savedContent);
         }
-    }
+    }, [content, savedContent]);
 
     async function handleSave(contentToSave: string) {
         const saveVersion = editVersionRef.current;
