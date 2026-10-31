@@ -1,6 +1,7 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
+import { useValueAsRef } from "@base-ui/utils/useValueAsRef";
 import { T, useGT } from "gt-next";
 import * as React from "react";
 import useSWR from "swr";
@@ -53,41 +54,76 @@ function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
     const savedContent = data ?? "";
     const [content, setContent] = React.useState(savedContent);
 
+    const contentRef = useValueAsRef(content);
+    const savedContentRef = useValueAsRef(savedContent);
     const editVersionRef = React.useRef(0);
+    // A newer edit can match an old server value.
+    const synchronizedEditVersionRef = React.useRef(0);
+    const pendingSaveVersionRef = React.useRef<number | null>(null);
 
     const [prevSavedContent, setPrevSavedContent] =
         React.useState(savedContent);
     if (prevSavedContent !== savedContent) {
         setPrevSavedContent(savedContent);
-        if (content === prevSavedContent) {
+        if (content === savedContent) {
+            synchronizedEditVersionRef.current = editVersionRef.current;
+        } else if (
+            editVersionRef.current === synchronizedEditVersionRef.current
+        ) {
             setContent(savedContent);
         }
     }
 
-    async function handleSave() {
+    async function handleSave(contentToSave: string) {
         const saveVersion = editVersionRef.current;
-        const next = normalizeCommentText(content) ?? "";
-        const result = await updateLibraryItemComment({
-            contentText: next,
-            itemId,
-        });
-        if (result.status !== ACTION_STATUS.SUCCESS) {
-            return false;
-        }
+        pendingSaveVersionRef.current = saveVersion;
+        let didSave = false;
+        try {
+            const next = normalizeCommentText(contentToSave) ?? "";
+            const result = await updateLibraryItemComment({
+                contentText: next,
+                itemId,
+            });
+            if (result.status !== ACTION_STATUS.SUCCESS) {
+                return false;
+            }
+            didSave = true;
 
-        await mutate(result.contentText, { revalidate: false });
+            await mutate(result.contentText, { revalidate: false });
 
-        const saved = result.contentText ?? "";
-        if (editVersionRef.current === saveVersion) {
-            setContent(saved);
+            const saved = result.contentText ?? "";
+            if (editVersionRef.current === saveVersion) {
+                synchronizedEditVersionRef.current = saveVersion;
+                setContent(saved);
+            } else if (contentRef.current === saved) {
+                synchronizedEditVersionRef.current = editVersionRef.current;
+            }
+            return saved;
+        } finally {
+            if (pendingSaveVersionRef.current === saveVersion) {
+                pendingSaveVersionRef.current = null;
+                if (
+                    !didSave &&
+                    contentRef.current === savedContentRef.current
+                ) {
+                    synchronizedEditVersionRef.current = editVersionRef.current;
+                }
+            }
         }
-        return saved;
     }
 
     const handleChange = useStableCallback(
         (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-            editVersionRef.current += 1;
-            setContent(event.currentTarget.value);
+            const nextContent = event.currentTarget.value;
+            const nextEditVersion = editVersionRef.current + 1;
+            editVersionRef.current = nextEditVersion;
+            if (
+                pendingSaveVersionRef.current === null &&
+                nextContent === savedContent
+            ) {
+                synchronizedEditVersionRef.current = nextEditVersion;
+            }
+            setContent(nextContent);
         }
     );
 
