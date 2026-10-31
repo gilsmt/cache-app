@@ -1,4 +1,5 @@
 import { getGT } from "gt-next/server";
+import { MessageCircle, Zap } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
@@ -120,8 +121,19 @@ async function ThreadPageBody({ params }: ThreadPageParams) {
 function ThreadPageHeader({ thread }: { thread: ThreadDetail }) {
     return (
         <header className="mx-auto flex w-full max-w-3xl flex-col gap-1 px-6 pt-2 pb-4">
-            <h1 className="text-foreground sr-only text-2xl font-semibold tracking-tight">
-                {thread.title}
+            <h1 className="text-foreground flex min-w-0 items-center gap-3 text-2xl font-semibold tracking-tight">
+                <span className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-xl">
+                    {thread.run ? (
+                        <Zap aria-hidden className="size-4" focusable="false" />
+                    ) : (
+                        <MessageCircle
+                            aria-hidden
+                            className="size-4"
+                            focusable="false"
+                        />
+                    )}
+                </span>
+                <span className="truncate">{thread.title}</span>
             </h1>
         </header>
     );
@@ -131,6 +143,13 @@ function ThreadPageSkeleton() {
     return (
         <div className="relative z-0 flex w-full min-w-0 flex-1 flex-col p-4">
             <div className="flex h-[calc(100dvh-1rem)] min-h-0 flex-col">
+                <div
+                    aria-hidden
+                    className="mx-auto flex w-full max-w-3xl items-center gap-3 px-6 pt-2 pb-4"
+                >
+                    <Skeleton className="size-9 shrink-0 rounded-xl" />
+                    <Skeleton className="h-7 w-40" />
+                </div>
                 <div className="flex min-h-0 w-full flex-1 flex-col">
                     <div className="h-full min-h-0 overflow-hidden">
                         <div
