@@ -31,6 +31,11 @@
         "translate": "bunx gt translate --ignore-errors",
         "type-check": "tsc --noEmit"
     },
+    "overrides": {
+        "feedsmith": {
+            "entities": "^9.0.0"
+        }
+    },
     "dependencies": {
         "@ai-sdk/google": "4.0.109",
         "@ai-sdk/react": "4.0.163",
