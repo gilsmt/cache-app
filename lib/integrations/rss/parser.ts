@@ -1,4 +1,9 @@
-import { type AnyFeed, parseFeed as parseFeedContent } from "feedsmith";
+import {
+    type AnyFeed,
+    type AtomFeed,
+    type JsonFeed,
+    parseFeed as parseFeedContent,
+} from "feedsmith";
 import { abortAfter } from "@/lib/common/abort";
 import { fetchPublicRedirect, readBodyText } from "@/lib/common/security/fetch";
 import { RssFeedError } from "./errors";
@@ -145,10 +150,10 @@ function normalizeFeed(parsed: AnyFeed): ParsedFeed {
                         (category) => category.term
                     ),
                     creator:
+                        getAtomCreator(entry.authors) ??
                         getDublinCoreCreator(entry) ??
-                        entry.authors?.[0]?.name ??
-                        entry.authors?.[0]?.email ??
-                        entry.authors?.[0]?.uri,
+                        getAtomCreator(entry.source?.authors) ??
+                        getAtomCreator(parsed.feed.authors),
                     guid: entry.id,
                     isoDate: toIsoDate(
                         entry.published ??
@@ -188,7 +193,9 @@ function normalizeFeed(parsed: AnyFeed): ParsedFeed {
                 description: parsed.feed.description,
                 items: (parsed.feed.items ?? []).map((item) => ({
                     categories: item.tags,
-                    creator: item.authors?.[0]?.name ?? item.authors?.[0]?.url,
+                    creator: getJsonCreator(
+                        item.authors ?? parsed.feed.authors
+                    ),
                     guid: item.id,
                     isoDate: toIsoDate(
                         item.date_published ?? item.date_modified
@@ -207,11 +214,23 @@ function normalizeFeed(parsed: AnyFeed): ParsedFeed {
     }
 }
 
+function getAtomCreator(
+    authors: AtomFeed.Person[] | undefined
+): string | undefined {
+    return authors?.[0]?.name ?? authors?.[0]?.email ?? authors?.[0]?.uri;
+}
+
 function getDublinCoreCreator(item: {
     dc?: { creators?: string[] };
     dcterms?: { creators?: string[] };
 }): string | undefined {
     return item.dc?.creators?.[0] ?? item.dcterms?.creators?.[0];
+}
+
+function getJsonCreator(
+    authors: JsonFeed.Author[] | undefined
+): string | undefined {
+    return authors?.[0]?.name ?? authors?.[0]?.url;
 }
 
 function normalizeCategories<TCategory>(
@@ -239,18 +258,16 @@ function findAlternateLink(
         return undefined;
     }
 
-    let firstLink: string | undefined;
     for (const link of links) {
         if (!link.href) {
             continue;
         }
-        firstLink ??= link.href;
         if (link.rel === undefined || link.rel === "alternate") {
             return link.href;
         }
     }
 
-    return firstLink;
+    return undefined;
 }
 
 function toIsoDate(value: string | undefined): string | undefined {
