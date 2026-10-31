@@ -896,7 +896,7 @@ function ThreadsListItemTrigger({
                         render={
                             <ActivePathname
                                 href={href}
-                                render={<Link href={href} title={item.title} />}
+                                render={<Link href={href} />}
                             />
                         }
                     />
