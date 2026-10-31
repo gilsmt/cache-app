@@ -13,10 +13,17 @@ import {
 import { T, useGT } from "gt-next";
 import {
     ArrowDown,
-    Check,
+    BookSearch,
+    ChartNoAxesCombined,
     CircleAlert,
+    Files,
+    FileText,
+    GitFork,
+    Globe,
+    type LucideIcon,
     RotateCcw,
     TriangleAlert,
+    Wrench,
 } from "lucide-react";
 import { catchError, type ErrorInfo } from "next/error";
 import * as React from "react";
@@ -50,6 +57,15 @@ import { uses24HourClock } from "@/lib/common/time";
 import { isHttpUrl, normalizeURL } from "@/lib/common/url";
 import { getMessageCreatedAt, getMessageText } from "@/lib/threads/messages";
 import type { ThreadSource } from "@/lib/threads/sources";
+
+const THREAD_TOOL_ICONS: Record<string, LucideIcon> = {
+    getAutomationPayloadSummary: ChartNoAxesCombined,
+    github_repo: GitFork,
+    listAutomationPayloadItems: Files,
+    search_library: BookSearch,
+    web_fetch: FileText,
+    web_search: Globe,
+};
 
 const log = createLogger("Threads");
 
@@ -466,13 +482,11 @@ function ThreadToolRow({ name, state }: ThreadToolRowProps) {
         );
     }
 
+    const ToolIcon = THREAD_TOOL_ICONS[name] ?? Wrench;
+
     return (
         <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-            <Check
-                aria-hidden
-                className="text-success size-3.5"
-                focusable="false"
-            />
+            <ToolIcon aria-hidden className="size-3.5" focusable="false" />
             <ThreadToolLabel name={name} />
         </div>
     );
