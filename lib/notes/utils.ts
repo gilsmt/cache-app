@@ -12,8 +12,9 @@ import {
     type SerializedTextNode,
 } from "lexical";
 import { isRecord } from "@/lib/common/object";
+import { NOTE_EMPTY_HTML } from "@/lib/notes/html";
 
-export const NOTE_EMPTY_HTML = "<p></p>";
+export { NOTE_EMPTY_HTML, normalizeHtml } from "@/lib/notes/html";
 
 const NOTE_ALLOWED_TAGS = new Set([
     "a",
@@ -189,10 +190,6 @@ function renderNoteNode(node: SerializedLexicalNode): string {
     }
 
     return "";
-}
-
-export function normalizeHtml(html: string | null | undefined): string {
-    return html?.trim() || NOTE_EMPTY_HTML;
 }
 
 export function isSerializedEditorState(
