@@ -19,11 +19,16 @@ export type AutosaveStatus = "idle" | "saving" | "saved" | "error";
  */
 type AutosaveResult = string | false;
 
+interface ActiveSave {
+    contentVersion: number;
+    promise: Promise<boolean>;
+}
+
 interface UseAutosaveOptions {
     content: string;
     delay?: number;
     enabled?: boolean;
-    onSave: () => Promise<AutosaveResult> | AutosaveResult;
+    onSave: (content: string) => Promise<AutosaveResult> | AutosaveResult;
     savedContent: string;
 }
 
@@ -55,8 +60,11 @@ export function useAutosave({
     const delayRef = useValueAsRef(delay);
     const enabledRef = useValueAsRef(enabled);
 
-    const activeSaveRef = useRef<Promise<boolean> | null>(null);
+    const activeSaveRef = useRef<ActiveSave | null>(null);
     const latestContentChangeMsRef = useRef(0);
+    // Text can return to the same value after an edit while a save is pending.
+    const contentChangeVersionRef = useRef(0);
+    const isMountedRef = useRef(false);
     const savingStartMsRef = useRef(0);
 
     const isDirty = content !== savedContent;
@@ -69,20 +77,38 @@ export function useAutosave({
 
     const scheduleSettledStatus = useStableCallback(
         (nextStatus: AutosaveStatus) => {
+            if (!isMountedRef.current) {
+                return;
+            }
+
             const elapsedMs = Date.now() - savingStartMsRef.current;
             const remainingMs = Math.max(0, MIN_SAVING_DISPLAY_MS - elapsedMs);
 
             idleTimeout.start(remainingMs, () => {
+                if (!isMountedRef.current) {
+                    return;
+                }
+
                 setSaveStatus(nextStatus);
                 idleTimeout.start(SAVE_STATUS_IDLE_DELAY_MS, () => {
-                    setSaveStatus("idle");
+                    if (isMountedRef.current) {
+                        setSaveStatus("idle");
+                    }
                 });
             });
         }
     );
 
     useIsoLayoutEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+
+    useIsoLayoutEffect(() => {
         latestContentChangeMsRef.current = Date.now();
+        contentChangeVersionRef.current += 1;
     }, [content]);
 
     const saveRef = useRef<(shouldFlushQueued?: boolean) => Promise<boolean>>(
@@ -95,18 +121,19 @@ export function useAutosave({
                 return Promise.resolve(true);
             }
 
-            const contentToSave = contentRef.current;
-            if (contentToSave === savedContentRef.current) {
-                return Promise.resolve(true);
-            }
-
-            if (activeSaveRef.current) {
+            // A pending write can make a draft dirty even when it matches the old baseline.
+            const activeSave = activeSaveRef.current;
+            if (activeSave) {
                 if (!shouldFlushQueued) {
-                    return activeSaveRef.current;
+                    return activeSave.promise;
                 }
 
-                return activeSaveRef.current.then((didSave) => {
-                    if (!didSave) {
+                const contentVersion = activeSave.contentVersion;
+                return activeSave.promise.then((didSave) => {
+                    if (
+                        !didSave &&
+                        contentChangeVersionRef.current === contentVersion
+                    ) {
                         return false;
                     }
 
@@ -114,14 +141,24 @@ export function useAutosave({
                 });
             }
 
+            const contentToSave = contentRef.current;
+            if (contentToSave === savedContentRef.current) {
+                return Promise.resolve(true);
+            }
+
             idleTimeout.clear();
             savingStartMsRef.current = Date.now();
-            setSaveStatus("saving");
+            if (isMountedRef.current) {
+                setSaveStatus("saving");
+            }
+            const contentVersion = contentChangeVersionRef.current;
 
             const savePromise = (async () => {
                 let didSave = false;
                 try {
-                    const result = await onSave();
+                    const result = await Promise.resolve().then(() =>
+                        onSave(contentToSave)
+                    );
                     if (result !== false) {
                         didSave = true;
                         savedContentRef.current = result;
@@ -131,13 +168,22 @@ export function useAutosave({
                 }
 
                 activeSaveRef.current = null;
-                scheduleSettledStatus(didSave ? "saved" : "error");
+                const isCurrentContentSaved =
+                    contentRef.current === savedContentRef.current;
+                scheduleSettledStatus(
+                    didSave || isCurrentContentSaved ? "saved" : "error"
+                );
 
                 if (
-                    didSave &&
                     enabledRef.current &&
                     contentRef.current !== savedContentRef.current
                 ) {
+                    const hasNewerChanges =
+                        contentChangeVersionRef.current !== contentVersion;
+                    if (!(didSave || hasNewerChanges)) {
+                        return false;
+                    }
+
                     if (shouldFlushQueued) {
                         return saveRef.current(true);
                     }
@@ -156,10 +202,10 @@ export function useAutosave({
                     });
                 }
 
-                return didSave;
+                return didSave || isCurrentContentSaved;
             })();
 
-            activeSaveRef.current = savePromise;
+            activeSaveRef.current = { contentVersion, promise: savePromise };
             return savePromise;
         }
     );
@@ -175,9 +221,11 @@ export function useAutosave({
 
     useEffect(
         () => () => {
+            // A pending write can still change the saved baseline after unmount.
             if (
                 enabledRef.current &&
-                contentRef.current !== savedContentRef.current
+                (activeSaveRef.current !== null ||
+                    contentRef.current !== savedContentRef.current)
             ) {
                 save(true).catch((error: unknown) => {
                     log.error("Unmount autosave failed", error);
