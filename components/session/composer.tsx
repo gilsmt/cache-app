@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { PreviewCardTitle } from "@/components/ui/preview-card";
 import type { FileAttachment } from "@/lib/common/file";
+import { AI_INPUT_MAX_LENGTH } from "@/lib/session/ai/constants";
 
 const MARKDOWN_CODE_FENCE_PATTERN = /```[\s\S]*?(?:```|$)/gu;
 const MARKDOWN_IMAGE_PATTERN = /!\[([^\]]*)\]\([^)]*\)/gu;
@@ -176,6 +177,7 @@ export function ComposerInput({
     className,
     filteredItems,
     items = [],
+    maxLength = AI_INPUT_MAX_LENGTH,
     onKeyDown,
     onOpenChange,
     onValueChange,
@@ -228,6 +230,7 @@ export function ComposerInput({
                 <AutocompleteInput
                     {...props}
                     className="bg-transparent shadow-none"
+                    maxLength={maxLength}
                     onKeyDown={handleKeyDown}
                 />
                 {children}

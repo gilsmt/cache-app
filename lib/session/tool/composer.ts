@@ -1,5 +1,6 @@
 import * as z from "zod";
 import { LibraryItemSource } from "@/prisma/client/enums";
+import { AI_INPUT_MAX_LENGTH } from "../ai/constants";
 import {
     DEFAULT_COLLECTION_MEMBERSHIP_FILTER,
     DEFAULT_COLUMN_COUNT_MODE,
@@ -28,7 +29,6 @@ export const ASSISTANT_SOURCE_FILTER_VALUES = [
     LibraryItemSource.youtube_watch_later,
 ] as const;
 
-const ASSISTANT_PROMPT_MAX_LENGTH = 500;
 const ASSISTANT_SEARCH_TERM_MAX_LENGTH = 200;
 export const ASSISTANT_VISIBLE_ITEM_LIMIT = 50;
 export const ASSISTANT_VISIBLE_ITEM_LABEL_MAX_LENGTH = 120;
@@ -192,7 +192,7 @@ const AssistantRuntimeContextSchema = z.strictObject({
 
 export const AssistantRequestSchema = z.strictObject({
     composerState: AssistantComposerStateSchema,
-    prompt: z.string().trim().min(1).max(ASSISTANT_PROMPT_MAX_LENGTH),
+    prompt: z.string().trim().min(1).max(AI_INPUT_MAX_LENGTH),
     runtimeContext: AssistantRuntimeContextSchema,
     visibleContext: AssistantVisibleContextSchema,
 });

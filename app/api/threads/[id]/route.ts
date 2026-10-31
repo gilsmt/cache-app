@@ -46,7 +46,11 @@ const IncomingMessageSchema = z.looseObject({
     parts: z
         .array(
             z.strictObject({
-                text: z.string().trim().min(1).max(2000),
+                text: z
+                    .string()
+                    .trim()
+                    .min(1)
+                    .max(THREAD_FOLLOWUP_MESSAGE_MAX_LENGTH),
                 type: z.literal("text"),
             })
         )
