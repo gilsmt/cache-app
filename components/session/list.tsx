@@ -60,8 +60,8 @@ import {
 } from "@/components/hooks/use-composer-filters";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useIsExtensionInstalled } from "@/components/hooks/use-extension-installed";
+import { useHistory } from "@/components/hooks/use-history";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
-import { useSearchHistory } from "@/components/hooks/use-search-history";
 import {
     ItemCollectionsCombobox,
     reconcileCollectionTags,
@@ -388,6 +388,25 @@ interface ItemIndexesCache {
 const ALL_DOMAIN_FILTER = "__all_domains__";
 const UNSPECIFIC_LIBRARY_DOMAIN = "Other";
 const COLLECTION_NAME_MAX_LENGTH = 64;
+const SEARCH_HISTORY_LIMIT = 15;
+/**
+ * Keep pasted search terms from using too much local storage or space in the
+ * rendered history list.
+ */
+const SEARCH_TERM_MAX_LENGTH = 200;
+const SEARCH_HISTORY_OPTIONS = {
+    getEntryKey: (term: string) => term.toLowerCase(),
+    legacyStorageKey: "cache:searchHistory",
+    limit: SEARCH_HISTORY_LIMIT,
+    parseEntry: (entry: unknown): string | undefined => {
+        if (typeof entry !== "string") {
+            return undefined;
+        }
+        const term = entry.trim().slice(0, SEARCH_TERM_MAX_LENGTH);
+        return term.length > 0 ? term : undefined;
+    },
+    storageKey: "cache:searchHistory:v1",
+};
 
 const FILTERABLE_LIBRARY_SOURCES = [
     LibraryItemSource.cache_note,
@@ -656,7 +675,7 @@ interface BuildComposerCommandsInput {
     paletteSection: PaletteSection;
     query: string;
     returnToSearchSection: () => void;
-    searchHistory: string[];
+    searchHistory: readonly string[];
     searchTerms: string[];
     selectedCollectionIds: string[];
     setCollectionMembershipFilter: (value: CollectionMembershipFilter) => void;
@@ -3290,7 +3309,7 @@ function buildSearchCommands({
     onClearCollectionFilters: () => void;
     onClearSearchHistory: () => void;
     onToggleCollectionSelection: (id: string) => void;
-    searchHistory: string[];
+    searchHistory: readonly string[];
     searchTerms: string[];
     selectedCollectionIds: string[];
     setIsComposerOpen: (value: boolean) => void;
@@ -3770,8 +3789,11 @@ export function ItemsList({
         unreachableFilterEnabled,
     } = useComposerFilters();
     const { lastVisitedItemIds, markVisited } = useLastVisited();
-    const { clearSearchHistory, recordSearchTerm, searchHistory } =
-        useSearchHistory();
+    const {
+        addToHistory: addSearchTermToHistory,
+        clearHistory: clearSearchHistory,
+        history: searchHistory,
+    } = useHistory(SEARCH_HISTORY_OPTIONS);
     const itemsRef = React.useRef(items);
     const [paletteSection, setPaletteSection] =
         React.useState<PaletteSection>("search");
@@ -3832,11 +3854,11 @@ export function ItemsList({
                 (prevTerm) => prevTerm.toLowerCase() === term.toLowerCase()
             );
             if (!isAlreadyTracked) {
-                recordSearchTerm(term);
+                addSearchTermToHistory(term);
             }
         }
         prevSearchTermsRef.current = searchTerms;
-    }, [searchTerms, recordSearchTerm]);
+    }, [searchTerms, addSearchTermToHistory]);
 
     const clearComposerAttachments = useStableCallback(() => {
         setComposerAttachments((current) => {
