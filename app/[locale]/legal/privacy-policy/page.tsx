@@ -48,33 +48,31 @@ export default function PrivacyPolicyPage() {
         <article className="text-foreground/90 flex flex-col gap-8 text-[0.95rem] leading-relaxed">
             <header className="border-border flex flex-col gap-6 border-b pb-8 text-pretty">
                 <p className="text-foreground max-w-2xl text-base leading-relaxed">
-                    This summary explains the main privacy choices behind Cache.
-                    The full Privacy Policy below governs.
+                    This policy explains how Cachd.App, Inc. handles personal
+                    data when you use the Cache service we operate.
                 </p>
                 <div className="border-border text-muted-foreground grid gap-5 border-t pt-5 text-[0.9rem] leading-relaxed sm:grid-cols-2">
                     <p>
-                        You choose what enters Cache: bookmarks, notes,
-                        collections, and connected-source records you ask us to
-                        handle.
+                        We process account details, saved content, connected
+                        source data, and activity needed to run the service.
                     </p>
                     <p>
-                        We use your data to run the product, secure accounts,
-                        sync connected sources, process billing, and provide the
-                        features you request.
+                        We use your data to provide the service, secure
+                        accounts, sync sources, and process billing.
                     </p>
                     <p>
-                        AI-assisted features may send relevant saved content and
-                        metadata to providers only to generate requested output.
+                        AI features send relevant prompts and saved content to
+                        configured AI or search providers when you use those
+                        features.
                     </p>
                     <p>
-                        We do not sell personal data, use your Cache content for
-                        ads, or train generalized AI models on data you submit.
+                        We do not sell personal data or use your content to
+                        train generalized AI models.
                     </p>
                 </div>
                 <p className="text-muted-foreground text-[0.88rem] leading-relaxed">
-                    Effective April 21, 2026. Third-party services you connect
-                    to Cache govern their own privacy practices unless their
-                    data is processed inside Cache.
+                    Effective November 2, 2026. If you self-host Cache, the
+                    operator of that instance controls the data it handles.
                 </p>
             </header>
             <section className="flex flex-col gap-3">
@@ -82,17 +80,25 @@ export default function PrivacyPolicyPage() {
                     Privacy Policy
                 </h1>
                 <p>
-                    This Privacy Policy explains how CachdApp, Inc.
+                    This Privacy Policy explains how Cachd.App, Inc.
                     (&quot;Cache,&quot; &quot;we,&quot; &quot;us,&quot; or
                     &quot;our&quot;) collects, uses, discloses, and otherwise
-                    processes personal data when you use {APP_NAME}, our
-                    websites, our browser extension, public shared collection
-                    pages, and related services where we act as a data
-                    controller.
+                    processes personal data when you use the hosted {APP_NAME}
+                    service, our websites, our browser extension, public shared
+                    collection pages, and related services.
                 </p>
                 <p>
                     This Privacy Policy also describes your privacy rights and
                     choices, including how to contact us about your data.
+                </p>
+                <p>
+                    We act as a controller for account, billing, support, and
+                    service security data. When an organization directs us to
+                    process personal data about its users through the hosted
+                    service, that organization is the controller and we act as
+                    its processor under our Data Processing Agreement. This
+                    policy does not cover data handled by an independently
+                    operated self-hosted instance.
                 </p>
             </section>
 
@@ -115,15 +121,16 @@ export default function PrivacyPolicyPage() {
                         <li>
                             <strong>Library and content data:</strong>{" "}
                             bookmarks, URLs, titles, captions, thumbnails,
-                            notes, collection names and descriptions,
-                            timestamps, and similar content you save, import,
-                            organize, share, or export through Cache.
+                            notes, collection names and descriptions, comments,
+                            chat prompts and responses, automation settings and
+                            run results, timestamps, and similar content you
+                            save, import, organize, share, or export through
+                            Cache.
                         </li>
                         <li>
-                            <strong>Feedback and communications:</strong>{" "}
-                            messages you send us, feedback you submit in the
-                            product, and related context such as the page where
-                            you submitted that feedback.
+                            <strong>Communications:</strong> messages and
+                            support requests you send us, along with the
+                            information needed to respond.
                         </li>
                         <li>
                             <strong>Billing and subscription data:</strong> plan
@@ -145,22 +152,21 @@ export default function PrivacyPolicyPage() {
                             <strong>
                                 Device, browser, and connection information:
                             </strong>{" "}
-                            IP address, browser type, user agent, device and
-                            operating system signals, time zone, and similar
+                            IP address, browser type, user agent, device or
+                            browser information sent with a request, and similar
                             technical information.
                         </li>
                         <li>
-                            <strong>Usage and log information:</strong> pages or
-                            features used, timestamps, request metadata, error
-                            logs, performance data, and troubleshooting
-                            information generated when you use the service.
+                            <strong>Usage and log information:</strong> request
+                            metadata, error logs, and troubleshooting
+                            information generated to operate, secure, and
+                            maintain the service.
                         </li>
                         <li>
                             <strong>Cookies and similar technologies:</strong>{" "}
-                            data used to maintain sessions, protect accounts,
-                            remember preferences, and understand product usage,
-                            including through analytics providers we use to help
-                            operate the service.
+                            data used to maintain sign-in sessions, protect
+                            requests, and remember preferences. Some features
+                            may not work if you block these technologies.
                         </li>
                     </ul>
                 </div>
@@ -209,9 +215,14 @@ export default function PrivacyPolicyPage() {
                         If you use AI-assisted features in Cache, such as
                         section descriptions or smart collection suggestions, we
                         may send relevant library item content, URLs,
-                        thumbnails, extracted text, and source metadata to our
-                        AI service providers so they can generate the requested
-                        output on our behalf.
+                        thumbnails, extracted text, prompts, chat context,
+                        automation instructions, and source metadata to the AI
+                        model provider configured for the hosted service so it
+                        can generate the requested output. If you ask Cache to
+                        search the web, the search query is also sent to our web
+                        search provider. The configured providers can change. If
+                        you self-host Cache, the operator chooses and configures
+                        these providers.
                     </p>
                 </div>
             </section>
@@ -254,24 +265,20 @@ export default function PrivacyPolicyPage() {
                         unauthorized access, and security incidents.
                     </li>
                     <li>
-                        To respond to feedback, support requests, legal demands,
-                        and other communications.
+                        To respond to support requests, legal demands, and other
+                        communications.
                     </li>
                     <li>
                         To enforce our Terms of Service and comply with
                         applicable law, regulation, legal process, or
                         governmental request.
                     </li>
-                    <li>
-                        To analyze aggregated or de-identified usage trends so
-                        we can understand how Cache is used and improve the
-                        product.
-                    </li>
                 </ul>
                 <p>
-                    We do not sell personal data. We do not use personal data
-                    you submit to Cache to train generalized AI or machine
-                    learning models of our own.
+                    We do not sell personal data. We do not use your content to
+                    train generalized AI or machine learning models, and our AI
+                    providers may process it only to provide the feature you
+                    requested.
                 </p>
             </section>
 
@@ -288,10 +295,12 @@ export default function PrivacyPolicyPage() {
                         <strong>
                             Service providers and infrastructure vendors:
                         </strong>{" "}
-                        providers that help us host, operate, authenticate,
-                        secure, analyze, support, pay for, or power the service,
-                        such as hosting, database, authentication, analytics,
-                        payment, logging, and AI vendors.
+                        providers that help us host the service, store data,
+                        deliver email, authenticate accounts, process payments,
+                        secure requests, or provide AI and web search features.
+                        Our Data Processing Agreement describes provider
+                        categories and how to request the active production
+                        list.
                     </li>
                     <li>
                         <strong>Connected services at your direction:</strong>{" "}
@@ -382,11 +391,6 @@ export default function PrivacyPolicyPage() {
                     service you requested, or conflict with our legal
                     obligations and enforcement of our legal rights.
                 </p>
-                <p>
-                    Some browsers support Do Not Track signals. We currently do
-                    not change our data collection practices in response to Do
-                    Not Track or similar browser signals.
-                </p>
             </section>
 
             <section className="flex flex-col gap-4">
@@ -430,9 +434,23 @@ export default function PrivacyPolicyPage() {
                         lawful business purpose.
                     </li>
                     <li>
+                        Items you move to Recently deleted stay in the recovery
+                        window for 30 days. Cache removes expired records when
+                        the cleanup runs after that period. You can delete your
+                        account from account settings. Account deletion removes
+                        account and content records from the active service and
+                        cancels an active Cache subscription.
+                    </li>
+                    <li>
                         Limited data may be retained longer where necessary for
                         fraud prevention, abuse prevention, legal compliance,
                         audit trails, or security investigations.
+                    </li>
+                    <li>
+                        Copies may remain temporarily in provider backups or
+                        operational logs under their retention schedules. We
+                        retain billing or legal records for as long as required
+                        by law.
                     </li>
                 </ul>
                 <p>
@@ -480,7 +498,7 @@ export default function PrivacyPolicyPage() {
                 <p>
                     If you have questions, complaints, or requests about this
                     Privacy Policy or our handling of personal data, contact
-                    CachdApp, Inc. at{" "}
+                    Cachd.App, Inc. at{" "}
                     <LinkText href={`mailto:${NOTICES_ADDRESS}`}>
                         {NOTICES_ADDRESS}
                     </LinkText>
@@ -525,9 +543,10 @@ export default function PrivacyPolicyPage() {
                         overridden by your rights and interests.
                     </li>
                     <li>
-                        <strong>Consent:</strong> where we ask for it, including
-                        for certain connected account permissions or other uses
-                        that require consent under applicable law.
+                        <strong>Consent:</strong> where we rely on your consent
+                        for a specific use. You can withdraw that consent at any
+                        time; this does not affect processing that took place
+                        before withdrawal.
                     </li>
                     <li>
                         <strong>Legal obligation:</strong> where processing is
@@ -575,8 +594,11 @@ export default function PrivacyPolicyPage() {
                         <strong>How we use Google user data:</strong> only to
                         authenticate your account, maintain the linked
                         connection, create and manage Google Photos Picker
-                        sessions, import the items you select, secure the
-                        service, and satisfy legal obligations.
+                        sessions, import the items you select, provide the
+                        library features you request, secure the service, and
+                        satisfy legal obligations. If you use an AI feature on
+                        imported content, the AI section above explains the
+                        related processing.
                     </li>
                     <li>
                         <strong>What we store:</strong> linked Google account

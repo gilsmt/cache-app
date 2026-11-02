@@ -32,7 +32,13 @@ export default function TermsOfServicePage() {
                     Cache App Terms of Service
                 </h1>
                 <p>
-                    <strong>Last Updated:</strong> March 31, 2026
+                    <strong>Last Updated:</strong> November 2, 2026
+                </p>
+                <p>
+                    These Terms apply to the hosted service operated by
+                    Cachd.App, Inc. Software that you self-host is governed by
+                    its Apache License 2.0; these Terms do not govern a
+                    self-hosted instance operated by you or another party.
                 </p>
                 <p>
                     If you signed a separate Cover Page to access the Product
@@ -63,8 +69,7 @@ export default function TermsOfServicePage() {
                         Privacy Policy
                     </Link>{" "}
                     for information about how we collect, use, and share your
-                    personal data. By using the Product, you consent to the
-                    practices described in the Privacy Policy.
+                    personal data.
                 </p>
             </header>
 
@@ -111,17 +116,22 @@ export default function TermsOfServicePage() {
                     </p>
 
                     <p>
-                        <strong>Subscription Period:</strong> 1 month
+                        <strong>Subscription Period:</strong> Monthly or annual,
+                        as shown at checkout.
+                    </p>
+
+                    <p>
+                        <strong>Currency:</strong> The currency shown at
+                        checkout.
                     </p>
 
                     <p>
                         Certain parts of the Product have different pricing
-                        plans. Customer will pay Provider the applicable Fees
-                        based on the Product tier and Customer&apos;s usage.
-                        Provider may update Product pricing by giving at least
-                        36 days' notice to Customer (including by email or
-                        notification within the Product), and the change will
-                        apply in the next Subscription Period.
+                        plans. Customer will pay the fees shown at checkout for
+                        the selected plan and billing interval. Provider may
+                        change prices and will give notice before a change takes
+                        effect. A new price will apply at the next renewal, as
+                        permitted by applicable law.
                     </p>
 
                     <div className="flex flex-col gap-2">
@@ -130,17 +140,63 @@ export default function TermsOfServicePage() {
                         </p>
                         <p>
                             <strong>Automatic payment:</strong> Customer
-                            authorizes Provider to bill and charge
-                            Customer&apos;s payment method on file Monthly for
-                            immediate payment or deduction without further
-                            approval.
+                            authorizes Provider to charge the payment method on
+                            file through Stripe at the start of each selected
+                            monthly or annual Subscription Period until the
+                            subscription is canceled.
                         </p>
                     </div>
 
                     <p>
-                        <strong>Non-Renewal Notice Period:</strong> At least 30
-                        days before the end of the current Subscription Period.
+                        <strong>Non-Renewal Notice Period:</strong> Customer may
+                        cancel at any time before the next renewal through the
+                        billing settings or Stripe billing portal. Cancellation
+                        takes effect at the end of the current Subscription
+                        Period.
                     </p>
+
+                    <div className="flex flex-col gap-2">
+                        <p>
+                            <strong>Modifications to Standard Terms:</strong>
+                        </p>
+                        <p>
+                            Section 1.1 is modified by replacing &quot;for its
+                            internal business purposes&quot; with &quot;for
+                            Customer&apos;s personal use or internal business
+                            purposes, as applicable.&quot;
+                        </p>
+                        <p>
+                            Section 1.4 is modified so Provider may use Usage
+                            Data only to provide, secure, troubleshoot, and
+                            improve the Product. Provider may use or disclose
+                            Usage Data only in aggregated or de-identified form
+                            that does not identify Customer or its Users.
+                        </p>
+                        <p>
+                            Section 1.6 is replaced in full: Provider will not
+                            use Customer Content or Usage Data to train or
+                            improve generalized AI or machine learning models.
+                            Provider and its service providers may process
+                            Customer Content only as needed to provide and
+                            maintain the Product or to generate output for an AI
+                            feature requested by Customer or its Users.
+                            AI-generated output may be inaccurate and should be
+                            reviewed before use.
+                        </p>
+                        <p>
+                            Section 12.8 is replaced: Provider may identify
+                            Customer or use its name or logo in marketing only
+                            with Customer&apos;s prior written consent.
+                        </p>
+                        <p>
+                            The Standard Terms prohibit submitting certain
+                            sensitive data, including protected health
+                            information, payment account numbers, government ID
+                            numbers, and special-category data under applicable
+                            privacy laws, unless the parties expressly authorize
+                            it in writing.
+                        </p>
+                    </div>
                 </div>
             </section>
 
@@ -328,10 +384,10 @@ export default function TermsOfServicePage() {
                 </p>
                 <p>
                     Per our agreements with these providers, data submitted
-                    through the Product for AI-assisted features is not used by
-                    them to train or improve their generalized models. We do not
-                    use your content to train our own generalized AI or machine
-                    learning models.
+                    through the Product for AI-assisted features is processed
+                    only to provide the requested output and is not used to
+                    train generalized models. The modification to Section 1.6 of
+                    the Standard Terms also applies to this processing.
                 </p>
             </section>
 
