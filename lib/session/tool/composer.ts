@@ -32,6 +32,7 @@ export const ASSISTANT_SOURCE_FILTER_VALUES = [
 const ASSISTANT_SEARCH_TERM_MAX_LENGTH = 200;
 export const ASSISTANT_VISIBLE_ITEM_LIMIT = 50;
 export const ASSISTANT_VISIBLE_ITEM_LABEL_MAX_LENGTH = 120;
+export const ASSISTANT_VISIBLE_ITEM_URL_MAX_LENGTH = 4096;
 const ASSISTANT_COLLECTION_NAME_MAX_LENGTH = 120;
 export const ASSISTANT_CONTEXT_COLLECTION_LIMIT = 200;
 export const ASSISTANT_CONTEXT_DOMAIN_LIMIT = 200;
@@ -153,12 +154,17 @@ const AssistantAvailableDomainSchema = z.strictObject({
 
 const AssistantVisibleItemSchema = z.strictObject({
     domain: z.string().trim().min(1).max(ASSISTANT_DOMAIN_FILTER_MAX_LENGTH),
-    id: AssistantCollectionIdSchema,
     label: z
         .string()
         .trim()
         .min(1)
         .max(ASSISTANT_VISIBLE_ITEM_LABEL_MAX_LENGTH),
+    url: z
+        .string()
+        .trim()
+        .min(1)
+        .max(ASSISTANT_VISIBLE_ITEM_URL_MAX_LENGTH)
+        .optional(),
 });
 
 const AssistantVisibleContextSchema = z.strictObject({

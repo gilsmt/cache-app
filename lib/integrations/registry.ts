@@ -19,6 +19,7 @@
 import { msg } from "gt-next";
 
 import { CACHE_EXTENSION_DOWNLOAD_URL } from "@/lib/common/constants";
+import type { McpScope } from "@/lib/session/mcp/auth";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
 export type IntegrationDirection = "destination" | "source";
@@ -26,6 +27,7 @@ export type IntegrationDirection = "destination" | "source";
 export type IntegrationActionRole =
     | "connect"
     | "copy"
+    | "copy-read-only"
     | "import"
     | "open"
     | "sync";
@@ -101,6 +103,7 @@ export interface GooglePhotosPickerSyncBehavior extends SyncBehaviorBase {
 export interface CopyPromptBehavior {
     kind: "copy-prompt";
     path: string;
+    scopes?: readonly McpScope[];
 }
 
 export interface MarkdownImportBehavior {
@@ -124,6 +127,7 @@ export type IntegrationBehavior =
 interface IntegrationBehaviorKindByRole {
     connect: "oauth-link" | "rss-manage" | "social-sign-in";
     copy: "copy-prompt";
+    "copy-read-only": "copy-prompt";
     import: "markdown-import";
     open: "extension-entry";
     sync: "google-photos-picker" | "route";
@@ -584,7 +588,7 @@ export const INTEGRATION_DEFINITIONS = [
                     kind: "copy-prompt",
                     path: "/mcp/prompt",
                 },
-                label: msg("Copy setup prompt"),
+                label: msg("Copy prompt"),
                 role: "copy",
             },
         ],

@@ -273,6 +273,7 @@ import {
     ASSISTANT_CONTEXT_DOMAIN_LIMIT,
     ASSISTANT_VISIBLE_ITEM_LABEL_MAX_LENGTH,
     ASSISTANT_VISIBLE_ITEM_LIMIT,
+    ASSISTANT_VISIBLE_ITEM_URL_MAX_LENGTH,
 } from "@/lib/session/tool/composer";
 import { createThreadFromAssistant } from "@/lib/threads/actions";
 import { LibraryItemSource } from "@/prisma/client/enums";
@@ -1663,11 +1664,13 @@ function buildAssistantVisibleItems(
 ): AssistantVisibleItem[] {
     return items.slice(0, ASSISTANT_VISIBLE_ITEM_LIMIT).map((item) => ({
         domain: getLibraryItemDomain(item.url),
-        id: item.id,
         label: truncateLabel(
             getLibraryItemPrimaryText(item),
             ASSISTANT_VISIBLE_ITEM_LABEL_MAX_LENGTH
         ),
+        ...(item.url.length <= ASSISTANT_VISIBLE_ITEM_URL_MAX_LENGTH
+            ? { url: item.url }
+            : {}),
     }));
 }
 

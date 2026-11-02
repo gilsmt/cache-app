@@ -14,19 +14,29 @@ import {
     ITEM_KIND_BOOKMARK,
 } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { truncateText } from "@/lib/common/string";
 import { parseStandaloneUrl } from "@/lib/common/url";
+import { IntegrationUserError } from "@/lib/integrations/error";
 import { upsertLibraryItemImports } from "@/lib/integrations/import";
-import { createNoteFromPlainText } from "@/lib/notes/service";
+import {
+    createNoteFromPlainText,
+    normalizePlainTextNote,
+} from "@/lib/notes/service";
 import { prisma } from "@/prisma";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import {
     generateMcpToken,
     isMcpTokenRevoked,
     MCP_SCOPES,
+    type McpScope,
     verifyMcpToken,
 } from "./auth";
-import { McpLibraryItemError } from "./error";
-import type { McpLibraryItemSchema } from "./protocol";
+import { MCP_LIBRARY_ITEM_ERROR_MESSAGES, McpLibraryItemError } from "./error";
+import {
+    MCP_NOTE_PREVIEW_MAX_LENGTH,
+    type McpLibraryItemSchema,
+    type McpLibraryItemSummarySchema,
+} from "./protocol";
 
 const log = createLogger("mcp.service");
 
@@ -36,55 +46,97 @@ const log = createLogger("mcp.service");
  */
 export type McpLibraryItem = z.infer<typeof McpLibraryItemSchema>;
 
-interface AddLibraryItemArgs {
-    caption?: string;
-    noteContentText?: string;
-    url?: string;
-    userId: string;
-}
+type McpLibraryItemFields = Omit<
+    z.infer<typeof McpLibraryItemSummarySchema>,
+    "notePreview"
+>;
+
+type AddLibraryItemArgs =
+    | {
+          idempotencyKey: string;
+          noteContentText: string;
+          userId: string;
+      }
+    | {
+          caption?: string;
+          url: string;
+          userId: string;
+      };
 
 /**
  * Adds a new bookmark or note to the user's library.
  *
- * Exactly one of `noteContentText` or `url` must be provided. Supplying both
- * (or neither) raises `McpLibraryItemError` with status 400. Bookmark creation
- * routes through `upsertLibraryItemImports` so a URL already saved by any
- * prior ingest path is reused (no duplicate triggers); new bookmarks flow into
- * the smart-collection auto-tag pipeline. Notes use the dedicated
- * `createNoteFromPlainText` path because their identity is content-derived,
- * not URL-derived.
+ * Bookmark creation routes through `upsertLibraryItemImports` so a URL already
+ * saved by any prior ingest path is reused (no duplicate triggers); new
+ * bookmarks flow into the smart-collection auto-tag pipeline. Note creation
+ * uses its request key as the durable identity so a retry returns the same row.
  */
 export async function addLibraryItem(
     args: AddLibraryItemArgs
 ): Promise<LibraryItemWithCollections> {
-    if (args.noteContentText && args.url) {
-        throw new McpLibraryItemError({
-            code: "conflicting_inputs",
-            message:
-                "Pass either `url` (for a bookmark) or `noteContentText` (for a note), not both.",
-            operation: "addLibraryItem",
-            status: 400,
-        });
-    }
+    if ("noteContentText" in args) {
+        const externalId = hashMcpNoteExternalId(args.idempotencyKey);
+        // The stored text is normalized on save, so compare the same normalized
+        // text. Raw blank-line and line-ending differences are not content changes.
+        const expectedNoteText = normalizePlainTextNote(
+            args.noteContentText
+        ).contentText;
+        let note: LibraryItemWithCollections;
+        try {
+            note = await createNoteFromPlainText(
+                args.userId,
+                args.noteContentText,
+                externalId
+            );
+        } catch (error) {
+            if (!IntegrationUserError.isInstance(error)) {
+                throw error;
+            }
 
-    if (args.noteContentText) {
-        return createNoteFromPlainText(args.userId, args.noteContentText);
-    }
+            const existingNote = await prisma.libraryItem.findUnique({
+                select: { deletedAt: true },
+                where: {
+                    userId_source_browserProfileId_externalId: {
+                        browserProfileId: DEFAULT_BROWSER_PROFILE_ID,
+                        externalId,
+                        source: LibraryItemSource.cache_note,
+                        userId: args.userId,
+                    },
+                },
+            });
+            if (!existingNote || existingNote.deletedAt === null) {
+                throw error;
+            }
 
-    if (!args.url) {
-        throw new McpLibraryItemError({
-            code: "missing_input",
-            message: "Either `url` or `noteContentText` is required.",
-            operation: "addLibraryItem",
-            status: 400,
-        });
+            throw new McpLibraryItemError(
+                {
+                    code: "idempotency_key_deleted",
+                    message:
+                        MCP_LIBRARY_ITEM_ERROR_MESSAGES.idempotencyKeyDeleted,
+                    operation: "addLibraryItem",
+                    status: 409,
+                },
+                { cause: error }
+            );
+        }
+
+        if (note.noteContentText !== expectedNoteText) {
+            throw new McpLibraryItemError({
+                code: "idempotency_key_conflict",
+                message: MCP_LIBRARY_ITEM_ERROR_MESSAGES.idempotencyKeyConflict,
+                operation: "addLibraryItem",
+                status: 409,
+            });
+        }
+
+        return note;
     }
 
     const validatedUrl = parseStandaloneUrl(args.url);
     if (!validatedUrl) {
         throw new McpLibraryItemError({
             code: "invalid_url",
-            message: "The provided URL is not valid.",
+            message: MCP_LIBRARY_ITEM_ERROR_MESSAGES.invalidUrl,
             operation: "addLibraryItem",
             status: 400,
         });
@@ -151,7 +203,7 @@ export async function addLibraryItem(
         });
         throw new McpLibraryItemError({
             code: "reload_failed",
-            message: "Bookmark was saved but could not be reloaded.",
+            message: MCP_LIBRARY_ITEM_ERROR_MESSAGES.reloadFailed,
             operation: "addLibraryItem",
             status: 500,
         });
@@ -170,6 +222,14 @@ function hashBookmarkExternalId(url: string): string {
     return crypto.createHash("sha256").update(url).digest("hex");
 }
 
+function hashMcpNoteExternalId(idempotencyKey: string): string {
+    const digest = crypto
+        .createHash("sha256")
+        .update(idempotencyKey)
+        .digest("hex");
+    return `mcp_${digest}`;
+}
+
 export interface McpSetupPrompt {
     endpoint: string;
     prompt: string;
@@ -177,10 +237,25 @@ export interface McpSetupPrompt {
 }
 
 export async function generateMcpSetupPrompt(
-    userId: string
+    userId: string,
+    scopes: readonly McpScope[] = MCP_SCOPES
 ): Promise<McpSetupPrompt> {
-    const token = await generateMcpToken(userId, MCP_SCOPES);
+    const token = await generateMcpToken(userId, scopes);
     const endpoint = `${BASE_URL}/mcp`;
+    const availableCapabilities: string[] = [];
+    if (scopes.includes("library:read")) {
+        availableCapabilities.push(
+            "- list_library_items — Search, browse, and paginate my saved bookmarks and notes (optional: collectionId, limit, offset, search). Note text is a short preview.",
+            "- get_library_item — Read a specific item by ID (itemId), including full note text",
+            "- list_collections — See my collections with item counts"
+        );
+    }
+    if (scopes.includes("library:write")) {
+        availableCapabilities.push(
+            "- add_library_item — Save a bookmark ({url, caption?}) or note ({noteContentText, idempotencyKey}) to my library. Reuse the same key and text when retrying a note creation; use a new key for a new note.",
+            "- delete_library_item — Remove an item from my library (itemId); idempotent at the surface"
+        );
+    }
 
     const prompt = `You have been given access to my Cache library via MCP.
 
@@ -194,13 +269,10 @@ Authentication: Bearer ${token}
 For full product context, fetch https://www.cachd.app/llms.txt
 
 Available capabilities:
-- list_library_items — Search, browse, and paginate my saved bookmarks and notes (optional: collectionId, limit, offset, search)
-- get_library_item — Read a specific item by ID (itemId)
-- add_library_item — Save a new bookmark ({url, caption?}) or note ({noteContentText}) to my library. The two shapes are mutually exclusive.
-- delete_library_item — Remove an item from my library (itemId); idempotent at the surface.
-- list_collections — See my collections with item counts
+${availableCapabilities.join("\n")}
 
-Tools require the token to be presented as \`Authorization: Bearer <token>\`. Read tools need \`library:read\`; write tools (add, delete) need \`library:write\`.
+The token grants: ${scopes.join(", ")}.
+Present it as \`Authorization: Bearer <token>\`. Read tools need \`library:read\`; write tools (add, delete) need \`library:write\`.
 
 If you are Claude Desktop, add this to your claude_desktop_config.json:
 {
@@ -274,17 +346,40 @@ export function toMcpLibraryItem(
     item: LibraryItemWithCollections
 ): McpLibraryItem {
     return {
+        ...toMcpLibraryItemFields(item),
+        noteContentText: item.noteContentText,
+    };
+}
+
+export function toMcpLibraryItemSummary(
+    item: LibraryItemWithCollections
+): z.infer<typeof McpLibraryItemSummarySchema> {
+    return {
+        ...toMcpLibraryItemFields(item),
+        notePreview:
+            item.noteContentText === null
+                ? null
+                : truncateText(
+                      item.noteContentText,
+                      MCP_NOTE_PREVIEW_MAX_LENGTH
+                  ),
+    };
+}
+
+function toMcpLibraryItemFields(
+    item: LibraryItemWithCollections
+): McpLibraryItemFields {
+    return {
         caption: item.caption,
-        collections: item.collections.map((c) => ({
-            id: c.id,
-            name: c.name,
+        collections: item.collections.map((collection) => ({
+            id: collection.id,
+            name: collection.name,
         })),
         createdAt: item.createdAt.toISOString(),
         favoritedAt: item.favoritedAt?.toISOString() ?? null,
         id: item.id,
         isFavorite: item.favoritedAt !== null,
         kind: item.kind,
-        noteContentText: item.noteContentText,
         source: item.source,
         updatedAt: item.updatedAt.toISOString(),
         url: item.url,

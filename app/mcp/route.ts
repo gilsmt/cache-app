@@ -29,6 +29,7 @@ import {
     McpLibraryItemListInputSchema,
     McpLibraryItemListOutputSchema,
     McpLibraryItemSchema,
+    McpLibraryItemSummarySchema,
 } from "@/lib/session/mcp/protocol";
 import {
     checkMcpRateLimit,
@@ -37,6 +38,7 @@ import {
 import {
     addLibraryItem,
     toMcpLibraryItem,
+    toMcpLibraryItemSummary,
     verifyMcpAuthToken,
 } from "@/lib/session/mcp/service";
 
@@ -181,7 +183,7 @@ async function handleListLibraryItems(
             search: args.search,
             userId,
         });
-        const mcpItems = items.map(toMcpLibraryItem);
+        const mcpItems = items.map(toMcpLibraryItemSummary);
         const nextOffset = args.offset + args.limit;
         const hasMore = total > nextOffset;
         const payload = {
@@ -242,23 +244,17 @@ async function handleAddLibraryItem(
     }
     const { userId } = auth;
 
-    // The input schema is `noteContentText | url`, so only one branch can be
-    // present in any given parse. The XOR previously lived in `superRefine`
-    // (protocol.ts) but the MCP SDK normalizes raw shapes field-by-field and
-    // drops cross-field rules; the union moves the constraint onto the wire.
-    const noteContentText =
-        "noteContentText" in args ? args.noteContentText : undefined;
-    const url = "url" in args ? args.url : undefined;
-    const caption = "caption" in args ? args.caption : undefined;
-
     try {
-        const item = await addLibraryItem({
-            caption,
-            noteContentText,
-            url,
-            userId,
-        });
-        const payload = toMcpLibraryItem(item);
+        const item = await addLibraryItem(
+            "noteContentText" in args
+                ? {
+                      idempotencyKey: args.idempotencyKey,
+                      noteContentText: args.noteContentText,
+                      userId,
+                  }
+                : { caption: args.caption, url: args.url, userId }
+        );
+        const payload = toMcpLibraryItemSummary(item);
         return okResult(payload, `Saved. ${JSON.stringify(payload)}`);
     } catch (error) {
         // Client-facing validation failures are safe to echo because the
@@ -417,7 +413,7 @@ const baseHandler = createMcpHandler(
             {
                 annotations: TOOL_ANNOTATIONS.ReadOnly,
                 description:
-                    "List library items for the authenticated user. Supports optional `search` (substring match across captions, URLs, and note text), optional `collectionId` filter, and paginated results via `limit`/`offset`. Returns `hasMore` and `nextOffset` for pagination. Read-only; idempotent.",
+                    "List the authenticated user's library items. Supports optional `search` (substring match across captions, URLs, and note text), optional `collectionId` filter, and pagination via `limit`/`offset`. Notes return a 240-character preview; use `get_library_item` for full note text. Returns `hasMore` and `nextOffset`. Read-only; idempotent.",
                 inputSchema: McpLibraryItemListInputSchema,
                 outputSchema: McpLibraryItemListOutputSchema,
                 title: "List Library Items",
@@ -430,7 +426,7 @@ const baseHandler = createMcpHandler(
             {
                 annotations: TOOL_ANNOTATIONS.ReadOnly,
                 description:
-                    "Fetch a single library item by ID. Read-only; returns not-found text when the ID does not exist for the user.",
+                    "Fetch one library item by ID, including full note text. Read-only; returns not-found text when the ID does not exist for the user.",
                 inputSchema: McpGetLibraryItemInputSchema,
                 outputSchema: McpLibraryItemSchema,
                 title: "Get Library Item",
@@ -443,9 +439,9 @@ const baseHandler = createMcpHandler(
             {
                 annotations: TOOL_ANNOTATIONS.Mutating,
                 description:
-                    "Save a new item to the user's library. Two shapes are accepted (the schema is `oneOf`): provide `{ url, caption? }` to save a bookmark (dedupes by URL so re-saving is safe, including caption updates), or `{ noteContentText }` to save a note (every call creates a new note, so retries after a network blip can duplicate). Sending both or neither is rejected at validation time.",
+                    "Save an item to the user's library. Provide `{ url, caption? }` to save a bookmark (re-saving the same URL reuses the item), or `{ noteContentText, idempotencyKey }` to save a note. Reuse the same idempotencyKey and text when retrying; reusing a key with different text returns a conflict. Use a new key for a new note. Returns the item ID and a short summary.",
                 inputSchema: McpAddLibraryItemInputSchema,
-                outputSchema: McpLibraryItemSchema,
+                outputSchema: McpLibraryItemSummarySchema,
                 title: "Add Library Item",
             },
             handleAddLibraryItem
@@ -484,7 +480,7 @@ const baseHandler = createMcpHandler(
         onEvent: logMcpEvent,
         serverInfo: {
             name: "cache",
-            version: "1.0.0",
+            version: "2.0.0",
         },
     }
 );

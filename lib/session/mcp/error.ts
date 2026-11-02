@@ -1,25 +1,38 @@
 import * as z from "zod";
 import { NamedError } from "@/lib/common/error";
 
+export const MCP_LIBRARY_ITEM_ERROR_MESSAGES = {
+    idempotencyKeyConflict:
+        "This idempotencyKey was already used for different note text. Reuse the original text to retry, or use a new key for a new note.",
+    idempotencyKeyDeleted:
+        "This note was already deleted. Use a new idempotencyKey to create another note.",
+    invalidUrl: "The provided URL is not valid.",
+    reloadFailed: "Bookmark was saved but could not be reloaded.",
+} as const;
+
+const MCP_LIBRARY_ITEM_ERROR_MESSAGE_SCHEMA = z.enum([
+    MCP_LIBRARY_ITEM_ERROR_MESSAGES.idempotencyKeyConflict,
+    MCP_LIBRARY_ITEM_ERROR_MESSAGES.idempotencyKeyDeleted,
+    MCP_LIBRARY_ITEM_ERROR_MESSAGES.invalidUrl,
+    MCP_LIBRARY_ITEM_ERROR_MESSAGES.reloadFailed,
+]);
+
 /**
  * Failures from the MCP library-item path (`addLibraryItem`).
  *
- * `message` is an enum of the four authored static strings — never
- * interpolate user input, URLs, or upstream text here. The route echoes the
- * 4xx ones back to MCP clients, so the closed enum is what keeps that echo
- * from becoming a leakage channel: anything else fails closed to the
- * generic handler, at both the type level and `isInstance` runtime check.
+ * The closed message schema keeps echoed 4xx responses to authored text.
+ * Never interpolate user input, URLs, or upstream text here.
  */
 export const McpLibraryItemError = NamedError.create(
     "McpLibraryItemError",
     z.object({
         code: z.enum([
-            "conflicting_inputs",
+            "idempotency_key_conflict",
+            "idempotency_key_deleted",
             "invalid_url",
-            "missing_input",
             "reload_failed",
         ]),
-        message: z.string(),
+        message: MCP_LIBRARY_ITEM_ERROR_MESSAGE_SCHEMA,
         operation: z.string(),
         status: z.number(),
     })

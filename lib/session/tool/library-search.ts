@@ -20,7 +20,7 @@ const ASSISTANT_LIBRARY_SEARCH_OFFSET_MAX = 10_000;
 const ASSISTANT_LIBRARY_TEXT_PREVIEW_LENGTH_MAX = 1000;
 
 const SEARCH_LIBRARY_DESCRIPTION =
-    "Search the user's saved Cache library. Query words are AND-matched across caption, note text, and URL within each item. Prefer concrete names, brands, domains, domainFilters, sourceFilters, or collectionIds over broad category labels. When truncated is true, continue with nextOffset while it is not null; if it is null, explain that the offset limit was reached and the result is partial.";
+    "Search the user's saved Cache library. Query words are AND-matched across caption, note text, and URL within each item. Prefer concrete names, brands, domains, domainFilters, sourceFilters, or collectionIds over broad category labels. Results include saved URLs for inline Markdown citations; never show internal library item IDs. When truncated is true, continue with nextOffset while it is not null; if it is null, explain that the offset limit was reached and the result is partial.";
 
 const AssistantLibrarySearchInputSchema = z.strictObject({
     collectionIds: z
@@ -140,7 +140,6 @@ async function searchAssistantLibrary(args: {
             ),
             createdAt: item.createdAt.toISOString(),
             domain: parseDisplayUrl(item.url),
-            id: item.id,
             kind: item.kind,
             postedAt: item.postedAt?.toISOString() ?? null,
             source: item.source,

@@ -34,8 +34,9 @@ const content = `# Cache
 Cache exposes an MCP server so an authorized AI client can read and write the user's library.
 
 - Endpoint: https://www.cachd.app/mcp
-- In Cache, open **Integrations → MCP** to copy a setup prompt with a user-scoped bearer token.
+- In Cache, open **Integrations → MCP** and choose a read-only or read/write setup prompt.
 - While signed in, \`POST https://www.cachd.app/mcp/prompt\` returns JSON with the \`endpoint\`, \`token\`, and \`prompt\` fields.
+- For a restricted token, send JSON such as \`{"scopes":["library:read"]}\` or \`{"scopes":["library:write"]}\`. Without a body, the endpoint grants both scopes for compatibility.
 - Send the token as \`Authorization: Bearer <token>\` on MCP requests. Treat it as a secret.
 - An authenticated \`DELETE https://www.cachd.app/mcp/prompt\` revokes all MCP tokens for the account.
 
@@ -58,13 +59,13 @@ Example Claude Desktop configuration (\`claude_desktop_config.json\`):
 
 | Tool | Purpose | Parameters |
 |------|---------|------------|
-| \`list_library_items\` | Search and paginate bookmarks and notes; search is a case-insensitive substring match across captions, URLs, and note text. | \`search?\`, \`collectionId?\`, \`limit?\` (1-50, default 20), \`offset?\` (default 0) |
-| \`get_library_item\` | Read one item by ID. | \`itemId\` |
-| \`add_library_item\` | Save a bookmark or a plain-text note. Pass exactly one of the two supported shapes. | Bookmark: \`url\` and optional \`caption\`; note: \`noteContentText\` |
+| \`list_library_items\` | Search and paginate bookmarks and notes; search is a case-insensitive substring match across captions, URLs, and note text. Note text is limited to a 240-character preview. | \`search?\`, \`collectionId?\`, \`limit?\` (1-50, default 20), \`offset?\` (default 0) |
+| \`get_library_item\` | Read one item by ID, including full note text. | \`itemId\` |
+| \`add_library_item\` | Save a bookmark or a plain-text note; returns an item ID and short summary. Pass exactly one supported shape. | Bookmark: \`url\` and optional \`caption\`; note: \`noteContentText\` and required \`idempotencyKey\` |
 | \`delete_library_item\` | Delete an item. Repeating a delete is safe. | \`itemId\` |
 | \`list_collections\` | List collections with item counts. | None |
 
-Bookmark saves deduplicate by URL. Saving the same URL again reuses the item and can update its caption. Each note call creates a new note. Read tools require the \`library:read\` scope; add and delete require \`library:write\`.
+Bookmark saves deduplicate by URL. Saving the same URL again reuses the item and can update its caption. Reuse the same note \`idempotencyKey\` and text to retry one note creation; reusing that key with different text returns a conflict. Use a new key for each intended new note. Read tools require the \`library:read\` scope; add and delete require \`library:write\`.
 
 ## Data model
 

@@ -16,4 +16,5 @@ export const THREAD_SYSTEM_PROMPT = [
     "",
     "# Answering",
     "- Answer in concise GitHub-flavored Markdown.",
+    "- Never show internal library item IDs. When you mention a saved item, link its title inline to its saved HTTP(S) URL, for example [title](url). Do not link unusable URLs such as about:blank; mention those items by title without a link.",
 ].join("\n");

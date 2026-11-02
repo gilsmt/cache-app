@@ -11,7 +11,7 @@
  */
 
 import * as z from "zod";
-import { LibraryItemKind } from "@/prisma/client/enums";
+import { LibraryItemKind, LibraryItemSource } from "@/prisma/client/enums";
 
 const LIBRARY_ITEM_ID_MAX_LENGTH = 64;
 const COLLECTION_ID_MAX_LENGTH = 64;
@@ -20,8 +20,11 @@ const SEARCH_QUERY_MAX_LENGTH = 200;
 const URL_MAX_LENGTH = 2048;
 const CAPTION_MAX_LENGTH = 500;
 const NOTE_TEXT_MAX_LENGTH = 100_000;
+const IDEMPOTENCY_KEY_MAX_LENGTH = 128;
 const LIBRARY_ITEM_LIST_LIMIT_MAX = 50;
 const LIBRARY_ITEM_LIST_LIMIT_DEFAULT = 20;
+
+export const MCP_NOTE_PREVIEW_MAX_LENGTH = 240;
 
 export const McpCollectionItemSchema = z.object({
     id: z.string(),
@@ -36,8 +39,33 @@ export const McpLibraryItemSchema = z.object({
     id: z.string(),
     isFavorite: z.boolean(),
     kind: z.enum(LibraryItemKind),
-    noteContentText: z.string().nullable(),
-    source: z.string(),
+    noteContentText: z
+        .string()
+        .nullable()
+        .describe(
+            "Full plain text for a note; null for items without note text."
+        ),
+    source: z.enum(LibraryItemSource),
+    updatedAt: z.iso.datetime(),
+    url: z.string(),
+});
+
+export const McpLibraryItemSummarySchema = z.object({
+    caption: z.string().nullable(),
+    collections: z.array(McpCollectionItemSchema),
+    createdAt: z.iso.datetime(),
+    favoritedAt: z.iso.datetime().nullable(),
+    id: z.string(),
+    isFavorite: z.boolean(),
+    kind: z.enum(LibraryItemKind),
+    notePreview: z
+        .string()
+        .max(MCP_NOTE_PREVIEW_MAX_LENGTH)
+        .nullable()
+        .describe(
+            `Note text preview truncated to ${MCP_NOTE_PREVIEW_MAX_LENGTH} characters; null for items without note text.`
+        ),
+    source: z.enum(LibraryItemSource),
     updatedAt: z.iso.datetime(),
     url: z.string(),
 });
@@ -56,7 +84,7 @@ export const McpCollectionWithCountItemSchema = z.object({
 
 export const McpLibraryItemListOutputSchema = z.object({
     hasMore: z.boolean(),
-    items: z.array(McpLibraryItemSchema),
+    items: z.array(McpLibraryItemSummarySchema),
     nextOffset: z.number().int().nonnegative().optional(),
     offset: z.number().int().nonnegative(),
     total: z.number().int().nonnegative(),
@@ -117,12 +145,14 @@ const McpItemIdInputSchema = z.object({
 export const McpGetLibraryItemInputSchema = McpItemIdInputSchema;
 export const McpDeleteLibraryItemInputSchema = McpItemIdInputSchema;
 
-// `add_library_item` enforces two semantic rules:
+// `add_library_item` enforces these semantic rules:
 //
 //   1. `noteContentText` and `url` are mutually exclusive: callers must
 //      choose one.
 //   2. `url` must be http(s); `parseStandaloneUrl` (lib/common/url) also
 //      rejects non-http schemes, so the validator must match.
+//   3. Note creation requires an idempotency key so retries return the same
+//      note instead of creating duplicates.
 //
 // The schema is a `zod.union` of two strict shapes so the XOR survives the
 // MCP SDK's per-field normalization (`normalizeObjectSchema` constructs
@@ -130,12 +160,20 @@ export const McpDeleteLibraryItemInputSchema = McpItemIdInputSchema;
 // cross-field `superRefine`). The route dispatches on which branch matched
 // instead of re-running the XOR.
 const McpAddLibraryNoteSchema = z.strictObject({
+    idempotencyKey: z
+        .string()
+        .trim()
+        .min(1)
+        .max(IDEMPOTENCY_KEY_MAX_LENGTH)
+        .describe(
+            "Unique key for this note creation. Reuse the same key and text when retrying; using the same key with different text returns a conflict. Use a new key for a new note."
+        ),
     noteContentText: z
         .string()
         .trim()
         .min(1)
         .max(NOTE_TEXT_MAX_LENGTH)
-        .describe("Plain text for a note."),
+        .describe("Plain text for the note to create."),
 });
 
 const McpAddLibraryBookmarkSchema = z.strictObject({
@@ -155,7 +193,7 @@ const McpAddLibraryBookmarkSchema = z.strictObject({
             { message: "URL must use the http or https scheme." }
         )
         .describe(
-            "Fully qualified http(s) URL to save as a bookmark. Save dedupes by URL, so calling twice with the same URL is safe."
+            "Fully qualified http(s) URL to save as a bookmark. Saving the same URL again is safe and reuses the existing item."
         ),
 });
 

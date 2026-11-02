@@ -80,15 +80,22 @@ export function getNoteItemForUser(
     });
 }
 
+export function normalizePlainTextNote(value: string): NormalizedNotePayload {
+    return normalizeNotePayload({
+        contentHtml: `<p>${escapeNoteHtmlText(value)}</p>`,
+    });
+}
+
 export async function createNoteFromPlainText(
     userId: string,
-    plainText: string
+    value: string,
+    externalId?: string
 ): Promise<LibraryItemWithCollections> {
     const result = await createNote(
         userId,
-        normalizeNotePayload({
-            contentHtml: `<p>${escapeNoteHtmlText(plainText)}</p>`,
-        })
+        normalizePlainTextNote(value),
+        [],
+        externalId
     );
     return result.item;
 }
@@ -96,7 +103,8 @@ export async function createNoteFromPlainText(
 export async function createNote(
     userId: string,
     note: NormalizedNotePayload,
-    collectionIds: readonly string[] = []
+    collectionIds: readonly string[] = [],
+    externalId?: string
 ): Promise<{
     collectionSummaries: LibraryCollectionSummary[];
     item: LibraryItemWithCollections;
@@ -110,31 +118,48 @@ export async function createNote(
                 userId,
             });
 
-            const created = await tx.libraryItem.create({
-                data: {
-                    browserProfileId: DEFAULT_BROWSER_PROFILE_ID,
-                    caption: null,
-                    collections:
-                        membership.collectionIds.length > 0
-                            ? {
-                                  connect: toIdConnections(
-                                      membership.collectionIds
-                                  ),
-                              }
-                            : undefined,
-                    externalId: `note_${randomUUID()}`,
-                    kind: ITEM_KIND_NOTE,
-                    noteContentHtml: note.contentHtml,
-                    noteContentState: noteContentStateForPrisma(
-                        note.contentState
-                    ),
-                    noteContentText: note.contentText,
-                    source: LibraryItemSource.cache_note,
-                    url: FALLBACK_URL,
-                    userId,
-                },
-                select: { id: true },
-            });
+            const noteExternalId = externalId ?? `note_${randomUUID()}`;
+            const createData = {
+                browserProfileId: DEFAULT_BROWSER_PROFILE_ID,
+                caption: null,
+                collections:
+                    membership.collectionIds.length > 0
+                        ? {
+                              connect: toIdConnections(
+                                  membership.collectionIds
+                              ),
+                          }
+                        : undefined,
+                externalId: noteExternalId,
+                kind: ITEM_KIND_NOTE,
+                noteContentHtml: note.contentHtml,
+                noteContentState: noteContentStateForPrisma(note.contentState),
+                noteContentText: note.contentText,
+                source: LibraryItemSource.cache_note,
+                url: FALLBACK_URL,
+                userId,
+            };
+            // An empty update returns the first row unchanged when an MCP retry
+            // reuses its external identity.
+            const created =
+                externalId === undefined
+                    ? await tx.libraryItem.create({
+                          data: createData,
+                          select: { id: true },
+                      })
+                    : await tx.libraryItem.upsert({
+                          create: createData,
+                          select: { id: true },
+                          update: {},
+                          where: {
+                              userId_source_browserProfileId_externalId: {
+                                  browserProfileId: DEFAULT_BROWSER_PROFILE_ID,
+                                  externalId: noteExternalId,
+                                  source: LibraryItemSource.cache_note,
+                                  userId,
+                              },
+                          },
+                      });
 
             // A summary counts the items in its collection, so it is read
             // after the note joined them.

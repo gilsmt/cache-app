@@ -5,9 +5,9 @@ import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { useTimeout } from "@base-ui/utils/useTimeout";
 import { cn } from "cn";
 import { T, useGT, useMessages, Var } from "gt-next";
+import Link from "gt-next/link";
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -248,6 +248,8 @@ function resolveActionLabel(args: {
             return gt("Sync");
         case "copy":
             return gt("Copy prompt");
+        case "copy-read-only":
+            return gt("Copy read-only prompt");
         case "import":
             return gt("Import");
         default:

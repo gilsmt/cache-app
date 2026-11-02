@@ -239,7 +239,16 @@ export async function executeSyncBehavior(
 export async function executeCopyPromptBehavior(
     behavior: CopyPromptBehavior
 ): Promise<void> {
-    const response = await fetch(behavior.path, { method: "POST" });
+    const response = await fetch(
+        behavior.path,
+        behavior.scopes
+            ? {
+                  body: JSON.stringify({ scopes: behavior.scopes }),
+                  headers: { "Content-Type": "application/json" },
+                  method: "POST",
+              }
+            : { method: "POST" }
+    );
     if (!response.ok) {
         throw new IntegrationConnectionError({
             message: "Could not retrieve the setup prompt.",
