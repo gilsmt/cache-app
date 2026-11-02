@@ -7,9 +7,8 @@
  * Each definition states one `direction`, the `actions` a user can trigger
  * in that direction, and the `connectedWhen` signals that tell whether the
  * user has a live connection. A signal reads the record that owns the
- * connection: a linked provider account, an `RssFeed`, a `MarkdownImport`.
- * The extension-pushed sources have no record of their own, so they are
- * connected while they hold imported items.
+ * connection: a linked provider account, an `RssFeed`, or imported library
+ * items.
  *
  * OAuth `linked-provider` signals reference better-auth provider IDs
  * (`lib/auth/server.ts`), which do not always equal the integration ID
@@ -39,9 +38,6 @@ export type IntegrationConnectionSignal =
     | {
           kind: "linked-provider";
           providerId: string;
-      }
-    | {
-          kind: "markdown-import";
       }
     | {
           kind: "rss-feed";
@@ -173,7 +169,6 @@ export interface IntegrationDefinition {
 }
 
 export interface IntegrationConnectionContext {
-    hasMarkdownImports: boolean;
     hasRssFeeds: boolean;
     libraryItemSources: Iterable<LibraryItemSource>;
     linkedProviderIds: Iterable<string>;
@@ -616,7 +611,8 @@ export const INTEGRATION_DEFINITIONS = [
         ],
         connectedWhen: [
             {
-                kind: "markdown-import",
+                kind: "library-item-source",
+                source: LibraryItemSource.markdown_import,
             },
         ],
         description: msg("Markdown files on your computer"),
@@ -786,7 +782,6 @@ export function listIntegrationAccountProviderIds(): string[] {
 }
 
 interface ConnectionMatchContext {
-    hasMarkdownImports: boolean;
     hasRssFeeds: boolean;
     libraryItemSources: Set<LibraryItemSource>;
     linkedProviderIds: Set<string>;
@@ -796,7 +791,6 @@ function buildConnectionMatchContext(
     context: IntegrationConnectionContext
 ): ConnectionMatchContext {
     return {
-        hasMarkdownImports: context.hasMarkdownImports,
         hasRssFeeds: context.hasRssFeeds,
         libraryItemSources: new Set(context.libraryItemSources),
         linkedProviderIds: new Set(context.linkedProviderIds),
@@ -812,8 +806,6 @@ function connectionMatchesSignal(
             return context.libraryItemSources.has(signal.source);
         case "linked-provider":
             return context.linkedProviderIds.has(signal.providerId);
-        case "markdown-import":
-            return context.hasMarkdownImports;
         case "rss-feed":
             return context.hasRssFeeds;
         default:

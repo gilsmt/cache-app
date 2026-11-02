@@ -3,8 +3,7 @@ import "server-only";
 import { prisma } from "@/prisma";
 import { listIntegrationAccountProviderIds } from "./registry";
 
-export interface IntegrationConnectionState {
-    hasMarkdownImports: boolean;
+interface IntegrationConnectionState {
     hasRssFeeds: boolean;
     linkedProviderIds: string[];
 }
@@ -12,15 +11,13 @@ export interface IntegrationConnectionState {
 /**
  * Reads the records that own a connection.
  *
- * A linked provider account proves an OAuth grant, an `RssFeed` row proves
- * a subscription, and a `MarkdownImport` row proves an import namespace.
- * Imported items are not consulted: they are the result of a connection,
- * not the connection itself.
+ * A linked provider account proves an OAuth grant, and an `RssFeed` row proves
+ * a subscription. Imported Markdown is represented by its library items.
  */
 export async function loadIntegrationConnectionState(args: {
     userId: string;
 }): Promise<IntegrationConnectionState> {
-    const [linkedAccounts, markdownImport, rssFeed] = await Promise.all([
+    const [linkedAccounts, rssFeed] = await Promise.all([
         prisma.account.findMany({
             distinct: ["providerId"],
             orderBy: { providerId: "asc" },
@@ -30,10 +27,6 @@ export async function loadIntegrationConnectionState(args: {
                 userId: args.userId,
             },
         }),
-        prisma.markdownImport.findFirst({
-            select: { id: true },
-            where: { userId: args.userId },
-        }),
         prisma.rssFeed.findFirst({
             select: { id: true },
             where: { userId: args.userId },
@@ -41,7 +34,6 @@ export async function loadIntegrationConnectionState(args: {
     ]);
 
     return {
-        hasMarkdownImports: markdownImport !== null,
         hasRssFeeds: rssFeed !== null,
         linkedProviderIds: linkedAccounts.map((account) => account.providerId),
     };

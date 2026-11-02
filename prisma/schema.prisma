@@ -146,8 +146,7 @@ model User {
     chats                   Chat[]
     comments                Comment[]
 
-    rssFeeds        RssFeed[]
-    markdownImports MarkdownImport[]
+    rssFeeds RssFeed[]
 
     @@map("user")
 }
@@ -483,20 +482,4 @@ model RssFeed {
 
     @@unique([userId, urlKey])
     @@map("rss_feed")
-}
-
-/// A named import namespace for Markdown (.md) files from a single folder or
-/// source. The id is stored in LibraryItem.browserProfileId so that
-/// (userId, source = markdown_import, browserProfileId, externalId) is the
-/// stable identity for each imported note.
-model MarkdownImport {
-    id        String   @id @default(cuid())
-    userId    String
-    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@unique([userId, name])
-    @@map("markdown_import")
 }

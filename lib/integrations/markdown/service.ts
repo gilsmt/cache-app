@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import type { Nodes, Root } from "mdast";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
@@ -8,37 +9,33 @@ import {
     LIBRARY_ITEM_COLLECTIONS_INCLUDE,
     type LibraryItemWithCollections,
 } from "@/lib/collections/utils";
-import {
-    FALLBACK_URL,
-    ITEM_KIND_NOTE,
-    PRISMA_UNIQUE_CONSTRAINT_ERROR,
-} from "@/lib/common/constants";
+import { FALLBACK_URL, ITEM_KIND_NOTE } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { normalizeCollectionName } from "@/lib/common/string";
-import { IntegrationUserError } from "@/lib/integrations/error";
+import {
+    MARKDOWN_FILE_SIZE_SKIP_MESSAGE,
+    MAX_MARKDOWN_FILE_SIZE_BYTES,
+} from "@/lib/integrations/markdown/quotas";
 import {
     type NormalizedNotePayload,
     normalizeNotePayload,
 } from "@/lib/notes/service";
 import { prisma } from "@/prisma";
-import { Prisma } from "@/prisma/client/client";
+import type { Prisma } from "@/prisma/client/client";
 import { LibraryItemSource } from "@/prisma/client/enums";
-import {
-    DbNull,
-    type InputJsonValue,
-} from "@/prisma/client/internal/prismaNamespace";
+import { DbNull } from "@/prisma/client/internal/prismaNamespace";
 
 const PATH_TRAVERSAL = /(?:^|\/|\\|%2f)\.\.(?:\/|\\|%2f|$)/iu;
 const LEADING_SLASH = /^[/\\]+/u;
 const WINDOWS_DRIVE = /^[A-Za-z]:[/\\]/u;
 const MD_EXT = /\.md$/iu;
 const LINK_SCHEME = /^([a-z][a-z0-9+.-]*):/iu;
-const MAX_FILE_SIZE_BYTES = 500_000;
 const MAX_RELATIVE_PATH_LENGTH = 512;
-const FILE_SIZE_SKIP_MESSAGE = `Exceeds the ${(MAX_FILE_SIZE_BYTES / 1000).toFixed(0)} KB file size limit.`;
 const PATH_LENGTH_SKIP_MESSAGE = `File paths can be up to ${MAX_RELATIVE_PATH_LENGTH} characters.`;
 
 const log = createLogger("integrations:markdown:service");
+
+const TEXT_ENCODER = new TextEncoder();
 
 const MARKDOWN_PROCESSOR = unified().use(remarkParse).use(remarkGfm).freeze();
 
@@ -55,7 +52,6 @@ export interface MarkdownImportResult {
     skipped: Array<{ relativePath: string; message: string }>;
     skippedCount: number;
     unsupportedReport: UnsupportedConstructReport;
-    updatedCount: number;
 }
 
 export interface UnsupportedConstructReport {
@@ -68,7 +64,6 @@ export interface UnsupportedConstructReport {
 export interface ImportedNoteProvenance {
     folderPath: string;
     importedAt: string;
-    importId: string;
     originalPath: string;
 }
 
@@ -118,46 +113,28 @@ export function folderPathToCollectionName(folderPath: string): string {
     return segments.join(" / ");
 }
 
-async function ensureCollection(userId: string, name: string): Promise<string> {
+async function ensureCollection(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    name: string
+): Promise<string> {
     const normalized = normalizeCollectionName(name);
-    const existing = await prisma.collection.findFirst({
-        select: { id: true },
-        where: {
+    const collection = await tx.collection.upsert({
+        create: {
+            name: normalized.name,
             nameKey: normalized.nameKey,
             userId,
         },
-    });
-    if (existing) {
-        return existing.id;
-    }
-    try {
-        const created = await prisma.collection.create({
-            data: {
-                name: normalized.name,
+        select: { id: true },
+        update: {},
+        where: {
+            userId_nameKey: {
                 nameKey: normalized.nameKey,
                 userId,
             },
-            select: { id: true },
-        });
-        return created.id;
-    } catch (error) {
-        if (
-            error instanceof Prisma.PrismaClientKnownRequestError &&
-            error.code === PRISMA_UNIQUE_CONSTRAINT_ERROR
-        ) {
-            const raced = await prisma.collection.findFirst({
-                select: { id: true },
-                where: {
-                    nameKey: normalized.nameKey,
-                    userId,
-                },
-            });
-            if (raced) {
-                return raced.id;
-            }
-        }
-        throw error;
-    }
+        },
+    });
+    return collection.id;
 }
 
 export function markdownToNoteHtml(markdown: string): {
@@ -370,182 +347,60 @@ function renderMdastToHtml(
     return "";
 }
 
-export async function upsertImportedNote(args: {
-    importId: string;
+export function createImportedNote(args: {
     userId: string;
-    relativePath: string;
     notePayload: NormalizedNotePayload;
     provenance: ImportedNoteProvenance;
-}): Promise<{
-    isNew: boolean;
-    item: LibraryItemWithCollections;
-    priorFolderPath: string | null;
-}> {
-    const { importId, userId, relativePath, notePayload, provenance } = args;
+}): Promise<LibraryItemWithCollections> {
+    const { userId, notePayload, provenance } = args;
 
-    const data = {
-        caption: null,
-        noteContentHtml: notePayload.contentHtml,
-        noteContentState: DbNull,
-        noteContentText: notePayload.contentText,
-        sourceMetadata: provenance as unknown as InputJsonValue,
-    };
-    const identity = {
-        browserProfileId: importId,
-        externalId: relativePath,
-        source: LibraryItemSource.markdown_import,
-        userId,
-    };
-
-    let id: string;
-    let isNew: boolean;
-    let priorFolderPath: string | null = null;
-    try {
-        const created = await prisma.libraryItem.create({
+    return prisma.$transaction(async (tx) => {
+        const collectionId = provenance.folderPath
+            ? await ensureCollection(
+                  tx,
+                  userId,
+                  folderPathToCollectionName(provenance.folderPath)
+              )
+            : null;
+        const item = await tx.libraryItem.create({
             data: {
-                ...data,
-                browserProfileId: importId,
-                externalId: relativePath,
+                caption: null,
+                collections: collectionId
+                    ? { connect: { id: collectionId } }
+                    : undefined,
+                externalId: `markdown_${randomUUID()}`,
                 kind: ITEM_KIND_NOTE,
+                noteContentHtml: notePayload.contentHtml,
+                noteContentState: DbNull,
+                noteContentText: notePayload.contentText,
                 source: LibraryItemSource.markdown_import,
+                sourceMetadata: {
+                    folderPath: provenance.folderPath,
+                    importedAt: provenance.importedAt,
+                    originalPath: provenance.originalPath,
+                },
                 url: FALLBACK_URL,
                 userId,
             },
-            select: { id: true },
+            include: LIBRARY_ITEM_COLLECTIONS_INCLUDE,
         });
-        id = created.id;
-        isNew = true;
-    } catch (error) {
-        if (
-            !(
-                error instanceof Prisma.PrismaClientKnownRequestError &&
-                error.code === PRISMA_UNIQUE_CONSTRAINT_ERROR
-            )
-        ) {
-            throw error;
-        }
-        const existing = await prisma.libraryItem.findUnique({
-            select: { sourceMetadata: true },
-            where: { userId_source_browserProfileId_externalId: identity },
-        });
-        if (existing?.sourceMetadata) {
-            const metadata =
-                existing.sourceMetadata as unknown as ImportedNoteProvenance;
-            if (typeof metadata.folderPath === "string") {
-                priorFolderPath = metadata.folderPath;
-            }
-        }
-        const updated = await prisma.libraryItem.update({
-            data: { ...data, deletedAt: null },
-            select: { id: true },
-            where: { userId_source_browserProfileId_externalId: identity },
-        });
-        id = updated.id;
-        isNew = false;
-    }
 
-    const item = await prisma.libraryItem.findFirst({
-        include: LIBRARY_ITEM_COLLECTIONS_INCLUDE,
-        where: {
-            deletedAt: null,
-            id,
-            kind: ITEM_KIND_NOTE,
-            userId,
-        },
-    });
-    if (!item) {
-        throw new IntegrationUserError({
-            message: "We saved the note but couldn't load it back.",
-            operation: "upsertImportedNote",
-            resource: "note",
-        });
-    }
-
-    return { isNew, item, priorFolderPath };
-}
-
-export async function assignNoteToFolderCollection(args: {
-    itemId: string;
-    folderPath: string;
-    priorFolderPath: string | null;
-    userId: string;
-}): Promise<void> {
-    const { itemId, folderPath, priorFolderPath, userId } = args;
-    if (!folderPath) {
-        return;
-    }
-
-    const item = await prisma.libraryItem.findFirst({
-        select: { collections: { select: { id: true } } },
-        where: { id: itemId, userId },
-    });
-    if (!item) {
-        throw new IntegrationUserError({
-            message:
-                "We saved the note but couldn't assign it to a collection.",
-            operation: "assignNoteToFolderCollection",
-            resource: "note",
-        });
-    }
-
-    const collectionName = folderPathToCollectionName(folderPath);
-    const collectionId = await ensureCollection(userId, collectionName);
-
-    const priorCollectionName = priorFolderPath
-        ? folderPathToCollectionName(priorFolderPath)
-        : null;
-    let priorCollectionId: string | null = null;
-    if (priorCollectionName && priorCollectionName !== collectionName) {
-        priorCollectionId = await ensureCollection(userId, priorCollectionName);
-    }
-
-    const currentCollectionIds = new Set(
-        item.collections.map((collection) => collection.id)
-    );
-    const changedCollectionIds: string[] = [];
-    if (!currentCollectionIds.has(collectionId)) {
-        changedCollectionIds.push(collectionId);
-    }
-    if (
-        priorCollectionId &&
-        currentCollectionIds.has(priorCollectionId) &&
-        !changedCollectionIds.includes(priorCollectionId)
-    ) {
-        changedCollectionIds.push(priorCollectionId);
-    }
-    if (changedCollectionIds.length === 0) {
-        return;
-    }
-
-    const now = new Date();
-    await prisma.$transaction(async (tx) => {
-        await tx.libraryItem.update({
-            data: {
-                collections: {
-                    ...(priorCollectionId
-                        ? { disconnect: { id: priorCollectionId } }
-                        : {}),
-                    connect: { id: collectionId },
-                },
-            },
-            select: { id: true },
-            where: { id: itemId, userId },
-        });
-        if (changedCollectionIds.length > 0) {
+        if (collectionId) {
             await tx.collection.updateMany({
-                data: { updatedAt: now },
-                where: { id: { in: changedCollectionIds }, userId },
+                data: { updatedAt: new Date() },
+                where: { id: collectionId, userId },
             });
         }
+
+        return item;
     });
 }
 
 export async function importMarkdownFiles(args: {
-    importId: string;
     userId: string;
     files: MarkdownBatchEntry[];
 }): Promise<MarkdownImportResult & { smartCollectionItemIds: string[] }> {
-    const { importId, userId, files } = args;
+    const { userId, files } = args;
 
     const result: MarkdownImportResult = {
         createdCount: 0,
@@ -560,7 +415,6 @@ export async function importMarkdownFiles(args: {
             tableCount: 0,
             taskListCount: 0,
         },
-        updatedCount: 0,
     };
     const newItemIds: string[] = [];
 
@@ -577,12 +431,12 @@ export async function importMarkdownFiles(args: {
             }
 
             if (
-                new TextEncoder().encode(file.markdown).length >
-                MAX_FILE_SIZE_BYTES
+                TEXT_ENCODER.encode(file.markdown).length >
+                MAX_MARKDOWN_FILE_SIZE_BYTES
             ) {
                 result.skippedCount += 1;
                 result.skipped.push({
-                    message: FILE_SIZE_SKIP_MESSAGE,
+                    message: MARKDOWN_FILE_SIZE_SKIP_MESSAGE,
                     relativePath: file.relativePath,
                 });
                 continue;
@@ -601,33 +455,17 @@ export async function importMarkdownFiles(args: {
             const provenance: ImportedNoteProvenance = {
                 folderPath,
                 importedAt: new Date().toISOString(),
-                importId,
                 originalPath: file.relativePath,
             };
 
-            const { isNew, item, priorFolderPath } = await upsertImportedNote({
-                importId,
+            const item = await createImportedNote({
                 notePayload,
                 provenance,
-                relativePath: pathResult.normalized,
                 userId,
             });
-
-            await assignNoteToFolderCollection({
-                folderPath,
-                itemId: item.id,
-                priorFolderPath,
-                userId,
-            });
-
             result.items.push(item);
-
-            if (isNew) {
-                result.createdCount += 1;
-                newItemIds.push(item.id);
-            } else {
-                result.updatedCount += 1;
-            }
+            result.createdCount += 1;
+            newItemIds.push(item.id);
         } catch (error) {
             log.error("Failed to import markdown file", {
                 error,
@@ -642,37 +480,4 @@ export async function importMarkdownFiles(args: {
     }
 
     return { ...result, smartCollectionItemIds: newItemIds };
-}
-
-export function createMarkdownImportRecord(args: {
-    userId: string;
-    name: string;
-}): Promise<{ id: string }> {
-    return prisma.markdownImport.create({
-        data: {
-            name: args.name.trim(),
-            userId: args.userId,
-        },
-        select: { id: true },
-    });
-}
-
-export function listMarkdownImportRecords(
-    userId: string
-): Promise<Array<{ id: string; name: string; createdAt: Date }>> {
-    return prisma.markdownImport.findMany({
-        orderBy: { createdAt: "desc" },
-        select: { createdAt: true, id: true, name: true },
-        where: { userId },
-    });
-}
-
-export function getMarkdownImport(
-    importId: string,
-    userId: string
-): Promise<{ id: string; name: string } | null> {
-    return prisma.markdownImport.findFirst({
-        select: { id: true, name: true },
-        where: { id: importId, userId },
-    });
 }

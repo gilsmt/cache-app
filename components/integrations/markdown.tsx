@@ -1,7 +1,7 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
-import { FileText, Loader2, Plus } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { createStore } from "stan-js";
@@ -19,24 +19,23 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/error-message";
-import { Input } from "@/components/ui/input";
 import { type FILE_EXTENSION, fileOpen } from "@/lib/common/file";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
-    createMarkdownImport,
     importMarkdownBatch,
-    listMarkdownImports,
     type MarkdownImportBatchData,
 } from "@/lib/integrations/markdown/actions";
+import {
+    MARKDOWN_FILE_SIZE_SKIP_MESSAGE,
+    MAX_MARKDOWN_CLIENT_BATCH_SIZE_BYTES,
+    MAX_MARKDOWN_FILE_SIZE_BYTES,
+    MAX_MARKDOWN_FILES_PER_BATCH,
+} from "@/lib/integrations/markdown/quotas";
 import type { MarkdownImportResult } from "@/lib/integrations/markdown/service";
 
 const MARKDOWN_FILE_EXTENSIONS: FILE_EXTENSION[] = ["md", "markdown"];
-const MAX_FILE_SIZE_BYTES = 500_000;
-const MAX_FILES_PER_BATCH = 100;
-const MAX_BATCH_BYTES = 3_000_000;
-const FILE_SIZE_SKIP_MESSAGE = `Exceeds the ${(MAX_FILE_SIZE_BYTES / 1000).toFixed(0)} KB file size limit.`;
 
-type ImportStep = "choose" | "create-new" | "pick-files" | "importing" | "done";
+type ImportStep = "choose" | "importing" | "done";
 
 interface MarkdownFileEntry {
     markdown: string;
@@ -57,20 +56,14 @@ const TEXT_ENCODER = new TextEncoder();
 
 const STEP_TITLES: Record<ImportStep, string> = {
     choose: "Import Markdown files",
-    "create-new": "New import",
     done: "Import complete",
     importing: "Importing…",
-    "pick-files": "Select files",
 };
 
 const STEP_DESCRIPTIONS: Record<ImportStep, string> = {
-    choose: "Create a new import namespace or choose an existing one. Each namespace keeps imports from a folder separate.",
-    "create-new":
-        'Name this import. For example, "Obsidian vault", "Bear notes", or "Research papers".',
+    choose: "Choose Markdown files or a folder to add them as notes. Importing the same file again creates another note. Nested folders create matching collections.",
     done: "Review what was created, skipped, or failed.",
     importing: "This can take a moment for large folders.",
-    "pick-files":
-        "Choose a folder or .md files to import. Nested folders create matching collections.",
 };
 
 const UNSUPPORTED_CONSTRUCTS: ReadonlyArray<{
@@ -147,9 +140,9 @@ async function readMarkdownFileEntries(
             continue;
         }
         const relativePath = getFileRelativePath(file, stripRootSegment);
-        if (file.size > MAX_FILE_SIZE_BYTES) {
+        if (file.size > MAX_MARKDOWN_FILE_SIZE_BYTES) {
             skippedFiles.push({
-                message: FILE_SIZE_SKIP_MESSAGE,
+                message: MARKDOWN_FILE_SIZE_SKIP_MESSAGE,
                 relativePath,
             });
             continue;
@@ -177,8 +170,9 @@ function buildImportBatches(
         const fileBytes = TEXT_ENCODER.encode(file.markdown).length;
         if (
             currentBatch.length > 0 &&
-            (currentBatch.length >= MAX_FILES_PER_BATCH ||
-                currentBatchBytes + fileBytes > MAX_BATCH_BYTES)
+            (currentBatch.length >= MAX_MARKDOWN_FILES_PER_BATCH ||
+                currentBatchBytes + fileBytes >
+                    MAX_MARKDOWN_CLIENT_BATCH_SIZE_BYTES)
         ) {
             batches.push(currentBatch);
             currentBatch = [];
@@ -213,7 +207,6 @@ function createImportResult(
             tableCount: 0,
             taskListCount: 0,
         },
-        updatedCount: 0,
     };
 }
 
@@ -222,7 +215,6 @@ function mergeImportResult(
     source: MarkdownImportResult
 ): void {
     target.createdCount += source.createdCount;
-    target.updatedCount += source.updatedCount;
     target.skippedCount += source.skippedCount;
     target.failedCount += source.failedCount;
     target.items.push(...source.items);
@@ -250,20 +242,12 @@ export function MarkdownImportDialog() {
     const { isOpen, setIsOpen } = useMarkdownImportStore();
 
     const [step, setStep] = React.useState<ImportStep>("choose");
-    const [imports, setImports] = React.useState<
-        Array<{ id: string; name: string }>
-    >([]);
-    const [selectedImportId, setSelectedImportId] = React.useState<
-        string | null
-    >(null);
-    const [newImportName, setNewImportName] = React.useState("");
     const [fileSelection, setFileSelection] = React.useState(
         createEmptyFileSelection
     );
     const [result, setResult] = React.useState<MarkdownImportResult | null>(
         null
     );
-    const [isLoading, startLoading] = React.useTransition();
     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
     const { replaceCollections } = useCollectionsContext();
     const { mergeImportedItems } = useItemsActionsContext();
@@ -272,32 +256,10 @@ export function MarkdownImportDialog() {
     const importSessionIdRef = React.useRef(0);
     const isSubmissionPendingRef = React.useRef(false);
 
-    const loadImports = useStableCallback(() => {
-        startLoading(async () => {
-            try {
-                const response = await listMarkdownImports();
-                if (response.status === "SUCCESS") {
-                    setImports(
-                        response.data.map(({ id, name }) => ({ id, name }))
-                    );
-                    setErrorMessage(null);
-                } else {
-                    log.error("Failed to load imports", response);
-                    setErrorMessage("We couldn't load previous imports.");
-                }
-            } catch (err) {
-                log.error("Failed to load imports unexpectedly", err);
-                setErrorMessage("We couldn't load previous imports.");
-            }
-        });
-    });
-
     const resetDialog = useStableCallback(() => {
         importSessionIdRef.current += 1;
         isSubmissionPendingRef.current = false;
         setStep("choose");
-        setSelectedImportId(null);
-        setNewImportName("");
         setFileSelection(createEmptyFileSelection());
         setResult(null);
         setErrorMessage(null);
@@ -305,69 +267,28 @@ export function MarkdownImportDialog() {
 
     const handleOpenChange = useStableCallback((open: boolean) => {
         setIsOpen(open);
-        if (open) {
-            loadImports();
-        } else {
+        if (!open) {
             resetDialog();
         }
-    });
-
-    const handleCreateNew = useStableCallback(() => {
-        setErrorMessage(null);
-        setStep("create-new");
-    });
-
-    const handleCreateAndSelectFiles = useStableCallback(() => {
-        const trimmed = newImportName.trim();
-        if (!trimmed) {
-            setErrorMessage("Enter a name for this import.");
-            return;
-        }
-        if (isSubmissionPendingRef.current) {
-            return;
-        }
-
-        setErrorMessage(null);
-        isSubmissionPendingRef.current = true;
-        startLoading(async () => {
-            try {
-                const response = await createMarkdownImport({ name: trimmed });
-                if (response.status === "SUCCESS") {
-                    setSelectedImportId(response.data.id);
-                    setImports((prev) => [
-                        ...prev,
-                        { id: response.data.id, name: trimmed },
-                    ]);
-                    setStep("pick-files");
-                } else {
-                    setErrorMessage(response.message);
-                }
-            } catch (err) {
-                log.error("Failed to create import", err);
-                setErrorMessage("We couldn't create this import.");
-            } finally {
-                isSubmissionPendingRef.current = false;
-            }
-        });
-    });
-
-    const handleSelectExisting = useStableCallback((id: string) => {
-        setErrorMessage(null);
-        setSelectedImportId(id);
-        setStep("pick-files");
     });
 
     const handleEntriesReady = useStableCallback(
         (selection: MarkdownFileSelection) => {
             setFileSelection(selection);
             const { entries, skippedFiles } = selection;
-            if (entries.length === 0) {
-                setErrorMessage(
-                    skippedFiles.length > 0
-                        ? "None of the selected files can be imported. Check the file sizes and content."
-                        : "No Markdown files found there. Choose a folder that contains .md or .markdown files."
-                );
+            if (entries.length > 0) {
+                setErrorMessage(null);
+                return;
             }
+            if (skippedFiles.length > 0) {
+                setErrorMessage(
+                    "None of the selected files can be imported. Check the file sizes and content."
+                );
+                return;
+            }
+            setErrorMessage(
+                "No Markdown files found there. Choose a folder that contains .md or .markdown files."
+            );
         }
     );
 
@@ -407,7 +328,7 @@ export function MarkdownImportDialog() {
     });
 
     const handleImport = useStableCallback(async () => {
-        if (!selectedImportId || fileSelection.entries.length === 0) {
+        if (fileSelection.entries.length === 0) {
             return;
         }
         if (isSubmissionPendingRef.current) {
@@ -433,7 +354,6 @@ export function MarkdownImportDialog() {
                 try {
                     const response = await importMarkdownBatch({
                         files: batch,
-                        importId: selectedImportId,
                     });
 
                     if (response.status === "SUCCESS") {
@@ -474,89 +394,7 @@ export function MarkdownImportDialog() {
         }
     });
 
-    const handleNewImportKeyDown = useStableCallback(
-        (e: React.KeyboardEvent) => {
-            if (e.key === "Enter") {
-                handleCreateAndSelectFiles();
-            }
-        }
-    );
-
-    const handleNewImportChange = useStableCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => {
-            setNewImportName(e.target.value);
-        }
-    );
-
-    const handleBack = useStableCallback(() => {
-        setStep("choose");
-        setFileSelection(createEmptyFileSelection());
-        setErrorMessage(null);
-    });
-
     const renderChooseStep = (
-        <div className="flex flex-col gap-3 py-2">
-            <div className="flex flex-col gap-1">
-                {errorMessage ? (
-                    <p className="text-muted-foreground px-1 py-4 text-center text-sm">
-                        {errorMessage}
-                    </p>
-                ) : null}
-                {!errorMessage && imports.length === 0 && !isLoading && (
-                    <p className="text-muted-foreground px-1 py-4 text-center text-sm">
-                        No previous imports.
-                    </p>
-                )}
-                {isLoading ? (
-                    <div className="flex items-center justify-center py-4">
-                        <Loader2 className="size-4 animate-spin" />
-                    </div>
-                ) : null}
-                {imports.map((imp) => (
-                    <ImportItemButton
-                        id={imp.id}
-                        key={imp.id}
-                        name={imp.name}
-                        onSelect={handleSelectExisting}
-                    />
-                ))}
-            </div>
-            <div className="-mx-6 border-t" />
-            <Button
-                className="gap-2"
-                onClick={handleCreateNew}
-                size="sm"
-                variant="ghost"
-            >
-                <Plus className="size-4" />
-                New import
-            </Button>
-        </div>
-    );
-
-    const renderCreateNewStep = (
-        <div className="flex flex-col gap-3 py-2">
-            <Input
-                onChange={handleNewImportChange}
-                onKeyDown={handleNewImportKeyDown}
-                placeholder='e.g. "Obsidian vault"'
-                value={newImportName}
-            />
-            {errorMessage ? (
-                <ErrorMessage className="pt-2">{errorMessage}</ErrorMessage>
-            ) : null}
-            <Button
-                disabled={isLoading || !newImportName.trim()}
-                isLoading={isLoading}
-                onClick={handleCreateAndSelectFiles}
-                size="sm"
-            >
-                Create and select files
-            </Button>
-        </div>
-    );
-
-    const renderPickFilesStep = (
         <div className="flex flex-col gap-3 py-2">
             <Button onClick={handlePickFiles} size="sm">
                 Choose files
@@ -564,6 +402,15 @@ export function MarkdownImportDialog() {
             <Button onClick={handlePickFolder} size="sm" variant="outline">
                 Choose folder
             </Button>
+            {fileSelection.entries.length > 0 ? (
+                <p className="text-muted-foreground text-sm">
+                    {fileSelection.entries.length} Markdown file
+                    {fileSelection.entries.length === 1 ? "" : "s"} ready
+                    {fileSelection.skippedFiles.length > 0
+                        ? ` · ${fileSelection.skippedFiles.length} skipped`
+                        : ""}
+                </p>
+            ) : null}
             {errorMessage ? (
                 <ErrorMessage className="pt-2">{errorMessage}</ErrorMessage>
             ) : null}
@@ -584,11 +431,6 @@ export function MarkdownImportDialog() {
         <div className="flex flex-col gap-2 py-2 text-sm">
             <p>
                 <strong>{result.createdCount}</strong> created
-                {result.updatedCount > 0 && (
-                    <span>
-                        , <strong>{result.updatedCount}</strong> updated
-                    </span>
-                )}
                 {result.skippedCount > 0 && (
                     <span>
                         , <strong>{result.skippedCount}</strong> skipped
@@ -664,20 +506,15 @@ export function MarkdownImportDialog() {
             return null;
         }
 
+        if (fileSelection.entries.length === 0) {
+            return null;
+        }
+
         return (
-            <>
-                {step === "choose" ? null : (
-                    <Button onClick={handleBack} size="sm" variant="ghost">
-                        Back
-                    </Button>
-                )}
-                {step === "pick-files" && fileSelection.entries.length > 0 && (
-                    <Button onClick={handleImport} size="sm">
-                        Import {fileSelection.entries.length} file
-                        {fileSelection.entries.length === 1 ? "" : "s"}
-                    </Button>
-                )}
-            </>
+            <Button onClick={handleImport} size="sm">
+                Import {fileSelection.entries.length} file
+                {fileSelection.entries.length === 1 ? "" : "s"}
+            </Button>
         );
     };
 
@@ -692,35 +529,11 @@ export function MarkdownImportDialog() {
                 </DialogHeader>
                 <DialogPanel>
                     {step === "choose" && renderChooseStep}
-                    {step === "create-new" && renderCreateNewStep}
-                    {step === "pick-files" && renderPickFilesStep}
                     {step === "importing" && renderImportingStep}
                     {step === "done" && renderDoneStep}
                 </DialogPanel>
                 <DialogFooter>{renderFooter()}</DialogFooter>
             </DialogPopup>
         </Dialog>
-    );
-}
-
-interface ImportItemButtonProps {
-    id: string;
-    name: string;
-    onSelect: (id: string) => void;
-}
-
-function ImportItemButton({ id, name, onSelect }: ImportItemButtonProps) {
-    const handleClick = useStableCallback(() => onSelect(id));
-
-    return (
-        <Button
-            className="justify-start gap-2 text-left!"
-            onClick={handleClick}
-            size="sm"
-            variant="ghost"
-        >
-            <FileText className="size-4 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{name}</span>
-        </Button>
     );
 }

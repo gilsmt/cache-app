@@ -68,7 +68,6 @@ export default async function LibraryPage() {
 
     const connectedIntegrations: Set<IntegrationId> = new Set(
         listConnectedIntegrationIds({
-            hasMarkdownImports: connectionState.hasMarkdownImports,
             hasRssFeeds: connectionState.hasRssFeeds,
             libraryItemSources: itemSources.map((item) => item.source),
             linkedProviderIds: connectionState.linkedProviderIds,
