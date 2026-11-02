@@ -2,6 +2,7 @@
 
 import * as z from "zod";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
+import { getValidationErrorMessage } from "@/lib/common/action";
 import { extractNamedErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
@@ -53,9 +54,10 @@ export async function sendCollectionToNotion(input: {
     const parsed = SendCollectionToNotionInputSchema.safeParse(input);
     if (!parsed.success) {
         return {
-            message:
-                parsed.error.issues[0]?.message ??
-                "Choose a collection to send to Notion.",
+            message: getValidationErrorMessage(
+                parsed,
+                "Choose a collection to send to Notion."
+            ),
             status: "INVALID",
         };
     }
@@ -76,9 +78,10 @@ export async function sendNoteToNotion(input: {
     const parsed = SendNoteToNotionInputSchema.safeParse(input);
     if (!parsed.success) {
         return {
-            message:
-                parsed.error.issues[0]?.message ??
-                "Choose a note to send to Notion.",
+            message: getValidationErrorMessage(
+                parsed,
+                "Choose a note to send to Notion."
+            ),
             status: "INVALID",
         };
     }

@@ -22,7 +22,7 @@ const LINKED_INTEGRATION_ACCOUNT_LIMIT = 50;
  * the provider-assigned subject stored in `Account.accountId`. It is opaque
  * to callers and safe to round-trip through the client.
  */
-export interface ResolvedProviderAccess {
+interface ResolvedProviderAccess {
     accessToken: string;
     accountId: string;
 }

@@ -2,8 +2,9 @@
 
 import { after } from "next/server";
 import * as z from "zod";
-import { getSessionUserId } from "@/lib/auth/session";
+import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 import type { LibraryItemWithCollections } from "@/lib/collections/utils";
+import { getValidationErrorMessage } from "@/lib/common/action";
 import {
     DEFAULT_BROWSER_PROFILE_ID,
     ITEM_KIND_BOOKMARK,
@@ -49,9 +50,10 @@ export async function createChromeBookmarkFromUrl(input: {
     const parsed = CreateChromeBookmarkFromUrlInputSchema.safeParse(input);
     if (!parsed.success) {
         return {
-            message:
-                parsed.error.issues[0]?.message ??
-                "Paste a valid URL to save it as a bookmark.",
+            message: getValidationErrorMessage(
+                parsed,
+                "Paste a valid URL to save it as a bookmark."
+            ),
             status: "INVALID",
         };
     }
@@ -64,12 +66,9 @@ export async function createChromeBookmarkFromUrl(input: {
         };
     }
 
-    const userId = await getSessionUserId();
-    if (!userId) {
-        return {
-            message: "Sign in again to save links.",
-            status: "UNAUTHORIZED",
-        };
+    const actor = await requireActionUserId("Sign in again to save links.");
+    if (isUnauthenticated(actor)) {
+        return actor;
     }
 
     const occurredAt = new Date().toISOString();
@@ -83,7 +82,7 @@ export async function createChromeBookmarkFromUrl(input: {
         )?.title ?? null;
 
     try {
-        const syncResult = await applyChromeBookmarkSyncEvents(userId, {
+        const syncResult = await applyChromeBookmarkSyncEvents(actor.userId, {
             browserProfileId: DEFAULT_BROWSER_PROFILE_ID,
             events: [
                 {
@@ -103,7 +102,7 @@ export async function createChromeBookmarkFromUrl(input: {
         });
 
         const item = await getChromeBookmarkItemForUserByExternalId(
-            userId,
+            actor.userId,
             externalId
         );
         if (!item) {
@@ -120,7 +119,7 @@ export async function createChromeBookmarkFromUrl(input: {
             after(async () => {
                 await autoTagLibraryItemsByIds({
                     itemIds: syncResult.smartCollectionItemIds,
-                    userId,
+                    userId: actor.userId,
                 });
             });
         }
