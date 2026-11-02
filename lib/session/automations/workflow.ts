@@ -1,10 +1,7 @@
 import { type ModelCallStreamPart, WorkflowAgent } from "@ai-sdk/workflow";
 import { isStepCount } from "ai";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import {
-    type AutomationAgentInput,
-    automationAgent,
-} from "@/lib/session/ai/agents";
+import type { AutomationAgentInput } from "@/lib/session/ai/agents";
 import type { GenerationUsage } from "@/lib/session/ai/generate";
 import { resolveRegisteredModel } from "@/lib/session/ai/resolver";
 import { createAgentRunState } from "@/lib/session/ai/runner";
@@ -35,6 +32,13 @@ interface AutomationProtectionDenial {
     reason: "quota_exceeded" | "forbidden";
 }
 
+interface AutomationAgentRunPlan {
+    feature: string;
+    instructions: string;
+    outputTokenLimit: number;
+    userMessage: string;
+}
+
 export async function prepareAutomationRunForWorkflow(args: {
     runId: string;
     workflowRunId: string;
@@ -47,12 +51,12 @@ export async function prepareAutomationRunForWorkflow(args: {
 export async function executeReadOnlyAutomationRun(
     ready: AutomationAgentInput
 ) {
-    const { instructions } = automationAgent;
-    const userMessage = automationAgent.userMessage(ready);
-
     try {
+        const plan = await prepareAutomationAgentRun(ready);
         const denial = await protectAutomationAgentRun({
-            prompt: `${instructions}\n\n${userMessage}`,
+            feature: plan.feature,
+            outputTokenLimit: plan.outputTokenLimit,
+            prompt: `${plan.instructions}\n\n${plan.userMessage}`,
             userId: ready.userId,
         });
 
@@ -70,8 +74,8 @@ export async function executeReadOnlyAutomationRun(
 
         const result = await runAutomationAgentForWorkflow({
             input: ready,
-            instructions,
-            userMessage,
+            instructions: plan.instructions,
+            userMessage: plan.userMessage,
         });
 
         await finishAutomationRunForWorkflow({
@@ -95,7 +99,23 @@ export async function executeReadOnlyAutomationRun(
     }
 }
 
+async function prepareAutomationAgentRun(
+    input: AutomationAgentInput
+): Promise<AutomationAgentRunPlan> {
+    "use step";
+
+    const { automationAgent } = await import("@/lib/session/ai/agents");
+    return {
+        feature: automationAgent.feature,
+        instructions: automationAgent.instructions,
+        outputTokenLimit: automationAgent.outputTokenLimit,
+        userMessage: automationAgent.userMessage(input),
+    };
+}
+
 async function protectAutomationAgentRun(args: {
+    feature: string;
+    outputTokenLimit: number;
     prompt: string;
     userId: string;
 }): Promise<AutomationProtectionDenial | null> {
@@ -107,12 +127,9 @@ async function protectAutomationAgentRun(args: {
 
     try {
         await protectGenAiRequest({
-            feature: automationAgent.feature,
+            feature: args.feature,
             request: new Request("https://cache.local/internal/automations"),
-            requestedTokens: estimateTokens(
-                args.prompt,
-                automationAgent.outputTokenLimit
-            ),
+            requestedTokens: estimateTokens(args.prompt, args.outputTokenLimit),
             userId: args.userId,
         });
         return null;
@@ -134,6 +151,7 @@ async function runAutomationAgentForWorkflow(args: {
 }): Promise<AutomationAgentRunResult> {
     "use step";
 
+    const { automationAgent } = await import("@/lib/session/ai/agents");
     const state = createAgentRunState();
 
     const agent = new WorkflowAgent({
