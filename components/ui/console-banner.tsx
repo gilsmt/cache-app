@@ -2,6 +2,7 @@
 
 import { useOnFirstRender } from "@base-ui/utils/useOnFirstRender";
 import { CHANGELOG_URL, GITHUB_URL } from "@/lib/common/constants";
+import packageJson from "@/package.json" with { type: "json" };
 
 const ASCII_ART = `
    ______           __
@@ -40,13 +41,9 @@ function logConsoleBanner(version: string): void {
     );
 }
 
-interface ConsoleBannerProps {
-    version: string;
-}
-
-export function ConsoleBanner({ version }: ConsoleBannerProps) {
+export function ConsoleBanner() {
     useOnFirstRender(() => {
-        logConsoleBanner(version);
+        logConsoleBanner(packageJson.version);
     });
 
     return null;

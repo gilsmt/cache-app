@@ -15,11 +15,10 @@ import {
 } from "@/app/metadata";
 import { ConsoleBanner } from "@/components/ui/console-banner";
 import { ShortcutsProvider } from "@/components/ui/shortcuts";
-import { ThemeHotkey, ThemeSync } from "@/components/ui/theme";
+import { ThemeRuntime } from "@/components/ui/theme";
 import { APP_NAME, BASE_URL } from "@/lib/common/constants";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/common/theme";
 import { INTEGRATION_DEFINITIONS } from "@/lib/integrations/registry";
-import packageJson from "@/package.json" with { type: "json" };
 
 export function generateStaticParams() {
     return getLocales().map((locale) => ({ locale }));
@@ -40,11 +39,6 @@ export async function generateMetadata(): Promise<Metadata> {
         category: "productivity",
         creator: APP_NAME,
         description,
-        formatDetection: {
-            address: false,
-            email: false,
-            telephone: false,
-        },
         keywords: [
             "bookmark manager",
             "bookmarks",
@@ -154,8 +148,7 @@ export default async function LocaleLayout(props: React.PropsWithChildren) {
             <body suppressHydrationWarning>
                 <div aria-hidden="true" className="edge-top" />
                 <div aria-hidden="true" className="edge-bottom" />
-                <ThemeSync />
-                <ConsoleBanner version={packageJson.version} />
+                <ConsoleBanner />
                 <div className="pointer-events-none fixed inset-x-0 top-0 z-50 mt-4 flex justify-center select-none not-has-focus-visible:sr-only">
                     <a
                         className="bg-background text-foreground focus-visible:outline-ring pointer-events-auto rounded-2xl px-4 py-2 text-base outline-2 outline-offset-2 focus-visible:outline print:hidden"
@@ -166,7 +159,7 @@ export default async function LocaleLayout(props: React.PropsWithChildren) {
                 </div>
                 <GTProvider>
                     <NuqsAdapter>
-                        <ThemeHotkey />
+                        <ThemeRuntime />
                         <ShortcutsProvider>{props.children}</ShortcutsProvider>
                     </NuqsAdapter>
                 </GTProvider>

@@ -75,9 +75,13 @@ export function ThemeSelector() {
     );
 }
 
-export function ThemeHotkey() {
+export function ThemeRuntime() {
     const gt = useGT();
     const { theme, setTheme } = useTheme();
+
+    React.useEffect(() => {
+        applyTheme(theme);
+    }, [theme]);
 
     const handleThemeToggle = useStableCallback(() => {
         setTheme(getNextTheme(theme));
@@ -88,21 +92,6 @@ export function ThemeHotkey() {
         enableOnFormTags: false,
         preventDefault: true,
     });
-
-    return null;
-}
-
-/**
- * Root-layout anchor for the theme store. Its subscription keeps external sync
- * alive app-wide, and its post-mount effect is the canonical application pass
- * that runs once stylesheets and layout surfaces have settled.
- */
-export function ThemeSync() {
-    const { theme } = useTheme();
-
-    React.useEffect(() => {
-        applyTheme(theme);
-    }, [theme]);
 
     return null;
 }

@@ -25,8 +25,8 @@ const THEME_COLOR_META_NAME = "theme-color";
 const DYNAMIC_THEME_COLOR_SELECTOR = `meta[name="${THEME_COLOR_META_NAME}"][data-dynamic-theme-color="true"]`;
 
 // The store is the sole writer of theme state on the DOM. Application points,
-// in timing order: module init below (pre-hydration), ThemeSync's effect (post
-// -mount, once stylesheets and layout surfaces exist), setTheme, and the
+// in timing order: module init below (pre-hydration), ThemeRuntime's effect
+// (post-mount, once stylesheets and layout surfaces exist), setTheme, and the
 // external sync handlers.
 let listeners: Array<() => void> = [];
 let lastSnapshot: ThemeSnapshot | null = null;
