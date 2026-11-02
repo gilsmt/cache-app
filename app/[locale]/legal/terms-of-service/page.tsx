@@ -1,6 +1,6 @@
+import Link from "gt-next/link";
 import { getGT } from "gt-next/server";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { buildPageMetadata } from "@/app/metadata";
 import { APP_NAME, NOTICES_ADDRESS } from "@/lib/common/constants";
 

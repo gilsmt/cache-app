@@ -1,9 +1,10 @@
-import { T, Var } from "gt-next";
+import { T } from "gt-next";
+import Link from "gt-next/link";
 import { getGT } from "gt-next/server";
-import { ArrowRight, FileText, Scale, Shield } from "lucide-react";
+import { ArrowUpRight, FileText, Scale, Shield } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { buildPageMetadata } from "@/app/metadata";
+import { Separator } from "@/components/ui/separator";
 import { APP_NAME } from "@/lib/common/constants";
 
 export async function generateMetadata({
@@ -26,46 +27,19 @@ export async function generateMetadata({
     });
 }
 
-export default async function LegalIndexPage({
-    params,
-}: Readonly<{
-    params: Promise<{ locale: string }>;
-}>) {
-    const { locale } = await params;
-    const base = `/${locale}/legal`;
-
+export default function LegalIndexPage() {
     return (
-        <div className="relative flex flex-col gap-10">
-            <div
-                aria-hidden
-                className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[min(100vw,42rem)] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,--theme(--color-muted/55%)_0%,transparent_68%)] blur-2xl"
-            />
-
-            <header className="relative flex flex-col gap-3 text-pretty">
-                <p className="text-muted-foreground text-[0.7rem] font-medium tracking-[0.22em] uppercase">
-                    <T context="Legal section eyebrow label">
-                        <Var>{APP_NAME}</Var>
-                    </T>
-                </p>
-                <h1 className="text-foreground text-3xl font-semibold tracking-tight sm:text-[2rem] sm:leading-tight">
-                    <T>Legal and policies</T>
-                </h1>
-                <p className="text-muted-foreground max-w-2xl text-[0.95rem] leading-relaxed">
-                    <T>
-                        Official documents that govern your relationship with us
-                        and explain how we handle data. Choose a topic below to
-                        read the full text.
-                    </T>
-                </p>
-            </header>
-
-            <ul className="relative m-0 flex list-none flex-col gap-3 p-0">
+        <div className="relative flex flex-col gap-16">
+            <h1 className="text-foreground text-3xl font-semibold tracking-tight sm:text-[2rem] sm:leading-tight">
+                <T>Legal and Policies</T>
+            </h1>
+            <ul className="relative m-0 flex list-none flex-col gap-5 p-0">
                 <li>
                     <Link
-                        className="group border-border bg-card/80 hover:border-foreground/20 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-3 rounded-2xl border p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
-                        href={`${base}/terms-of-service`}
+                        className="group bg-card/80 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-3 rounded-2xl p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
+                        href="/legal/terms-of-service"
                     >
-                        <div className="bg-muted text-muted-foreground group-hover:bg-foreground group-hover:text-background flex size-12 shrink-0 items-center justify-center rounded-xl shadow-inner transition-colors duration-200">
+                        <div className="bg-muted text-muted-foreground flex size-12 shrink-0 items-center justify-center rounded-xl shadow-inner transition-colors duration-200">
                             <Scale aria-hidden className="size-5" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -82,18 +56,18 @@ export default async function LegalIndexPage({
                                 </T>
                             </p>
                         </div>
-                        <ArrowRight
+                        <ArrowUpRight
                             aria-hidden
-                            className="text-muted-foreground group-hover:text-foreground/90 size-5 shrink-0 transition-[color,transform] duration-200 group-hover:translate-x-0.5 sm:mt-0"
+                            className="text-muted-foreground group-hover:text-foreground/90 size-5 shrink-0 sm:mt-0"
                         />
                     </Link>
                 </li>
                 <li>
                     <Link
-                        className="group border-border bg-card/80 hover:border-foreground/20 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-3 rounded-2xl border p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
-                        href={`${base}/privacy-policy`}
+                        className="group bg-card/80 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-3 rounded-2xl p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
+                        href="/legal/privacy-policy"
                     >
-                        <div className="bg-muted text-muted-foreground group-hover:bg-foreground group-hover:text-background flex size-12 shrink-0 items-center justify-center rounded-xl shadow-inner transition-colors duration-200">
+                        <div className="bg-muted text-muted-foreground flex size-12 shrink-0 items-center justify-center rounded-xl shadow-inner transition-colors duration-200">
                             <Shield aria-hidden className="size-5" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -109,18 +83,18 @@ export default async function LegalIndexPage({
                                 </T>
                             </p>
                         </div>
-                        <ArrowRight
+                        <ArrowUpRight
                             aria-hidden
-                            className="text-muted-foreground group-hover:text-foreground/90 size-5 shrink-0 transition-[color,transform] duration-200 group-hover:translate-x-0.5 sm:mt-0"
+                            className="text-muted-foreground group-hover:text-foreground/90 size-5 shrink-0 sm:mt-0"
                         />
                     </Link>
                 </li>
                 <li>
                     <Link
-                        className="group border-border bg-card/80 hover:border-foreground/20 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-3 rounded-2xl border p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] backdrop-blur-[2px] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
-                        href={`${base}/dpa`}
+                        className="group bg-card/80 focus-visible:ring-ring focus-visible:ring-offset-background flex flex-col gap-3 rounded-2xl p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.6)_inset] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-5 sm:p-6 dark:shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset]"
+                        href="/legal/dpa"
                     >
-                        <div className="bg-muted text-muted-foreground group-hover:bg-foreground group-hover:text-background flex size-12 shrink-0 items-center justify-center rounded-xl shadow-inner transition-colors duration-200">
+                        <div className="bg-muted text-muted-foreground flex size-12 shrink-0 items-center justify-center rounded-xl shadow-inner transition-colors duration-200">
                             <FileText aria-hidden className="size-5" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -136,14 +110,15 @@ export default async function LegalIndexPage({
                                 </T>
                             </p>
                         </div>
-                        <ArrowRight
+                        <ArrowUpRight
                             aria-hidden
-                            className="text-muted-foreground group-hover:text-foreground/90 size-5 shrink-0 transition-[color,transform] duration-200 group-hover:translate-x-0.5 sm:mt-0"
+                            className="text-muted-foreground group-hover:text-foreground/90 size-5 shrink-0 sm:mt-0"
                         />
                     </Link>
                 </li>
             </ul>
-            <p className="border-muted text-muted-foreground relative border-t pt-6 text-[0.85rem] leading-relaxed">
+            <Separator />
+            <p className="text-muted-foreground relative pt-6 text-[11px]">
                 <T>
                     These pages may be updated periodically. The version on this
                     site is the version in effect at the time of your visit.

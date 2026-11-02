@@ -47,7 +47,7 @@ export default function PrivacyPolicyPage() {
     return (
         <article className="text-foreground/90 flex flex-col gap-8 text-[0.95rem] leading-relaxed">
             <header className="border-border flex flex-col gap-6 border-b pb-8 text-pretty">
-                <p className="text-muted-foreground max-w-2xl text-base leading-relaxed">
+                <p className="text-foreground max-w-2xl text-base leading-relaxed">
                     This summary explains the main privacy choices behind Cache.
                     The full Privacy Policy below governs.
                 </p>
