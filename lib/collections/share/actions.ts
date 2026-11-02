@@ -23,7 +23,7 @@ import {
 } from "./service";
 import { buildPublicCollectionShareUrl } from "./url";
 
-const log = createLogger("collection-sharing:actions");
+const log = createLogger("collection-share:actions");
 
 const CollectionShareInputSchema = z.object({
     collectionId: z
@@ -108,7 +108,7 @@ export async function shareCollectionPublicly(input: {
     }
 }
 
-export async function disableCollectionSharing(input: {
+export async function disableCollectionShare(input: {
     collectionId: string;
 }): Promise<CollectionPublicShareDisableResult> {
     const parsed = CollectionShareDisableInputSchema.safeParse(input);

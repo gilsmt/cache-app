@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/menu";
 import { ProgressCircle } from "@/components/ui/progress-circle";
 import { useSidebarContext } from "@/components/ui/sidebar";
-import { buildPublicCollectionShareUrl } from "@/lib/collections/sharing/url";
+import { buildPublicCollectionShareUrl } from "@/lib/collections/share/url";
 import type {
     LibraryCollectionSummary,
     LibraryItemWithCollections,

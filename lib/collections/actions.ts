@@ -2,7 +2,7 @@
 
 import * as z from "zod";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
-import { invalidateShareMetadataCache } from "@/lib/collections/sharing/cache";
+import { invalidateShareMetadataCache } from "@/lib/collections/share/cache";
 import {
     type ActionError,
     type ActionErrorWithDuplicate,

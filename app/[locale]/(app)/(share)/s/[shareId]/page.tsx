@@ -11,8 +11,8 @@ import {
     PublicShareGridSkeleton,
 } from "@/components/share/list";
 import { BrandLogo } from "@/components/ui/brand-logo";
-import { publicCollectionShareMetadataTag } from "@/lib/collections/sharing/cache";
-import { getPublicCollectionShareById } from "@/lib/collections/sharing/service";
+import { publicCollectionShareMetadataTag } from "@/lib/collections/share/cache";
+import { getPublicCollectionShareById } from "@/lib/collections/share/service";
 import { getNoteExcerpt } from "@/lib/collections/utils";
 import { FALLBACK_URL, ITEM_KIND_NOTE } from "@/lib/common/constants";
 import { normalizeURL } from "@/lib/common/url";

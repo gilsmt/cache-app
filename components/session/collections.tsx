@@ -169,10 +169,10 @@ import type {
     LibraryItemsCollectionsUpdateResult,
 } from "@/lib/collections/items";
 import {
-    disableCollectionSharing,
+    disableCollectionShare,
     shareCollectionPublicly,
-} from "@/lib/collections/sharing/actions";
-import { buildPublicCollectionShareUrl } from "@/lib/collections/sharing/url";
+} from "@/lib/collections/share/actions";
+import { buildPublicCollectionShareUrl } from "@/lib/collections/share/url";
 import {
     type CollectionTemplateOption,
     TEMPLATES,
@@ -245,7 +245,7 @@ const DUPLICATE_ERROR_MESSAGE =
 const EMPTY_LINKS_ERROR_MESSAGE = "There are no links in this collection yet.";
 const EMPTY_ITEMS_ERROR_MESSAGE = "There are no items in this collection yet.";
 const RENAME_ERROR_MESSAGE = "We couldn't rename this collection right now.";
-const DISABLE_SHARING_ERROR_MESSAGE =
+const DISABLE_COLLECTION_SHARE_ERROR_MESSAGE =
     "We couldn't stop sharing this collection right now.";
 const UPDATE_PRIORITY_ERROR_MESSAGE =
     "We couldn't update this collection's priority right now.";
@@ -628,9 +628,9 @@ const updateCollectionPrioritySafely = tryAction(
     updateCollectionPriority,
     UPDATE_PRIORITY_ERROR_MESSAGE
 );
-const disableCollectionSharingSafely = tryAction(
-    disableCollectionSharing,
-    DISABLE_SHARING_ERROR_MESSAGE
+const disableCollectionShareSafely = tryAction(
+    disableCollectionShare,
+    DISABLE_COLLECTION_SHARE_ERROR_MESSAGE
 );
 const sendCollectionToNotionSafely = tryAction(
     sendCollectionToNotion,
@@ -4227,7 +4227,7 @@ function CollectionsListItemShareSubmenu() {
             action: "share",
             collection,
             run: async () => {
-                const result = await disableCollectionSharingSafely({
+                const result = await disableCollectionShareSafely({
                     collectionId: collection.id,
                 });
 

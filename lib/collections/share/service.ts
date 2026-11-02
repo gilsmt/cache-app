@@ -18,7 +18,7 @@ import { Prisma } from "@/prisma/client/client";
 import { LibraryItemKind, type LibraryItemSource } from "@/prisma/client/enums";
 import { CollectionShareError } from "./error";
 
-const log = createLogger("collection-sharing:service");
+const log = createLogger("collection-share:service");
 
 const COLLECTION_SHARE_ID_APPROXIMATE_LENGTH = 12;
 const COLLECTION_SHARE_ID_ATTEMPT_COUNT_MAX = 3;
