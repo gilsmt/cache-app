@@ -4,6 +4,7 @@ import type { BaseUIEvent } from "@base-ui/react";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
 import { T, useGT, Var } from "gt-next";
+import Link, { useLocalizeHref } from "gt-next/link";
 import {
     Archive,
     ArchiveRestore,
@@ -16,7 +17,6 @@ import {
     Trash2,
     X,
 } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -275,6 +275,7 @@ function useSetThreadArchived(threadId: string, isArchived: boolean) {
 
 function useDeleteThread(threadId: string | null, onDeleted: () => void) {
     const gt = useGT();
+    const localizeHref = useLocalizeHref();
     const router = useRouter();
     const pathname = usePathname();
     const [isPending, startTransition] = React.useTransition();
@@ -306,7 +307,7 @@ function useDeleteThread(threadId: string | null, onDeleted: () => void) {
                     normalizePathname(pathname ?? "/") ===
                     normalizePathname(`/c/${threadId}`)
                 ) {
-                    router.replace("/library");
+                    router.replace(localizeHref("/library"));
                 } else {
                     router.refresh();
                 }

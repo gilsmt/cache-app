@@ -2,8 +2,8 @@
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T } from "gt-next";
+import Link, { useLocalizeHref } from "gt-next/link";
 import { ChevronRight } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -21,11 +21,12 @@ interface SignInButtonProps {
 }
 
 export function SignInButton({ hasServerSession }: SignInButtonProps) {
+    const localizeHref = useLocalizeHref();
     const router = useRouter();
 
     const handleShortcut = useStableCallback(() => {
         if (hasServerSession) {
-            router.push("/library");
+            router.push(localizeHref("/library"));
         }
     });
 

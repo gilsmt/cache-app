@@ -7,8 +7,8 @@ import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
 import { useGT, useMessages } from "gt-next";
+import Link, { type LinkProps, useLocalizeHref } from "gt-next/link";
 import { ChevronRight, PanelLeft, PanelLeftOpen } from "lucide-react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -93,6 +93,7 @@ function useSidebarNavigationHotkey(
 ) {
     const gt = useGT();
     const m = useMessages();
+    const localizeHref = useLocalizeHref();
     const router = useRouter();
 
     const pathname = usePathname();
@@ -101,7 +102,7 @@ function useSidebarNavigationHotkey(
         if (normalizePathname(pathname) === normalizePathname(href)) {
             return;
         }
-        router.push(href);
+        router.push(localizeHref(href));
     });
 
     const translatedLabel = m(label);
@@ -694,7 +695,7 @@ export function SidebarMenuShortcut({
     );
 }
 
-interface SidebarNavigationItemProps extends React.ComponentProps<typeof Link> {
+interface SidebarNavigationItemProps extends LinkProps {
     href: string;
     icon: React.ReactNode;
     label: string;

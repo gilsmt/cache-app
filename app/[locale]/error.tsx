@@ -2,7 +2,7 @@
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T } from "gt-next";
-import Link from "next/link";
+import Link from "gt-next/link";
 import { useEffect } from "react";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { Button, buttonVariants } from "@/components/ui/button";

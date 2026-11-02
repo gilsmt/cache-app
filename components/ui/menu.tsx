@@ -2,8 +2,8 @@
 
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { cn } from "cn";
+import Link from "gt-next/link";
 import { CheckIcon, ChevronRightIcon } from "lucide-react";
-import Link from "next/link";
 import type * as React from "react";
 import { CheckmarkIcon } from "@/components/ui/icons";
 

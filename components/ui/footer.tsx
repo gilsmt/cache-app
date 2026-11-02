@@ -1,5 +1,5 @@
 import { LocaleSelector, T } from "gt-next";
-import Link from "next/link";
+import Link from "gt-next/link";
 import { GDPRIcon } from "@/components/ui/icons";
 import {
     CHANGELOG_URL,

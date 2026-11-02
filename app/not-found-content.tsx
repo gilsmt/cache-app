@@ -1,7 +1,7 @@
 "use client";
 
 import { T, Var } from "gt-next";
-import Link from "next/link";
+import Link from "gt-next/link";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { buttonVariants } from "@/components/ui/button";
 import { PageShell } from "@/components/ui/page-shell";

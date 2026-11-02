@@ -3,10 +3,10 @@
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
 import { T } from "gt-next";
+import Link, { type LinkProps } from "gt-next/link";
 import { DownloadIcon } from "lucide-react";
 import type { StaticImageData } from "next/image";
 import Image from "next/image";
-import Link from "next/link";
 import * as React from "react";
 import {
     ContextMenu,
@@ -61,8 +61,7 @@ async function fetchLogo(url: string, signal: AbortSignal): Promise<Blob> {
     return response.blob();
 }
 
-interface BrandLogoProps
-    extends Omit<React.ComponentProps<typeof Link>, "href"> {
+interface BrandLogoProps extends Omit<LinkProps, "href"> {
     href?: string;
     src: StaticImageData;
 }

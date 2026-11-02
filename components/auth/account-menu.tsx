@@ -3,6 +3,7 @@
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { cn } from "cn";
 import { LocaleSelector, T, useGT, Var } from "gt-next";
+import Link from "gt-next/link";
 import {
     ArrowUpRight,
     ChevronDown,
@@ -11,7 +12,6 @@ import {
     LoaderCircle,
     UserRoundPlus,
 } from "lucide-react";
-import Link from "next/link";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { DeleteAccountDialogTrigger } from "@/components/auth/delete-account-dialog";

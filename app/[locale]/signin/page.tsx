@@ -1,8 +1,8 @@
 import { T } from "gt-next";
+import Link from "gt-next/link";
 import { getGT, getLocale } from "gt-next/server";
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { buildPageMetadata } from "@/app/metadata";
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { PageShell } from "@/components/ui/page-shell";

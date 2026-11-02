@@ -1,8 +1,8 @@
 "use client";
 
 import { T, Var } from "gt-next";
+import Link from "gt-next/link";
 import { Info } from "lucide-react";
-import Link from "next/link";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
