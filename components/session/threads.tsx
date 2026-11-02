@@ -465,7 +465,7 @@ function ThreadsListFilterTrigger(
             >
                 <Ellipsis aria-hidden className="size-3.5" focusable="false" />
             </MenuTrigger>
-            <MenuPopup align="end">
+            <MenuPopup align="start" positionMethod="fixed" side="bottom">
                 <MenuRadioGroup onValueChange={handleViewChange} value={view}>
                     <MenuGroupLabel>
                         <T>Show</T>
@@ -574,7 +574,7 @@ function ThreadsListCombobox(
             >
                 <Search aria-hidden className="size-3.5" focusable="false" />
             </ComboboxTrigger>
-            <ComboboxPopup align="start" positionMethod="fixed" side="right">
+            <ComboboxPopup align="start" positionMethod="fixed" side="bottom">
                 <ComboboxInput
                     endAddon={
                         <Kbd>
