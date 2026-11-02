@@ -74,7 +74,7 @@ import { clamp } from "@/lib/common/number";
 import { hasOembedSupport, type Oembed } from "@/lib/common/oembed";
 import { isStorageQuotaExceededError } from "@/lib/common/storage";
 import { isHttpUrl, parseDisplayUrl, parseValidUrl } from "@/lib/common/url";
-import { normalizeHtml } from "@/lib/notes/html";
+import { normalizeHtml } from "@/lib/notes/utils";
 
 const ACTIVE_INDEX_STORAGE_KEY = "cache:side:active-index";
 const ITEMS_STORAGE_KEY = "cache:side:items";

@@ -114,12 +114,12 @@ import { createLogger } from "@/lib/common/logs/console/logger";
 import { slugify } from "@/lib/common/string";
 import { openExternalUrl, parseStandaloneUrl } from "@/lib/common/url";
 import { sendNoteToNotion } from "@/lib/integrations/notion/actions";
-import { normalizeHtml } from "@/lib/notes/html";
 import {
     convertNoteHtmlToMarkdown,
     extractNoteText,
     isSerializedEditorState,
     NOTE_EMPTY_HTML,
+    normalizeHtml,
     serializeEditorStateToHtml,
 } from "@/lib/notes/utils";
 
