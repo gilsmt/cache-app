@@ -106,7 +106,9 @@ export function PaywallDialog({
 }: PaywallDialogProps) {
     return (
         <Dialog onOpenChange={onOpenChange} open={open}>
-            <DialogTrigger {...props} />
+            {props.render !== undefined || props.children !== undefined ? (
+                <DialogTrigger {...props} />
+            ) : null}
             <DialogPopup>
                 <DialogHeader>
                     <span className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
