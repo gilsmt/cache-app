@@ -1,11 +1,23 @@
+"use client";
+
 import { T, Var } from "gt-next";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, CheckIcon } from "lucide-react";
 import {
     CloudHostOnly,
     SubscriptionUpgradeButton,
 } from "@/components/billing/subscription";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import {
+    Dialog,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogPopup,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { CrownFilledIcon } from "@/components/ui/icons";
 
 export function InlinePaywallBanner() {
     return (
@@ -78,5 +90,87 @@ export function BlockPaywallBanner({ length }: BlockPaywallBannerProps) {
                 </div>
             </aside>
         </CloudHostOnly>
+    );
+}
+
+interface PaywallDialogProps
+    extends React.ComponentProps<typeof DialogTrigger> {
+    onOpenChange?: (open: boolean) => void;
+    open?: boolean;
+}
+
+export function PaywallDialog({
+    onOpenChange,
+    open,
+    ...props
+}: PaywallDialogProps) {
+    return (
+        <Dialog onOpenChange={onOpenChange} open={open}>
+            <DialogTrigger {...props} />
+            <DialogPopup>
+                <DialogHeader>
+                    <span className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
+                        <CrownFilledIcon className="size-6" />
+                    </span>
+                    <DialogTitle>Cache Pro</DialogTitle>
+                    <DialogDescription>
+                        <T>
+                            Upgrade to enable automations that run on your
+                            library on a schedule and automate your day-to-day.
+                        </T>
+                    </DialogDescription>
+                </DialogHeader>
+                <ul className="flex flex-col gap-3 px-6 pb-4">
+                    <li className="flex items-center gap-2 text-sm">
+                        <CheckIcon className="size-4" />
+                        <span>
+                            <T>Unlimited library entries</T>
+                        </span>
+                    </li>
+                    <li className="flex items-center gap-2 text-sm">
+                        <CheckIcon className="size-4" />
+                        <span>
+                            <T>Unlimited agentic automations</T>
+                        </span>
+                    </li>
+                    <li className="flex items-center gap-2 text-sm">
+                        <CheckIcon className="size-4" />
+                        <span>
+                            <T>Access to all integrations</T>
+                        </span>
+                    </li>
+                    <li className="flex items-center gap-2 text-sm">
+                        <CheckIcon className="size-4" />
+                        <span>
+                            <T>20x more AI usage</T>
+                        </span>
+                    </li>
+                    <li className="flex items-center gap-2 text-sm">
+                        <CheckIcon className="size-4" />
+                        <span>
+                            <T>Priority feedback channel</T>
+                        </span>
+                    </li>
+                </ul>
+                <DialogFooter className="sm:flex-col-reverse">
+                    <SubscriptionUpgradeButton
+                        billingFrequency="yearly"
+                        className="text-muted-foreground hover:text-foreground mx-auto w-fit text-sm underline underline-offset-2"
+                        size="sm"
+                        variant="link"
+                    >
+                        <T>Save with yearly billing</T>
+                    </SubscriptionUpgradeButton>
+                    <SubscriptionUpgradeButton
+                        billingFrequency="monthly"
+                        className="w-full"
+                        size="lg"
+                        variant="default"
+                    >
+                        <T>Get Cache Pro</T>
+                    </SubscriptionUpgradeButton>
+                </DialogFooter>
+            </DialogPopup>
+        </Dialog>
     );
 }
