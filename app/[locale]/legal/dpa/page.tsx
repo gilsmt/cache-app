@@ -219,8 +219,10 @@ export default function DPAPage() {
                     written schedule provided to Customer. A provider category
                     or trade name alone does not identify an authorized
                     sub-processor. Provider will give Customer the current
-                    schedule at least fifteen (15) days before any listed
-                    sub-processor first accesses Customer Personal Data.
+                    schedule when Customer accepts this DPA, and the
+                    sub-processors listed in that schedule are authorized as of
+                    acceptance, subject to Customer&apos;s right to object under
+                    this Section.
                 </p>
                 <p>
                     Provider will update the applicable schedule and notify
@@ -232,11 +234,11 @@ export default function DPAPage() {
                     (10) days of receiving the applicable schedule or notice. If
                     Customer does not object within that period, the
                     sub-processor is authorized under this general
-                    authorization. Provider will not give a sub-processor access
-                    while a timely objection remains unresolved. If the parties
-                    cannot resolve a reasonable objection, either party may
-                    terminate the affected Services by written notice before
-                    that sub-processor receives access.
+                    authorization. Provider will not give a new or replacement
+                    sub-processor access while a timely objection remains
+                    unresolved. If the parties cannot resolve a reasonable
+                    objection, either party may terminate the affected Services
+                    by written notice.
                 </p>
                 <p>
                     Provider will enter into written agreements with all
@@ -420,11 +422,13 @@ export default function DPAPage() {
                     The hosted service can use the providers and provider
                     categories below when the related feature is enabled. This
                     table does not identify every provider&apos;s legal entity
-                    or processing location. Before any provider accesses
-                    Customer Personal Data, Provider will give Customer a
-                    written schedule with those details and the provider&apos;s
-                    purpose. Only the providers identified in that schedule are
-                    authorized under Section 3. Contact{" "}
+                    or processing location. Provider will give Customer the
+                    current written schedule with those details and each
+                    provider&apos;s purpose when Customer accepts this DPA, and
+                    will update it under Section 3 before a new or replacement
+                    provider accesses Customer Personal Data. Only the providers
+                    identified in the current schedule are authorized under
+                    Section 3. Contact{" "}
                     <a
                         className="text-foreground underline underline-offset-4"
                         href={`mailto:${NOTICES_ADDRESS}`}
