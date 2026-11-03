@@ -14,6 +14,8 @@ import {
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { PaywallDialog } from "@/components/billing/paywall";
+import { useSubscriptionAccess } from "@/components/billing/subscription";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -309,13 +311,26 @@ export function AutomationComposerDialog({
     const isOpenControlled = open !== undefined;
     const isOpen = isOpenControlled ? open : uncontrolledOpen;
     const [isPending, startTransition] = React.useTransition();
+    const {
+        hasAccess,
+        isLoading: isSubscriptionLoading,
+        isSelfHosted,
+    } = useSubscriptionAccess();
     const submissionPendingRef = React.useRef(false);
     const [formState, setFormState] = React.useState<AutomationFormState>(() =>
         getInitialFormState(automation, collections)
     );
+    const [isPaywallOpen, setIsPaywallOpen] = React.useState(false);
     const isEditing = automation?.id !== undefined;
     const shouldRenderTrigger = trigger !== null;
     const shouldResumeAfterSave = isEditing && automation?.status === "paused";
+    const shouldRequireProAccess =
+        !isEditing || automation?.status === "active" || shouldResumeAfterSave;
+    const shouldShowPaywall =
+        shouldRequireProAccess &&
+        !isSubscriptionLoading &&
+        !isSelfHosted &&
+        !hasAccess;
     const submitLabel = getSubmitLabel({
         isEditing,
         isTemplate: automation?.templateKey !== undefined,
@@ -329,6 +344,9 @@ export function AutomationComposerDialog({
                 setUncontrolledOpen(nextOpen);
             }
             onOpenChange?.(nextOpen);
+            if (!nextOpen) {
+                setIsPaywallOpen(false);
+            }
         }
     });
 
@@ -386,6 +404,16 @@ export function AutomationComposerDialog({
 
             if (submissionPendingRef.current) {
                 return;
+            }
+
+            if (shouldRequireProAccess && !isSelfHosted) {
+                if (isSubscriptionLoading) {
+                    return;
+                }
+                if (!hasAccess) {
+                    setIsPaywallOpen(true);
+                    return;
+                }
             }
 
             if (!(formState.title.trim() && formState.prompt.trim())) {
@@ -644,9 +672,30 @@ export function AutomationComposerDialog({
                         </ErrorMessage>
                     </DialogPanel>
                     <DialogFooter>
-                        <Button isLoading={isPending} size="sm" type="submit">
-                            {submitLabel}
-                        </Button>
+                        {shouldShowPaywall ? (
+                            <PaywallDialog
+                                onOpenChange={setIsPaywallOpen}
+                                open={isPaywallOpen}
+                                render={
+                                    <Button size="sm" type="button">
+                                        {submitLabel}
+                                    </Button>
+                                }
+                            />
+                        ) : (
+                            <Button
+                                isLoading={
+                                    isPending ||
+                                    (shouldRequireProAccess &&
+                                        isSubscriptionLoading &&
+                                        !isSelfHosted)
+                                }
+                                size="sm"
+                                type="submit"
+                            >
+                                {submitLabel}
+                            </Button>
+                        )}
                     </DialogFooter>
                 </form>
             </DialogPopup>

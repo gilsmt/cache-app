@@ -33,6 +33,8 @@ import {
     type AutomationComposerAutomation,
     AutomationComposerDialog,
 } from "@/components/automations/composer";
+import { PaywallDialog } from "@/components/billing/paywall";
+import { useSubscriptionAccess } from "@/components/billing/subscription";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorMessage } from "@/components/ui/error-message";
@@ -265,7 +267,11 @@ export function AutomationsList({
     collections,
     suggestions,
 }: AutomationsListProps) {
-    const contextValue = { automations, collections, suggestions };
+    const contextValue = {
+        automations,
+        collections,
+        suggestions,
+    };
 
     return (
         <AutomationsListContext value={contextValue}>
@@ -376,15 +382,26 @@ interface AutomationsListItemProps {
 
 function AutomationsListItem({ automation }: AutomationsListItemProps) {
     const { collections } = useAutomationsListContext();
+    const {
+        hasAccess,
+        isLoading: isSubscriptionLoading,
+        isSelfHosted,
+    } = useSubscriptionAccess();
     const router = useRouter();
     const [isPending, startTransition] = React.useTransition();
     const [isEditOpen, setIsEditOpen] = React.useState(false);
+    const [isPaywallOpen, setIsPaywallOpen] = React.useState(false);
     const [actionErrorMessage, setActionErrorMessage] = React.useState<
         string | null
     >(null);
 
     const isActive = automation.status === "active";
     const canResume = !isActive && isCompleteSchedule(automation);
+    const shouldShowPaywall = !(
+        isSubscriptionLoading ||
+        isSelfHosted ||
+        hasAccess
+    );
     const Icon = getAutomationTemplateIcon(automation.templateKey);
     const scheduleLabel = formatSchedule(automation);
     const lastRunLabel = getLastRunLabel(
@@ -437,6 +454,13 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
 
     const handleEnableOrResume = useStableCallback(() => {
         if (canResume) {
+            if (isSubscriptionLoading) {
+                return;
+            }
+            if (shouldShowPaywall) {
+                setIsPaywallOpen(true);
+                return;
+            }
             handleResume();
             return;
         }
@@ -456,6 +480,9 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
                 <AutomationsListItemMenu
                     canResume={canResume}
                     isActive={isActive}
+                    isEnableOrResumeDisabled={
+                        canResume && isSubscriptionLoading
+                    }
                     isPending={isPending}
                     onDelete={handleDelete}
                     onEdit={handleEditOpen}
@@ -501,6 +528,12 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
                 open={isEditOpen}
                 trigger={null}
             />
+            {shouldShowPaywall ? (
+                <PaywallDialog
+                    onOpenChange={setIsPaywallOpen}
+                    open={isPaywallOpen}
+                />
+            ) : null}
         </li>
     );
 }
@@ -508,6 +541,7 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
 interface AutomationsListItemMenuProps {
     canResume: boolean;
     isActive: boolean;
+    isEnableOrResumeDisabled: boolean;
     isPending: boolean;
     onDelete: () => void;
     onEdit: () => void;
@@ -518,6 +552,7 @@ interface AutomationsListItemMenuProps {
 
 function AutomationsListItemMenu({
     canResume,
+    isEnableOrResumeDisabled,
     isActive,
     isPending,
     onDelete,
@@ -560,7 +595,10 @@ function AutomationsListItemMenu({
                         Pause
                     </MenuItem>
                 ) : (
-                    <MenuItem disabled={isPending} onClick={onEnableOrResume}>
+                    <MenuItem
+                        disabled={isPending || isEnableOrResumeDisabled}
+                        onClick={onEnableOrResume}
+                    >
                         <Play
                             aria-hidden
                             className="text-muted-foreground size-4"
