@@ -391,6 +391,11 @@ export default function PrivacyPolicyPage() {
                     service you requested, or conflict with our legal
                     obligations and enforcement of our legal rights.
                 </p>
+                <p>
+                    Some browsers support Do Not Track signals. We currently do
+                    not change our data collection practices in response to Do
+                    Not Track or similar browser signals.
+                </p>
             </section>
 
             <section className="flex flex-col gap-4">
