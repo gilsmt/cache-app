@@ -171,6 +171,11 @@ export const TEMPLATES = [
         name: "Games to Play",
         value: "games_to_play",
     },
+    {
+        description: "Goals, priorities, and resources to plan the year ahead.",
+        name: "Next Year Planning",
+        value: "next_year_planning",
+    },
 ] as const satisfies readonly CollectionTemplateOption[];
 
 export type TemplateValue = (typeof TEMPLATES)[number]["value"];
