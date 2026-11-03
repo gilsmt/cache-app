@@ -168,9 +168,11 @@ export default function TermsOfServicePage() {
                         <p>
                             Section 1.4 is modified so Provider may use Usage
                             Data only to provide, secure, troubleshoot, and
-                            improve the Product. Provider may use or disclose
-                            Usage Data only in aggregated or de-identified form
-                            that does not identify Customer or its Users.
+                            improve the Product. Provider may disclose Usage
+                            Data to third parties, or use it for any purpose
+                            outside those listed, only in aggregated or
+                            de-identified form that does not identify Customer
+                            or its Users.
                         </p>
                         <p>
                             Section 1.6 is replaced in full: Provider will not
