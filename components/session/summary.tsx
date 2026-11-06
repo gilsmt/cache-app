@@ -16,7 +16,7 @@ import type * as React from "react";
 import { TextMorph } from "torph/react";
 import {
     DataList,
-    DataListChart,
+    DataListBarChart,
     DataListGroup,
     DataListItem,
     DataListItemButton,
@@ -210,7 +210,7 @@ function SummaryDataList({
                 <DataListSectionTrigger
                     endAddon={
                         hasSourceSegments ? (
-                            <DataListChart
+                            <DataListBarChart
                                 className="ml-auto max-w-1/3 group-data-open/collapsible:hidden"
                                 isDecorative
                                 segments={sourceSegments}
@@ -223,13 +223,16 @@ function SummaryDataList({
                 <DataListSectionContent>
                     {hasSourceSegments ? (
                         <>
-                            <DataListChart
+                            <DataListBarChart
                                 isDecorative
                                 segments={sourceSegments}
                             />
                             <DataListGroup>
                                 {sourceSegments.map((segment) => (
-                                    <DataListItem key={segment.key}>
+                                    <DataListItem
+                                        key={segment.key}
+                                        segmentKey={segment.key}
+                                    >
                                         <DataListLabel>
                                             {segment.label}
                                         </DataListLabel>
