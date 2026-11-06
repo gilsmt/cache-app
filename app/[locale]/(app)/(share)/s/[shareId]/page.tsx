@@ -12,7 +12,10 @@ import {
 } from "@/components/share/list";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { publicCollectionShareMetadataTag } from "@/lib/collections/share/cache";
-import { getPublicCollectionShareById } from "@/lib/collections/share/service";
+import {
+    getPublicCollectionShareById,
+    getPublicCollectionShareMetadataById,
+} from "@/lib/collections/share/service";
 import { getNoteExcerpt } from "@/lib/collections/utils";
 import { FALLBACK_URL, ITEM_KIND_NOTE } from "@/lib/common/constants";
 import { normalizeURL } from "@/lib/common/url";
@@ -62,7 +65,7 @@ async function getCachedShareMetadata(shareId: string) {
     cacheLife("hours");
     cacheTag(publicCollectionShareMetadataTag(shareId));
 
-    const collection = await getPublicCollectionShareById(shareId);
+    const collection = await getPublicCollectionShareMetadataById(shareId);
     if (!collection) {
         return null;
     }

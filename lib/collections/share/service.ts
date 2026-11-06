@@ -48,6 +48,12 @@ interface PublicCollectionShare {
     updatedAt: Date;
 }
 
+interface PublicCollectionShareMetadata {
+    description: string | null;
+    name: string;
+    ownerName: string;
+}
+
 export type SharedLibraryCollectionTag = ReturnType<
     typeof toLibraryCollectionTag
 > & {
@@ -422,6 +428,64 @@ export async function getPublicCollectionShareById(
                 sharedAt: sharedCollection.sharedAt,
                 shareId: sharedCollection.shareId,
                 updatedAt: sharedCollection.updatedAt,
+            };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead }
+    );
+}
+
+export async function getPublicCollectionShareMetadataById(
+    shareId: string
+): Promise<PublicCollectionShareMetadata | null> {
+    const normalizedShareId = shareId.trim();
+    if (normalizedShareId.length === 0) {
+        return null;
+    }
+
+    const isValidShareId = await verifyId(normalizedShareId);
+    if (!isValidShareId) {
+        return null;
+    }
+
+    return prisma.$transaction(
+        async (tx) => {
+            const sharedCollection = await tx.collection.findFirst({
+                select: {
+                    description: true,
+                    id: true,
+                    name: true,
+                    sharedAt: true,
+                    shareId: true,
+                    user: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                    userId: true,
+                },
+                where: {
+                    shareId: normalizedShareId,
+                },
+            });
+
+            if (
+                !(
+                    sharedCollection?.shareId &&
+                    sharedCollection.sharedAt &&
+                    (await hasPublicShareAccess({
+                        collectionId: sharedCollection.id,
+                        tx,
+                        userId: sharedCollection.userId,
+                    }))
+                )
+            ) {
+                return null;
+            }
+
+            return {
+                description: sharedCollection.description,
+                name: sharedCollection.name,
+                ownerName: sharedCollection.user.name,
             };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead }
