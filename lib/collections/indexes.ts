@@ -6,11 +6,6 @@ import { fnv1aHash } from "@/lib/common/hash";
 
 const COLLECTION_PREVIEW_THUMBNAIL_LIMIT = 5;
 
-type LibraryItemPreviewUrlCache = WeakMap<
-    LibraryItemWithCollections,
-    string | null
->;
-
 interface PreviewEntry {
     orderSeed: number;
     url: string;
@@ -24,8 +19,7 @@ export interface LibraryItemIndexes {
 }
 
 export function buildLibraryItemIndexes(
-    items: readonly LibraryItemWithCollections[],
-    previewUrlCache: LibraryItemPreviewUrlCache = new WeakMap()
+    items: readonly LibraryItemWithCollections[]
 ): LibraryItemIndexes {
     const itemsByCollectionId = new Map<string, LibraryItemWithCollections[]>();
     const itemsById = new Map<string, LibraryItemWithCollections>();
@@ -43,14 +37,7 @@ export function buildLibraryItemIndexes(
 
         let previewUrl: string | null = null;
         if (item.collections.length > 0) {
-            const cachedPreviewUrl = previewUrlCache.get(item);
-            previewUrl =
-                cachedPreviewUrl === undefined
-                    ? itemPreviewImageUrl(item)
-                    : cachedPreviewUrl;
-            if (cachedPreviewUrl === undefined) {
-                previewUrlCache.set(item, previewUrl);
-            }
+            previewUrl = itemPreviewImageUrl(item);
         }
 
         for (const collection of item.collections) {

@@ -62,6 +62,7 @@ import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useIsExtensionInstalled } from "@/components/hooks/use-extension-installed";
 import { useHistory } from "@/components/hooks/use-history";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
+import { AssistantViewAttachment } from "@/components/session/assistant-view-attachment";
 import {
     ItemCollectionsCombobox,
     reconcileCollectionTags,
@@ -383,7 +384,6 @@ interface SimilarItemFilterOptions {
 interface ItemIndexesCache {
     indexes: LibraryItemIndexes;
     items: LibraryItemWithCollections[];
-    previewUrlCache: WeakMap<LibraryItemWithCollections, string | null>;
 }
 
 const ALL_DOMAIN_FILTER = "__all_domains__";
@@ -574,6 +574,7 @@ type AssistantResponseState =
           operationCount: number;
           prompt: string;
           status: "success";
+          view: AgentViewPage | null;
       }
     | { message: string; prompt: string; status: "error" };
 
@@ -1031,11 +1032,8 @@ function useItemIndexes(
     if (cached?.items === items) {
         return cached.indexes;
     }
-    const previewUrlCache =
-        cached?.previewUrlCache ??
-        new WeakMap<LibraryItemWithCollections, string | null>();
-    const indexes = buildLibraryItemIndexes(items, previewUrlCache);
-    cacheRef.current = { indexes, items, previewUrlCache };
+    const indexes = buildLibraryItemIndexes(items);
+    cacheRef.current = { indexes, items };
     return indexes;
 }
 
@@ -3998,6 +3996,10 @@ export function ItemsList({
                 return;
             }
 
+            const markdown = result.markdown.replace(
+                /\[([^\]]+)\]\(url\)/gu,
+                "$1"
+            );
             for (const operation of result.operations) {
                 applyAssistantPatch(operation);
             }
@@ -4009,10 +4011,11 @@ export function ItemsList({
             }
             setPaletteSection("ai-response");
             setAssistantResponse({
-                markdown: result.markdown,
+                markdown,
                 operationCount: result.operations.length,
                 prompt,
                 status: "success",
+                view: result.view ?? null,
             });
         }
     );
@@ -4810,7 +4813,7 @@ export function ItemsList({
                                                     placeholder={placeholder}
                                                     ref={composerRef}
                                                     style={{
-                                                        minHeight: "2.5rem",
+                                                        minHeight: "2rem",
                                                     }}
                                                 />
                                             }
@@ -6092,9 +6095,11 @@ function AssistantResponseShell({
 function AssistantResponseSuccessPanel({
     markdown,
     prompt,
+    view,
 }: {
     markdown: string;
     prompt: string;
+    view: AgentViewPage | null;
 }) {
     return (
         <AssistantResponseShell prompt={prompt}>
@@ -6103,6 +6108,7 @@ function AssistantResponseSuccessPanel({
                     <Streamdown className="text-sm leading-relaxed whitespace-pre-line">
                         {markdown}
                     </Streamdown>
+                    {view ? <AssistantViewAttachment view={view} /> : null}
                     <AssistantMessageActions>
                         <CopyResponseButton value={markdown} />
                         <ReadAloudResponseButton value={markdown} />
@@ -6149,6 +6155,7 @@ function AssistantResponsePanel({
         <AssistantResponseSuccessPanel
             markdown={response.markdown}
             prompt={response.prompt}
+            view={response.view}
         />
     );
 }
@@ -6208,9 +6215,9 @@ function PaletteInputEndAddon({
 }: PaletteInputEndAddonProps) {
     return (
         <>
-            {stackEntries.length === 0 ? (
-                <PaletteInputEndAddonShortcut hasQuery={hasQuery} />
-            ) : null}
+            <PaletteInputEndAddonShortcut
+                hasQuery={stackEntries.length !== 0 || hasQuery}
+            />
             <div className="flex items-center gap-0.5">
                 <CollapsibleListHorizontal
                     badgeRender={
@@ -6239,17 +6246,12 @@ interface PaletteInputEndAddonShortcutProps {
 function PaletteInputEndAddonShortcut({
     hasQuery,
 }: PaletteInputEndAddonShortcutProps) {
-    return (
+    return hasQuery ? null : (
         <>
             <Kbd className="text-muted-foreground border-none opacity-50 group-data-popup-open/input:opacity-0">
                 <CmdKbd />G
             </Kbd>
-            <span
-                className={cn(
-                    "absolute flex items-center gap-0.5 text-nowrap opacity-0 group-data-popup-open/input:opacity-100 dark:gap-1",
-                    hasQuery ? "right-10" : "right-3.5"
-                )}
-            >
+            <span className="absolute right-3.5 flex items-center gap-0.5 text-nowrap opacity-0 group-data-popup-open/input:opacity-100 dark:gap-1">
                 <Kbd className="text-muted-foreground border-none opacity-50">
                     Tab
                 </Kbd>
