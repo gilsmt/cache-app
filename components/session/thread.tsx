@@ -11,6 +11,7 @@ import {
     type UIMessage,
 } from "ai";
 import { T, useGT } from "gt-next";
+import { useLocalizeHref } from "gt-next/link";
 import {
     ArrowDown,
     BookSearch,
@@ -21,11 +22,13 @@ import {
     GitFork,
     Globe,
     type LucideIcon,
+    MessageCircle,
     RotateCcw,
     TriangleAlert,
     Wrench,
 } from "lucide-react";
 import { catchError, type ErrorInfo } from "next/error";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Streamdown } from "streamdown";
 import { ThinkingOrb } from "thinking-orbs";
@@ -55,6 +58,7 @@ import { isSubmitKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { uses24HourClock } from "@/lib/common/time";
 import { isHttpUrl, normalizeURL } from "@/lib/common/url";
+import { THREAD_NEW_ROUTE_ID } from "@/lib/threads/constants";
 import { getMessageCreatedAt, getMessageText } from "@/lib/threads/messages";
 import type { ThreadSource } from "@/lib/threads/sources";
 
@@ -69,10 +73,14 @@ const THREAD_TOOL_ICONS: Record<string, LucideIcon> = {
 
 const log = createLogger("Threads");
 
-function createThreadTransport(threadId: string) {
+function createThreadTransport(
+    threadId: string,
+    createdThreadId: React.RefObject<string | null>
+) {
     return new DefaultChatTransport({
         api: `/api/threads/${threadId}`,
         prepareSendMessagesRequest: ({ messages }) => ({
+            api: `/api/threads/${createdThreadId.current ?? threadId}`,
             body: { message: messages.at(-1) },
         }),
     });
@@ -128,10 +136,41 @@ interface ThreadProps {
 export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
     const gt = useGT();
     const animationFrame = useAnimationFrame();
+    const localizeHref = useLocalizeHref();
+    const router = useRouter();
+    const createdThreadIdRef = React.useRef<string | null>(
+        threadId === THREAD_NEW_ROUTE_ID ? null : threadId
+    );
     const { error, messages, regenerate, sendMessage, status, stop } = useChat({
         id: threadId,
         messages: initialMessages,
-        transport: createThreadTransport(threadId),
+        onData: (dataPart) => {
+            if (
+                threadId !== THREAD_NEW_ROUTE_ID ||
+                dataPart.type !== "data-thread-id" ||
+                typeof dataPart.data !== "string"
+            ) {
+                return;
+            }
+            createdThreadIdRef.current = dataPart.data;
+        },
+        onFinish: ({ isAbort, isDisconnect, isError }) => {
+            if (
+                threadId !== THREAD_NEW_ROUTE_ID ||
+                isAbort ||
+                isDisconnect ||
+                isError
+            ) {
+                return;
+            }
+            const createdThreadId = createdThreadIdRef.current;
+            if (!createdThreadId) {
+                return;
+            }
+            router.replace(localizeHref(`/c/${createdThreadId}`));
+            router.refresh();
+        },
+        transport: createThreadTransport(threadId, createdThreadIdRef),
     });
     const scrollViewportRef = React.useRef<HTMLDivElement | null>(null);
     const shouldStickRef = React.useRef(true);
@@ -200,13 +239,32 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
                 >
                     <ThreadListErrorBoundary threadId={threadId}>
                         <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-6">
-                            {messages.map((message, index) => (
-                                <ThreadMessage
-                                    key={message.id}
-                                    message={message}
-                                    sources={index === 0 ? sources : undefined}
-                                />
-                            ))}
+                            {messages.length > 0 ? (
+                                messages.map((message, index) => (
+                                    <ThreadMessage
+                                        key={message.id}
+                                        message={message}
+                                        sources={
+                                            index === 0 ? sources : undefined
+                                        }
+                                    />
+                                ))
+                            ) : (
+                                <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
+                                    <span className="bg-muted text-muted-foreground flex size-10 items-center justify-center rounded-2xl">
+                                        <MessageCircle
+                                            aria-hidden
+                                            className="size-5"
+                                            focusable="false"
+                                        />
+                                    </span>
+                                    <p className="text-muted-foreground text-sm">
+                                        <T>
+                                            Ask Cache about your saved content.
+                                        </T>
+                                    </p>
+                                </div>
+                            )}
                             {(status === "submitted" || isAwaitingFirstToken) &&
                             !hasActiveThreadTools ? (
                                 <div className="flex items-center gap-2 px-1 py-1">
@@ -519,9 +577,9 @@ function ThreadComposerInput() {
                     className="block w-full text-base sm:text-sm"
                     enterKeyHint="send"
                     isUnstyled
-                    placeholder={gt("Ask a follow-up")}
+                    placeholder={gt("Talk with Cache")}
                     size="sm"
-                    style={{ minHeight: "2.5rem" }}
+                    style={{ minHeight: "2rem" }}
                     textareaClassName="max-h-[min(30vh,600px)] overflow-y-auto overscroll-y-contain md:max-h-[min(40vh,600px)] pointer-coarse:max-h-[calc(4lh+0.75rem)] md:pointer-coarse:max-h-[calc(4lh+0.75rem)]"
                 />
             }

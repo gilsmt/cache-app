@@ -12,5 +12,6 @@ export const ThreadError = NamedError.create(
         ]),
         message: z.string(),
         operation: z.string(),
+        threadId: z.string().optional(),
     })
 );

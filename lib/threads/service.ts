@@ -431,7 +431,7 @@ export async function createStandaloneThread(args: {
                     { content: markdown, role: ChatMessageRole.assistant },
                 ],
             },
-            title: buildStandaloneThreadTitle(prompt),
+            title: buildThreadTitle(prompt),
             userId: args.userId,
         },
         select: { id: true },
@@ -440,7 +440,7 @@ export async function createStandaloneThread(args: {
     return thread;
 }
 
-export function buildStandaloneThreadTitle(prompt: string): string {
+function buildThreadTitle(prompt: string): string {
     const title = truncateText(
         normalizeWhitespace(prompt),
         THREAD_TITLE_MAX_LENGTH
@@ -448,22 +448,75 @@ export function buildStandaloneThreadTitle(prompt: string): string {
     return title.length > 0 ? title : "Assistant chat";
 }
 
-export async function startThreadTurn(args: {
-    message: { content: string; id: string };
-    now?: Date;
-    threadId: string;
+async function findThreadForMessage(
+    client: Pick<Prisma.TransactionClient, "chatMessage">,
+    args: { messageId: string; userId: string }
+) {
+    const existingMessage = await client.chatMessage.findFirst({
+        select: {
+            chat: {
+                select: { id: true, pendingMessageId: true },
+            },
+        },
+        where: {
+            chat: { is: { automationRunId: null, userId: args.userId } },
+            id: args.messageId,
+        },
+    });
+
+    return existingMessage?.chat ?? null;
+}
+
+export async function getThreadIdForMessage(args: {
+    messageId: string;
     userId: string;
-}): Promise<ThreadMessageItem[]> {
+}): Promise<string | null> {
+    const thread = await findThreadForMessage(prisma, args);
+    return thread?.id ?? null;
+}
+
+export async function startThreadTurn(
+    args: {
+        message: { content: string; id: string };
+        now?: Date;
+        userId: string;
+    } & ({ threadId: string } | { title: string })
+): Promise<
+    | {
+          assistantMessage: ThreadMessageItem;
+          status: "completed";
+          threadId: string;
+      }
+    | { messages: ThreadMessageItem[]; status: "started"; threadId: string }
+> {
     const now = args.now ?? new Date();
     const leaseExpiresAt = new Date(
         now.getTime() + THREAD_TURN_LEASE_DURATION_MS
     );
 
     return await prisma.$transaction(async (tx) => {
-        const thread = await tx.chat.findFirst({
-            select: { id: true, pendingMessageId: true },
-            where: { id: args.threadId, userId: args.userId },
-        });
+        let thread =
+            "threadId" in args
+                ? await tx.chat.findFirst({
+                      select: { id: true, pendingMessageId: true },
+                      where: { id: args.threadId, userId: args.userId },
+                  })
+                : null;
+        if (!("threadId" in args)) {
+            const existingThread = await findThreadForMessage(tx, {
+                messageId: args.message.id,
+                userId: args.userId,
+            });
+            thread =
+                existingThread ??
+                (await tx.chat.create({
+                    data: {
+                        title: buildThreadTitle(args.title),
+                        userId: args.userId,
+                    },
+                    select: { id: true, pendingMessageId: true },
+                }));
+        }
 
         if (!thread) {
             throw new ThreadError({
@@ -507,6 +560,7 @@ export async function startThreadTurn(args: {
                 message:
                     "Wait for the current answer before sending another message.",
                 operation: "startThreadTurn",
+                threadId: thread.id,
             });
         }
 
@@ -541,23 +595,56 @@ export async function startThreadTurn(args: {
         const retriedIndex = saved.findIndex(
             (message) => message.id === args.message.id
         );
-        const retried =
-            retriedIndex !== -1 && retriedIndex === saved.length - 1
-                ? saved[retriedIndex]
-                : undefined;
-        if (retried?.role === ChatMessageRole.user) {
+        if (retriedIndex !== -1) {
+            const retried = saved[retriedIndex];
+            if (retried.role !== ChatMessageRole.user) {
+                throw new ThreadError({
+                    code: "invalid_input",
+                    message: "This message has already been answered.",
+                    operation: "startThreadTurn",
+                    threadId: thread.id,
+                });
+            }
             if (retried.content !== args.message.content) {
                 throw new ThreadError({
                     code: "invalid_input",
                     message:
                         "This message differs from the saved version. Send it as a new message.",
                     operation: "startThreadTurn",
+                    threadId: thread.id,
                 });
+            }
+            if (retriedIndex !== saved.length - 1) {
+                const assistantMessage = saved[retriedIndex + 1];
+                if (assistantMessage?.role !== ChatMessageRole.assistant) {
+                    throw new ThreadError({
+                        code: "invalid_input",
+                        message: "This message has already been answered.",
+                        operation: "startThreadTurn",
+                        threadId: thread.id,
+                    });
+                }
+                await tx.chat.update({
+                    data: {
+                        pendingExpiresAt: null,
+                        pendingMessageId: null,
+                    },
+                    where: { id: thread.id, userId: args.userId },
+                });
+                return {
+                    assistantMessage,
+                    status: "completed",
+                    threadId: thread.id,
+                };
             }
             // Idempotent retry: the turn is already saved (e.g. after a
             // mid-stream failure released the claim). Reuse the trailing
             // user row instead of creating a duplicate.
-            return saved.slice(0, retriedIndex + 1);
+            return {
+                messages: saved.slice(0, retriedIndex + 1),
+                status: "started",
+                threadId: thread.id,
+            };
         }
 
         await tx.chatMessage.create({
@@ -569,15 +656,19 @@ export async function startThreadTurn(args: {
             },
         });
 
-        return [
-            ...saved,
-            {
-                content: args.message.content,
-                createdAt: now,
-                id: args.message.id,
-                role: ChatMessageRole.user,
-            },
-        ];
+        return {
+            messages: [
+                ...saved,
+                {
+                    content: args.message.content,
+                    createdAt: now,
+                    id: args.message.id,
+                    role: ChatMessageRole.user,
+                },
+            ],
+            status: "started",
+            threadId: thread.id,
+        };
     });
 }
 

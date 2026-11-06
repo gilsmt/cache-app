@@ -10,10 +10,10 @@ import {
     ArchiveRestore,
     ArchiveX,
     Ellipsis,
-    History,
     LayoutList,
     MessageCircle,
     Search,
+    SquarePen,
     Trash2,
     X,
 } from "lucide-react";
@@ -232,7 +232,7 @@ function groupThreadsByUpdatedAt(
     return sections.filter((section) => section.threads.length > 0);
 }
 
-function useSetThreadArchived(threadId: string, isArchived: boolean) {
+function useArchiveThread(threadId: string, isArchived: boolean) {
     const gt = useGT();
     const router = useRouter();
     const [isPending, startTransition] = React.useTransition();
@@ -360,6 +360,26 @@ export function Threads({ threads }: ThreadsProps) {
                     </div>
                 </div>
                 <ThreadsListPanel>
+                    <SidebarItem
+                        className="pl-8.5"
+                        render={
+                            <ActivePathname
+                                href="/c/new"
+                                render={<Link href="/c/new" />}
+                            />
+                        }
+                    >
+                        <span className="bg-muted/50 pointer-events-none absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md">
+                            <SquarePen
+                                aria-hidden
+                                className="size-4"
+                                focusable="false"
+                            />
+                        </span>
+                        <SidebarItemValue>
+                            <T>New chat</T>
+                        </SidebarItemValue>
+                    </SidebarItem>
                     <ThreadsListEmpty />
                     <ThreadsListContent>
                         {(item) => (
@@ -701,11 +721,6 @@ function ThreadsListEmpty() {
         <div className="border-border/30 flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed px-4 py-6 text-center">
             {threads.length > 0 ? (
                 <>
-                    <ArchiveRestore
-                        aria-hidden
-                        className="text-muted-foreground size-4"
-                        focusable="false"
-                    />
                     <p className="text-muted-foreground text-xs leading-tight font-medium">
                         {textMatchQuery.trim().length > 0 ? (
                             <T>No chats match your search.</T>
@@ -733,19 +748,11 @@ function ThreadsListEmpty() {
                 </>
             ) : (
                 <>
-                    <History
-                        aria-hidden
-                        className="text-muted-foreground size-4"
-                        focusable="false"
-                    />
-                    <p className="text-muted-foreground text-xs leading-tight font-medium">
+                    <p className="text-muted-foreground truncate text-xs leading-tight font-medium">
                         <T>No chats yet.</T>
                     </p>
-                    <p className="text-muted-foreground/70 text-[11px] leading-tight">
-                        <T>
-                            Recent activity will appear here after your
-                            automations run.
-                        </T>
+                    <p className="text-muted-foreground/70 truncate text-[11px] leading-tight">
+                        <T>Recent sessions will appear here.</T>
                     </p>
                 </>
             )}
@@ -758,7 +765,7 @@ interface ThreadsListItemProps {
 }
 
 function ThreadsListItem({ item }: ThreadsListItemProps) {
-    const { errorMessage, isPending, setArchived } = useSetThreadArchived(
+    const { errorMessage, isPending, setArchived } = useArchiveThread(
         item.id,
         !item.isArchived
     );
@@ -769,19 +776,17 @@ function ThreadsListItem({ item }: ThreadsListItemProps) {
     );
 
     return (
-        <div>
-            <div className="group/thread-item relative">
-                <ThreadsListItemTrigger item={item}>
-                    <ThreadsListItemLabel>{item.title}</ThreadsListItemLabel>
-                </ThreadsListItemTrigger>
-                <ThreadsListItemControls
-                    isArchived={item.isArchived}
-                    isPending={isPending}
-                    onArchiveToggle={setArchived}
-                    onDelete={requestDelete}
-                    updatedAt={item.updatedAt}
-                />
-            </div>
+        <div className="group/thread-item relative">
+            <ThreadsListItemTrigger item={item}>
+                <ThreadsListItemLabel>{item.title}</ThreadsListItemLabel>
+            </ThreadsListItemTrigger>
+            <ThreadsListItemControls
+                isArchived={item.isArchived}
+                isPending={isPending}
+                onArchiveToggle={setArchived}
+                onDelete={requestDelete}
+                updatedAt={item.updatedAt}
+            />
             <ErrorMessage className="px-2 py-1 text-[11px]">
                 {errorMessage}
             </ErrorMessage>

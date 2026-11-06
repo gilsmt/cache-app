@@ -1,5 +1,7 @@
 import { AI_INPUT_MAX_LENGTH } from "../session/ai/constants";
 
+export const THREAD_NEW_ROUTE_ID = "new";
+
 export const THREAD_FOLLOWUP_MESSAGE_MAX_LENGTH = AI_INPUT_MAX_LENGTH;
 
 export const THREAD_FOLLOWUP_OUTPUT_TOKEN_LIMIT = 8192;

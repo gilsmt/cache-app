@@ -254,7 +254,7 @@ export function ComposerSubmitButton() {
                     aria-label={gt("Stop generating")}
                     className="rounded-full"
                     onClick={stop}
-                    size="icon"
+                    size="icon-sm"
                     type="button"
                 >
                     <Square aria-hidden className="size-4 fill-current" />
@@ -264,7 +264,7 @@ export function ComposerSubmitButton() {
                     aria-label={gt("Send message")}
                     className="rounded-full"
                     disabled={!input.trim()}
-                    size="icon"
+                    size="icon-sm"
                     type="submit"
                 >
                     <ArrowUp aria-hidden className="size-4.5" />
