@@ -196,11 +196,6 @@ import {
     removeValue,
     toggleValue,
 } from "@/lib/common/array";
-import {
-    forgetImageAspect,
-    peekImageAspect,
-    preloadImageAspect,
-} from "@/lib/common/aspect-ratio";
 import { getHexColorFromName } from "@/lib/common/color";
 import {
     ACTION_STATUS,
@@ -210,6 +205,7 @@ import {
     NAME_MAX_LENGTH,
 } from "@/lib/common/constants";
 import { dayjs } from "@/lib/common/dayjs";
+import { preloadImageAspect } from "@/lib/common/dimension";
 import { getOwnerDocument, getOwnerWindow } from "@/lib/common/dom";
 import { saveFile } from "@/lib/common/file";
 import { getSystemControlKey } from "@/lib/common/keyboard";
@@ -1430,7 +1426,7 @@ function useCollectionPreviewPlayback({
     const [activeSrc, setActiveSrc] = React.useState<string | null>(null);
 
     const readySlides = thumbnails.flatMap((url) => {
-        const aspectRatio = aspectsBySrc[url] ?? peekImageAspect(url);
+        const aspectRatio = aspectsBySrc[url];
         return aspectRatio === undefined ? [] : [{ aspectRatio, src: url }];
     });
     const readySlidesRef = useValueAsRef(readySlides);
@@ -1503,7 +1499,6 @@ function useCollectionPreviewPlayback({
     }, [shouldCycle, slideTimeout, readySlidesRef]);
 
     const reportSlideError = useStableCallback((src: string) => {
-        forgetImageAspect(src);
         setAspectsBySrc((previous) => {
             if (previous[src] === undefined) {
                 return previous;

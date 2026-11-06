@@ -14,6 +14,9 @@ const PREVIEW_MAX_ASPECT_RATIO = 3;
 const PREVIEW_MIN_HEIGHT = 1;
 const PREVIEW_MAX_IMAGE_SIDE_PX = 32_768;
 const IMAGE_SIDE_INTEGER_PATTERN = /^\d+$/u;
+const IMAGE_PRELOAD_TIMEOUT_MS = 10_000;
+
+const inflightPreloads = new Map<string, Promise<number | null>>();
 
 export interface DimensionsCache {
     dimensions: (src: string, dimensions: Dimensions) => void;
@@ -134,6 +137,51 @@ async function fetchPreviewDimensions(src: string): Promise<Dimensions | null> {
         "width" in data ? data.width : undefined,
         "height" in data ? data.height : undefined
     );
+}
+
+/**
+ * Loads an image off-screen and resolves with its natural aspect ratio, or
+ * null on failure or timeout. Concurrent calls for the same URL share one
+ * request; failures are not cached so transient network errors can retry.
+ */
+export function preloadImageAspect(url: string): Promise<number | null> {
+    const inflight = inflightPreloads.get(url);
+    if (inflight) {
+        return inflight;
+    }
+
+    const promise = new Promise<number | null>((resolve) => {
+        const image = document.createElement("img");
+        image.decoding = "async";
+
+        const settle = (aspectRatio: number | null) => {
+            window.clearTimeout(timeoutId);
+            image.onload = null;
+            image.onerror = null;
+            inflightPreloads.delete(url);
+            resolve(aspectRatio);
+        };
+
+        const timeoutId = window.setTimeout(
+            () => settle(null),
+            IMAGE_PRELOAD_TIMEOUT_MS
+        );
+
+        image.onload = () => {
+            const { naturalHeight, naturalWidth } = image;
+            if (naturalHeight <= 0 || naturalWidth <= 0) {
+                settle(null);
+                return;
+            }
+            const aspectRatio = naturalWidth / naturalHeight;
+            settle(aspectRatio);
+        };
+        image.onerror = () => settle(null);
+        image.src = url;
+    });
+
+    inflightPreloads.set(url, promise);
+    return promise;
 }
 
 /** The aspect slot to render: cached dimensions when known, else the default, clamped to masonry bounds. */
