@@ -154,7 +154,7 @@ function ThreadPageSkeleton() {
                     <div className="h-full min-h-0 overflow-hidden">
                         <div
                             aria-busy="true"
-                            aria-label="Loading chat"
+                            aria-label="Loading thread"
                             className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-6"
                             role="status"
                         >

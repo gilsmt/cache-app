@@ -1,3 +1,4 @@
+import { T } from "gt-next";
 import { getGT } from "gt-next/server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -12,6 +13,7 @@ import { DimensionCacheProvider } from "@/components/session/dimension-cache";
 import { ItemsStateProvider } from "@/components/session/items";
 import { ItemsList } from "@/components/session/list";
 import { SidebarPanel } from "@/components/session/sidebar";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { getSessionUserId } from "@/lib/auth/session";
 import { userHasProAccess } from "@/lib/billing/service";
 import { getLibrary, listCollections } from "@/lib/collections/service";
@@ -87,7 +89,11 @@ export default async function LibraryPage() {
                             <Integrations
                                 connectedIntegrations={connectedIntegrations}
                             />
-                            <Collections />
+                            <ErrorBoundary
+                                title={<T>Could not load collections</T>}
+                            >
+                                <Collections />
+                            </ErrorBoundary>
                         </SidebarPanel>
                     </ItemsList>
                 </CollectionsProvider>

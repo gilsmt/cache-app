@@ -5,15 +5,19 @@ import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T } from "gt-next";
 import { catchError, type ErrorInfo } from "next/error";
 import { useOffline } from "next/offline";
-import { fromError } from "zod-validation-error";
+import type * as React from "react";
 import { Button } from "@/components/ui/button";
 import { isNetworkError } from "@/lib/common/network";
 
 const CHUNK_OR_HYDRATION_ERROR_RE =
     /ChunkLoadError|CSSChunkLoadError|Loading chunk failed|Failed to fetch dynamically imported module|Hydration failed|Invariant Violation|Minified React error/u;
 
+interface ErrorFallbackComponentProps {
+    title: React.ReactNode;
+}
+
 export function ErrorFallbackComponent(
-    props: { title: string },
+    props: ErrorFallbackComponentProps,
     { error, retry }: ErrorInfo
 ) {
     const isOffline = useOffline();
@@ -42,13 +46,15 @@ export function ErrorFallbackComponent(
         retry();
     });
 
-    const errorWithDetails = fromError(error);
-
     return (
-        <div className="flex size-full flex-1 flex-col items-center justify-center gap-5">
-            <h2>{props.title}</h2>
-            <p>{errorWithDetails.message}</p>
-            <Button onClick={handleClick} size="sm" variant="ghost">
+        <div className="flex min-w-0 flex-col items-center justify-center gap-3 p-4 text-center">
+            <h2 className="text-foreground text-sm font-medium">
+                {props.title}
+            </h2>
+            <p className="text-muted-foreground text-sm">
+                <T>We couldn't load this section.</T>
+            </p>
+            <Button onClick={handleClick} size="xs" variant="ghost">
                 <T>Try again</T>
             </Button>
         </div>
