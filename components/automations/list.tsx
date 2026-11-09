@@ -1,7 +1,7 @@
 "use client";
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
-import { T } from "gt-next";
+import { T, Var } from "gt-next";
 import {
     Activity,
     AlarmClock,
@@ -37,6 +37,15 @@ import { PaywallDialog } from "@/components/billing/paywall";
 import { useSubscriptionAccess } from "@/components/billing/subscription";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogClose,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogPopup,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/error-message";
 import {
     Menu,
@@ -389,6 +398,7 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
     } = useSubscriptionAccess();
     const router = useRouter();
     const [isPending, startTransition] = React.useTransition();
+    const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
     const [isEditOpen, setIsEditOpen] = React.useState(false);
     const [isPaywallOpen, setIsPaywallOpen] = React.useState(false);
     const [actionErrorMessage, setActionErrorMessage] = React.useState<
@@ -408,7 +418,10 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
         automation.recentRuns.find(isTerminalRun)
     );
 
-    function handleAction(action: () => Promise<AutomationMutationResult>) {
+    function handleAction(
+        action: () => Promise<AutomationMutationResult>,
+        onSuccess?: () => void
+    ) {
         setActionErrorMessage(null);
         startTransition(async () => {
             const result = await action();
@@ -416,6 +429,7 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
                 setActionErrorMessage(result.message);
                 return;
             }
+            onSuccess?.();
             router.refresh();
         });
     }
@@ -468,7 +482,25 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
     });
 
     const handleDelete = useStableCallback(() => {
-        handleAction(() => deleteAutomation({ automationId: automation.id }));
+        setActionErrorMessage(null);
+        setIsDeleteOpen(true);
+    });
+
+    const handleDeleteOpenChange = useStableCallback((open: boolean) => {
+        if (!open) {
+            setActionErrorMessage(null);
+            if (isPending) {
+                return;
+            }
+        }
+        setIsDeleteOpen(open);
+    });
+
+    const handleConfirmDelete = useStableCallback(() => {
+        handleAction(
+            () => deleteAutomation({ automationId: automation.id }),
+            () => setIsDeleteOpen(false)
+        );
     });
 
     return (
@@ -527,6 +559,14 @@ function AutomationsListItem({ automation }: AutomationsListItemProps) {
                 onOpenChange={setIsEditOpen}
                 open={isEditOpen}
                 trigger={null}
+            />
+            <AutomationsListItemDeleteDialog
+                automationTitle={automation.title}
+                errorMessage={actionErrorMessage}
+                isPending={isPending}
+                onConfirm={handleConfirmDelete}
+                onOpenChange={handleDeleteOpenChange}
+                open={isDeleteOpen}
             />
             {shouldShowPaywall ? (
                 <PaywallDialog
@@ -665,5 +705,59 @@ function AutomationsListSuggestionsItem({
                 </p>
             </div>
         </li>
+    );
+}
+
+interface AutomationsListItemDeleteDialogProps {
+    automationTitle: string;
+    errorMessage: string | null;
+    isPending: boolean;
+    onConfirm: () => void;
+    onOpenChange: (open: boolean) => void;
+    open: boolean;
+}
+
+function AutomationsListItemDeleteDialog({
+    automationTitle,
+    errorMessage,
+    isPending,
+    onConfirm,
+    onOpenChange,
+    open,
+}: AutomationsListItemDeleteDialogProps) {
+    return (
+        <Dialog onOpenChange={onOpenChange} open={open}>
+            <DialogPopup>
+                <DialogHeader>
+                    <DialogTitle>
+                        <T>Delete automation?</T>
+                    </DialogTitle>
+                    <DialogDescription>
+                        <T>
+                            <Var>{automationTitle}</Var> and its run history
+                            will be permanently deleted. This cannot be undone.
+                        </T>
+                    </DialogDescription>
+                    {errorMessage ? (
+                        <ErrorMessage>{errorMessage}</ErrorMessage>
+                    ) : null}
+                </DialogHeader>
+                <DialogFooter>
+                    <DialogClose
+                        disabled={isPending}
+                        render={<Button variant="ghost" />}
+                    >
+                        <T>Cancel</T>
+                    </DialogClose>
+                    <Button
+                        isLoading={isPending}
+                        onClick={onConfirm}
+                        variant="destructive"
+                    >
+                        <T>Delete</T>
+                    </Button>
+                </DialogFooter>
+            </DialogPopup>
+        </Dialog>
     );
 }
