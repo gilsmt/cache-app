@@ -16,12 +16,16 @@ import * as z from "zod";
 import { requireRouteUserId } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { resolveRegisteredModel } from "@/lib/session/ai/resolver";
-import { estimateTokens } from "@/lib/session/ai/usage";
 import { GenAiProtectionError } from "@/lib/session/error";
 import { getFinalStepSystem } from "@/lib/session/instructions/final-step";
 import { THREAD_SYSTEM_PROMPT } from "@/lib/session/instructions/threads";
 import { renderUntrustedData } from "@/lib/session/instructions/untrusted-data";
 import { createThreadAgentTools } from "@/lib/session/tool/thread";
+import {
+    THREAD_ATTACHMENT_MAX_SIZE_BYTES,
+    type ThreadAttachment,
+    ThreadAttachmentsSchema,
+} from "@/lib/threads/attachments";
 import {
     THREAD_FOLLOWUP_MESSAGE_MAX_LENGTH,
     THREAD_FOLLOWUP_OUTPUT_TOKEN_LIMIT,
@@ -40,26 +44,27 @@ import {
     type ThreadMessageItem,
     toUIMessages,
 } from "@/lib/threads/service";
+import { estimateThreadRequestTokens } from "@/lib/threads/usage";
 import { ChatMessageRole } from "@/prisma/client/enums";
 
 const log = createLogger("api:threads");
 
+// Base64 adds one third to the binary budget. Leave room for text and JSON.
+const THREAD_REQUEST_MAX_SIZE_BYTES =
+    (THREAD_ATTACHMENT_MAX_SIZE_BYTES / 3) * 4 + 256 * 1024;
+
 const IncomingMessageSchema = z.looseObject({
     id: z.string().trim().min(1).max(128),
-    parts: z
-        .array(
-            z.strictObject({
-                text: z
-                    .string()
-                    .trim()
-                    .min(1)
-                    .max(THREAD_FOLLOWUP_MESSAGE_MAX_LENGTH),
-                type: z.literal("text"),
-            })
-        )
-        .min(1),
+    parts: z.array(z.unknown()).min(1),
     role: z.literal("user"),
 });
+
+const IncomingTextPartsSchema = z.array(
+    z.strictObject({
+        text: z.string().trim().max(THREAD_FOLLOWUP_MESSAGE_MAX_LENGTH),
+        type: z.literal("text"),
+    })
+);
 
 export const maxDuration = 30;
 
@@ -133,7 +138,7 @@ export async function POST(request: Request, { params }: ThreadRouteParams) {
     if (incoming instanceof Response) {
         return incoming;
     }
-    const { content, message } = incoming;
+    const { attachments, content, message } = incoming;
 
     const resolved = await resolveThreadContext({
         messageId: message.id,
@@ -158,6 +163,7 @@ export async function POST(request: Request, { params }: ThreadRouteParams) {
 
     let messages: UIMessage[] | undefined;
     let modelMessages: ModelMessage[] | undefined;
+    const shouldProtectBeforeClaim = isNewThreadDraft && attachments.length > 0;
 
     if (isNewThreadDraft) {
         try {
@@ -176,6 +182,22 @@ export async function POST(request: Request, { params }: ThreadRouteParams) {
                 { status: 400 }
             );
         }
+
+        if (shouldProtectBeforeClaim) {
+            // Denied uploads must not create a thread or persist file payloads.
+            const protectionFailure = await protectThreadRequest({
+                modelMessages,
+                request,
+                system,
+                userId,
+            });
+            if (protectionFailure) {
+                return Response.json(
+                    { error: protectionFailure.message },
+                    { status: protectionFailure.status }
+                );
+            }
+        }
     }
 
     // Claim the turn before reading history, so the snapshot handed to the
@@ -183,6 +205,7 @@ export async function POST(request: Request, { params }: ThreadRouteParams) {
     // already holds the claim is rejected instead of racing this one.
     let history: ThreadMessageItem[];
     const started = await claimThreadTurn({
+        attachments,
         content,
         isNewThread,
         isNewThreadDraft,
@@ -207,7 +230,10 @@ export async function POST(request: Request, { params }: ThreadRouteParams) {
     const releaseClaim = async (options?: { deleteMessage?: boolean }) => {
         try {
             await releaseThreadTurn({
-                deleteMessage: isNewThread ? false : options?.deleteMessage,
+                deleteMessage:
+                    isNewThread && attachments.length === 0
+                        ? false
+                        : options?.deleteMessage,
                 threadId,
                 userId,
                 userMessageId,
@@ -250,24 +276,26 @@ export async function POST(request: Request, { params }: ThreadRouteParams) {
         throw new Error("Thread messages were not prepared for generation.");
     }
 
-    const protectionFailure = await protectThreadRequest({
-        modelMessages,
-        request,
-        system,
-        userId,
-    });
-    if (protectionFailure) {
-        await releaseClaim({ deleteMessage: true });
-        if (isNewThread) {
-            return createThreadStreamErrorResponse({
-                message: protectionFailure.message,
-                threadId,
-            });
+    if (!shouldProtectBeforeClaim) {
+        const protectionFailure = await protectThreadRequest({
+            modelMessages,
+            request,
+            system,
+            userId,
+        });
+        if (protectionFailure) {
+            await releaseClaim({ deleteMessage: true });
+            if (isNewThread) {
+                return createThreadStreamErrorResponse({
+                    message: protectionFailure.message,
+                    threadId,
+                });
+            }
+            return Response.json(
+                { error: protectionFailure.message },
+                { status: protectionFailure.status }
+            );
         }
-        return Response.json(
-            { error: protectionFailure.message },
-            { status: protectionFailure.status }
-        );
     }
 
     let result: ReturnType<typeof streamText>;
@@ -400,12 +428,16 @@ export async function POST(request: Request, { params }: ThreadRouteParams) {
 async function parseIncomingThreadMessage(
     request: Request
 ): Promise<
-    | { content: string; message: z.infer<typeof IncomingMessageSchema> }
+    | { attachments: ThreadAttachment[]; content: string; message: UIMessage }
     | Response
 > {
     let body: unknown;
     try {
-        body = await request.json();
+        const text = await readThreadRequestBody(request);
+        if (text instanceof Response) {
+            return text;
+        }
+        body = JSON.parse(text);
     } catch {
         return Response.json({ error: "Invalid JSON body." }, { status: 400 });
     }
@@ -417,8 +449,34 @@ async function parseIncomingThreadMessage(
         return Response.json({ error: "Invalid message." }, { status: 400 });
     }
 
-    const { message } = incoming.data;
-    const content = message.parts.map((part) => part.text).join("");
+    const attachmentParts: unknown[] = [];
+    const textParts: unknown[] = [];
+    for (const part of incoming.data.message.parts) {
+        if (
+            typeof part === "object" &&
+            part !== null &&
+            "type" in part &&
+            part.type === "text"
+        ) {
+            textParts.push(part);
+            continue;
+        }
+        attachmentParts.push(part);
+    }
+
+    const attachments = ThreadAttachmentsSchema.safeParse(attachmentParts);
+    const texts = IncomingTextPartsSchema.safeParse(textParts);
+    if (!(attachments.success && texts.success)) {
+        return Response.json({ error: "Invalid message." }, { status: 400 });
+    }
+
+    let content = "";
+    for (const part of texts.data) {
+        content += part.text;
+    }
+    if (content.length === 0 && attachments.data.length === 0) {
+        return Response.json({ error: "Invalid message." }, { status: 400 });
+    }
     if (content.length > THREAD_FOLLOWUP_MESSAGE_MAX_LENGTH) {
         return Response.json(
             { error: "Message is too long." },
@@ -426,7 +484,51 @@ async function parseIncomingThreadMessage(
         );
     }
 
-    return { content, message };
+    const parts: UIMessage["parts"] = [...attachments.data];
+    if (content) {
+        parts.unshift({ text: content, type: "text" });
+    }
+    return {
+        attachments: attachments.data,
+        content,
+        message: {
+            id: incoming.data.message.id,
+            parts,
+            role: "user",
+        },
+    };
+}
+
+async function readThreadRequestBody(
+    request: Request
+): Promise<string | Response> {
+    if (!request.body) {
+        return "";
+    }
+
+    const reader = request.body.getReader();
+    const decoder = new TextDecoder();
+    let bytesRead = 0;
+    let text = "";
+    try {
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done) {
+                return text + decoder.decode();
+            }
+            bytesRead += value.byteLength;
+            if (bytesRead > THREAD_REQUEST_MAX_SIZE_BYTES) {
+                await reader.cancel();
+                return Response.json(
+                    { error: "Message is too large." },
+                    { status: 413 }
+                );
+            }
+            text += decoder.decode(value, { stream: true });
+        }
+    } finally {
+        reader.releaseLock();
+    }
 }
 
 interface ResolvedThreadContext {
@@ -506,6 +608,7 @@ async function resolveThreadContext(args: {
 }
 
 async function claimThreadTurn(args: {
+    attachments: ThreadAttachment[];
     content: string;
     isNewThread: boolean;
     isNewThreadDraft: boolean;
@@ -516,12 +619,23 @@ async function claimThreadTurn(args: {
     try {
         return args.isNewThreadDraft
             ? await startThreadTurn({
-                  message: { content: args.content, id: args.messageId },
-                  title: args.content,
+                  message: {
+                      attachments: args.attachments,
+                      content: args.content,
+                      id: args.messageId,
+                  },
+                  title:
+                      args.content ||
+                      args.attachments[0]?.filename?.trim() ||
+                      "Attachment",
                   userId: args.userId,
               })
             : await startThreadTurn({
-                  message: { content: args.content, id: args.messageId },
+                  message: {
+                      attachments: args.attachments,
+                      content: args.content,
+                      id: args.messageId,
+                  },
                   threadId: args.routeThreadId,
                   userId: args.userId,
               });
@@ -635,14 +749,14 @@ async function protectThreadRequest(args: {
     userId: string;
 }): Promise<{ message: string; status: number } | null> {
     const { protectGenAiRequest } = await import("@/lib/session/protection");
-    // Reserve the full serialized request plus one generation, which is the
-    // same basis the automation workflow uses. Reserving the worst case across
-    // all tool steps would exceed the smallest plan's whole bucket and deny
-    // every free follow-up, so the step budget is bounded separately.
-    const requestedTokens = estimateTokens(
-        `${args.system}\n${JSON.stringify(args.modelMessages)}`,
-        THREAD_FOLLOWUP_OUTPUT_TOKEN_LIMIT
-    );
+    // Reserve prompt modalities plus one generation. Reserving the worst case
+    // across all tool steps would exceed the smallest plan's whole bucket, so
+    // the step budget is bounded separately.
+    const requestedTokens = estimateThreadRequestTokens({
+        modelMessages: args.modelMessages,
+        outputTokenLimit: THREAD_FOLLOWUP_OUTPUT_TOKEN_LIMIT,
+        system: args.system,
+    });
 
     try {
         await protectGenAiRequest({

@@ -6,6 +6,7 @@ import { useAnimationFrame } from "@base-ui/utils/useAnimationFrame";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import {
     DefaultChatTransport,
+    type FileUIPart,
     getToolName,
     isToolUIPart,
     type UIMessage,
@@ -34,6 +35,9 @@ import { Streamdown } from "streamdown";
 import { ThinkingOrb } from "thinking-orbs";
 import {
     Composer,
+    ComposerAttachButton,
+    ComposerAttachmentChip,
+    ComposerAttachments,
     ComposerInput,
     ComposerSubmitButton,
     CopyResponseButton,
@@ -46,6 +50,7 @@ import {
     AlertDescription,
     AlertTitle,
 } from "@/components/ui/alert";
+import { Attachments } from "@/components/ui/attachments";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
@@ -217,13 +222,16 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
         shouldStickRef.current = shouldStick;
     });
 
-    const handleSubmit = useStableCallback((text: string) => {
-        shouldStickRef.current = true;
-        sendMessage({
-            metadata: { createdAt: new Date().toISOString() },
-            text,
-        });
-    });
+    const handleSubmit = useStableCallback(
+        (text: string, files: FileUIPart[]) => {
+            shouldStickRef.current = true;
+            sendMessage({
+                files,
+                metadata: { createdAt: new Date().toISOString() },
+                text,
+            });
+        }
+    );
 
     const handleRetry = useStableCallback(() => {
         shouldStickRef.current = true;
@@ -307,7 +315,12 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
                         </AlertAction>
                     </Alert>
                 ) : null}
-                <Composer isBusy={isBusy} onStop={stop} onSubmit={handleSubmit}>
+                <Composer
+                    allowAttachments
+                    isBusy={isBusy}
+                    onStop={stop}
+                    onSubmit={handleSubmit}
+                >
                     <ThreadComposerInput />
                 </Composer>
             </div>
@@ -330,11 +343,30 @@ export function ThreadMessage({ message, sources }: ThreadMessageProps) {
     if (message.role === "user") {
         return (
             <div className="group flex flex-col items-end gap-2">
-                <Bubble align="end" variant="muted">
-                    <BubbleContent>
-                        <Streamdown mode="static">{text}</Streamdown>
-                    </BubbleContent>
-                </Bubble>
+                {message.parts.some((part) => part.type === "file") ? (
+                    <Attachments className="justify-end">
+                        {message.parts.map((part, index) =>
+                            part.type === "file" ? (
+                                // biome-ignore lint/suspicious/noArrayIndexKey: Sent user message parts do not change order.
+                                <li key={`${message.id}:${index}`}>
+                                    <ComposerAttachmentChip
+                                        attachment={{
+                                            ...part,
+                                            id: `${message.id}:${index}`,
+                                        }}
+                                    />
+                                </li>
+                            ) : null
+                        )}
+                    </Attachments>
+                ) : null}
+                {text ? (
+                    <Bubble align="end" variant="muted">
+                        <BubbleContent>
+                            <Streamdown mode="static">{text}</Streamdown>
+                        </BubbleContent>
+                    </Bubble>
+                ) : null}
                 <ThreadMessageTimestamp>{createdAt}</ThreadMessageTimestamp>
             </div>
         );
@@ -584,7 +616,11 @@ function ThreadComposerInput() {
                 />
             }
         >
-            <ComposerSubmitButton />
+            <ComposerAttachments />
+            <div className="flex items-center justify-between ps-2.5">
+                <ComposerAttachButton />
+                <ComposerSubmitButton />
+            </div>
         </ComposerInput>
     );
 }

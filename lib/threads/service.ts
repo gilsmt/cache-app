@@ -6,6 +6,7 @@ import { normalizeWhitespace, truncateText } from "@/lib/common/string";
 import { prisma } from "@/prisma";
 import type { Prisma } from "@/prisma/client/client";
 import { AutomationRunStatus, ChatMessageRole } from "@/prisma/client/enums";
+import { type ThreadAttachment, ThreadAttachmentsSchema } from "./attachments";
 import {
     THREAD_LIST_MAX_ITEMS,
     THREAD_STANDALONE_MARKDOWN_MAX_LENGTH,
@@ -77,6 +78,7 @@ type ThreadListPreview =
     | { kind: "response"; text: string };
 
 export interface ThreadMessageItem {
+    attachments: ThreadAttachment[];
     content: string;
     createdAt: Date;
     id: string;
@@ -237,6 +239,7 @@ export async function getThread(args: {
             messages: {
                 orderBy: { sequence: "asc" },
                 select: {
+                    attachments: true,
                     content: true,
                     createdAt: true,
                     id: true,
@@ -260,7 +263,7 @@ export async function getThread(args: {
     return {
         ...toThreadFollowupContext(thread),
         createdAt: thread.createdAt,
-        messages: thread.messages,
+        messages: thread.messages.map(parseThreadMessage),
         title: thread.title,
         updatedAt: thread.updatedAt,
     };
@@ -477,7 +480,11 @@ export async function getThreadIdForMessage(args: {
 
 export async function startThreadTurn(
     args: {
-        message: { content: string; id: string };
+        message: {
+            attachments: ThreadAttachment[];
+            content: string;
+            id: string;
+        };
         now?: Date;
         userId: string;
     } & ({ threadId: string } | { title: string })
@@ -567,6 +574,7 @@ export async function startThreadTurn(
         const history = await tx.chatMessage.findMany({
             orderBy: { sequence: "asc" },
             select: {
+                attachments: true,
                 content: true,
                 createdAt: true,
                 id: true,
@@ -575,7 +583,8 @@ export async function startThreadTurn(
             where: { chatId: thread.id },
         });
 
-        const trailing = history.at(-1);
+        const messages = history.map(parseThreadMessage);
+        const trailing = messages.at(-1);
         const orphaned =
             previousPendingId &&
             previousPendingId !== args.message.id &&
@@ -590,8 +599,8 @@ export async function startThreadTurn(
         }
 
         const saved = orphaned
-            ? history.filter((message) => message.id !== orphaned.id)
-            : history;
+            ? messages.filter((message) => message.id !== orphaned.id)
+            : messages;
         const retriedIndex = saved.findIndex(
             (message) => message.id === args.message.id
         );
@@ -605,7 +614,19 @@ export async function startThreadTurn(
                     threadId: thread.id,
                 });
             }
-            if (retried.content !== args.message.content) {
+            if (
+                retried.content !== args.message.content ||
+                retried.attachments.length !==
+                    args.message.attachments.length ||
+                retried.attachments.some((attachment, index) => {
+                    const incoming = args.message.attachments[index];
+                    return (
+                        attachment.filename !== incoming.filename ||
+                        attachment.mediaType !== incoming.mediaType ||
+                        attachment.url !== incoming.url
+                    );
+                })
+            ) {
                 throw new ThreadError({
                     code: "invalid_input",
                     message:
@@ -649,6 +670,7 @@ export async function startThreadTurn(
 
         await tx.chatMessage.create({
             data: {
+                attachments: args.message.attachments,
                 chatId: thread.id,
                 content: args.message.content,
                 id: args.message.id,
@@ -660,6 +682,7 @@ export async function startThreadTurn(
             messages: [
                 ...saved,
                 {
+                    attachments: args.message.attachments,
                     content: args.message.content,
                     createdAt: now,
                     id: args.message.id,
@@ -733,20 +756,33 @@ export async function releaseThreadTurn(args: {
     });
 }
 
-export function toUIMessages(
-    messages: Array<{
-        content: string;
-        createdAt: Date;
-        id: string;
-        role: ChatMessageRole;
-    }>
-): UIMessage[] {
-    return messages.map((message) => ({
-        id: message.id,
-        metadata: { createdAt: message.createdAt.toISOString() },
-        parts: [{ text: message.content, type: "text" }],
-        role: message.role === ChatMessageRole.assistant ? "assistant" : "user",
-    }));
+function parseThreadMessage(
+    message: Omit<ThreadMessageItem, "attachments"> & {
+        attachments: Prisma.JsonValue;
+    }
+): ThreadMessageItem {
+    return {
+        ...message,
+        attachments: ThreadAttachmentsSchema.parse(message.attachments ?? []),
+    };
+}
+
+export function toUIMessages(messages: ThreadMessageItem[]): UIMessage[] {
+    return messages.map((message) => {
+        const parts: UIMessage["parts"] = [...message.attachments];
+        if (message.content) {
+            parts.unshift({ text: message.content, type: "text" });
+        }
+        return {
+            id: message.id,
+            metadata: { createdAt: message.createdAt.toISOString() },
+            parts,
+            role:
+                message.role === ChatMessageRole.assistant
+                    ? "assistant"
+                    : "user",
+        };
+    });
 }
 
 function getRunOpeningMessage(run: {

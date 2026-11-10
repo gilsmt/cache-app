@@ -372,13 +372,14 @@ model Chat {
 /// table-global autoincrement `sequence` preserves insertion order within a
 /// chat when timestamps tie.
 model ChatMessage {
-    id        String         @id @default(cuid())
-    chatId    String
-    chat      Chat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    role      ChatMessageRole
-    content   String
-    sequence  Int            @default(autoincrement())
-    createdAt DateTime       @default(now())
+    id          String          @id @default(cuid())
+    chatId      String
+    chat        Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    role        ChatMessageRole
+    content     String
+    attachments Json?
+    sequence    Int             @default(autoincrement())
+    createdAt   DateTime        @default(now())
 
     @@index([chatId, sequence])
     @@map("chat_message")
