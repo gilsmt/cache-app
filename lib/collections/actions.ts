@@ -19,17 +19,15 @@ import {
     handleActionError,
 } from "@/lib/common/action";
 import { unique } from "@/lib/common/array";
-import {
-    ACTION_STATUS,
-    COLLECTION_CREATE_FROM_ITEMS_MAX_ITEMS,
-    DESCRIPTION_MAX_LENGTH,
-} from "@/lib/common/constants";
+import { ACTION_STATUS, DESCRIPTION_MAX_LENGTH } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import type { CollectionPriority } from "@/prisma/client/enums";
 import { LibraryCollectionError } from "./error";
 import * as service from "./service";
 
 const log = createLogger("library:actions");
+
+const COLLECTION_CREATE_FROM_ITEMS_MAX_ITEMS = 9999;
 const SIDE_TAB_FAVICON_MAX_URL_LENGTH = 4096;
 const SIDE_TAB_FAVICON_MAX_URLS = 12;
 

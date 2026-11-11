@@ -25,7 +25,6 @@ import { unique } from "@/lib/common/array";
 import {
     ACTION_STATUS,
     BATCH_UPDATE_MAX_ITEMS,
-    MAX_COLLECTIONS_PER_BATCH,
     MAX_COLLECTIONS_PER_ITEM,
 } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
@@ -33,6 +32,8 @@ import { LibraryCollectionError } from "./error";
 import * as service from "./service";
 
 const log = createLogger("library:actions:items");
+
+const MAX_COLLECTIONS_PER_BATCH = 100;
 
 const LibraryItemCollectionsUpdateInputSchema = z.object({
     collectionIds: z

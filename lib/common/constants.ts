@@ -68,10 +68,6 @@ export const MAX_COLLECTIONS_PER_ITEM = 100;
 
 export const BATCH_UPDATE_MAX_ITEMS = 500;
 
-export const COLLECTION_CREATE_FROM_ITEMS_MAX_ITEMS = 9999;
-
-export const MAX_COLLECTIONS_PER_BATCH = 100;
-
 export const CSRF = {
     cookieName: "csrfToken",
     fieldName: "_csrf",
