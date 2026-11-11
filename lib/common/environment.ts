@@ -1,7 +1,5 @@
 /**
  * Adapted subset of `std-env`.
- * Like `std-env`, every value is computed once at import time
- * and stays stable for the lifetime of the runtime.
  */
 
 /** Name of the current JavaScript runtime (Wintercg runtime-keys proposal). */
@@ -14,22 +12,30 @@ export type RuntimeName =
     | "netlify"
     | "fastly";
 
-const env: Record<string, string | undefined> = globalThis.process?.env ?? {};
+const env: Record<string, string | undefined> =
+    globalThis.process?.env ?? Object.create(null);
+
+// Keep direct access so bundlers can replace NODE_ENV at build time.
+const NODE_ENV: string | undefined =
+    typeof process !== "undefined" && process.env
+        ? process.env.NODE_ENV
+        : undefined;
 
 /** Detect if the global `window` object is available (i.e. browser-like). */
 export const hasWindow: boolean = typeof window !== "undefined";
 
 /** Detect if the current environment is production (`NODE_ENV=production`). */
-export const isProduction: boolean = env.NODE_ENV === "production";
+export const isProduction: boolean = NODE_ENV === "production";
 
 /**
  * Detect if the current environment is a test run
  * (`NODE_ENV=test` or `TEST` environment variable set).
  */
-export const isTest: boolean = env.NODE_ENV === "test" || !!env.TEST;
+export const isTest: boolean = NODE_ENV === "test" || !!env.TEST;
 
-/** Detect if the current environment is development (`NODE_ENV=development`). */
-export const isDevelopment: boolean = env.NODE_ENV === "development";
+/** Detect if the current environment is development (`NODE_ENV=dev` or `development`). */
+export const isDevelopment: boolean =
+    NODE_ENV === "dev" || NODE_ENV === "development";
 
 /**
  * Runtime detectors in check order: the first truthy predicate wins. The order
