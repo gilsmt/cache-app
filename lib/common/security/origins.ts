@@ -1,4 +1,5 @@
 import { serverEnv } from "@/env/server";
+import { SITE_ORIGINS } from "@/lib/common/constants";
 
 /**
  * The app's own web origins, trusted for CORS by every endpoint that accepts
@@ -9,8 +10,7 @@ import { serverEnv } from "@/env/server";
  * TRUSTED_ORIGINS entries also support self-hosted deployments.
  */
 const TRUSTED_CACHE_WEB_ORIGINS = new Set([
-    "https://cachd.app",
-    "https://www.cachd.app",
+    ...SITE_ORIGINS,
     ...parseExactWebOrigins(serverEnv.BETTER_AUTH_URL),
     ...parseExactWebOrigins(serverEnv.TRUSTED_ORIGINS),
 ]);

@@ -15,6 +15,11 @@ export const APP_NAME = "Cache App";
 
 export const SITE_DOMAIN = "www.cachd.app";
 
+export const SITE_ORIGINS = [
+    "https://cachd.app",
+    `https://${SITE_DOMAIN}`,
+] as const;
+
 export const DOCS_URL = "https://docs.cachd.app";
 
 export const CHANGELOG_URL = `${DOCS_URL}/docs/changelog`;
