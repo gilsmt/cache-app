@@ -4093,7 +4093,11 @@ export function ItemsList({
     const placePaletteCaretAtEnd = useStableCallback((value: string) => {
         const length = value.length;
         const placeCaret = () => {
-            composerRef.current?.setSelectionRange(length, length);
+            const input = composerRef.current;
+            if (!input || input.value !== value) {
+                return;
+            }
+            input.setSelectionRange(length, length);
         };
         queueMicrotask(placeCaret);
         paletteCaretTimeout.start(0, placeCaret);
