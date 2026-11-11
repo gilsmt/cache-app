@@ -21,7 +21,7 @@ The goal is NOT to rubber-stamp what you did. The goal is to catch the shortcuts
 
 1. **Gather all changes.** Run `git status` to see the full picture. Then run `git diff --cached` for all recently made staged changes. If the code you modified isn't staged, then stage it. Read every changed file fully — not just the diff hunks, but the surrounding context.
 
-2. **Spawn a bug-finding subagent.** Launch a `general` subagent that calls the `find-bugs-diff` skill to review your changes for bugs, security vulnerabilities, regressions, and code quality issues. Do NOT call the `find-bugs-diff` skill yourself — delegate it entirely to the subagent. Do not wait yet — continue with steps 3–5 while it runs.
+2. **Spawn a bug-finding subagent.** Launch a `general` subagent with a fresh context window that calls the `find-bugs-diff` skill to review your changes for bugs, security vulnerabilities, regressions, and code quality issues. Do NOT call the `find-bugs-diff` skill yourself — delegate it entirely to the subagent. Do not wait yet — continue with steps 3–5 while it runs.
 
 3. **Identify and re-check the goal.** Compare the diff against the originating source goal or spec that was passed to you (user request, issue, path, PRD, plan). Flag anything missing, partial, wrong, or out of scope.
 

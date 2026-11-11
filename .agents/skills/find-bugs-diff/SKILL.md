@@ -5,17 +5,15 @@ description: Find bugs, security vulnerabilities, and code quality issues in loc
 
 <!-- Based on https://github.com/getsentry/skills/blob/main/skills/find-bugs/SKILL.md -->
 
-# Find Bugs
-
 Review changes on this branch for bugs, security vulnerabilities, and code quality issues.
 
-## Phase 1: Complete Input Gathering
+## 1. Complete Input Gathering
 
-1. Get the FULL diff: `git diff $(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')...HEAD`
+1. Get the full relevant environment diff, e.g. `git diff $(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')...HEAD`
 2. If output is truncated, read each changed file individually until you have seen every changed line
 3. List all files modified in this branch before proceeding
 
-## Phase 2: Attack Surface Mapping
+## 2. Attack Surface Mapping
 
 For each changed file, identify and list:
 
@@ -26,7 +24,7 @@ For each changed file, identify and list:
 - All external calls
 - All cryptographic operations
 
-## Phase 3: Security Checklist (check EVERY item for EVERY file)
+## 3. Security Checklist (check EVERY item for EVERY file)
 
 - [ ] **Injection**: SQL, command, template, header injection
 - [ ] **XSS**: All outputs in templates properly escaped?
@@ -40,15 +38,15 @@ For each changed file, identify and list:
 - [ ] **DoS**: Unbounded operations, missing rate limits, resource exhaustion?
 - [ ] **Business logic**: Edge cases, state machine violations, numeric overflow?
 
-## Phase 4: Verification
+## 4. Verification
 
 For each potential issue:
 
 - Check if it's already handled elsewhere in the changed code
 - Search for existing tests covering the scenario
-- Read surrounding context to verify the issue is real
+- Read surrounding context and verify the issue is real
 
-## Phase 5: Pre-Conclusion Audit
+## 5. Pre-Conclusion Audit
 
 Before finalizing, you MUST:
 
@@ -74,4 +72,4 @@ For each issue:
 
 If you find nothing significant, say so - don't invent issues.
 
-Do not make changes - just report findings. I'll decide what to address.
+Do not make changes - just report findings.
