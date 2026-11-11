@@ -1,12 +1,12 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import * as z from "zod";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 
 type EncryptionOperation = "encrypt" | "decrypt";
 
 /** One shared message for every decrypt failure: distinguishing "malformed"
  * from "wrong key" hands an oracle to callers or adversaries. */
-export const EncryptionError = NamedError.create(
+export const EncryptionError = TaggedError.create(
     "EncryptionError",
     z.object({
         message: z.string(),

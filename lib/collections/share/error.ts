@@ -1,7 +1,7 @@
 import * as z from "zod";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 
-export const CollectionShareError = NamedError.create(
+export const CollectionShareError = TaggedError.create(
     "CollectionShareError",
     z.object({
         code: z.enum([

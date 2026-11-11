@@ -1,7 +1,7 @@
 import * as z from "zod";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 
-export const RssFeedError = NamedError.create(
+export const RssFeedError = TaggedError.create(
     "RssFeedError",
     z.object({
         feedId: z.string().optional(),

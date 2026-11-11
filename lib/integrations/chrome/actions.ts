@@ -9,7 +9,7 @@ import {
     DEFAULT_BROWSER_PROFILE_ID,
     ITEM_KIND_BOOKMARK,
 } from "@/lib/common/constants";
-import { extractNamedErrorMessage } from "@/lib/common/error";
+import { parseTaggedErrorMessage } from "@/lib/common/error";
 import { fetchLinkPreview } from "@/lib/common/link-preview";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { parseStandaloneUrl } from "@/lib/common/url";
@@ -137,7 +137,7 @@ export async function createChromeBookmarkFromUrl(input: {
             status: "SUCCESS",
         };
     } catch (error) {
-        const details = extractNamedErrorMessage(error);
+        const details = parseTaggedErrorMessage(error);
         log.error("Unexpected pasted bookmark create failure", error);
         return {
             message: details.message || "We couldn't save this URL right now.",

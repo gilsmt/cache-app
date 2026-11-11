@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 import type { IntegrationId } from "./registry";
 import { isIntegrationId } from "./registry";
 
@@ -23,7 +23,7 @@ const IntegrationErrorData = z.object({
  */
 export type IntegrationConnectionErrorCode = "not_connected" | "token_missing";
 
-export const IntegrationConnectionError = NamedError.create(
+export const IntegrationConnectionError = TaggedError.create(
     "IntegrationConnectionError",
     IntegrationErrorData.extend({
         code: z.enum(["not_connected", "token_missing"]).optional(),
@@ -33,7 +33,7 @@ export type IntegrationConnectionError = InstanceType<
     typeof IntegrationConnectionError
 >;
 
-export const IntegrationApiError = NamedError.create(
+export const IntegrationApiError = TaggedError.create(
     "IntegrationApiError",
     IntegrationErrorData.extend({
         status: z.number().optional(),
@@ -41,7 +41,7 @@ export const IntegrationApiError = NamedError.create(
 );
 export type IntegrationApiError = InstanceType<typeof IntegrationApiError>;
 
-export const IntegrationUserError = NamedError.create(
+export const IntegrationUserError = TaggedError.create(
     "IntegrationUserError",
     IntegrationErrorData.extend({
         accountId: z.string().optional(),

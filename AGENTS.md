@@ -138,8 +138,8 @@ Instrument critical paths. Log errors with context. Emit metrics for failure rat
 Logging lives at `lib/common/logs/console/logger.ts`:
 `createLogger(module)` returns a scoped logger with `.debug/.info/.warn/.error` and a `.time()` helper for spans.
 
-Named error module lives at `lib/common/error.ts`:
-`NamedError.create("SomeDomainError", z.object({...}))` creates a typed error class with runtime-validated `data` and a stable `name`.
+Tagged error module lives at `lib/common/error.ts`:
+`TaggedError.create("SomeDomainError", z.object({...}))` creates a typed error class with a stable `name`. Construction assigns `data` without parsing it; use `isInstance` to validate an error's payload.
 
 Use these in services and actions to propagate domain failures with structured metadata (e.g., `{ operation, message, ... }`).
 

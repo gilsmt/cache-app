@@ -5,7 +5,7 @@ import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 import { listCollections } from "@/lib/collections/service";
 import type { LibraryCollectionSummary } from "@/lib/collections/utils";
 import { getValidationErrorMessage } from "@/lib/common/action";
-import { extractNamedErrorMessage } from "@/lib/common/error";
+import { parseTaggedErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
     MAX_MARKDOWN_FILES_PER_BATCH,
@@ -92,7 +92,7 @@ export async function importMarkdownBatch(input: {
             status: "SUCCESS",
         };
     } catch (error) {
-        const { message } = extractNamedErrorMessage(error);
+        const { message } = parseTaggedErrorMessage(error);
         log.error("Failed to import Markdown batch", {
             error,
             fileCount: parsed.data.files.length,

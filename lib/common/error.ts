@@ -1,10 +1,7 @@
-/**
- * Based on https://github.com/anomalyco/opencode/blob/dev/packages/core/src/util/error.ts
- */
 import * as z from "zod";
 import { asRecord, isRecord } from "@/lib/common/object";
 
-export abstract class NamedError extends Error {
+export abstract class TaggedError extends Error {
     abstract readonly data: unknown;
     abstract schema(): z.ZodType;
     abstract toObject(): { name: string; data: unknown };
@@ -19,7 +16,7 @@ export abstract class NamedError extends Error {
         });
         type DataInput = z.input<Data>;
 
-        const result = class extends NamedError {
+        const result = class extends TaggedError {
             static readonly Schema = schema;
             readonly #schema = schema;
             readonly data: DataInput;
@@ -60,7 +57,7 @@ export abstract class NamedError extends Error {
         return result;
     }
 
-    static readonly Unknown = NamedError.create(
+    static readonly Unknown = TaggedError.create(
         "UnknownError",
         z.object({
             message: z.string(),
@@ -68,7 +65,7 @@ export abstract class NamedError extends Error {
     );
 }
 
-export function extractNamedErrorMessage(e: unknown): {
+export function parseTaggedErrorMessage(e: unknown): {
     message: string;
     operation?: string;
 } {

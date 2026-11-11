@@ -1,6 +1,6 @@
 import type * as z from "zod";
 import { ACTION_STATUS } from "@/lib/common/constants";
-import { extractNamedErrorMessage } from "@/lib/common/error";
+import { parseTaggedErrorMessage } from "@/lib/common/error";
 import { createLogger, type Logger } from "@/lib/common/logs/console/logger";
 
 const log = createLogger("common:action");
@@ -43,7 +43,7 @@ export function handleActionError<Code extends string, Status extends string>({
     message: string;
     status: ActionErrorStatus<Status>;
 } {
-    const named = extractNamedErrorMessage(error);
+    const named = parseTaggedErrorMessage(error);
     if (errorFactory.isInstance(error)) {
         const status = codeToStatus[error.data.code];
         if (status) {

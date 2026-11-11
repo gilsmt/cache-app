@@ -1,7 +1,7 @@
 import * as z from "zod";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 
-export const CommentError = NamedError.create(
+export const CommentError = TaggedError.create(
     "CommentError",
     z.object({
         code: z.enum(["not_found", "too_long"]),

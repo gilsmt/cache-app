@@ -1,17 +1,11 @@
 import dns from "node:dns/promises";
 import * as ipaddr from "ipaddr.js";
 import * as z from "zod";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
-/**
- * A guard that awaits a hung resolver holds its caller open, so lookups are
- * budgeted from the moment of the call — queue wait included — instead of
- * being left to the OS resolver's retry schedule.
- */
-export const DEFAULT_DNS_TIMEOUT_MS = 5000;
+const DEFAULT_DNS_TIMEOUT_MS = 5000;
 
-// setTimeout()'s ceiling: larger delays clamp silently and the race would die.
 const MAX_DNS_TIMEOUT_MS = 2_147_483_647;
 
 // `dns.lookup` cannot be cancelled and pins a worker pool thread until the OS
@@ -33,25 +27,25 @@ const DnsResolveOptionsErrorData = z.object({
     operation: z.string(),
 });
 
-export const DnsTimeoutError = NamedError.create(
+export const DnsTimeoutError = TaggedError.create(
     "DnsTimeoutError",
     DnsLookupErrorData
 );
 export type DnsTimeoutError = InstanceType<typeof DnsTimeoutError>;
 
-export const DnsEmptyResultError = NamedError.create(
+export const DnsEmptyResultError = TaggedError.create(
     "DnsEmptyResultError",
     DnsLookupErrorData
 );
 export type DnsEmptyResultError = InstanceType<typeof DnsEmptyResultError>;
 
-export const DnsConfigurationError = NamedError.create(
+export const DnsConfigurationError = TaggedError.create(
     "DnsConfigurationError",
     DnsResolveOptionsErrorData
 );
 export type DnsConfigurationError = InstanceType<typeof DnsConfigurationError>;
 
-/** IPv4 first: pinning strips Happy Eyeballs' fallback, so a pinned IPv6 hangs on IPv4-only egress. */
+/** pinning strips Happy Eyeballs' fallback, so a pinned IPv6 hangs on IPv4-only egress. */
 export function preferIpv4(addresses: readonly [string, ...string[]]): string {
     return (
         addresses.find((address) => ipaddr.IPv4.isValid(address)) ??
@@ -78,19 +72,6 @@ const DnsResolveOptionsSchema = z.object({
         .default(DEFAULT_DNS_TIMEOUT_MS),
 });
 
-function parseResolveOptions(options: { timeoutMs?: number }): {
-    timeoutMs: number;
-} {
-    const parsed = DnsResolveOptionsSchema.safeParse(options);
-    if (!parsed.success) {
-        throw new DnsConfigurationError({
-            message: `timeoutMs must be an integer between 1 and ${MAX_DNS_TIMEOUT_MS}`,
-            operation: DNS_RESOLVE_OPERATION,
-        });
-    }
-    return parsed.data;
-}
-
 let activeLookups = 0;
 
 interface WaitingLookup {
@@ -100,9 +81,6 @@ interface WaitingLookup {
 
 const waitingLookups: WaitingLookup[] = [];
 
-// FIFO: a slot passes to the next waiter instead of returning to the pool, so
-// live lookups stay counted. Waiters are capped by the same deadline — a
-// request that waits its budget out is rejected, not eventually started.
 function acquireLookupSlot(host: string, deadline: number): Promise<void> {
     if (activeLookups < MAX_CONCURRENT_DNS_LOOKUPS) {
         activeLookups += 1;
@@ -156,13 +134,22 @@ function createDnsTimeoutError(host: string): DnsTimeoutError {
  */
 export async function resolveHostAddresses(
     host: string,
-    options: { timeoutMs?: number } = {}
+    _options: { timeoutMs?: number } = {}
 ): Promise<ResolvedHost> {
-    const { timeoutMs } = parseResolveOptions(options);
+    const options = DnsResolveOptionsSchema.safeParse(_options);
+    if (!options.success) {
+        throw new DnsConfigurationError({
+            message: `timeoutMs must be an integer between 1 and ${MAX_DNS_TIMEOUT_MS}`,
+            operation: DNS_RESOLVE_OPERATION,
+        });
+    }
+
+    const { timeoutMs } = options.data;
     const deadline = Date.now() + timeoutMs;
 
     await acquireLookupSlot(host, deadline);
     let timer: NodeJS.Timeout | undefined;
+
     try {
         const remaining = deadline - Date.now();
         if (remaining <= 0) {
@@ -170,16 +157,17 @@ export async function resolveHostAddresses(
             log.warn("DNS timed out before the lookup started", { host });
             throw createDnsTimeoutError(host);
         }
+
         const lookup = dns.lookup(host, { all: true, verbatim: true });
         // The slot is only handed on when the underlying lookup settles: a
         // timed-out request still pins a worker until the OS resolver answers,
         // so releasing early would oversubscribe the pool past the cap.
         lookup.then(releaseLookupSlot, releaseLookupSlot);
-        // Settlement that lost the race cannot surface anywhere else — the
-        // caller has moved on — so it is logged instead of going unhandled.
+
         lookup.catch((error: unknown) => {
             log.warn("DNS lookup failed after settlement", { error, host });
         });
+
         const resolved = await Promise.race([
             lookup,
             new Promise<never>((_, reject) => {

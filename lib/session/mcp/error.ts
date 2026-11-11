@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 
 export const MCP_LIBRARY_ITEM_ERROR_MESSAGES = {
     idempotencyKeyConflict:
@@ -23,7 +23,7 @@ const MCP_LIBRARY_ITEM_ERROR_MESSAGE_SCHEMA = z.enum([
  * The closed message schema keeps echoed 4xx responses to authored text.
  * Never interpolate user input, URLs, or upstream text here.
  */
-export const McpLibraryItemError = NamedError.create(
+export const McpLibraryItemError = TaggedError.create(
     "McpLibraryItemError",
     z.object({
         code: z.enum([

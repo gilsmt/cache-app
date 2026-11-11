@@ -3,7 +3,7 @@
 import * as z from "zod";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 import { getValidationErrorMessage } from "@/lib/common/action";
-import { extractNamedErrorMessage } from "@/lib/common/error";
+import { parseTaggedErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
     hasLinkedProviderAccount,
@@ -136,7 +136,7 @@ async function sendToNotion(
             status: "SUCCESS",
         };
     } catch (error) {
-        const details = extractNamedErrorMessage(error);
+        const details = parseTaggedErrorMessage(error);
 
         if (IntegrationUserError.isInstance(error)) {
             return {

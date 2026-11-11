@@ -2,12 +2,12 @@ import type { RedisClientType } from "redis";
 import { createClient } from "redis";
 import * as z from "zod";
 import { hasWindow } from "@/lib/common/environment";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
 const log = createLogger("Redis");
 
-const RedisConnectionError = NamedError.create(
+const RedisConnectionError = TaggedError.create(
     "RedisConnectionError",
     z.object({
         message: z.string(),

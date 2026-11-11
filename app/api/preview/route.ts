@@ -9,7 +9,7 @@ import {
 } from "@/lib/common/abort";
 import { MIME_TYPES, USER_AGENT } from "@/lib/common/constants";
 import { type Dimensions, parseImageDimensions } from "@/lib/common/dimension";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 import type { PreviewMetadata } from "@/lib/common/extract";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
@@ -108,14 +108,14 @@ const ABORTED_RESPONSE = new Response(null, { status: 499 });
 const INSTAGRAM_HOST = "instagram.com";
 const GOOGLE_PHOTOS_CDN_HOST = "lh3.googleusercontent.com";
 
-const PreviewRedirectLoopError = NamedError.create(
+const PreviewRedirectLoopError = TaggedError.create(
     "PreviewRedirectLoop",
     z.object({ message: z.string() })
 );
 // The SSRF policy refused the host at a redirect hop. The host is not
 // fetchable at all, so the client only learns that no preview exists; the
 // reason stays in the log.
-const PreviewBlockedHostError = NamedError.create(
+const PreviewBlockedHostError = TaggedError.create(
     "PreviewBlockedHost",
     z.object({ message: z.string() })
 );

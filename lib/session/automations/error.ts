@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 
 type AutomationErrorCode =
     | "forbidden"
@@ -10,7 +10,7 @@ type AutomationErrorCode =
     | "start_failed"
     | "unauthorized";
 
-export const AutomationError = NamedError.create(
+export const AutomationError = TaggedError.create(
     "AutomationError",
     z.object({
         code: z.enum([

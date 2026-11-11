@@ -13,7 +13,7 @@ import {
 } from "@/lib/collections/utils";
 import { unique } from "@/lib/common/array";
 import { DEFAULT_BROWSER_PROFILE_ID } from "@/lib/common/constants";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 import { canonicalBookmarkUrl, parseStandaloneUrl } from "@/lib/common/url";
 import { upsertLibraryItemImports } from "@/lib/integrations/import";
 import { prisma } from "@/prisma";
@@ -21,7 +21,7 @@ import type { CollectionPriority } from "@/prisma/client/enums";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import { type ExtensionClipBody, extensionClipExternalId } from "./schema";
 
-export const ExtensionClipError = NamedError.create(
+export const ExtensionClipError = TaggedError.create(
     "ExtensionClipError",
     z.object({
         code: z.enum(["invalid_collections", "invalid_url", "upsert_failed"]),

@@ -8,7 +8,7 @@ import type {
 } from "@/lib/collections/utils";
 import { unique } from "@/lib/common/array";
 import { MAX_COLLECTIONS_PER_ITEM } from "@/lib/common/constants";
-import { extractNamedErrorMessage } from "@/lib/common/error";
+import { parseTaggedErrorMessage } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { IntegrationUserError } from "@/lib/integrations/error";
 import {
@@ -88,7 +88,7 @@ export async function createNote(
             status: "SUCCESS",
         };
     } catch (error) {
-        const details = extractNamedErrorMessage(error);
+        const details = parseTaggedErrorMessage(error);
         log.error("Unexpected note create failure", error);
         return {
             message:
@@ -131,7 +131,7 @@ export async function updateNote(input: {
             status: "SUCCESS",
         };
     } catch (error) {
-        const details = extractNamedErrorMessage(error);
+        const details = parseTaggedErrorMessage(error);
         if (IntegrationUserError.isInstance(error) && error.data.resource) {
             return {
                 message: details.message,

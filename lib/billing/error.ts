@@ -1,7 +1,7 @@
 import * as z from "zod";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 
-export const StripeError = NamedError.create(
+export const StripeError = TaggedError.create(
     "StripeError",
     z.object({
         message: z.string(),

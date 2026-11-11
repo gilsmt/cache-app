@@ -1,11 +1,11 @@
 import * as z from "zod";
 import { PRICE_TYPES } from "@/lib/billing/types";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
 const log = createLogger("intelligence:pipeline");
 
-export const GenAiProtectionError = NamedError.create(
+export const GenAiProtectionError = TaggedError.create(
     "GenAiProtectionError",
     z.object({
         feature: z.string(),
@@ -18,7 +18,7 @@ export const GenAiProtectionError = NamedError.create(
     })
 );
 
-export const GenAiGenerationError = NamedError.create(
+export const GenAiGenerationError = TaggedError.create(
     "GenAiGenerationError",
     z.object({
         message: z.string(),
@@ -27,7 +27,7 @@ export const GenAiGenerationError = NamedError.create(
     })
 );
 
-export const GenAiConfigurationError = NamedError.create(
+export const GenAiConfigurationError = TaggedError.create(
     "GenAiConfigurationError",
     z.object({
         message: z.string(),
@@ -36,7 +36,7 @@ export const GenAiConfigurationError = NamedError.create(
 );
 
 /** Thrown when a generation or agent run returns a response without content. */
-export const EmptyGenerationOutputError = NamedError.create(
+export const EmptyGenerationOutputError = TaggedError.create(
     "EmptyGenerationOutputError",
     z.object({})
 );

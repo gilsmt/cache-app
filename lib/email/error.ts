@@ -1,7 +1,7 @@
 import * as z from "zod";
-import { NamedError } from "@/lib/common/error";
+import { TaggedError } from "@/lib/common/error";
 
-export const EmailError = NamedError.create(
+export const EmailError = TaggedError.create(
     "EmailError",
     z.object({
         message: z.string(),
