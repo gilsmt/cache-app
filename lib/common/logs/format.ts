@@ -6,10 +6,15 @@ export const LOG_ARRAY_SAMPLE_LIMIT = 5;
 export const LOG_OBJECT_KEYS_LIMIT = 12;
 export const LOG_ERROR_CAUSE_MAX_DEPTH = 5;
 
+const LOG_OBJECT_MAX_DEPTH = 10;
+const LOG_VALUE_COUNT_LIMIT = 200;
+
 const REDACTED_LOG_VALUE = "[REDACTED]";
 const CIRCULAR_LOG_VALUE = "[Circular]";
 const UNREADABLE_PROPERTY_LOG_VALUE = "[Unreadable property value]";
 const MAX_CAUSE_DEPTH_EXCEEDED_LOG_VALUE = "[Max cause depth exceeded]";
+const MAX_OBJECT_DEPTH_EXCEEDED_LOG_VALUE = "[Max object depth exceeded]";
+const MAX_VALUE_COUNT_EXCEEDED_LOG_VALUE = "[Max value count exceeded]";
 
 const ERROR_STANDARD_FIELD_NAMES = new Set([
     "message",
@@ -21,9 +26,11 @@ const ERROR_STANDARD_FIELD_NAMES = new Set([
 type UnsupportedLogValueBehavior = "describe" | "throw";
 
 interface LogValueFormatContext {
+    readonly ancestors: WeakSet<object>;
+    readonly budget: { remainingValues: number };
     readonly errorCauseDepth: number;
+    readonly objectDepth: number;
     readonly options: RequiredLogValueFormatOptions;
-    readonly visitedObjects: WeakSet<object>;
 }
 
 interface RequiredLogValueFormatOptions {
@@ -43,6 +50,11 @@ function formatValueForLog(
     value: unknown,
     context: LogValueFormatContext
 ): unknown {
+    if (context.budget.remainingValues === 0) {
+        return MAX_VALUE_COUNT_EXCEEDED_LOG_VALUE;
+    }
+    context.budget.remainingValues -= 1;
+
     if (SENSITIVE_LOG_KEY_PATTERN.test(key)) {
         return REDACTED_LOG_VALUE;
     }
@@ -70,49 +82,93 @@ function readFieldForLog(target: object, key: string): unknown {
     }
 }
 
+function formatFieldForLog(
+    target: object,
+    key: string,
+    context: LogValueFormatContext
+): unknown {
+    if (
+        context.budget.remainingValues === 0 ||
+        SENSITIVE_LOG_KEY_PATTERN.test(key)
+    ) {
+        return formatValueForLog(key, undefined, context);
+    }
+    return formatValueForLog(key, readFieldForLog(target, key), context);
+}
+
 function formatObjectForLog(
     value: object,
     context: LogValueFormatContext
 ): unknown {
-    if (context.visitedObjects.has(value)) {
+    if (context.ancestors.has(value)) {
         return CIRCULAR_LOG_VALUE;
     }
-    context.visitedObjects.add(value);
-
-    if (value instanceof Error) {
-        return formatErrorForLog(value, context);
+    if (context.objectDepth >= LOG_OBJECT_MAX_DEPTH) {
+        return MAX_OBJECT_DEPTH_EXCEEDED_LOG_VALUE;
     }
 
-    if (Array.isArray(value)) {
-        return {
-            length: value.length,
-            sample: value
-                .slice(0, LOG_ARRAY_SAMPLE_LIMIT)
-                .map((item) => formatValueForLog("", item, context)),
-            type: "array",
-        };
-    }
-
-    const keys = Object.keys(value);
-    const record: Record<string, unknown> = {};
-    let keptKeys = 0;
-    for (const key of keys) {
-        if (keptKeys >= LOG_OBJECT_KEYS_LIMIT) {
-            break;
+    context.ancestors.add(value);
+    const childContext: LogValueFormatContext = {
+        ...context,
+        objectDepth: context.objectDepth + 1,
+    };
+    try {
+        if (value instanceof Error) {
+            return formatErrorForLog(value, childContext);
         }
-        record[key] = formatValueForLog(
-            key,
-            readFieldForLog(value, key),
-            context
-        );
+
+        if (Array.isArray(value)) {
+            const sample: unknown[] = [];
+            const sampleLength = Math.min(value.length, LOG_ARRAY_SAMPLE_LIMIT);
+            for (let index = 0; index < sampleLength; index += 1) {
+                if (context.budget.remainingValues === 0) {
+                    sample.push(MAX_VALUE_COUNT_EXCEEDED_LOG_VALUE);
+                    break;
+                }
+                sample.push(
+                    formatValueForLog(
+                        "",
+                        readFieldForLog(value, String(index)),
+                        childContext
+                    )
+                );
+            }
+            return { length: value.length, sample, type: "array" };
+        }
+
+        return formatRecordFieldsForLog(value, {}, childContext);
+    } finally {
+        // Shared references are not cycles once their ancestor path ends.
+        context.ancestors.delete(value);
+    }
+}
+
+function formatRecordFieldsForLog(
+    value: object,
+    record: Record<string, unknown>,
+    context: LogValueFormatContext,
+    excludedKeys?: ReadonlySet<string>
+): Record<string, unknown> {
+    let keptKeys = 0;
+    let remainingKeys = 0;
+    for (const key of Object.keys(value)) {
+        if (excludedKeys?.has(key)) {
+            continue;
+        }
+        if (
+            keptKeys >= LOG_OBJECT_KEYS_LIMIT ||
+            context.budget.remainingValues === 0
+        ) {
+            remainingKeys += 1;
+            continue;
+        }
+        record[key] = formatFieldForLog(value, key, context);
         keptKeys += 1;
     }
 
-    const remainingKeys = keys.length - keptKeys;
     if (remainingKeys > 0) {
         record.__truncated__ = `${remainingKeys} more keys`;
     }
-
     return record;
 }
 
@@ -121,51 +177,35 @@ function formatErrorForLog(
     context: LogValueFormatContext
 ): Record<string, unknown> {
     const record: Record<string, unknown> = {
-        message: formatValueForLog(
-            "message",
-            readFieldForLog(error, "message"),
-            context
-        ),
-        name: formatValueForLog(
-            "name",
-            readFieldForLog(error, "name"),
-            context
-        ),
+        message: formatFieldForLog(error, "message", context),
+        name: formatFieldForLog(error, "name", context),
     };
 
     if (context.options.includeErrorStack) {
-        record.stack = formatValueForLog(
-            "stack",
-            readFieldForLog(error, "stack"),
-            context
-        );
+        record.stack = formatFieldForLog(error, "stack", context);
     }
 
-    const cause = readFieldForLog(error, "cause");
+    const cause =
+        context.budget.remainingValues === 0
+            ? undefined
+            : readFieldForLog(error, "cause");
     if (cause !== undefined) {
         if (context.errorCauseDepth >= LOG_ERROR_CAUSE_MAX_DEPTH) {
             record.cause = MAX_CAUSE_DEPTH_EXCEEDED_LOG_VALUE;
         } else {
             record.cause = formatValueForLog("cause", cause, {
+                ...context,
                 errorCauseDepth: context.errorCauseDepth + 1,
-                options: context.options,
-                visitedObjects: context.visitedObjects,
             });
         }
     }
 
-    for (const key of Object.keys(error)) {
-        if (ERROR_STANDARD_FIELD_NAMES.has(key)) {
-            continue;
-        }
-        record[key] = formatValueForLog(
-            key,
-            readFieldForLog(error, key),
-            context
-        );
-    }
-
-    return record;
+    return formatRecordFieldsForLog(
+        error,
+        record,
+        context,
+        ERROR_STANDARD_FIELD_NAMES
+    );
 }
 
 function formatUnsupportedValueForLog(
@@ -206,8 +246,10 @@ export function formatLogValue(
     options: LogValueFormatOptions = {}
 ): unknown {
     return formatValueForLog("", value, {
+        ancestors: new WeakSet(),
+        budget: { remainingValues: LOG_VALUE_COUNT_LIMIT },
         errorCauseDepth: 0,
+        objectDepth: 0,
         options: resolveFormatOptions(options),
-        visitedObjects: new WeakSet(),
     });
 }

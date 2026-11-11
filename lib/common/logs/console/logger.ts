@@ -35,14 +35,14 @@ type NodeEnvironment = "development" | "production" | "test";
 const DISABLED_LOG_CONFIG = {
     colorize: false,
     enabled: false,
-    minLevel: LOG_LEVEL.ERROR,
+    minimumLevel: LOG_LEVEL.ERROR,
 };
 
 /**
  * Configuration for different environments
  *
  * enabled: Whether logging is enabled at all
- * minLevel: The minimum log level that will be displayed
+ * minimumLevel: The minimum log level that will be displayed
  *          (e.g., INFO will show INFO, WARN, and ERROR, but not DEBUG)
  * colorize: Whether to apply color formatting to logs
  */
@@ -50,7 +50,7 @@ const LOG_CONFIG = {
     development: {
         colorize: true,
         enabled: true,
-        minLevel: LOG_LEVEL.DEBUG,
+        minimumLevel: LOG_LEVEL.DEBUG,
     },
     // Production keeps warnings and errors. No aggregator reads this stream,
     // so the platform log stream is the only surface an operator has. Routes
@@ -60,7 +60,7 @@ const LOG_CONFIG = {
     production: {
         colorize: false,
         enabled: true,
-        minLevel: LOG_LEVEL.WARN,
+        minimumLevel: LOG_LEVEL.WARN,
     },
     test: DISABLED_LOG_CONFIG,
 };
@@ -160,7 +160,7 @@ export class Logger {
             return false;
         }
 
-        return LOG_LEVEL_INDEX[level] >= LOG_LEVEL_INDEX[config.minLevel];
+        return LOG_LEVEL_INDEX[level] >= LOG_LEVEL_INDEX[config.minimumLevel];
     }
 
     /**
