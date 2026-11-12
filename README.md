@@ -6,6 +6,8 @@
 
 Collect, organize, and rediscover everything you've saved across platforms.
 
+> Cache v1.0.0 is now in release candidate testing. The full release is coming soon.
+
 ## Why Cache
 
 Bookmarking is broken. When you hit "save" on a tweet, a video, or a post, you are making a deliberate decision that _this is worth remembering_. But that intent is immediately lost. It vanishes into a list you never revisit, scattered across a dozen platforms with no connection to your actual workflow or goals.
