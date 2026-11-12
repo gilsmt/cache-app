@@ -1,20 +1,20 @@
 "use server";
 
 import { headers } from "next/headers";
-import { AccountError } from "@/lib/accounts/error";
-import * as service from "@/lib/accounts/service";
+import { auth } from "@/lib/auth/server";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { asRecord } from "@/lib/common/object";
 
 const log = createLogger("accounts:actions");
+const DELETE_ACCOUNT_ERROR_MESSAGE =
+    "We couldn't delete your account. Please try again.";
 
-interface DeleteAccountActionState {
-    message: string;
-    redirect: null | string;
-    status: "error" | "success";
-}
+type DeleteAccountActionResult =
+    | { message: ""; redirect: string; status: "success" }
+    | { message: string; redirect: null; status: "error" };
 
-export async function deleteAccountAction(): Promise<DeleteAccountActionState> {
+export async function deleteAccountAction(): Promise<DeleteAccountActionResult> {
     const actor = await requireActionUserId(
         "Sign in again to delete your account."
     );
@@ -27,30 +27,58 @@ export async function deleteAccountAction(): Promise<DeleteAccountActionState> {
     }
 
     try {
-        const result = await service.deleteUserAccount(await headers());
+        await auth.api.deleteUser({ body: {}, headers: await headers() });
 
         return {
             message: "",
-            redirect: result.redirect,
+            redirect: "/signout",
             status: "success",
         };
     } catch (error) {
-        if (AccountError.isInstance(error)) {
-            return {
-                message: error.data.message,
-                redirect: null,
-                status: "error",
-            };
-        }
-
-        log.error("Delete account action failed", error, {
+        log.error("Account deletion failed", error, {
             operation: "deleteAccountAction",
+            userId: actor.userId,
         });
 
         return {
-            message: "We couldn't delete your account. Please try again.",
+            message: getDeleteAccountErrorMessage(error),
             redirect: null,
             status: "error",
         };
     }
+}
+
+function getDeleteAccountErrorMessage(error: unknown): string {
+    if (!(error instanceof Error)) {
+        return DELETE_ACCOUNT_ERROR_MESSAGE;
+    }
+
+    const details = asRecord(error);
+    const code =
+        typeof details?.code === "string"
+            ? details.code
+            : asRecord(details?.body)?.code;
+    const message = error.message.toLowerCase();
+
+    if (
+        code === "SESSION_EXPIRED" ||
+        message.includes("session_expired") ||
+        message.includes("session is expired") ||
+        message.includes("fresh session")
+    ) {
+        return "For your security, please sign in again before deleting your account.";
+    }
+
+    if (
+        message.includes("unauthorized") ||
+        message.includes("not authenticated")
+    ) {
+        return "Please sign in again to delete your account.";
+    }
+
+    if (message.includes("delete user is disabled")) {
+        return "Account deletion is not available right now. Please contact support.";
+    }
+
+    return DELETE_ACCOUNT_ERROR_MESSAGE;
 }
