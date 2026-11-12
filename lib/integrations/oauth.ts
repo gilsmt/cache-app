@@ -9,6 +9,7 @@ import {
 import {
     IntegrationApiError,
     IntegrationConnectionError,
+    IntegrationImportConflictError,
 } from "@/lib/integrations/error";
 import type { IntegrationId } from "@/lib/integrations/registry";
 import { getIntegrationAuthProviderId } from "@/lib/integrations/registry";
@@ -124,6 +125,9 @@ export async function runOAuthImport<
         scheduleSmartCollections(userId, smartCollectionItemIds);
         return Response.json(response);
     } catch (error) {
+        if (IntegrationImportConflictError.isInstance(error)) {
+            return Response.json({ error: error.message }, { status: 409 });
+        }
         if (IntegrationConnectionError.isInstance(error)) {
             if (error.data.code === "not_connected") {
                 return Response.json(

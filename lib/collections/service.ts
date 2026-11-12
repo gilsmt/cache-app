@@ -108,16 +108,8 @@ async function touchCollectionsUpdatedAt(
     });
 }
 
-function createCollectionError(args: {
-    code: "duplicate_name" | "not_found" | "not_trashed";
-    message: string;
-    operation: string;
-}): InstanceType<typeof LibraryCollectionError> {
-    return new LibraryCollectionError(args);
-}
-
 function throwCollectionNotFound(operation: string, message: string): never {
-    throw createCollectionError({
+    throw new LibraryCollectionError({
         code: "not_found",
         message,
         operation,
@@ -128,7 +120,7 @@ function throwCollectionNameDuplicate(
     operation: string,
     message = "A collection with that name already exists."
 ): never {
-    throw createCollectionError({
+    throw new LibraryCollectionError({
         code: "duplicate_name",
         message,
         operation,
@@ -849,7 +841,7 @@ export function trashLibraryItem({
         });
 
         if (!item) {
-            throw createCollectionError({
+            throw new LibraryCollectionError({
                 code: "not_found",
                 message: "This saved item was already removed.",
                 operation: "trashLibraryItem",
@@ -999,7 +991,7 @@ export function restoreLibraryItem({
         });
 
         if (!item) {
-            throw createCollectionError({
+            throw new LibraryCollectionError({
                 code: "not_found",
                 message: "That saved item is no longer in Recently deleted.",
                 operation: "restoreLibraryItem",
@@ -1046,7 +1038,7 @@ export async function purgeLibraryItem({
     });
 
     if (deleted.count === 0) {
-        throw createCollectionError({
+        throw new LibraryCollectionError({
             code: "not_found",
             message: "That saved item is no longer in Recently deleted.",
             operation: "purgeLibraryItem",

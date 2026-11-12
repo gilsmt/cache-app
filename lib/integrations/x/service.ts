@@ -15,30 +15,38 @@ export async function importXBookmarks(args: {
     const span = log.time("import-bookmarks", { userId });
 
     try {
-        const xUser = await getXAuthenticatedUser(accessToken);
-        // Every sync walks the full feed so deletions reconcile: a bookmark
-        // removed upstream is absent from a complete fetch and the snapshot
-        // prune removes it. Stopping at the first known id would keep
-        // steady-state syncs cheap but leave removed bookmarks in the
-        // library indefinitely.
-        const { bookmarks, complete, truncated } = await listXBookmarks(
-            accessToken,
-            xUser.id
-        );
-        const importedAt = new Date();
-
-        const result = await importLibraryItemSnapshot({
-            items: bookmarks.map((bookmark) => ({
-                caption: bookmark.caption,
-                externalId: bookmark.externalId,
-                postedAt: bookmark.postedAt,
-                scrapedAt: importedAt,
-                sourceMetadata: bookmark.sourceMetadata,
-                url: bookmark.url,
-            })),
-            // A cap-stop leaves the fetched set partial, so the snapshot prune
-            // must not treat unfetched items as deleted.
-            snapshotComplete: complete,
+        const { metadata, ...result } = await importLibraryItemSnapshot({
+            fetchSnapshot: async () => {
+                const xUser = await getXAuthenticatedUser(accessToken);
+                // Every sync walks the full feed so deletions reconcile: a bookmark
+                // removed upstream is absent from a complete fetch and the snapshot
+                // prune removes it. Stopping at the first known id would keep
+                // steady-state syncs cheap but leave removed bookmarks in the
+                // library indefinitely.
+                const { bookmarks, complete, truncated } = await listXBookmarks(
+                    accessToken,
+                    xUser.id
+                );
+                const importedAt = new Date();
+                return {
+                    items: bookmarks.map((bookmark) => ({
+                        caption: bookmark.caption,
+                        externalId: bookmark.externalId,
+                        postedAt: bookmark.postedAt,
+                        scrapedAt: importedAt,
+                        sourceMetadata: bookmark.sourceMetadata,
+                        url: bookmark.url,
+                    })),
+                    metadata: {
+                        totalFetched: bookmarks.length,
+                        truncated,
+                        xUserId: xUser.id,
+                    },
+                    // A cap-stop leaves the fetched set partial, so the snapshot prune
+                    // must not treat unfetched items as deleted.
+                    snapshotComplete: complete,
+                };
+            },
             source: LibraryItemSource.x_bookmarks,
             userId,
         });
@@ -47,18 +55,12 @@ export async function importXBookmarks(args: {
             importedCount: result.importedCount,
             pruneAborted: result.pruneAborted,
             prunedCount: result.prunedCount,
-            truncated,
+            truncated: metadata.truncated,
             userId,
-            xUserId: xUser.id,
+            xUserId: metadata.xUserId,
         });
 
-        return {
-            ...result,
-            smartCollectionItemIds: result.smartCollectionItemIds,
-            totalFetched: bookmarks.length,
-            truncated,
-            xUserId: xUser.id,
-        };
+        return { ...result, ...metadata };
     } catch (error) {
         log.error("Failed to import X bookmarks", {
             error,

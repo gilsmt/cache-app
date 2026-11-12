@@ -13,6 +13,7 @@ import {
     isChromeExtensionOrigin,
     isTrustedCacheWebOrigin,
 } from "@/lib/common/security/origins";
+import { IntegrationImportConflictError } from "@/lib/integrations/error";
 import { resolveExtensionIngestUserId } from "./service";
 
 const log = createLogger("extension:ingest");
@@ -192,6 +193,12 @@ export async function runExtensionIngestImport<
             { headers: cors }
         );
     } catch (error) {
+        if (IntegrationImportConflictError.isInstance(error)) {
+            return Response.json(
+                { error: error.message },
+                { headers: cors, status: 409 }
+            );
+        }
         log.error("Extension ingest import failed", {
             error,
             userId,

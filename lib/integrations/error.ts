@@ -21,8 +21,6 @@ const IntegrationErrorData = z.object({
  * - `token_missing`: the account is linked but the access token cannot be
  *   resolved (typically a stale better-auth token cache).
  */
-export type IntegrationConnectionErrorCode = "not_connected" | "token_missing";
-
 export const IntegrationConnectionError = TaggedError.create(
     "IntegrationConnectionError",
     IntegrationErrorData.extend({
@@ -41,6 +39,11 @@ export const IntegrationApiError = TaggedError.create(
 );
 export type IntegrationApiError = InstanceType<typeof IntegrationApiError>;
 
+export const IntegrationImportConflictError = TaggedError.create(
+    "IntegrationImportConflictError",
+    IntegrationErrorData
+);
+
 export const IntegrationUserError = TaggedError.create(
     "IntegrationUserError",
     IntegrationErrorData.extend({
@@ -50,4 +53,3 @@ export const IntegrationUserError = TaggedError.create(
         retryAfter: z.number().optional(),
     })
 );
-export type IntegrationUserError = InstanceType<typeof IntegrationUserError>;

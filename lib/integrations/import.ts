@@ -1,12 +1,12 @@
 import "server-only";
 
 /**
- * Concurrency stance: concurrent imports of the same source are tolerated,
- * not prevented. Upserts are idempotent by identity key, change detection
- * skips unchanged rows, and every snapshot prune derives its retained set
- * from its own fetch, so overlapping runs converge without corruption at the
- * cost of some duplicated upstream/API work. Revisit only if that waste
- * becomes measurable in production.
+ * Snapshot imports hold a transaction-scoped advisory lock for each
+ * user/source/profile through reconciliation. Server fetches start under the
+ * lock so an older run cannot overwrite or prune a newer run's data.
+ * Extension snapshots are serialized at server admission; the lock cannot
+ * establish the freshness of a capture made before upload.
+ * PostgreSQL releases the locks when the transaction ends.
  */
 
 import { chunk, mapConcurrent } from "@/lib/common/array";
@@ -16,6 +16,7 @@ import {
     ITEM_KIND_FOLDER,
 } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
+import { IntegrationImportConflictError } from "@/lib/integrations/error";
 import { prisma } from "@/prisma";
 import { Prisma } from "@/prisma/client/client";
 import type { LibraryItemSource } from "@/prisma/client/enums";
@@ -24,9 +25,9 @@ const log = createLogger("integrations:import");
 
 const EXISTING_IMPORT_LOOKUP_BATCH_SIZE = 250;
 const IMPORT_UPSERT_CONCURRENCY = 4;
-const SNAPSHOT_IMPORT_CHUNK_SIZE = 200;
 const SNAPSHOT_IMPORT_TRANSACTION_MAX_WAIT_MS = 10_000;
-const SNAPSHOT_IMPORT_TRANSACTION_TIMEOUT_MS = 60_000;
+// Bound the full fetch and reconciliation; a timeout rolls back all changes.
+const SNAPSHOT_IMPORT_TRANSACTION_TIMEOUT_MS = 5 * 60_000;
 /**
  * Snapshot prunes treat "absent from an upstream API response" as deletion
  * authority, which upstream incidents (valid-looking truncated pages, mass
@@ -487,6 +488,7 @@ function shouldAbortPrune(args: {
 }
 
 async function importSnapshotProfileRows(args: {
+    tx: Prisma.TransactionClient;
     browserProfileId: string;
     rows: LibraryItemImportRow[];
     snapshotComplete: boolean;
@@ -495,9 +497,8 @@ async function importSnapshotProfileRows(args: {
 }): Promise<
     PersistedLibraryItemImports & { prunedCount: number; pruneAborted: boolean }
 > {
-    // One read covers change detection and prune candidate selection; chunk
-    // transactions below stay short because they skip the read phase.
-    const existingRows = await prisma.libraryItem.findMany({
+    // The advisory lock covers this read through the final prune.
+    const existingRows = await args.tx.libraryItem.findMany({
         select: EXISTING_IMPORT_SELECT,
         where: {
             browserProfileId: args.browserProfileId,
@@ -509,40 +510,13 @@ async function importSnapshotProfileRows(args: {
         existingRows.map(rowToExistingLibraryItemImport)
     );
 
-    const accumulated = {
-        importedCount: 0,
-        smartCollectionItemIds: new Set<string>(),
-        unchangedCount: 0,
-        updatedCount: 0,
-    };
-
-    // Chunked transactions instead of one long interactive transaction: a
-    // mid-run failure keeps earlier chunks (upserts are idempotent by
-    // identity key), the next sync re-persists the remainder, and no single
-    // transaction lives long enough to hit the timeout cliff on large
-    // libraries.
-    for (const rowChunk of chunk(args.rows, SNAPSHOT_IMPORT_CHUNK_SIZE)) {
-        const chunkResult = await prisma.$transaction(
-            async (tx) =>
-                persistChangedLibraryItemImports({
-                    delegate: tx.libraryItem,
-                    existingByIdentity,
-                    rows: rowChunk,
-                    upsertConcurrency: 1,
-                    userId: args.userId,
-                }),
-            {
-                maxWait: SNAPSHOT_IMPORT_TRANSACTION_MAX_WAIT_MS,
-                timeout: SNAPSHOT_IMPORT_TRANSACTION_TIMEOUT_MS,
-            }
-        );
-        accumulated.importedCount += chunkResult.importedCount;
-        accumulated.unchangedCount += chunkResult.unchangedCount;
-        accumulated.updatedCount += chunkResult.updatedCount;
-        for (const itemId of chunkResult.smartCollectionItemIds) {
-            accumulated.smartCollectionItemIds.add(itemId);
-        }
-    }
+    const persisted = await persistChangedLibraryItemImports({
+        delegate: args.tx.libraryItem,
+        existingByIdentity,
+        rows: args.rows,
+        upsertConcurrency: 1,
+        userId: args.userId,
+    });
 
     if (!args.snapshotComplete) {
         log.debug("Snapshot prune skipped: partial fetch", {
@@ -551,12 +525,9 @@ async function importSnapshotProfileRows(args: {
             userId: args.userId,
         });
         return {
-            importedCount: accumulated.importedCount,
+            ...persisted,
             pruneAborted: false,
             prunedCount: 0,
-            smartCollectionItemIds: [...accumulated.smartCollectionItemIds],
-            unchangedCount: accumulated.unchangedCount,
-            updatedCount: accumulated.updatedCount,
         };
     }
 
@@ -587,12 +558,9 @@ async function importSnapshotProfileRows(args: {
             userId: args.userId,
         });
         return {
-            importedCount: accumulated.importedCount,
+            ...persisted,
             pruneAborted: true,
             prunedCount: 0,
-            smartCollectionItemIds: [...accumulated.smartCollectionItemIds],
-            unchangedCount: accumulated.unchangedCount,
-            updatedCount: accumulated.updatedCount,
         };
     }
 
@@ -604,16 +572,13 @@ async function importSnapshotProfileRows(args: {
             userId: args.userId,
         });
         return {
-            importedCount: accumulated.importedCount,
+            ...persisted,
             pruneAborted: true,
             prunedCount: 0,
-            smartCollectionItemIds: [...accumulated.smartCollectionItemIds],
-            unchangedCount: accumulated.unchangedCount,
-            updatedCount: accumulated.updatedCount,
         };
     }
 
-    const { count: prunedCount } = await prisma.libraryItem.deleteMany({
+    const { count: prunedCount } = await args.tx.libraryItem.deleteMany({
         where: {
             browserProfileId: args.browserProfileId,
             deletedAt: null,
@@ -626,62 +591,102 @@ async function importSnapshotProfileRows(args: {
     });
 
     return {
-        importedCount: accumulated.importedCount,
+        ...persisted,
         pruneAborted: false,
         prunedCount,
-        smartCollectionItemIds: [...accumulated.smartCollectionItemIds],
-        unchangedCount: accumulated.unchangedCount,
-        updatedCount: accumulated.updatedCount,
     };
 }
 
-export async function importLibraryItemSnapshot(args: {
+/** Fetch server snapshots inside the callback so the lock covers their lifetime. */
+export function importLibraryItemSnapshot<TMetadata>(args: {
     browserProfileIdsToSync?: string[];
-    items: LibraryItemImportInput[];
-    snapshotComplete: boolean;
+    fetchSnapshot: () => Promise<{
+        items: LibraryItemImportInput[];
+        metadata: TMetadata;
+        snapshotComplete: boolean;
+    }>;
     source: LibraryItemSource;
     userId: string;
 }) {
-    const { rows, skippedCount } = normalizeLibraryItemImportRows(args);
-    const rowsByProfile = groupRowsByProfile(rows);
-    const browserProfileIdsToSync = new Set(
-        args.browserProfileIdsToSync?.length
-            ? args.browserProfileIdsToSync
-            : [DEFAULT_BROWSER_PROFILE_ID]
-    );
-
-    for (const browserProfileId of rowsByProfile.keys()) {
-        browserProfileIdsToSync.add(browserProfileId);
+    const profileIds = new Set<string>();
+    for (const profileId of args.browserProfileIdsToSync ?? []) {
+        profileIds.add(profileId.trim() || DEFAULT_BROWSER_PROFILE_ID);
+    }
+    if (profileIds.size === 0) {
+        profileIds.add(DEFAULT_BROWSER_PROFILE_ID);
     }
 
-    const result = {
-        importedCount: 0,
-        pruneAborted: false,
-        prunedCount: 0,
-        skippedCount,
-        smartCollectionItemIds: new Set<string>(),
-        updatedCount: 0,
-    };
+    return prisma.$transaction(
+        async (tx) => {
+            // A stable lock order prevents deadlocks for overlapping profile sets.
+            for (const browserProfileId of [...profileIds].sort()) {
+                const scope = JSON.stringify([
+                    "library-item-snapshot",
+                    args.userId,
+                    args.source,
+                    browserProfileId,
+                ]);
+                const [lock] = await tx.$queryRaw<{ acquired: boolean }[]>`
+                    SELECT pg_try_advisory_xact_lock(hashtextextended(${scope}, 0)) AS acquired
+                `;
+                if (!lock?.acquired) {
+                    throw new IntegrationImportConflictError({
+                        message:
+                            "An import is already running. Try again when it finishes.",
+                        operation: "importLibraryItemSnapshot",
+                    });
+                }
+            }
 
-    for (const browserProfileId of browserProfileIdsToSync) {
-        const profileResult = await importSnapshotProfileRows({
-            browserProfileId,
-            rows: rowsByProfile.get(browserProfileId) ?? [],
-            snapshotComplete: args.snapshotComplete,
-            source: args.source,
-            userId: args.userId,
-        });
-        result.importedCount += profileResult.importedCount;
-        result.prunedCount += profileResult.prunedCount;
-        result.pruneAborted ||= profileResult.pruneAborted;
-        result.updatedCount += profileResult.updatedCount;
-        for (const itemId of profileResult.smartCollectionItemIds) {
-            result.smartCollectionItemIds.add(itemId);
+            const snapshot = await args.fetchSnapshot();
+            const { rows, skippedCount } = normalizeLibraryItemImportRows({
+                items: snapshot.items,
+                source: args.source,
+            });
+            const rowsByProfile = groupRowsByProfile(rows);
+            for (const browserProfileId of rowsByProfile.keys()) {
+                if (!profileIds.has(browserProfileId)) {
+                    throw new Error(
+                        "Snapshot profile must be locked before fetching its items."
+                    );
+                }
+            }
+
+            const result = {
+                importedCount: 0,
+                pruneAborted: false,
+                prunedCount: 0,
+                skippedCount,
+                smartCollectionItemIds: new Set<string>(),
+                updatedCount: 0,
+            };
+            for (const browserProfileId of profileIds) {
+                const profileResult = await importSnapshotProfileRows({
+                    browserProfileId,
+                    rows: rowsByProfile.get(browserProfileId) ?? [],
+                    snapshotComplete: snapshot.snapshotComplete,
+                    source: args.source,
+                    tx,
+                    userId: args.userId,
+                });
+                result.importedCount += profileResult.importedCount;
+                result.prunedCount += profileResult.prunedCount;
+                result.pruneAborted ||= profileResult.pruneAborted;
+                result.updatedCount += profileResult.updatedCount;
+                for (const itemId of profileResult.smartCollectionItemIds) {
+                    result.smartCollectionItemIds.add(itemId);
+                }
+            }
+
+            return {
+                ...result,
+                metadata: snapshot.metadata,
+                smartCollectionItemIds: [...result.smartCollectionItemIds],
+            };
+        },
+        {
+            maxWait: SNAPSHOT_IMPORT_TRANSACTION_MAX_WAIT_MS,
+            timeout: SNAPSHOT_IMPORT_TRANSACTION_TIMEOUT_MS,
         }
-    }
-
-    return {
-        ...result,
-        smartCollectionItemIds: [...result.smartCollectionItemIds],
-    };
+    );
 }

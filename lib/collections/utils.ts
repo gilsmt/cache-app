@@ -213,11 +213,6 @@ export const STATUS_MAP_DUPLICATE_OR_NOT_FOUND = {
     not_found: ACTION_STATUS.NOT_FOUND,
 } as const;
 
-export const STATUS_MAP_TRASHED_ITEM = {
-    not_found: ACTION_STATUS.NOT_FOUND,
-    not_trashed: ACTION_STATUS.NOT_FOUND,
-} as const;
-
 export function uniqueLibraryItemSources(
     items: readonly { source: LibraryItemSource }[]
 ): LibraryItemSource[] {

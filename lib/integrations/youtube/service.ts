@@ -79,39 +79,45 @@ export async function importYoutubeWatchLaterSnapshot(args: {
     const syncedAt = new Date();
 
     try {
-        const result = await importLibraryItemSnapshot({
-            browserProfileIdsToSync: [
-                browserProfileId ?? DEFAULT_BROWSER_PROFILE_ID,
-            ],
-            items: items.map((item) => ({
-                browserProfileId,
-                caption: item.title ?? null,
-                externalId: item.videoId,
-                postedAt: parseDate(item.publishedAt),
-                scrapedAt: parseDate(item.scrapedAt) ?? syncedAt,
-                sourceDeviceId: sourceDeviceId ?? null,
-                sourceDeviceName: sourceDeviceName ?? null,
-                sourceMetadata: {
-                    youtube: {
-                        availability: item.availability ?? null,
-                        channelId: item.channelId ?? null,
-                        channelName: item.channelName ?? null,
-                        duration: item.duration ?? null,
-                        isLive: item.availability === "live",
-                        isUpcoming: item.availability === "upcoming",
-                        playlistItemId: item.playlistItemId ?? null,
-                        position: item.position ?? null,
-                        videoId: item.videoId,
-                    },
-                },
-                url:
-                    item.videoUrl ??
-                    `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId)}`,
-            })),
-            snapshotComplete,
-            source: LibraryItemSource.youtube_watch_later,
-            userId,
-        });
+        const { metadata: _metadata, ...result } =
+            await importLibraryItemSnapshot({
+                browserProfileIdsToSync: [
+                    browserProfileId ?? DEFAULT_BROWSER_PROFILE_ID,
+                ],
+                // The extension supplies an already-fetched snapshot. The lock orders
+                // server reconciliation from admission through the final prune.
+                fetchSnapshot: async () => ({
+                    items: items.map((item) => ({
+                        browserProfileId,
+                        caption: item.title ?? null,
+                        externalId: item.videoId,
+                        postedAt: parseDate(item.publishedAt),
+                        scrapedAt: parseDate(item.scrapedAt) ?? syncedAt,
+                        sourceDeviceId: sourceDeviceId ?? null,
+                        sourceDeviceName: sourceDeviceName ?? null,
+                        sourceMetadata: {
+                            youtube: {
+                                availability: item.availability ?? null,
+                                channelId: item.channelId ?? null,
+                                channelName: item.channelName ?? null,
+                                duration: item.duration ?? null,
+                                isLive: item.availability === "live",
+                                isUpcoming: item.availability === "upcoming",
+                                playlistItemId: item.playlistItemId ?? null,
+                                position: item.position ?? null,
+                                videoId: item.videoId,
+                            },
+                        },
+                        url:
+                            item.videoUrl ??
+                            `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId)}`,
+                    })),
+                    metadata: undefined,
+                    snapshotComplete,
+                }),
+                source: LibraryItemSource.youtube_watch_later,
+                userId,
+            });
 
         log.info("Successfully imported YouTube watch later snapshot", {
             importedCount: result.importedCount,

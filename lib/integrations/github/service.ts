@@ -20,49 +20,52 @@ export async function importGitHubStarredRepositories(args: {
     const span = log.time("import-starred-repositories", { userId });
 
     try {
-        const gitHubUser = await getGitHubAuthenticatedUser(accessToken);
-        // Every sync walks the full star list so unstars reconcile: a
-        // repository removed upstream is absent from a complete fetch and
-        // the snapshot prune removes it. Stopping at the first known id
-        // would keep steady-state syncs cheap but leave unstarred
-        // repositories in the library indefinitely.
-        const { complete, repositories, truncated } =
-            await listGitHubStarredRepositories(accessToken);
-        const importedAt = new Date();
-
-        const result = await importLibraryItemSnapshot({
-            items: repositories.map((repository) => ({
-                caption: repository.caption,
-                externalId: repository.externalId,
-                postedAt: repository.postedAt,
-                scrapedAt: importedAt,
-                sourceMetadata: repository.sourceMetadata,
-                url: repository.url,
-            })),
-            // A cap-stop leaves the fetched set partial, so the snapshot prune
-            // must not treat unfetched items as deleted.
-            snapshotComplete: complete,
+        const { metadata, ...result } = await importLibraryItemSnapshot({
+            fetchSnapshot: async () => {
+                const gitHubUser =
+                    await getGitHubAuthenticatedUser(accessToken);
+                // Every sync walks the full star list so unstars reconcile: a
+                // repository removed upstream is absent from a complete fetch and
+                // the snapshot prune removes it. Stopping at the first known id
+                // would keep steady-state syncs cheap but leave unstarred
+                // repositories in the library indefinitely.
+                const { complete, repositories, truncated } =
+                    await listGitHubStarredRepositories(accessToken);
+                const importedAt = new Date();
+                return {
+                    items: repositories.map((repository) => ({
+                        caption: repository.caption,
+                        externalId: repository.externalId,
+                        postedAt: repository.postedAt,
+                        scrapedAt: importedAt,
+                        sourceMetadata: repository.sourceMetadata,
+                        url: repository.url,
+                    })),
+                    metadata: {
+                        gitHubLogin: gitHubUser.login,
+                        gitHubUserId: gitHubUser.id,
+                        totalFetched: repositories.length,
+                        truncated,
+                    },
+                    // A cap-stop leaves the fetched set partial, so the snapshot prune
+                    // must not treat unfetched items as deleted.
+                    snapshotComplete: complete,
+                };
+            },
             source: LibraryItemSource.github_starred_repositories,
             userId,
         });
 
         log.info("Successfully imported GitHub starred repositories", {
-            githubLogin: gitHubUser.login,
+            githubLogin: metadata.gitHubLogin,
             importedCount: result.importedCount,
             pruneAborted: result.pruneAborted,
             prunedCount: result.prunedCount,
-            truncated,
+            truncated: metadata.truncated,
             userId,
         });
 
-        return {
-            ...result,
-            gitHubLogin: gitHubUser.login,
-            gitHubUserId: gitHubUser.id,
-            smartCollectionItemIds: result.smartCollectionItemIds,
-            totalFetched: repositories.length,
-            truncated,
-        };
+        return { ...result, ...metadata };
     } catch (error) {
         log.error("Failed to import GitHub starred repositories", {
             error,

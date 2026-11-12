@@ -15,7 +15,6 @@ import {
     type LibraryCollectionTag,
     type LibraryItemWithCollections,
     STATUS_MAP_NOT_FOUND,
-    STATUS_MAP_TRASHED_ITEM,
 } from "@/lib/collections/utils";
 import {
     getValidationErrorMessage,
@@ -296,7 +295,7 @@ export async function restoreLibraryItem(
         };
     } catch (error) {
         return handleActionError({
-            codeToStatus: STATUS_MAP_TRASHED_ITEM,
+            codeToStatus: STATUS_MAP_NOT_FOUND,
             error,
             errorFactory: LibraryCollectionError,
             fallbackMessage: "We couldn't restore this saved item right now.",
@@ -339,7 +338,7 @@ export async function purgeLibraryItem(
         };
     } catch (error) {
         return handleActionError({
-            codeToStatus: STATUS_MAP_TRASHED_ITEM,
+            codeToStatus: STATUS_MAP_NOT_FOUND,
             error,
             errorFactory: LibraryCollectionError,
             fallbackMessage:
