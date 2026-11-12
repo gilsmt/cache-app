@@ -1,13 +1,13 @@
 import { serverEnv } from "@/env/server";
 import { withStripe } from "@/lib/billing/client";
-import { StripeError } from "@/lib/billing/error";
+import { BillingError } from "@/lib/billing/error";
 import type { PaidPriceType } from "./types";
 
 export async function getPlanPriceById(priceId: string) {
     const price = await withStripe((stripe) => stripe.prices.retrieve(priceId));
 
     if (price.type !== "recurring" || !price.recurring?.interval) {
-        throw new StripeError({
+        throw new BillingError({
             message: `Configured price '${priceId}' is not recurring (type=${price.type}).`,
             operation: "prices::retrievePriceById",
         });
@@ -15,7 +15,7 @@ export async function getPlanPriceById(priceId: string) {
 
     const currency = price.currency.toUpperCase();
     if (price.unit_amount === null) {
-        throw new StripeError({
+        throw new BillingError({
             message: `Configured price '${priceId}' has no unit amount.`,
             operation: "prices::retrievePriceById",
         });
@@ -45,7 +45,7 @@ export function getPlanPriceIds(): Record<PaidPriceType, string> {
 
 function requirePlanPriceId(value: string | undefined, name: string): string {
     if (!value) {
-        throw new StripeError({
+        throw new BillingError({
             message: `Missing required environment variable: ${name}`,
             operation: "prices::getPlanPriceIds",
         });

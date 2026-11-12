@@ -2,7 +2,7 @@ import "server-only";
 
 import { serverEnv } from "@/env/server";
 import { withStripe } from "@/lib/billing/client";
-import { StripeError } from "@/lib/billing/error";
+import { BillingError } from "@/lib/billing/error";
 import type { PriceType } from "@/lib/billing/types";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { prisma } from "@/prisma";
@@ -139,7 +139,7 @@ export async function cancelUserNonterminalSubscriptions(
             return;
         }
 
-        throw new StripeError(
+        throw new BillingError(
             {
                 message:
                     "Unable to cancel Stripe subscriptions before account deletion.",
