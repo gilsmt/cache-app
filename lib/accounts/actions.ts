@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { auth } from "@/lib/auth/server";
+import { deleteUserAccount } from "@/lib/accounts/service";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { asRecord } from "@/lib/common/object";
@@ -27,7 +27,7 @@ export async function deleteAccountAction(): Promise<DeleteAccountActionResult> 
     }
 
     try {
-        await auth.api.deleteUser({ body: {}, headers: await headers() });
+        await deleteUserAccount(await headers());
 
         return {
             message: "",
