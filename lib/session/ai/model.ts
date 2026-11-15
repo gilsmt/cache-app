@@ -1,7 +1,7 @@
 export type RegisteredModel = `${string}/${string}`;
 
 export const DEFAULT_REGISTERED_MODEL: RegisteredModel =
-    "google/gemini-3.8-flash";
+    "google/gemini-4-hydrogen";
 
 export interface ParsedRegisteredModel {
     modelId: string;
