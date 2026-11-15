@@ -42,6 +42,7 @@ import { ErrorMessage } from "@/components/ui/error-message";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getMonthDayLabel } from "@/lib/common/date";
+import { isSubmitKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import {
     DEFAULT_TIME_OF_DAY_MINUTES,
@@ -880,11 +881,20 @@ function AutomationTimeCombobox({
         setInputValue(roundedOption.label);
     });
 
-    const handleKeyDown = useStableCallback((event: React.KeyboardEvent) => {
-        if (event.key === "Enter") {
+    const handleKeyDown = useStableCallback(
+        (event: React.KeyboardEvent<HTMLInputElement>) => {
+            if (
+                event.defaultPrevented ||
+                !isSubmitKey(event) ||
+                event.currentTarget.hasAttribute("aria-activedescendant")
+            ) {
+                return;
+            }
+            // Base UI commits highlighted options. Parse only unmatched input.
+            event.preventDefault();
             handleFreeformEnter();
         }
-    });
+    );
 
     const handleValueChange = useStableCallback(
         (nextTime: TimeOfDayOption | null) => {

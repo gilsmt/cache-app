@@ -54,8 +54,9 @@ function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
 
     const savedContent = data ?? "";
     const [content, setContent] = React.useState(savedContent);
+    const normalizedContent = normalizeCommentText(content) ?? "";
 
-    const contentRef = useValueAsRef(content);
+    const contentRef = useValueAsRef(normalizedContent);
     const savedContentRef = useValueAsRef(savedContent);
     const editVersionRef = React.useRef(0);
     // A newer edit can match an old server value.
@@ -69,23 +70,22 @@ function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
         }
         previousSavedContentRef.current = savedContent;
 
-        if (content === savedContent) {
+        if (normalizedContent === savedContent) {
             synchronizedEditVersionRef.current = editVersionRef.current;
             return;
         }
         if (editVersionRef.current === synchronizedEditVersionRef.current) {
             setContent(savedContent);
         }
-    }, [content, savedContent]);
+    }, [normalizedContent, savedContent]);
 
     async function handleSave(contentToSave: string) {
         const saveVersion = editVersionRef.current;
         pendingSaveVersionRef.current = saveVersion;
         let didSave = false;
         try {
-            const next = normalizeCommentText(contentToSave) ?? "";
             const result = await updateLibraryItemComment({
-                contentText: next,
+                contentText: contentToSave,
                 itemId,
             });
             if (result.status !== ACTION_STATUS.SUCCESS) {
@@ -98,7 +98,6 @@ function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
             const saved = result.contentText ?? "";
             if (editVersionRef.current === saveVersion) {
                 synchronizedEditVersionRef.current = saveVersion;
-                setContent(saved);
             } else if (contentRef.current === saved) {
                 synchronizedEditVersionRef.current = editVersionRef.current;
             }
@@ -123,7 +122,7 @@ function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
             editVersionRef.current = nextEditVersion;
             if (
                 pendingSaveVersionRef.current === null &&
-                nextContent === savedContent
+                (normalizeCommentText(nextContent) ?? "") === savedContent
             ) {
                 synchronizedEditVersionRef.current = nextEditVersion;
             }
@@ -132,7 +131,7 @@ function CommentComposerImpl({ isOpen, itemId }: CommentComposerProps) {
     );
 
     const { status: saveStatus } = useAutosave({
-        content,
+        content: normalizedContent,
         enabled: !isLoading,
         onSave: handleSave,
         savedContent,
