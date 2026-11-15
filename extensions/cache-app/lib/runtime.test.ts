@@ -51,29 +51,29 @@ describe("isTrustedCacheWebOrigin", () => {
 
 describe("cacheAppOriginFromSiteMatch", () => {
     test("resolves an exact HTTPS site match", () => {
-        expect(
-            cacheAppOriginFromSiteMatch("https://cache.example.com/*"),
-        ).toBe("https://cache.example.com");
+        expect(cacheAppOriginFromSiteMatch("https://cache.example.com/*")).toBe(
+            "https://cache.example.com"
+        );
     });
 
     test("allows HTTP only for loopback development", () => {
-        expect(
-            cacheAppOriginFromSiteMatch("http://localhost:3000/*"),
-        ).toBe("http://localhost:3000");
-        expect(
-            cacheAppOriginFromSiteMatch("http://127.0.0.1:3000/*"),
-        ).toBe("http://127.0.0.1:3000");
+        expect(cacheAppOriginFromSiteMatch("http://localhost:3000/*")).toBe(
+            "http://localhost:3000"
+        );
+        expect(cacheAppOriginFromSiteMatch("http://127.0.0.1:3000/*")).toBe(
+            "http://127.0.0.1:3000"
+        );
     });
 
     test("rejects wildcard hosts, paths, and insecure remote origins", () => {
         expect(() =>
-            cacheAppOriginFromSiteMatch("https://*.example.com/*"),
+            cacheAppOriginFromSiteMatch("https://*.example.com/*")
         ).toThrow();
         expect(() =>
-            cacheAppOriginFromSiteMatch("https://cache.example.com/app/*"),
+            cacheAppOriginFromSiteMatch("https://cache.example.com/app/*")
         ).toThrow();
         expect(() =>
-            cacheAppOriginFromSiteMatch("http://cache.example.com/*"),
+            cacheAppOriginFromSiteMatch("http://cache.example.com/*")
         ).toThrow();
     });
 

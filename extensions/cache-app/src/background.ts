@@ -1,22 +1,23 @@
 // @ts-nocheck — mechanical port of the production service worker; boundary
 // contracts live in @/lib/runtime and the overlay is fully typed.
+
+// Plasmo resolves these to built bundle URLs for dynamic MAIN-world registration.
+import cacheSiteMainUrl from "url:./page-world/cache-site-main";
+import youtubeMainUrl from "url:./page-world/youtube-main";
 import {
+    buildOriginPath,
     CACHE_SITE_MATCHES,
     CHROME_SYNC_MODES,
-    MESSAGE_TYPES,
-    STORAGE_KEYS,
-    buildOriginPath,
     defaultChromeSyncEndpoint,
     getConfiguredCacheAppOrigin,
     ingestEndpointForSource,
     isCacheSiteUrl,
     isSocialImportUrl,
     isUnsupportedClipUrl,
+    MESSAGE_TYPES,
     resolveCacheOrigin,
+    STORAGE_KEYS,
 } from "@/lib/runtime";
-// Plasmo resolves these to built bundle URLs for dynamic MAIN-world registration.
-import cacheSiteMainUrl from "url:./page-world/cache-site-main";
-import youtubeMainUrl from "url:./page-world/youtube-main";
 
 const PAGE_WORLD_SCRIPT_IDS = {
     cacheSite: "cache-page-world-site",
@@ -216,7 +217,7 @@ function withQueueLock<T>(operation: () => Promise<T> | T): Promise<T> {
 let autoSyncMarkerMutationPromise: Promise<unknown> = Promise.resolve();
 
 function withAutoSyncMarkerLock<T>(
-    operation: () => Promise<T> | T,
+    operation: () => Promise<T> | T
 ): Promise<T> {
     const promise = autoSyncMarkerMutationPromise.then(operation) as Promise<T>;
     autoSyncMarkerMutationPromise = keepLockChainAlive(promise);
@@ -260,9 +261,7 @@ async function consumePendingAutoSync(tabId: any) {
             : [];
         const now = Date.now();
         const fresh = pruneAutoSyncMarkers(existing, now);
-        const matchIndex = fresh.findIndex(
-            (marker) => marker.tabId === tabId
-        );
+        const matchIndex = fresh.findIndex((marker) => marker.tabId === tabId);
         if (matchIndex === -1) {
             if (fresh.length !== existing.length) {
                 await chrome.storage.local.set({
@@ -286,7 +285,7 @@ async function startOpenAndSync(openURL: any) {
     }
     if (!isSocialImportUrl(trimmed)) {
         throw new Error(
-            "Open-and-sync only supports Instagram Saved, TikTok Favorites, or YouTube Watch Later.",
+            "Open-and-sync only supports Instagram Saved, TikTok Favorites, or YouTube Watch Later."
         );
     }
     // Persist URL before create so CONTENT_SCRIPT_READY can still match if the
@@ -305,8 +304,8 @@ function openAndSyncUrlsMatch(pendingUrl: string, tabUrl: string): boolean {
         const pending = new URL(pendingUrl);
         const tab = new URL(tabUrl);
         return (
-            pending.hostname.replace(/^www\./, "") ===
-                tab.hostname.replace(/^www\./, "") &&
+            pending.hostname.replace(/^www\./u, "") ===
+                tab.hostname.replace(/^www\./u, "") &&
             pending.pathname === tab.pathname &&
             pending.search === tab.search
         );
@@ -326,7 +325,7 @@ async function consumePendingOpenAndSyncByUrl(tabUrl: string) {
         typeof stored[STORAGE_KEYS.pendingOpenAndSyncUrl] === "string"
             ? stored[STORAGE_KEYS.pendingOpenAndSyncUrl]
             : "";
-    if (!pending || !openAndSyncUrlsMatch(pending, tabUrl)) {
+    if (!(pending && openAndSyncUrlsMatch(pending, tabUrl))) {
         return false;
     }
     await chrome.storage.local.remove(STORAGE_KEYS.pendingOpenAndSyncUrl);
@@ -423,7 +422,12 @@ function mapChromeBookmarkNode(node: any, browserProfileId: any) {
     };
 }
 
-function flattenChromeBookmarkTree(nodes: any, browserProfileId: any, result: any, snapshotIds: any) {
+function flattenChromeBookmarkTree(
+    nodes: any,
+    browserProfileId: any,
+    result: any,
+    snapshotIds: any
+) {
     for (const node of nodes) {
         const externalId = String(node.id);
         snapshotIds.push(externalId);
@@ -562,7 +566,12 @@ function toIngestItems(items: any) {
     });
 }
 
-async function postToOptionalBackend(endpoint: any, apiKey: any, items: any, source: any) {
+async function postToOptionalBackend(
+    endpoint: any,
+    apiKey: any,
+    items: any,
+    source: any
+) {
     if (!endpoint?.trim()) {
         return;
     }
@@ -910,9 +919,10 @@ async function runChromeInitialImport(mode: any) {
         snapshotExternalIds
     );
 
-    const bookmarkCount = events.reduce((count, event) => {
-        return count + (event.bookmark?.kind === "bookmark" ? 1 : 0);
-    }, 0);
+    const bookmarkCount = events.reduce(
+        (count, event) => count + (event.bookmark?.kind === "bookmark" ? 1 : 0),
+        0
+    );
 
     events.push({
         snapshotExternalIds,
@@ -928,9 +938,13 @@ async function runChromeInitialImport(mode: any) {
     await flushChromeBookmarkQueue();
 }
 
-async function migrateItemsIfNeeded(data: any, versionKey: any, itemsKey: any, targetVersion: any) {
-    const version =
-        typeof data[versionKey] === "number" ? data[versionKey] : 0;
+async function migrateItemsIfNeeded(
+    data: any,
+    versionKey: any,
+    itemsKey: any,
+    targetVersion: any
+) {
+    const version = typeof data[versionKey] === "number" ? data[versionKey] : 0;
     const raw = data[itemsKey];
     let items = Array.isArray(raw) ? raw : [];
 
@@ -947,7 +961,12 @@ async function migrateItemsIfNeeded(data: any, versionKey: any, itemsKey: any, t
     return items;
 }
 
-function mergeRowsByKey(incoming: any, existing: any, getKey: any, mergeItem: any) {
+function mergeRowsByKey(
+    incoming: any,
+    existing: any,
+    getKey: any,
+    mergeItem: any
+) {
     const rowsByKey = new Map();
 
     for (const item of existing) {
@@ -1004,7 +1023,8 @@ function mergeByYouTubeVideoId(incoming: any, existing: any) {
         (item, prev, videoId) => ({
             ...prev,
             ...item,
-            availability: item.availability || prev?.availability || "available",
+            availability:
+                item.availability || prev?.availability || "available",
             channelId: item.channelId || prev?.channelId || "",
             channelName: item.channelName || prev?.channelName || "",
             duration: item.duration || prev?.duration || "",
@@ -1078,7 +1098,7 @@ async function syncYouTubeSnapshot(endpoint: any, apiKey: any, items: any) {
     const payloadItems = toIngestItems(
         items
             .map((item) => sanitizeYouTubeSnapshotItem(item))
-            .filter((item) => item !== null),
+            .filter((item) => item !== null)
     );
     await postYouTubeSnapshot(endpoint, apiKey, {
         browserProfileId: identity.profileId || DEFAULT_BROWSER_PROFILE_ID,
@@ -1167,11 +1187,10 @@ async function persistBookmarkItems(items: any, options: any) {
     }
     await chrome.storage.local.set(patch);
 
-    const endpoint =
-        ingestEndpointForSource(
-            data[STORAGE_KEYS.syncEndpoint],
-            config.endpointSource
-        );
+    const endpoint = ingestEndpointForSource(
+        data[STORAGE_KEYS.syncEndpoint],
+        config.endpointSource
+    );
     const apiKey =
         typeof data[STORAGE_KEYS.syncApiKey] === "string"
             ? data[STORAGE_KEYS.syncApiKey]
@@ -1185,7 +1204,10 @@ async function persistBookmarkItems(items: any, options: any) {
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn(`[Cache App] ${options.source} optional sync error:`, error);
+        console.warn(
+            `[Cache App] ${options.source} optional sync error:`,
+            error
+        );
         if (config.syncFailureCode) {
             await notifySyncError(config.syncFailureCode, message);
         }
@@ -1278,13 +1300,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
                     ? data[STORAGE_KEYS.syncApiKey].trim()
                     : "";
             if (!token) {
-                sendResponse({ error: "Not linked. Sign in to Cache and open a Cache tab." });
+                sendResponse({
+                    error: "Not linked. Sign in to Cache and open a Cache tab.",
+                });
                 return;
             }
             const endpointOrigin = resolveCacheOrigin(
                 typeof data[STORAGE_KEYS.syncEndpoint] === "string"
                     ? data[STORAGE_KEYS.syncEndpoint]
-                    : "",
+                    : ""
             );
             if (!endpointOrigin) {
                 sendResponse({ error: "Missing Cache origin." });
@@ -1305,13 +1329,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
                 case "listCollections":
                     url = buildOriginPath(
                         endpointOrigin,
-                        "/api/integrations/extension/collections",
+                        "/api/integrations/extension/collections"
                     );
                     break;
                 case "createCollection":
                     url = buildOriginPath(
                         endpointOrigin,
-                        "/api/integrations/extension/collections",
+                        "/api/integrations/extension/collections"
                     );
                     fetchOptions.method = "POST";
                     fetchOptions.body = JSON.stringify(msg.args);
@@ -1320,7 +1344,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
                 case "clipPage":
                     url = buildOriginPath(
                         endpointOrigin,
-                        "/api/integrations/extension/clip",
+                        "/api/integrations/extension/clip"
                     );
                     fetchOptions.method = "POST";
                     fetchOptions.body = JSON.stringify(msg.args);
@@ -1347,10 +1371,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             sendResponse({ data: json });
         } catch (err) {
             sendResponse({
-                error:
-                    err instanceof Error
-                        ? err.message
-                        : "Request failed.",
+                error: err instanceof Error ? err.message : "Request failed.",
             });
         }
     })();
@@ -1364,7 +1385,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             if (!isCacheSiteUrl(senderUrl)) {
                 console.warn(
                     "[Cache] Ignoring CACHE_SITE_BRIDGE from non-Cache origin:",
-                    senderUrl || "(none)",
+                    senderUrl || "(none)"
                 );
                 return;
             }
@@ -1374,21 +1395,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             if (!(endpoint && token)) {
                 return;
             }
-            if (!isCacheSiteUrl(endpoint) && !isCacheSiteUrl(`${endpoint}/`)) {
+            if (!(isCacheSiteUrl(endpoint) || isCacheSiteUrl(`${endpoint}/`))) {
                 // endpoint may be bare origin or full URL path
                 try {
                     const origin = new URL(endpoint).origin;
                     if (!isCacheSiteUrl(origin)) {
                         console.warn(
                             "[Cache] Ignoring CACHE_SITE_BRIDGE with disallowed endpoint:",
-                            endpoint,
+                            endpoint
                         );
                         return;
                     }
                 } catch {
                     console.warn(
                         "[Cache] Ignoring CACHE_SITE_BRIDGE with invalid endpoint:",
-                        endpoint,
+                        endpoint
                     );
                     return;
                 }
@@ -1424,9 +1445,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 );
                 sendResponse?.({
                     error:
-                        error instanceof Error
-                            ? error.message
-                            : String(error),
+                        error instanceof Error ? error.message : String(error),
                     ok: false,
                 });
             }
@@ -1441,14 +1460,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
         (async () => {
             let match = await consumePendingAutoSync(tabId);
-            if (!match) {
-                // Race fallback: tab id marker may land after READY.
-                match = await consumePendingOpenAndSyncByUrl(
-                    sender?.tab?.url ?? "",
+            if (match) {
+                await chrome.storage.local.remove(
+                    STORAGE_KEYS.pendingOpenAndSyncUrl
                 );
             } else {
-                await chrome.storage.local.remove(
-                    STORAGE_KEYS.pendingOpenAndSyncUrl,
+                // Race fallback: tab id marker may land after READY.
+                match = await consumePendingOpenAndSyncByUrl(
+                    sender?.tab?.url ?? ""
                 );
             }
             if (!match) {

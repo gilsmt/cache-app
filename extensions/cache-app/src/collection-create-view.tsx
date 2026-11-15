@@ -10,8 +10,8 @@ export interface CollectionCreateViewProps {
         name: string;
         description?: string;
     }) => Promise<CreateCollectionResponse>;
-    onCreated: (collection: CreateCollectionResponse["collection"]) => void;
     onCancel: () => void;
+    onCreated: (collection: CreateCollectionResponse["collection"]) => void;
 }
 
 export function CollectionCreateView({
@@ -64,16 +64,14 @@ export function CollectionCreateView({
         void createCollection({
             name: trimmedName,
             description:
-                description.trim().length > 0
-                    ? description.trim()
-                    : undefined,
+                description.trim().length > 0 ? description.trim() : undefined,
         })
             .then((response) => onCreated(response.collection))
             .catch((err: unknown) => {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "Could not create the collection.",
+                        : "Could not create the collection."
                 );
             })
             .finally(() => setIsSubmitting(false));
@@ -89,49 +87,49 @@ export function CollectionCreateView({
     return (
         <div onKeyDown={handleKeyDown}>
             <button
-                type="button"
-                className={styles.formBackRow}
-                onClick={handleCancel}
-                disabled={isSubmitting}
                 aria-label="Back to list"
+                className={styles.formBackRow}
+                disabled={isSubmitting}
+                onClick={handleCancel}
+                type="button"
             >
                 <svg
-                    width="10"
+                    aria-hidden="true"
+                    fill="none"
                     height="10"
                     viewBox="0 0 10 10"
-                    fill="none"
-                    aria-hidden="true"
+                    width="10"
                 >
                     <path
                         d="M6 2L3 5l3 3"
                         stroke="currentColor"
-                        strokeWidth="1.4"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                        strokeWidth="1.4"
                     />
                 </svg>
             </button>
 
             <input
-                ref={nameInputRef}
-                type="text"
-                className={styles.createNameInput}
-                placeholder="Collection name"
-                value={name}
-                maxLength={NAME_MAX_LENGTH}
                 autoComplete="off"
+                className={styles.createNameInput}
+                disabled={isSubmitting}
+                maxLength={NAME_MAX_LENGTH}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={handleNameKeyDown}
-                disabled={isSubmitting}
+                placeholder="Collection name"
+                ref={nameInputRef}
+                type="text"
+                value={name}
             />
 
             <textarea
                 className={styles.createDescriptionTextarea}
-                placeholder="Describe what belongs here…"
-                value={description}
+                disabled={isSubmitting}
                 maxLength={DESCRIPTION_MAX_LENGTH}
                 onChange={(e) => setDescription(e.target.value)}
-                disabled={isSubmitting}
+                placeholder="Describe what belongs here…"
+                value={description}
             />
 
             {error ? <p className={styles.inlineError}>{error}</p> : null}

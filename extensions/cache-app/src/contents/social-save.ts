@@ -1,10 +1,7 @@
 // @ts-nocheck — mechanical port of platform save helpers; message contracts
 // are typed via @/lib/runtime.
 import type { PlasmoCSConfig } from "plasmo";
-import {
-    MESSAGE_TYPES,
-    isYouTubeWatchLaterUrl,
-} from "@/lib/runtime";
+import { isYouTubeWatchLaterUrl, MESSAGE_TYPES } from "@/lib/runtime";
 
 export const config: PlasmoCSConfig = {
     matches: [
@@ -194,7 +191,11 @@ async function stepScrollInnerToBottom(innerScroller: any) {
  * @param {HTMLElement | null} feedScroller
  * @param {{ fullInnerSteps?: boolean }} [opts]
  */
-async function scrollFeedTowardBottom(anchor: any, feedScroller: any, opts: any = {}) {
+async function scrollFeedTowardBottom(
+    anchor: any,
+    feedScroller: any,
+    opts: any = {}
+) {
     const fullInner = opts.fullInnerSteps !== false;
     scrollWindowToBottom();
     scrollAllAncestorsToBottom(anchor);
@@ -241,7 +242,9 @@ function flushAccumulatedDelta(accumulated, delta, source) {
     const items = [];
     for (const id of Object.keys(delta)) {
         const row = accumulated.get(id);
-        if (row) items.push(row);
+        if (row) {
+            items.push(row);
+        }
     }
     if (items.length === 0) {
         return;
@@ -327,7 +330,7 @@ function getPostedAtFromInstagramAlt(alt: any) {
         return null;
     }
     // English: "on October 25, 2023"
-    const enMatch = alt.match(/on\s+([A-Z][a-z]+\s+\d{1,2},\s+\d{4})/);
+    const enMatch = alt.match(/on\s+([A-Z][a-z]+\s+\d{1,2},\s+\d{4})/u);
     if (enMatch?.[1]) {
         const d = new Date(enMatch[1]);
         if (!Number.isNaN(d.getTime())) {
@@ -335,7 +338,7 @@ function getPostedAtFromInstagramAlt(alt: any) {
         }
     }
     // Spanish: "el 25 de octubre de 2023"
-    const esMatch = alt.match(/el\s+(\d{1,2}\s+de\s+[a-z]+\s+de\s+\d{4})/i);
+    const esMatch = alt.match(/el\s+(\d{1,2}\s+de\s+[a-z]+\s+de\s+\d{4})/iu);
     if (esMatch?.[1]) {
         // Simple manual parse for Spanish months if Date() fails
         const months = {
@@ -352,7 +355,7 @@ function getPostedAtFromInstagramAlt(alt: any) {
             octubre: 9,
             septiembre: 8,
         };
-        const parts = esMatch[1].toLowerCase().split(/\s+de\s+/);
+        const parts = esMatch[1].toLowerCase().split(/\s+de\s+/u);
         if (parts.length === 3) {
             const d = new Date(
                 Number(parts[2]),
@@ -432,8 +435,8 @@ function getInstagramPostedAtByShortcodeMap() {
     const byShortcode = new Map();
     const scripts = document.querySelectorAll("script");
     const patterns = [
-        /"shortcode":"([^"]+)"[\s\S]{0,240}?"taken_at_timestamp":(\d{9,})/g,
-        /"taken_at_timestamp":(\d{9,})[\s\S]{0,240}?"shortcode":"([^"]+)"/g,
+        /"shortcode":"([^"]+)"[\s\S]{0,240}?"taken_at_timestamp":(\d{9,})/gu,
+        /"taken_at_timestamp":(\d{9,})[\s\S]{0,240}?"shortcode":"([^"]+)"/gu,
     ];
 
     for (const script of scripts) {
@@ -497,8 +500,8 @@ function getInstagramPostedAt(anchor: any, shortcode: any, caption: any) {
 
 // --- Instagram ---
 
-const IG_SAVED_PATH_RE = /^\/[^/]+\/saved(\/.*)?$/;
-const IG_POST_PATH_RE = /\/(p|reel)\/([^/?#]+)/;
+const IG_SAVED_PATH_RE = /^\/[^/]+\/saved(\/.*)?$/u;
+const IG_POST_PATH_RE = /\/(p|reel)\/([^/?#]+)/u;
 
 function isInstagramSavedPageByUrl() {
     return IG_SAVED_PATH_RE.test(window.location.pathname);
@@ -517,9 +520,9 @@ function isInstagramSavedPageByDomFallback() {
             const text = (el.textContent ?? "").trim();
             const combined = `${label} ${text}`.trim();
             if (
-                (/^saved$/i.test(text) ||
-                    /^saved$/i.test(label) ||
-                    /\bsaved\b/i.test(combined)) &&
+                (/^saved$/iu.test(text) ||
+                    /^saved$/iu.test(label) ||
+                    /\bsaved\b/iu.test(combined)) &&
                 combined.length < 80
             ) {
                 return true;
@@ -593,7 +596,7 @@ function findInstagramScrollAnchorElement() {
 function parseInstagramPostHref(href: any) {
     try {
         const u = new URL(href, "https://www.instagram.com");
-        if (u.hostname.replace(/^www\./, "") !== "instagram.com") {
+        if (u.hostname.replace(/^www\./u, "") !== "instagram.com") {
             return null;
         }
         const match = u.pathname.match(IG_POST_PATH_RE);
@@ -649,20 +652,23 @@ function mergeInstagramDomIntoAccumulated(accumulated: any, delta: any) {
 
         if (accumulated.has(parsed.shortcode)) {
             const prev = accumulated.get(parsed.shortcode);
-            const shouldFillCaption = prev && !prev.caption && !!(caption);
-            const shouldFillPostedAt =
-                prev && !prev.postedAt && !!(postedAt);
+            const shouldFillCaption = prev && !prev.caption && !!caption;
+            const shouldFillPostedAt = prev && !prev.postedAt && !!postedAt;
             if (shouldFillCaption || shouldFillPostedAt) {
                 accumulated.set(parsed.shortcode, {
                     ...prev,
                     caption: prev.caption || caption,
                     postedAt: prev.postedAt || postedAt,
                 });
-                if (delta) delta[parsed.shortcode] = true;
+                if (delta) {
+                    delta[parsed.shortcode] = true;
+                }
             }
         } else {
             accumulated.set(parsed.shortcode, row);
-            if (delta) delta[parsed.shortcode] = true;
+            if (delta) {
+                delta[parsed.shortcode] = true;
+            }
         }
     }
 }
@@ -673,13 +679,12 @@ function mergeInstagramDomIntoAccumulated(accumulated: any, delta: any) {
  * @param {(accumulated: Map<string, any>) => void} mergeDomFn
  * @returns {Promise<Map<string, any>>}
  */
-async function scrollFeedToLoadMore(source: any, findAnchor: any, mergeDomFn: any) {
-    return scrollFeedToLoadMoreInto(
-        new Map(),
-        source,
-        findAnchor,
-        mergeDomFn,
-    );
+async function scrollFeedToLoadMore(
+    source: any,
+    findAnchor: any,
+    mergeDomFn: any
+) {
+    return scrollFeedToLoadMoreInto(new Map(), source, findAnchor, mergeDomFn);
 }
 
 /**
@@ -696,10 +701,9 @@ async function scrollFeedToLoadMoreInto(
     accumulated: any,
     source: any,
     findAnchor: any,
-    mergeDomFn: any,
+    mergeDomFn: any
 ) {
-    const cap =
-        source === "youtube" ? MAX_YOUTUBE_ITEMS : MAX_ITEMS;
+    const cap = source === "youtube" ? MAX_YOUTUBE_ITEMS : MAX_ITEMS;
     const initialDelta = Object.create(null);
     mergeDomFn(accumulated, initialDelta);
     flushAccumulatedDelta(accumulated, initialDelta, source);
@@ -842,7 +846,7 @@ function querySelectorAllDeep(sel: any) {
  * @returns {string}
  */
 function tiktokPathWithoutOptionalLocale(pathname: any) {
-    const m = pathname.match(/^\/([a-z]{2}(?:-[a-zA-Z0-9]{2,10})?)\/(.+)$/i);
+    const m = pathname.match(/^\/([a-z]{2}(?:-[a-zA-Z0-9]{2,10})?)\/(.+)$/iu);
     if (!m) {
         return pathname;
     }
@@ -871,12 +875,12 @@ function tiktokNormalizedPath() {
  */
 function isTikTokFavoritesByUrl() {
     const p = tiktokNormalizedPath();
-    if (/^\/@[^/]+\/favorites?(?:\/|$)/i.test(p)) {
+    if (/^\/@[^/]+\/favorites?(?:\/|$)/iu.test(p)) {
         return true;
     }
     if (
-        /\/favorites?(?:\/|$)/i.test(p) &&
-        /@/i.test(window.location.pathname)
+        /\/favorites?(?:\/|$)/iu.test(p) &&
+        /@/iu.test(window.location.pathname)
     ) {
         return true;
     }
@@ -884,14 +888,14 @@ function isTikTokFavoritesByUrl() {
     const tab = (sp.get("tab") ?? sp.get("from_tab") ?? "").toLowerCase();
     if (
         (tab === "favorites" || tab === "favorite") &&
-        /^\/@[^/]+\/?$/i.test(p)
+        /^\/@[^/]+\/?$/iu.test(p)
     ) {
         return true;
     }
     const hash = window.location.hash.toLowerCase();
     if (
         (hash.includes("favorite") || hash.includes("favorites")) &&
-        /^\/@[^/]+\/?$/i.test(p)
+        /^\/@[^/]+\/?$/iu.test(p)
     ) {
         return true;
     }
@@ -905,13 +909,13 @@ function isTikTokFavoritesByUrl() {
  */
 function isTikTokProfileSurfacePath() {
     const p = tiktokNormalizedPath();
-    if (/^\/profile\b/i.test(p)) {
+    if (/^\/profile\b/iu.test(p)) {
         return true;
     }
-    if (!/^\/@[^/]+/i.test(p)) {
+    if (!/^\/@[^/]+/iu.test(p)) {
         return false;
     }
-    if (/^\/@[^/]+\/(?:video|photo)\/\d+/i.test(p)) {
+    if (/^\/@[^/]+\/(?:video|photo)\/\d+/iu.test(p)) {
         return false;
     }
     return true;
@@ -924,13 +928,13 @@ function isTikTokProfileSurfacePath() {
 function textSuggestsTikTokFavorites(text: any) {
     const t = text.toLowerCase();
     return (
-        /\bfavorites?\b/.test(t) ||
-        /\bfavourites?\b/.test(t) ||
-        /\bfavoritos?\b/.test(t) ||
-        /\bfavoris\b/.test(t) ||
-        /\bfavoriten\b/.test(t) ||
-        /\b收藏\b/.test(text) ||
-        /\bお気に入り\b/.test(text)
+        /\bfavorites?\b/u.test(t) ||
+        /\bfavourites?\b/u.test(t) ||
+        /\bfavoritos?\b/u.test(t) ||
+        /\bfavoris\b/u.test(t) ||
+        /\bfavoriten\b/u.test(t) ||
+        /\b收藏\b/u.test(text) ||
+        /\bお気に入り\b/u.test(text)
     );
 }
 
@@ -950,7 +954,7 @@ function tiktokTabLooksSelected(el: any) {
     }
     const cls = el.className;
     const s = typeof cls === "string" ? cls : String(cls);
-    return /\bactive\b/i.test(s) || /\bselected\b/i.test(s);
+    return /\bactive\b/iu.test(s) || /\bselected\b/iu.test(s);
 }
 
 /**
@@ -994,7 +998,7 @@ function isTikTokFavoritesTabActive() {
             const href = el.getAttribute("href") ?? "";
             if (
                 textSuggestsTikTokFavorites(`${label} ${text}`) ||
-                /\/favorites/i.test(href)
+                /\/favorites/iu.test(href)
             ) {
                 return true;
             }
@@ -1066,7 +1070,7 @@ function findTikTokVideoScrollAnchor() {
     return first instanceof HTMLElement ? first : null;
 }
 
-const TIKTOK_VIDEO_ID_RE = /\/video\/(\d+)/;
+const TIKTOK_VIDEO_ID_RE = /\/video\/(\d+)/u;
 
 /**
  * @param {string} href
@@ -1075,7 +1079,7 @@ const TIKTOK_VIDEO_ID_RE = /\/video\/(\d+)/;
 function parseTikTokVideoHref(href: any) {
     try {
         const u = new URL(href, "https://www.tiktok.com");
-        if (u.hostname.replace(/^www\./, "") !== "tiktok.com") {
+        if (u.hostname.replace(/^www\./u, "") !== "tiktok.com") {
             return null;
         }
         const match = u.pathname.match(TIKTOK_VIDEO_ID_RE);
@@ -1136,7 +1140,9 @@ function mergeTikTokDomIntoAccumulated(accumulated: any, delta: any) {
 
         if (!accumulated.has(parsed.id)) {
             accumulated.set(parsed.id, row);
-            if (delta) delta[parsed.id] = true;
+            if (delta) {
+                delta[parsed.id] = true;
+            }
         } else if (delta) {
             delta[parsed.id] = true;
         }
@@ -1373,8 +1379,7 @@ function mergeYouTubeRowsIntoAccumulated(accumulated: any, rows: any) {
             position:
                 typeof row.position === "number" ? row.position : prev.position,
             publishedAt: row.publishedAt || prev.publishedAt || null,
-            savedAt:
-                row.savedAt || prev.savedAt || new Date().toISOString(),
+            savedAt: row.savedAt || prev.savedAt || new Date().toISOString(),
             title: row.title || prev.title || "",
             videoUrl: row.videoUrl || prev.videoUrl || "",
         });
@@ -1409,7 +1414,7 @@ async function getYouTubeBootstrapData() {
         window.addEventListener("message", onMessage);
         // MAIN-world content script (youtube-main.ts) answers this event.
         document.documentElement.dispatchEvent(
-            new CustomEvent(YT_BOOTSTRAP_REQUEST_EVENT),
+            new CustomEvent(YT_BOOTSTRAP_REQUEST_EVENT)
         );
     });
 }
@@ -1487,11 +1492,7 @@ function findYouTubePlaylistScrollAnchor() {
  */
 function parseYouTubePlaylistVideoRendererFromDom(el, fallbackIndex) {
     const data = el?.data;
-    if (
-        data &&
-        typeof data === "object" &&
-        typeof data.videoId === "string"
-    ) {
+    if (data && typeof data === "object" && typeof data.videoId === "string") {
         return parseYouTubePlaylistVideoRenderer(data, fallbackIndex);
     }
 
@@ -1504,7 +1505,7 @@ function parseYouTubePlaylistVideoRendererFromDom(el, fallbackIndex) {
         return null;
     }
     const href = link.getAttribute("href") || "";
-    const match = href.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
+    const match = href.match(/[?&]v=([a-zA-Z0-9_-]{6,})/u);
     const videoId = match?.[1];
     if (!videoId) {
         return null;
@@ -1512,21 +1513,21 @@ function parseYouTubePlaylistVideoRendererFromDom(el, fallbackIndex) {
 
     const title = (link.textContent || "").trim();
     const channelLink = el.querySelector(
-        "a.yt-formatted-string, .ytd-channel-name a",
+        "a.yt-formatted-string, .ytd-channel-name a"
     );
     const channelName = (channelLink?.textContent || "").trim();
     const channelHref = channelLink?.getAttribute("href") || "";
     const channelMatch =
-        channelHref.match(/\/channel\/([a-zA-Z0-9_-]+)/) ||
-        channelHref.match(/\/@([^/?#]+)/);
+        channelHref.match(/\/channel\/([a-zA-Z0-9_-]+)/u) ||
+        channelHref.match(/\/@([^/?#]+)/u);
     const channelId = channelMatch?.[1] || "";
     const durationEl = el.querySelector(
-        "ytd-thumbnail-overlay-time-status-renderer",
+        "ytd-thumbnail-overlay-time-status-renderer"
     );
     const duration = (durationEl?.textContent || "").trim();
     const indexEl = el.querySelector("#index");
     const positionText = (indexEl?.textContent || "").trim();
-    const positionDigits = positionText.replace(/[^\d]/g, "");
+    const positionDigits = positionText.replace(/[^\d]/gu, "");
     const position = Number.parseInt(positionDigits, 10);
     const availability = deriveYouTubeAvailabilityFromDom(el, title);
 
@@ -1566,21 +1567,26 @@ function deriveYouTubeAvailabilityFromDom(el, title) {
             "span#title",
             "#reason",
             ".ytd-video-meta-block",
-        ].join(","),
+        ].join(",")
     );
     for (const node of badgeHosts) {
         tokens.push((node.textContent || "").toLowerCase());
     }
     const haystack = `${tokens.join(" ")} ${normalizedTitle}`;
 
-    if (haystack.includes("private")) return "private";
-    if (haystack.includes("deleted video") || haystack.includes("deleted"))
+    if (haystack.includes("private")) {
+        return "private";
+    }
+    if (haystack.includes("deleted video") || haystack.includes("deleted")) {
         return "deleted";
+    }
     const unavailableCue =
         haystack.includes("unavailable") ||
         haystack.includes("video unavailable") ||
         el.querySelector("yt-img-shadow, .yt-core-image") === null;
-    if (unavailableCue) return "unavailable";
+    if (unavailableCue) {
+        return "unavailable";
+    }
     return "available";
 }
 
@@ -1596,7 +1602,7 @@ function mergeYouTubeDomIntoAccumulated(accumulated: any, delta: any) {
         }
         const row = parseYouTubePlaylistVideoRendererFromDom(
             el,
-            accumulated.size + 1,
+            accumulated.size + 1
         );
         if (!row) {
             continue;
@@ -1630,7 +1636,7 @@ async function scrollYouTubePlaylistToLoadMore(accumulated) {
 async function runYouTubeWatchLaterSync() {
     if (!isYouTubeWatchLaterPage()) {
         const titleText = (document.title || "").trim();
-        const titleHint = /watch later/i.test(titleText)
+        const titleHint = /watch later/iu.test(titleText)
             ? " The active page looks like Watch Later, but the URL must be /playlist?list=WL."
             : "";
         await chrome.runtime.sendMessage({
@@ -1666,7 +1672,7 @@ async function runYouTubeWatchLaterSync() {
 
     const initial = extractYouTubeRowsAndTokens(
         bootstrap.initialData,
-        positionOffset,
+        positionOffset
     );
     mergeYouTubeRowsIntoAccumulated(accumulated, initial.rows);
     positionOffset = accumulated.size;
@@ -1748,14 +1754,14 @@ async function runYouTubeWatchLaterSync() {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg?.type !== MESSAGE_TYPES.START_SYNC) {
-        return undefined;
+        return;
     }
 
     sendResponse({ ok: true, started: true });
 
     (async () => {
         try {
-            const host = window.location.hostname.replace(/^www\./, "");
+            const host = window.location.hostname.replace(/^www\./u, "");
             if (host === "instagram.com") {
                 await runInstagramSync();
             } else if (host === "tiktok.com") {

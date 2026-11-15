@@ -25,7 +25,7 @@ async function publishToken(): Promise<void> {
         }
         window.postMessage(
             { token, type: MESSAGE_TYPES.CACHE_SITE_TOKEN },
-            window.location.origin,
+            window.location.origin
         );
     } catch (error) {
         // res.ok / missing-token paths above cover signed-out; log anything else.

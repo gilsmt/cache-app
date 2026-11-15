@@ -41,7 +41,7 @@ function publishBootstrap(): void {
                 },
                 type: MESSAGE_TYPES.CACHE_YT_BOOTSTRAP,
             },
-            window.location.origin,
+            window.location.origin
         );
     } catch {
         window.postMessage(
@@ -49,7 +49,7 @@ function publishBootstrap(): void {
                 payload: null,
                 type: MESSAGE_TYPES.CACHE_YT_BOOTSTRAP,
             },
-            window.location.origin,
+            window.location.origin
         );
     }
 }

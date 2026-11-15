@@ -20,10 +20,10 @@ function announceExtensionReady(): void {
         document.documentElement.dataset.cacheExtensionInstalled = "true";
         window.postMessage(
             { type: MESSAGE_TYPES.CACHE_EXTENSION_READY },
-            window.location.origin,
+            window.location.origin
         );
         window.dispatchEvent(
-            new CustomEvent(MESSAGE_TYPES.CACHE_EXTENSION_READY),
+            new CustomEvent(MESSAGE_TYPES.CACHE_EXTENSION_READY)
         );
     } catch {
         /* host page may block dataset/postMessage */
@@ -73,7 +73,7 @@ function fetchTokenViaPageWorld(): Promise<string> {
 
         window.addEventListener("message", once);
         document.documentElement.dispatchEvent(
-            new CustomEvent(TOKEN_REQUEST_EVENT),
+            new CustomEvent(TOKEN_REQUEST_EVENT)
         );
 
         setTimeout(() => {

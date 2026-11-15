@@ -1,3 +1,6 @@
+import cssText from "data-text:../popup.module.css";
+import type { PlasmoCSConfig, PlasmoGetOverlayAnchor } from "plasmo";
+import { useEffect, useId, useState } from "react";
 import type {
     ClipResponse,
     CreateCollectionResponse,
@@ -5,14 +8,11 @@ import type {
     ListCollectionsResponse,
 } from "@/lib/api";
 import {
-    MESSAGE_TYPES,
-    STORAGE_KEYS,
     isSocialImportUrl,
     isUnsupportedClipUrl,
+    MESSAGE_TYPES,
+    STORAGE_KEYS,
 } from "@/lib/runtime";
-import cssText from "data-text:../popup.module.css";
-import type { PlasmoCSConfig, PlasmoGetOverlayAnchor } from "plasmo";
-import { useEffect, useId, useState } from "react";
 import { CollectionCreateView } from "../collection-create-view";
 import styles from "../popup.module.css";
 
@@ -43,7 +43,7 @@ function callBackground<T>(method: string, args?: unknown): Promise<T> {
                     return;
                 }
                 resolve(response?.data as T);
-            },
+            }
         );
     });
 }
@@ -68,7 +68,7 @@ function clipPage(input: {
 }
 
 function sendRuntimeMessage<T extends Record<string, unknown>>(
-    message: Record<string, unknown>,
+    message: Record<string, unknown>
 ): Promise<T> {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(message, (response) => {
@@ -107,7 +107,9 @@ type PopupViewState =
 type LinkState = "unknown" | "unlinked" | "linked";
 
 function truncateTitle(title: string, max = TITLE_MAX_LENGTH): string {
-    if (title.length <= max) return title;
+    if (title.length <= max) {
+        return title;
+    }
     return `${title.slice(0, max - 1)}…`;
 }
 
@@ -144,7 +146,7 @@ async function persistLastClipCollectionIds(ids: string[]): Promise<void> {
 
 async function openCacheInNewTab(): Promise<void> {
     const response = await sendRuntimeMessage<{ error?: string; ok?: boolean }>(
-        { type: MESSAGE_TYPES.OPEN_CACHE_TAB },
+        { type: MESSAGE_TYPES.OPEN_CACHE_TAB }
     );
     if (response.error) {
         throw new Error(response.error);
@@ -155,10 +157,12 @@ async function triggerSocialImport(tabId: number | undefined): Promise<void> {
     if (typeof tabId !== "number") {
         throw new Error("No active tab to import from.");
     }
-    const response = await sendRuntimeMessage<{ error?: string; ok?: boolean }>({
-        type: MESSAGE_TYPES.START_SYNC,
-        tabId,
-    });
+    const response = await sendRuntimeMessage<{ error?: string; ok?: boolean }>(
+        {
+            type: MESSAGE_TYPES.START_SYNC,
+            tabId,
+        }
+    );
     if (response.error) {
         throw new Error(response.error);
     }
@@ -176,12 +180,12 @@ function SearchField({
     return (
         <div className={styles.searchRow}>
             <input
-                type="text"
                 className={styles.searchInput}
-                placeholder="Search…"
-                value={value}
                 disabled={disabled}
                 onChange={(e) => onChange(e.target.value)}
+                placeholder="Search…"
+                type="text"
+                value={value}
             />
         </div>
     );
@@ -205,11 +209,11 @@ function CollectionRow({
     };
     return (
         <li
+            aria-checked={isSelected}
             className={`${styles.row} ${isSelected ? styles.rowChecked : ""}`}
             onClick={handleClick}
             onKeyDown={handleKeyDown}
             role="checkbox"
-            aria-checked={isSelected}
             tabIndex={0}
         >
             <span className={styles.rowName}>
@@ -218,14 +222,14 @@ function CollectionRow({
                     {NUMBER_FORMATTER.format(collection.itemCount)}
                 </span>
             </span>
-            <span className={styles.rowCheck} aria-hidden="true">
-                <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <span aria-hidden="true" className={styles.rowCheck}>
+                <svg fill="none" height="11" viewBox="0 0 11 11" width="11">
                     <path
                         d="M2 5.5L4.5 8L9 3"
                         stroke="currentColor"
-                        strokeWidth="1.6"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                        strokeWidth="1.6"
                     />
                 </svg>
             </span>
@@ -235,11 +239,11 @@ function CollectionRow({
 
 function ListSkeletons(): React.ReactElement {
     return (
-        <ul className={styles.list} aria-hidden="true">
+        <ul aria-hidden="true" className={styles.list}>
             {Array.from({ length: 5 }, (_, i) => (
                 <li
-                    key={i}
                     className={styles.skeletonRow}
+                    key={i}
                     style={{
                         width: `${70 + ((i * 13) % 30)}%`,
                     }}
@@ -257,29 +261,29 @@ function PageInfo({ tab }: { tab: ActiveTab }): React.ReactElement {
     return (
         <div className={styles.pageInfo}>
             <button
-                type="button"
+                aria-expanded={isOpen}
                 className={styles.pageInfoTrigger}
                 onClick={() => setIsOpen((v) => !v)}
-                aria-expanded={isOpen}
+                type="button"
             >
                 <span className={styles.pageInfoLabel}>
                     {hostname}
                     {truncatedTitle ? ` — ${truncatedTitle}` : ""}
                 </span>
                 <svg
-                    width="14"
+                    aria-hidden="true"
+                    className={`${styles.pageInfoChevron} ${isOpen ? styles.pageInfoChevronOpen : ""}`}
+                    fill="none"
                     height="14"
                     viewBox="0 0 14 14"
-                    fill="none"
-                    className={`${styles.pageInfoChevron} ${isOpen ? styles.pageInfoChevronOpen : ""}`}
-                    aria-hidden="true"
+                    width="14"
                 >
                     <path
                         d="M4 6l3 3 3-3"
                         stroke="currentColor"
-                        strokeWidth="1.6"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                        strokeWidth="1.6"
                     />
                 </svg>
             </button>
@@ -302,9 +306,7 @@ function UnlinkedPanel(): React.ReactElement {
         setError(null);
         void openCacheInNewTab().catch((err: unknown) => {
             setError(
-                err instanceof Error
-                    ? err.message
-                    : "Could not open Cache.",
+                err instanceof Error ? err.message : "Could not open Cache."
             );
         });
     };
@@ -319,9 +321,9 @@ function UnlinkedPanel(): React.ReactElement {
                 </p>
                 {error ? <p className={styles.inlineError}>{error}</p> : null}
                 <button
-                    type="button"
                     className={styles.primaryButton}
                     onClick={handleOpenCache}
+                    type="button"
                 >
                     Open Cache
                 </button>
@@ -367,7 +369,7 @@ function SocialImportPanel({ tab }: { tab: ActiveTab }): React.ReactElement {
                 setError(
                     err instanceof Error
                         ? err.message
-                        : "Could not start import. Reopen the page and try again.",
+                        : "Could not start import. Reopen the page and try again."
                 );
             })
             .finally(() => setIsSubmitting(false));
@@ -414,7 +416,7 @@ function PopupPanel({
     onClose: () => void;
 }): React.ReactElement {
     const [collections, setCollections] = useState<ExtensionCollectionDto[]>(
-        [],
+        []
     );
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [view, setView] = useState<PopupViewState>({ kind: "loading" });
@@ -426,7 +428,7 @@ function PopupPanel({
 
     const isUnsupported = isUnsupportedClipUrl(tab.url);
     const isSocial = !isUnsupported && isSocialImportUrl(tab.url);
-    const shouldLoadCollections = !isUnsupported && !isSocial;
+    const shouldLoadCollections = !(isUnsupported || isSocial);
 
     const fetchCollections = async () => {
         setView({ kind: "loading" });
@@ -451,7 +453,7 @@ function PopupPanel({
                 error instanceof Error
                     ? error.message
                     : "Could not load your collections.";
-            if (/not linked/i.test(message)) {
+            if (/not linked/iu.test(message)) {
                 setView({ kind: "unlinked" });
                 return;
             }
@@ -554,7 +556,7 @@ function PopupPanel({
             setClipError(
                 error instanceof Error
                     ? error.message
-                    : "Save failed. Please try again.",
+                    : "Save failed. Please try again."
             );
         } finally {
             setIsClipping(false);
@@ -577,7 +579,7 @@ function PopupPanel({
         search.trim() === ""
             ? collections
             : collections.filter((c) =>
-                  c.name.toLowerCase().includes(search.trim().toLowerCase()),
+                  c.name.toLowerCase().includes(search.trim().toLowerCase())
               );
 
     const hasCollections = collections.length > 0;
@@ -588,18 +590,39 @@ function PopupPanel({
 
             {view.kind === "list" ? (
                 <>
-                    <SearchField value={search} onChange={setSearch} />
+                    <SearchField onChange={setSearch} value={search} />
                     <div className={styles.sectionHeader}>
                         <span>Collections</span>
                         <button
-                            type="button"
                             className={styles.newButton}
                             onClick={() => setView({ kind: "create" })}
+                            type="button"
                         >
                             + New
                         </button>
                     </div>
-                    {!hasCollections ? (
+                    {hasCollections ? (
+                        filteredCollections.length === 0 ? (
+                            <div className={styles.centerState}>
+                                <p className={styles.centerStateBody}>
+                                    No collections match &ldquo;{search}&rdquo;.
+                                </p>
+                            </div>
+                        ) : (
+                            <ul className={styles.list}>
+                                {filteredCollections.map((collection) => (
+                                    <CollectionRow
+                                        collection={collection}
+                                        isSelected={selectedIds.has(
+                                            collection.id
+                                        )}
+                                        key={collection.id}
+                                        onToggle={toggleSelection}
+                                    />
+                                ))}
+                            </ul>
+                        )
+                    ) : (
                         <div className={styles.centerState}>
                             <p className={styles.centerStateTitle}>
                                 No collections yet
@@ -608,31 +631,14 @@ function PopupPanel({
                                 Create a collection to start filing pages.
                             </p>
                             <button
-                                type="button"
                                 className={styles.secondaryButton}
                                 onClick={() => setView({ kind: "create" })}
                                 style={{ width: "auto" }}
+                                type="button"
                             >
                                 Create your first collection
                             </button>
                         </div>
-                    ) : filteredCollections.length === 0 ? (
-                        <div className={styles.centerState}>
-                            <p className={styles.centerStateBody}>
-                                No collections match &ldquo;{search}&rdquo;.
-                            </p>
-                        </div>
-                    ) : (
-                        <ul className={styles.list}>
-                            {filteredCollections.map((collection) => (
-                                <CollectionRow
-                                    key={collection.id}
-                                    collection={collection}
-                                    isSelected={selectedIds.has(collection.id)}
-                                    onToggle={toggleSelection}
-                                />
-                            ))}
-                        </ul>
                     )}
                     <div className={styles.footer}>
                         {clipSuccess ? (
@@ -660,23 +666,19 @@ function PopupPanel({
 
             {view.kind === "loading" ? (
                 <>
-                    <SearchField
-                        value={search}
-                        onChange={setSearch}
-                        disabled
-                    />
+                    <SearchField disabled onChange={setSearch} value={search} />
                     <div
-                        className={styles.sectionHeader}
                         aria-label="Collections"
+                        className={styles.sectionHeader}
                     >
                         <span>Collections</span>
                     </div>
                     <ListSkeletons />
                     <div className={styles.footer}>
                         <button
-                            type="button"
                             className={styles.secondaryButton}
                             disabled
+                            type="button"
                         >
                             Done
                         </button>
@@ -688,9 +690,9 @@ function PopupPanel({
                 <div className={styles.centerState}>
                     <p className={styles.centerStateBody}>{view.message}</p>
                     <button
-                        type="button"
                         className={styles.retryButton}
                         onClick={() => void fetchCollections()}
+                        type="button"
                     >
                         Retry
                     </button>
@@ -700,8 +702,8 @@ function PopupPanel({
             {view.kind === "create" ? (
                 <CollectionCreateView
                     createCollection={createCollection}
-                    onCreated={handleCreated}
                     onCancel={() => setView({ kind: "list" })}
+                    onCreated={handleCreated}
                 />
             ) : null}
         </div>
@@ -725,21 +727,20 @@ export default function PopupOverlay(): React.ReactElement {
 
     const handleClose = () => setVisible(false);
 
-    if (!visible || !tab) return <></>;
+    if (!(visible && tab)) {
+        return <></>;
+    }
 
     return (
         <div
+            aria-label="Save to Cache"
+            aria-modal="true"
             className={styles.overlay}
             role="dialog"
-            aria-modal="true"
-            aria-label="Save to Cache"
         >
-            <div
-                className={styles.overlayBackdrop}
-                onClick={handleClose}
-            />
+            <div className={styles.overlayBackdrop} onClick={handleClose} />
             <div className={styles.overlayPanel}>
-                <PopupPanel tab={tab} onClose={handleClose} />
+                <PopupPanel onClose={handleClose} tab={tab} />
             </div>
         </div>
     );

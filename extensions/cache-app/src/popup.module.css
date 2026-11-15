@@ -23,20 +23,20 @@
 
 .root {
     box-sizing: border-box;
-    width: 360px;
-    max-height: 440px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
-        sans-serif;
-    font-size: 13px;
-    color: #1f2328;
-    background: #ffffff;
-    padding: 14px 14px 14px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    width: 360px;
+    max-height: 440px;
+    padding: 14px 14px 14px;
+    overflow: hidden;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
+    color: #1f2328;
+    background: #ffffff;
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 20px;
-    overflow: hidden;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -54,16 +54,16 @@
 
 .pageInfoTrigger {
     display: flex;
-    align-items: center;
     gap: 6px;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-    text-align: left;
+    align-items: center;
     width: 100%;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    background: transparent;
+    border: none;
 }
 
 .pageInfoLabel {
@@ -71,9 +71,9 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
     font-size: 11px;
     color: #656d76;
+    white-space: nowrap;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -93,10 +93,10 @@
 }
 
 .pageInfoPanel {
-    padding: 6px 0 0 0;
     display: flex;
     flex-direction: column;
     gap: 2px;
+    padding: 6px 0 0 0;
 }
 
 .pageInfoFullTitle {
@@ -131,17 +131,17 @@
     width: 100%;
     padding: 8px 10px;
     margin: 2px 0;
-    border-radius: 8px;
-    border: 1px solid rgba(128, 128, 128, 0.28);
-    background: rgba(128, 128, 128, 0.06);
-    color: inherit;
     font: inherit;
+    color: inherit;
+    background: rgba(128, 128, 128, 0.06);
+    border: 1px solid rgba(128, 128, 128, 0.28);
+    border-radius: 8px;
 }
 
 .searchInput:focus {
     outline: none;
-    border-color: #0969da;
     background: transparent;
+    border-color: #0969da;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -154,9 +154,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    font-size: 13px;
     font-weight: 600;
     color: #656d76;
-    font-size: 13px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -166,15 +166,15 @@
 }
 
 .newButton {
-    background: transparent;
-    border: none;
-    color: #0969da;
-    cursor: pointer;
+    padding: 2px 6px;
     font: inherit;
     font-weight: 600;
+    color: #0969da;
     text-transform: none;
     letter-spacing: 0;
-    padding: 2px 6px;
+    cursor: pointer;
+    background: transparent;
+    border: none;
     border-radius: 6px;
 }
 
@@ -192,15 +192,15 @@
 }
 
 .list {
-    flex: 1 1 auto;
-    overflow-y: auto;
-    max-height: 240px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     gap: 2px;
+    max-height: 240px;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    list-style: none;
     scrollbar-width: none;
 }
 
@@ -210,12 +210,12 @@
 
 .row {
     display: flex;
-    align-items: center;
     gap: 8px;
+    align-items: center;
     padding: 6px 8px;
-    border-radius: 8px;
     cursor: pointer;
     user-select: none;
+    border-radius: 8px;
 }
 
 .row:hover {
@@ -223,22 +223,22 @@
 }
 
 .rowCheck {
-    flex: 0 0 auto;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(128, 128, 128, 0.45);
-    background: transparent;
-    color: transparent;
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: transparent;
+    background: transparent;
+    border: 1.5px solid rgba(128, 128, 128, 0.45);
+    border-radius: 50%;
 }
 
 .rowChecked .rowCheck {
+    color: #fff;
     background: #0969da;
     border-color: #0969da;
-    color: #fff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -253,15 +253,15 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
     font-weight: 500;
+    white-space: nowrap;
 }
 
 .rowCount {
+    margin-left: 0.35em;
     font-size: 11px;
     color: #656d76;
     opacity: 0.65;
-    margin-left: 0.35em;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -280,13 +280,13 @@
 .primaryButton {
     width: 100%;
     padding: 8px 10px;
-    border-radius: 8px;
-    border: none;
-    background: #0969da;
-    color: #fff;
     font: inherit;
     font-weight: 600;
+    color: #fff;
     cursor: pointer;
+    background: #0969da;
+    border: none;
+    border-radius: 8px;
 }
 
 .primaryButton:hover:not(:disabled) {
@@ -294,8 +294,8 @@
 }
 
 .primaryButton:disabled {
-    opacity: 0.55;
     cursor: not-allowed;
+    opacity: 0.55;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -310,13 +310,13 @@
 .secondaryButton {
     width: 100%;
     padding: 7px 10px;
-    border-radius: 8px;
-    border: 1px solid rgba(128, 128, 128, 0.3);
-    background: transparent;
-    color: inherit;
     font: inherit;
     font-weight: 500;
+    color: inherit;
     cursor: pointer;
+    background: transparent;
+    border: 1px solid rgba(128, 128, 128, 0.3);
+    border-radius: 8px;
 }
 
 .secondaryButton:hover:not(:disabled) {
@@ -324,19 +324,19 @@
 }
 
 .secondaryButton:disabled {
-    opacity: 0.55;
     cursor: not-allowed;
+    opacity: 0.55;
 }
 
 .centerState {
     display: flex;
     flex-direction: column;
+    gap: 10px;
     align-items: center;
     justify-content: center;
-    text-align: center;
-    gap: 10px;
     padding: 24px 8px;
     color: #656d76;
+    text-align: center;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -353,16 +353,16 @@
 }
 
 .centerStateBody {
+    max-width: 280px;
     margin: 0;
     font-size: 12px;
-    max-width: 280px;
     line-height: 1.4;
 }
 
 .skeletonRow {
     height: 28px;
-    border-radius: 6px;
     background: rgba(128, 128, 128, 0.12);
+    border-radius: 6px;
     animation: pulse 1.4s ease-in-out infinite;
 }
 
@@ -379,8 +379,8 @@
 .inlineError {
     margin: 0;
     font-size: 12px;
-    color: #cf222e;
     line-height: 1.3;
+    color: #cf222e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -390,14 +390,14 @@
 }
 
 .retryButton {
+    align-self: center;
+    padding: 4px 10px;
+    font: inherit;
     color: inherit;
     cursor: pointer;
-    font: inherit;
     background: transparent;
     border: 1px solid rgba(128, 128, 128, 0.3);
     border-radius: 6px;
-    padding: 4px 10px;
-    align-self: center;
 }
 
 .retryButton:hover {
@@ -405,10 +405,10 @@
 }
 
 .successBanner {
+    padding: 4px 0;
+    font-size: 12px;
     color: #1a7f37;
     text-align: center;
-    font-size: 12px;
-    padding: 4px 0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -418,23 +418,23 @@
 }
 
 .createNameInput {
-    width: 100%;
     box-sizing: border-box;
+    width: 100%;
     padding: 8px 4px;
-    border: none;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.18);
-    background: transparent;
-    color: inherit;
     font: inherit;
     font-size: 18px;
     font-weight: 600;
+    color: inherit;
     letter-spacing: -0.01em;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.18);
     border-radius: 0;
 }
 
 .createNameInput::placeholder {
-    color: #8b949e;
     font-weight: 400;
+    color: #8b949e;
 }
 
 .createNameInput:focus {
@@ -453,16 +453,16 @@
 }
 
 .createDescriptionTextarea {
-    width: 100%;
     box-sizing: border-box;
+    width: 100%;
+    min-height: 48px;
     padding: 6px 4px;
-    border: none;
-    background: transparent;
-    color: inherit;
     font: inherit;
     font-size: 13px;
+    color: inherit;
     resize: vertical;
-    min-height: 48px;
+    background: transparent;
+    border: none;
     border-radius: 0;
 }
 
@@ -495,16 +495,16 @@
 
 .formBackRow {
     display: flex;
-    align-items: center;
     gap: 6px;
+    align-items: center;
+    padding: 0;
+    font-family: inherit;
     font-size: 12px;
     font-weight: 600;
     color: #0969da;
     cursor: pointer;
     background: transparent;
     border: none;
-    padding: 0;
-    font-family: inherit;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -66,18 +66,17 @@ const TRUSTED_WEB_ORIGINS = new Set([
 ]);
 
 /** Local development serves the app on arbitrary localhost ports. */
-const LOCALHOST_ORIGIN_PATTERN = /^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/;
+const LOCALHOST_ORIGIN_PATTERN = /^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/u;
 
 const CACHE_APP_SITE_MATCH =
     process.env.PLASMO_PUBLIC_CACHE_APP_SITE_MATCH?.trim();
-const CONFIGURED_CACHE_APP_ORIGIN = cacheAppOriginFromSiteMatch(
-    CACHE_APP_SITE_MATCH,
-);
+const CONFIGURED_CACHE_APP_ORIGIN =
+    cacheAppOriginFromSiteMatch(CACHE_APP_SITE_MATCH);
 const CACHE_DEV_SITE_MATCH =
     process.env.PLASMO_PUBLIC_CACHE_DEV_SITE_MATCH?.trim();
 
 function normalizeOrigin(value: string): string {
-    return value.trim().replace(/\/+$/, "");
+    return value.trim().replace(/\/+$/u, "");
 }
 
 function originFromUrl(raw: string): string {
@@ -106,7 +105,7 @@ export function getConfiguredCacheAppOrigin(): string {
 
 /** Resolve an exact HTTPS site match into the app origin used by the extension. */
 export function cacheAppOriginFromSiteMatch(
-    rawSiteMatch: string | undefined,
+    rawSiteMatch: string | undefined
 ): string | null {
     const siteMatch = rawSiteMatch?.trim();
     if (!siteMatch) {
@@ -115,7 +114,7 @@ export function cacheAppOriginFromSiteMatch(
 
     if (!siteMatch.endsWith("/*")) {
         throw new Error(
-            "PLASMO_PUBLIC_CACHE_APP_SITE_MATCH must be an exact origin match ending in /*.",
+            "PLASMO_PUBLIC_CACHE_APP_SITE_MATCH must be an exact origin match ending in /*."
         );
     }
 
@@ -125,7 +124,7 @@ export function cacheAppOriginFromSiteMatch(
         parsed = new URL(origin);
     } catch {
         throw new Error(
-            "PLASMO_PUBLIC_CACHE_APP_SITE_MATCH must contain a valid HTTPS origin.",
+            "PLASMO_PUBLIC_CACHE_APP_SITE_MATCH must contain a valid HTTPS origin."
         );
     }
 
@@ -139,7 +138,7 @@ export function cacheAppOriginFromSiteMatch(
         !(isSecureOrigin || isLocalhostOrigin)
     ) {
         throw new Error(
-            "PLASMO_PUBLIC_CACHE_APP_SITE_MATCH must be one exact HTTPS origin (HTTP is allowed for localhost).",
+            "PLASMO_PUBLIC_CACHE_APP_SITE_MATCH must be one exact HTTPS origin (HTTP is allowed for localhost)."
         );
     }
 
@@ -166,50 +165,50 @@ export function buildOriginPath(origin: string, path: string): string {
 }
 
 export function defaultInstagramSyncEndpoint(
-    origin: string = getConfiguredCacheAppOrigin(),
+    origin: string = getConfiguredCacheAppOrigin()
 ): string {
     return buildOriginPath(origin, "/api/integrations/instagram/saved");
 }
 
 export function defaultTikTokSyncEndpoint(
-    origin: string = getConfiguredCacheAppOrigin(),
+    origin: string = getConfiguredCacheAppOrigin()
 ): string {
     return buildOriginPath(origin, "/api/integrations/tiktok/saved");
 }
 
 export function defaultYouTubeSyncEndpoint(
-    origin: string = getConfiguredCacheAppOrigin(),
+    origin: string = getConfiguredCacheAppOrigin()
 ): string {
     return buildOriginPath(origin, "/api/integrations/youtube/watch-later");
 }
 
 export function defaultChromeSyncEndpoint(
-    origin: string = getConfiguredCacheAppOrigin(),
+    origin: string = getConfiguredCacheAppOrigin()
 ): string {
     return buildOriginPath(origin, "/api/integrations/chrome/sync");
 }
 
 export function defaultExtensionCollectionsEndpoint(
-    origin: string = getConfiguredCacheAppOrigin(),
+    origin: string = getConfiguredCacheAppOrigin()
 ): string {
     return buildOriginPath(origin, "/api/integrations/extension/collections");
 }
 
 export function defaultExtensionClipEndpoint(
-    origin: string = getConfiguredCacheAppOrigin(),
+    origin: string = getConfiguredCacheAppOrigin()
 ): string {
     return buildOriginPath(origin, "/api/integrations/extension/clip");
 }
 
 export function defaultExtensionIngestTokenEndpoint(
-    origin: string = getConfiguredCacheAppOrigin(),
+    origin: string = getConfiguredCacheAppOrigin()
 ): string {
     return buildOriginPath(origin, "/api/user/extension-ingest-token");
 }
 
 export function ingestEndpointForSource(
     storedEndpoint: string,
-    source: string,
+    source: string
 ): string {
     const origin = resolveCacheOrigin(storedEndpoint);
 
@@ -234,7 +233,7 @@ export function isYouTubeWatchLaterUrl(rawUrl: string): boolean {
     try {
         const url = new URL(rawUrl);
         return (
-            url.hostname.replace(/^www\./, "") === "youtube.com" &&
+            url.hostname.replace(/^www\./u, "") === "youtube.com" &&
             url.pathname === "/playlist" &&
             url.searchParams.get("list") === "WL"
         );
@@ -246,16 +245,16 @@ export function isYouTubeWatchLaterUrl(rawUrl: string): boolean {
 export function isSocialImportUrl(rawUrl: string): boolean {
     try {
         const url = new URL(rawUrl);
-        const host = url.hostname.replace(/^www\./, "");
+        const host = url.hostname.replace(/^www\./u, "");
         if (
             host === "instagram.com" &&
-            /\/[^/?#]+\/saved(?:\/|$)/.test(url.pathname)
+            /\/[^/?#]+\/saved(?:\/|$)/u.test(url.pathname)
         ) {
             return true;
         }
         if (
             host === "tiktok.com" &&
-            /\/[^/?#]+\/favorites(?:\/|$)/.test(url.pathname)
+            /\/[^/?#]+\/favorites(?:\/|$)/u.test(url.pathname)
         ) {
             return true;
         }
