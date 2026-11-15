@@ -1,4 +1,3 @@
-/** GitHub repository that hosts desktop installers. */
 export const DESKTOP_GITHUB_REPO = "gilsmt/cache-app" as const;
 
 /**
@@ -7,10 +6,8 @@ export const DESKTOP_GITHUB_REPO = "gilsmt/cache-app" as const;
  */
 export const DESKTOP_APP_NAME = "Cache" as const;
 
-/** URL packaged into the desktop shell. */
 export const DESKTOP_APP_URL = "https://www.cachd.app" as const;
 
-/** Public icon used by Pake packaging (PNG; Pake converts per platform). */
 export const DESKTOP_APP_ICON_URL =
     "https://www.cachd.app/web-app-manifest-512x512.png" as const;
 
@@ -35,7 +32,6 @@ export const DESKTOP_ASSETS = {
 
 export type DesktopPlatform = keyof typeof DESKTOP_ASSETS;
 
-/** Menu / DTO display order (not alphabetical). */
 export const DESKTOP_PLATFORMS = [
     "macos",
     "windows",

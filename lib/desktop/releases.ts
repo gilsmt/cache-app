@@ -58,10 +58,6 @@ export function getDesktopLatestReleaseApiUrl(): string {
     return `https://api.github.com/repos/${DESKTOP_GITHUB_REPO}/releases/latest`;
 }
 
-/**
- * Map a release asset file name to a desktop platform.
- * Canonical names win; otherwise fall back to extension heuristics.
- */
 export function matchDesktopPlatform(fileName: string): DesktopPlatform | null {
     const lower = fileName.toLowerCase();
 
@@ -90,10 +86,6 @@ export function matchDesktopPlatform(fileName: string): DesktopPlatform | null {
     return null;
 }
 
-/**
- * Build the public download DTO from a GitHub release payload.
- * Prefers canonical asset names; for Linux prefers AppImage over deb/rpm.
- */
 export function buildDesktopReleaseDownloads(
     release: GitHubRelease
 ): DesktopReleaseDownloads | null {

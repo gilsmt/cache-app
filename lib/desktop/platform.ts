@@ -5,11 +5,6 @@ const WINDOWS_UA_RE = /Windows/iu;
 const MACOS_UA_RE = /Mac OS X|Macintosh/iu;
 const LINUX_UA_RE = /Linux|X11|CrOS/iu;
 
-/**
- * Best-effort desktop OS from a user-agent string.
- * Returns null on mobile or when the OS cannot be classified.
- * When `userAgent` is omitted, uses `navigator.userAgent` in the browser.
- */
 export function detectDesktopPlatform(
     userAgent?: string | null
 ): DesktopPlatform | null {

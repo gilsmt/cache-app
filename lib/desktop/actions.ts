@@ -21,9 +21,7 @@ export type GetDesktopDownloadsResult =
           status: typeof ACTION_STATUS.ERROR;
       };
 
-/**
- * Public read of the latest desktop installers. No auth — assets are public.
- */
+// Desktop installers are public, so this read does not require authentication.
 export async function getDesktopDownloads(): Promise<GetDesktopDownloadsResult> {
     try {
         const data = await service.getLatestDesktopDownloads();
