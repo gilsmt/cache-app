@@ -1,6 +1,5 @@
 import "server-only";
 
-import * as z from "zod";
 import { LibraryCollectionError } from "@/lib/collections/error";
 import {
     createCollection,
@@ -13,22 +12,16 @@ import {
 } from "@/lib/collections/utils";
 import { unique } from "@/lib/common/array";
 import { DEFAULT_BROWSER_PROFILE_ID } from "@/lib/common/constants";
-import { TaggedError } from "@/lib/common/error";
 import { canonicalBookmarkUrl, parseStandaloneUrl } from "@/lib/common/url";
 import { upsertLibraryItemImports } from "@/lib/integrations/import";
 import { prisma } from "@/prisma";
 import type { CollectionPriority } from "@/prisma/client/enums";
 import { LibraryItemSource } from "@/prisma/client/enums";
-import { type ExtensionClipBody, extensionClipExternalId } from "./schema";
-
-export const ExtensionClipError = TaggedError.create(
-    "ExtensionClipError",
-    z.object({
-        code: z.enum(["invalid_collections", "invalid_url", "upsert_failed"]),
-        message: z.string(),
-        operation: z.string(),
-    })
-);
+import { ExtensionClipError } from "./error";
+import {
+    type ExtensionClipBodySchema,
+    extensionClipExternalId,
+} from "./schema";
 
 export interface ExtensionCollectionDto {
     id: string;
@@ -112,7 +105,7 @@ export async function createExtensionCollection(args: {
 }
 
 export async function clipPageFromExtension(args: {
-    body: ExtensionClipBody;
+    body: ExtensionClipBodySchema;
     userId: string;
 }): Promise<ExtensionClipResult> {
     const collectionIds = unique(args.body.collectionIds);

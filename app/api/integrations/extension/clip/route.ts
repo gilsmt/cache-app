@@ -1,10 +1,8 @@
 import * as z from "zod";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { extensionClipBodySchema } from "@/lib/extension/clip/schema";
-import {
-    clipPageFromExtension,
-    ExtensionClipError,
-} from "@/lib/extension/clip/service";
+import { ExtensionClipError } from "@/lib/extension/clip/error";
+import { ExtensionClipBodySchema } from "@/lib/extension/clip/schema";
+import { clipPageFromExtension } from "@/lib/extension/clip/service";
 import {
     authenticateExtensionIngest,
     extensionIngestCorsHeaders,
@@ -37,7 +35,7 @@ export async function POST(request: Request) {
         );
     }
 
-    const parsed = extensionClipBodySchema.safeParse(json);
+    const parsed = ExtensionClipBodySchema.safeParse(json);
     if (!parsed.success) {
         return Response.json(
             { error: z.treeifyError(parsed.error) },

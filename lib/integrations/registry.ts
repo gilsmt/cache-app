@@ -19,7 +19,6 @@
 import { msg } from "gt-next";
 
 import { CACHE_EXTENSION_DOWNLOAD_URL } from "@/lib/common/constants";
-import type { McpScope } from "@/lib/session/mcp/auth";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
 export type IntegrationDirection = "destination" | "source";
@@ -27,7 +26,6 @@ export type IntegrationDirection = "destination" | "source";
 export type IntegrationActionRole =
     | "connect"
     | "copy"
-    | "copy-read-only"
     | "import"
     | "open"
     | "sync";
@@ -103,7 +101,6 @@ export interface GooglePhotosPickerSyncBehavior extends SyncBehaviorBase {
 export interface CopyPromptBehavior {
     kind: "copy-prompt";
     path: string;
-    scopes?: readonly McpScope[];
 }
 
 export interface MarkdownImportBehavior {
@@ -127,7 +124,6 @@ export type IntegrationBehavior =
 interface IntegrationBehaviorKindByRole {
     connect: "oauth-link" | "rss-manage" | "social-sign-in";
     copy: "copy-prompt";
-    "copy-read-only": "copy-prompt";
     import: "markdown-import";
     open: "extension-entry";
     sync: "google-photos-picker" | "route";
@@ -574,7 +570,7 @@ export const INTEGRATION_DEFINITIONS = [
         description: msg("Feeds you follow"),
         direction: "source",
         hint: msg(
-            "Add RSS feeds to import new entries into your library automatically."
+            "Add RSS feeds to import new posts into your library automatically. Set up automations to summarize new posts or bring you the updates that matter."
         ),
         id: "rss",
         label: "RSS",
@@ -669,13 +665,6 @@ export function integrationIds(): IntegrationId[] {
 
 export function filterToIntegrationIds(values: string[]): IntegrationId[] {
     return values.filter(isIntegrationId);
-}
-
-export function recordHasIntegrationId<K extends string>(
-    record: Record<K, unknown>,
-    key: K
-): record is Record<K, IntegrationId> & typeof record {
-    return isIntegrationId(record[key]);
 }
 
 /**

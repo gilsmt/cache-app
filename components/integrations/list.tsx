@@ -248,8 +248,6 @@ function resolveActionLabel(args: {
             return gt("Sync");
         case "copy":
             return gt("Copy prompt");
-        case "copy-read-only":
-            return gt("Copy read-only prompt");
         case "import":
             return gt("Import");
         default:

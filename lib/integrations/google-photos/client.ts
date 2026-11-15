@@ -1,10 +1,9 @@
 import { getErrorMessage } from "@/lib/common/error";
-import { waitForRetry, withRetry } from "@/lib/common/retry";
+import { waitForRetry } from "@/lib/common/retry";
 import {
     IntegrationApiError,
     IntegrationConnectionError,
 } from "@/lib/integrations/error";
-import { PickerNotReadyError } from "./error";
 import type { ImportResponse, SessionCreateResponse } from "./shared";
 import {
     ImportResponseSchema,
@@ -88,69 +87,43 @@ async function pollUntilMediaSelected(
             ? 5 * 60_000
             : Math.round(parsedSeconds * 1000);
 
-    await withRetry(
-        async () => {
-            if (Date.now() - startedAt >= timeoutMs) {
-                throw createGooglePhotosConnectionError({
-                    message:
-                        "Selection timed out. Open the picker again and confirm your media.",
-                    operation: "pollUntilMediaSelected",
-                });
-            }
+    const deadlineMs = startedAt + timeoutMs;
 
-            const response = await fetch(
-                `/api/integrations/google-photos/picker/session?id=${encodeURIComponent(sessionId)}&accountId=${encodeURIComponent(accountId)}`,
-                { method: "GET" }
-            );
-            const raw = await response.json().catch(() => null);
-            const parsed = SessionPollResponseSchema.safeParse(raw);
+    while (Date.now() < deadlineMs) {
+        const response = await fetch(
+            `/api/integrations/google-photos/picker/session?id=${encodeURIComponent(sessionId)}&accountId=${encodeURIComponent(accountId)}`,
+            { method: "GET" }
+        );
+        const raw = await response.json().catch(() => null);
+        const parsed = SessionPollResponseSchema.safeParse(raw);
 
-            if (!(response.ok && parsed.success)) {
-                throw createGooglePhotosApiError({
-                    cause: raw,
-                    message: getErrorMessage(
-                        raw,
-                        "Could not read picker status. Please try again."
-                    ),
-                    operation: "pollUntilMediaSelected",
-                    status: response.status,
-                });
-            }
-
-            if (parsed.data.mediaItemsSet) {
-                return;
-            }
-
-            throw new PickerNotReadyError({
-                pollIntervalMs: parsed.data.pollIntervalMs,
+        if (!(response.ok && parsed.success)) {
+            throw createGooglePhotosApiError({
+                cause: raw,
+                message: getErrorMessage(
+                    raw,
+                    "Could not read picker status. Please try again."
+                ),
+                operation: "pollUntilMediaSelected",
+                status: response.status,
             });
-        },
-        {
-            factor: 1,
-            maxTimeout: 0,
-            minTimeout: 0,
-            onFailedAttempt: async ({ error, retriesLeft }) => {
-                if (
-                    retriesLeft <= 0 ||
-                    !PickerNotReadyError.isInstance(error)
-                ) {
-                    return;
-                }
-                const remainingMs = Math.max(
-                    0,
-                    timeoutMs - (Date.now() - startedAt)
-                );
-                await waitForRetry(
-                    Math.min(
-                        Math.max(1000, error.data.pollIntervalMs),
-                        remainingMs
-                    )
-                );
-            },
-            retries: Number.MAX_SAFE_INTEGER,
-            shouldRetry: ({ error }) => PickerNotReadyError.isInstance(error),
         }
-    );
+
+        if (parsed.data.mediaItemsSet) {
+            return;
+        }
+
+        const remainingMs = Math.max(0, deadlineMs - Date.now());
+        await waitForRetry(
+            Math.min(Math.max(1000, parsed.data.pollIntervalMs), remainingMs)
+        );
+    }
+
+    throw createGooglePhotosConnectionError({
+        message:
+            "Selection timed out. Open the picker again and confirm your media.",
+        operation: "pollUntilMediaSelected",
+    });
 }
 
 async function importSelectedMedia(
@@ -183,11 +156,6 @@ async function importSelectedMedia(
     return parsed.data;
 }
 
-/**
- * Executes the full Google Photos Picker flow: session creation, polling for selection, and import.
- *
- * @returns The number of imported items.
- */
 export async function executeGooglePhotosPickerFlow(): Promise<{
     importedCount: number;
 }> {
