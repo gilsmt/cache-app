@@ -77,10 +77,10 @@ export const auth = betterAuth({
          */
         deleteUser: {
             beforeDelete: async (user) => {
-                const { prepareUserDeletion } = await import(
-                    "@/lib/accounts/service"
+                const { cancelUserNonterminalSubscriptions } = await import(
+                    "@/lib/billing/service"
                 );
-                await prepareUserDeletion(user.id);
+                await cancelUserNonterminalSubscriptions(user.id);
             },
             enabled: true,
         },

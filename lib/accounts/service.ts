@@ -2,17 +2,12 @@ import "server-only";
 
 import { AccountError } from "@/lib/accounts/error";
 import { auth } from "@/lib/auth/server";
-import { cancelUserNonterminalSubscriptions } from "@/lib/billing/service";
 import { createLogger } from "@/lib/common/logs/console/logger";
 
 const log = createLogger("accounts:service");
 
 interface DeleteUserAccountResult {
     redirect: string;
-}
-
-export async function prepareUserDeletion(userId: string): Promise<void> {
-    await cancelUserNonterminalSubscriptions(userId);
 }
 
 /**

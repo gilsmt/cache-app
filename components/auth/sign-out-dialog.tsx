@@ -4,7 +4,6 @@ import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T } from "gt-next";
 import { useRouter } from "next/navigation";
 import type * as React from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -24,10 +23,6 @@ export function SignOutDialogTrigger(
 
     const handleSignOut = useStableCallback(() => {
         router.push("/signout");
-    });
-
-    useHotkeys("alt+shift+q", handleSignOut, {
-        description: "Sign out",
     });
 
     return (

@@ -118,14 +118,15 @@ interface SessionStatusProps {
 }
 
 /**
- * Pass `serverSession` to prevent layout shift before client hydration. The
- * client session still owns the sign-out button's loading state as it reflects
- * the live request.
+ * Pass `serverSession` to prevent layout shift while the client session loads.
+ * Use the client session after it resolves so account changes stay visible.
  */
 export function SessionStatus({ serverSession }: SessionStatusProps) {
     const { data: clientSession, isPending } = useSession();
 
-    const session = serverSession ?? clientSession;
+    const session = isPending
+        ? (serverSession ?? clientSession)
+        : clientSession;
 
     if (!session) {
         return null;

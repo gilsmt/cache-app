@@ -12,6 +12,7 @@ import {
     LoaderCircle,
     UserRoundPlus,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { DeleteAccountDialogTrigger } from "@/components/auth/delete-account-dialog";
@@ -72,6 +73,7 @@ import { useDesktopApp } from "@/lib/desktop/use-desktop-platform";
 export function AccountMenu(
     props: Omit<React.ComponentProps<typeof Menu>, "open" | "onOpenChange">
 ) {
+    const router = useRouter();
     const [isOpen, setIsOpen] = React.useState(false);
 
     const toggle = useStableCallback(() => {
@@ -81,6 +83,10 @@ export function AccountMenu(
     useHotkeys("mod+alt+g", toggle, {
         description: "Open account menu",
         preventDefault: true,
+    });
+
+    useHotkeys("alt+shift+q", () => router.push("/signout"), {
+        description: "Sign out",
     });
 
     return <Menu {...props} onOpenChange={setIsOpen} open={isOpen} />;
@@ -343,14 +349,6 @@ function AccountSwitcherSubMenuContent() {
         );
     }
 
-    if (accountMenuError) {
-        return (
-            <MenuItem disabled>
-                <AccountSwitcherSubMenuErrorMessage error={accountMenuError} />
-            </MenuItem>
-        );
-    }
-
     return (
         <>
             <MenuRadioGroup
@@ -409,6 +407,13 @@ function AccountSwitcherSubMenuContent() {
                     );
                 })}
             </MenuRadioGroup>
+            {accountMenuError ? (
+                <MenuItem disabled>
+                    <AccountSwitcherSubMenuErrorMessage
+                        error={accountMenuError}
+                    />
+                </MenuItem>
+            ) : null}
             {switchAccountError ? (
                 <MenuItem disabled>
                     <AccountSwitcherSubMenuErrorMessage error="switch" />
