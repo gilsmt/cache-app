@@ -163,7 +163,7 @@ import {
 import {
     groupCollectionsBySortField,
     type RelativeDateGroupId,
-} from "@/lib/collections/grouping";
+} from "@/lib/collections/groups";
 import type {
     LibraryItemCollectionsUpdateResult,
     LibraryItemsCollectionsUpdateResult,

@@ -13,7 +13,6 @@ import {
     LayoutList,
     MessageCircle,
     Search,
-    SquarePen,
     Trash2,
     X,
 } from "lucide-react";
@@ -76,7 +75,7 @@ import {
     RELATIVE_DATE_GROUP_IDS,
     type RelativeDateGroupId,
     resolveRelativeDateGroupId,
-} from "@/lib/collections/grouping";
+} from "@/lib/collections/groups";
 import { ACTION_STATUS } from "@/lib/common/constants";
 import { type Dayjs, dayjs } from "@/lib/common/dayjs";
 import { getSystemControlKey } from "@/lib/common/keyboard";
@@ -360,26 +359,6 @@ export function Threads({ threads }: ThreadsProps) {
                     </div>
                 </div>
                 <ThreadsListPanel>
-                    <SidebarItem
-                        className="pl-8.5"
-                        render={
-                            <ActivePathname
-                                href="/c/new"
-                                render={<Link href="/c/new" />}
-                            />
-                        }
-                    >
-                        <span className="bg-muted/50 pointer-events-none absolute top-1/2 left-1.25 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md">
-                            <SquarePen
-                                aria-hidden
-                                className="size-4"
-                                focusable="false"
-                            />
-                        </span>
-                        <SidebarItemValue>
-                            <T>New chat</T>
-                        </SidebarItemValue>
-                    </SidebarItem>
                     <ThreadsListEmpty />
                     <ThreadsListContent>
                         {(item) => (

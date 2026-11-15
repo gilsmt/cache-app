@@ -6,6 +6,7 @@ import {
     Ellipsis,
     History,
     MessageSquare,
+    SquarePen,
 } from "lucide-react";
 import type * as React from "react";
 import { Suspense } from "react";
@@ -84,6 +85,13 @@ export function SidebarPanel({
                             }
                         >
                             <T>Automations</T>
+                        </SidebarNavigationItem>
+                        <SidebarNavigationItem
+                            href="/c/new"
+                            icon={<SquarePen />}
+                            label={msg("New chat")}
+                        >
+                            <T>New chat</T>
                         </SidebarNavigationItem>
                         <SidebarMenu>
                             <SidebarMenuTrigger icon={<Ellipsis />}>
