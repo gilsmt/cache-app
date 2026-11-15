@@ -2,27 +2,22 @@
 
 import { Tabs } from "@base-ui/react/tabs";
 import { activeElement, contains, getTarget } from "@base-ui/utils/shadowDom";
-import { useIsoLayoutEffect } from "@base-ui/utils/useIsoLayoutEffect";
 import { useRefWithInit } from "@base-ui/utils/useRefWithInit";
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
-import { useTimeout } from "@base-ui/utils/useTimeout";
 import { cn } from "cn";
 import { T, useGT } from "gt-next";
 import type { SerializedEditorState } from "lexical";
 import {
-    AlertCircleIcon,
     CheckIcon,
     Copy,
-    ExternalLinkIcon,
     Globe,
     PanelRight,
     PlusIcon,
-    RotateCcwIcon,
     SquarePen,
     XIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import * as React from "react";
+import type * as React from "react";
 import {
     createContext,
     type ReactNode,
@@ -36,11 +31,8 @@ import { createStore } from "stan-js";
 import { storage } from "stan-js/storage";
 import { TextMorph } from "torph/react";
 import * as z from "zod";
+import { Oembed } from "@/components/artifact/oembed";
 import { useFavicon } from "@/components/hooks/queries/use-favicon";
-import {
-    type OembedResolution,
-    useOembed,
-} from "@/components/hooks/queries/use-oembed";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useLastVisited } from "@/components/hooks/use-last-visited";
 import { useItemsStateContext } from "@/components/session/items";
@@ -71,35 +63,14 @@ import { getOwnerDocument, getOwnerWindow } from "@/lib/common/dom";
 import { getSystemControlKey } from "@/lib/common/keyboard";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { clamp } from "@/lib/common/number";
-import { hasOembedSupport, type Oembed } from "@/lib/common/oembed";
 import { isStorageQuotaExceededError } from "@/lib/common/storage";
-import { isHttpUrl, parseDisplayUrl, parseValidUrl } from "@/lib/common/url";
+import { parseDisplayUrl } from "@/lib/common/url";
 import { normalizeHtml } from "@/lib/notes/utils";
 
 const ACTIVE_INDEX_STORAGE_KEY = "cache:side:active-index";
 const ITEMS_STORAGE_KEY = "cache:side:items";
 const OPEN_STORAGE_KEY = "cache:side:open";
-const PREVIEW_LOADING_TIMEOUT_MS = 8000;
 const SIDE_RECENT_ITEMS_LIMIT = 3;
-
-const OEMBED_IFRAME_SANDBOX =
-    "allow-scripts allow-popups allow-popups-to-escape-sandbox allow-presentation";
-const OEMBED_DIRECT_IFRAME_SANDBOX = `${OEMBED_IFRAME_SANDBOX} allow-same-origin allow-forms allow-modals allow-downloads`;
-const OEMBED_IFRAME_ALLOW =
-    "accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share";
-const OEMBED_SRCDOC_CSP =
-    "default-src 'none'; img-src https: data:; font-src https: data:; style-src 'unsafe-inline' https:; script-src 'unsafe-inline' https:; connect-src https:; media-src https: data: blob:; frame-src https:; object-src 'none'; form-action 'none';";
-
-const YOUTUBE_IFRAME_HOSTS = new Set([
-    "youtube.com",
-    "www.youtube.com",
-    "youtube-nocookie.com",
-    "www.youtube-nocookie.com",
-]);
-
-type IframeStatus = "pending" | "loaded" | "blocked";
-
-type OembedStatus = "blocked" | "loaded" | "loading" | "oembed";
 
 interface SidePanelUrlInput {
     title?: string | null;
@@ -178,8 +149,6 @@ const STORED_SIDE_ENTRY_SCHEMA = z.union([
     }),
 ]);
 
-const SIDE_IFRAME_STATUS_CACHE = new Map<string, IframeStatus>();
-
 const SidePanelContext = createContext<SidePanelContext | null>(null);
 
 function useSidePanelContext(): SidePanelContext {
@@ -191,7 +160,10 @@ function useSidePanelContext(): SidePanelContext {
 }
 
 const LazyEditor = dynamic(
-    () => import("./editor").then((module) => module.NoteEditor),
+    () =>
+        import("@/components/artifact/editor").then(
+            (module) => module.NoteEditor
+        ),
     { loading: EditorLoading }
 );
 
@@ -439,84 +411,6 @@ function writeSideItemsForUser(
     );
 }
 
-function getOembedIframeSrc(oembed: Oembed): string | null {
-    const doc = new DOMParser().parseFromString(oembed.html, "text/html");
-    const src = doc.querySelector("iframe")?.getAttribute("src");
-    const url = src ? parseValidUrl(src) : null;
-    return url && isAllowedOembedIframeUrl(url, oembed.provider)
-        ? url.href
-        : null;
-}
-
-function isAllowedOembedIframeUrl(url: URL, provider: string): boolean {
-    if (url.protocol !== "https:") {
-        return false;
-    }
-    const hostname = url.hostname.toLowerCase();
-    const isPath = (p: string) => url.pathname.startsWith(p);
-
-    switch (provider) {
-        case "youtube":
-            return YOUTUBE_IFRAME_HOSTS.has(hostname) && isPath("/embed/");
-        case "vimeo":
-            return hostname === "player.vimeo.com" && isPath("/video/");
-        case "spotify":
-            return hostname === "open.spotify.com" && isPath("/embed/");
-        case "soundcloud":
-            return hostname === "w.soundcloud.com";
-        case "codepen":
-            return hostname === "codepen.io";
-        case "codesandbox":
-            return hostname === "codesandbox.io";
-        case "figma":
-            return hostname === "www.figma.com" && url.pathname === "/embed";
-        default:
-            return false;
-    }
-}
-
-function buildOembedSrcDocument(html: string): string {
-    return `<!doctype html>
-<html>
-<head>
-<base target="_blank">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="${OEMBED_SRCDOC_CSP}">
-<style>
-html,
-body {
-    align-items: center;
-    background: transparent;
-    box-sizing: border-box;
-    display: flex;
-    justify-content: center;
-    margin: 0;
-    min-height: 100%;
-    height: 100%;
-    width: 100%;
-    padding: 0;
-}
-*,
-*::before,
-*::after {
-    box-sizing: inherit;
-}
-iframe {
-    border: 0;
-    max-height: calc(100vh - 24px);
-    max-width: 100%;
-}
-blockquote {
-    max-width: 100%;
-    height: 100%;
-}
-</style>
-</head>
-<body>${html}</body>
-</html>`;
-}
-
 const {
     actions: sideStoreActions,
     getState: getSideStoreState,
@@ -619,98 +513,12 @@ function useRecentItemView(item: LibraryItemWithCollections) {
     return { handleOpen, label, title };
 }
 
-function useUrlStatus(url: string | null) {
-    const oembedUrl = url !== null && hasOembedSupport(url) ? url : null;
-    const { data, error, mutate } = useOembed(oembedUrl);
-
-    const timeout = useTimeout();
-    const [iframeStatus, setIframeStatus] = React.useState<IframeStatus>(() =>
-        url ? (SIDE_IFRAME_STATUS_CACHE.get(url) ?? "pending") : "pending"
-    );
-    const [attempt, setAttempt] = useState(0);
-
-    const oembed = data?.resolution === "found" ? data.oembed : null;
-    const status = parseOembedStatus(url, data, iframeStatus);
-
-    const markAsBlocked = useStableCallback(() => {
-        setIframeStatus((current) =>
-            current === "pending" ? "blocked" : current
-        );
-    });
-
-    const markAsLoaded = useStableCallback(() => {
-        setIframeStatus((current) =>
-            current === "pending" ? "loaded" : current
-        );
-    });
-
-    const retry = useStableCallback(() => {
-        if (url) {
-            SIDE_IFRAME_STATUS_CACHE.delete(url);
-        }
-        setIframeStatus("pending");
-        setAttempt((current) => current + 1);
-        mutate();
-    });
-
-    React.useEffect(() => {
-        if (url && (iframeStatus === "loaded" || iframeStatus === "blocked")) {
-            SIDE_IFRAME_STATUS_CACHE.set(url, iframeStatus);
-        }
-    }, [url, iframeStatus]);
-
-    // An oEmbed hit stops the iframe, so the timeout only guards the direct
-    // iframe path. The hook mounts per active tab, so each tab gets the full
-    // deadline from mount.
-    React.useEffect(() => {
-        if (url === null || status !== "loading") {
-            timeout.clear();
-            return;
-        }
-        timeout.start(PREVIEW_LOADING_TIMEOUT_MS, markAsBlocked);
-        return () => {
-            timeout.clear();
-        };
-    }, [markAsBlocked, status, timeout, url]);
-
-    React.useEffect(() => {
-        if (status !== "blocked" || url === null || !isHttpUrl(url)) {
-            return;
-        }
-        log.warn("Side preview did not load; showing fallback.", {
-            cause: error ? "oembed-request" : "iframe-load",
-            host: parseDisplayUrl(url),
-        });
-    }, [error, status, url]);
-
-    return { attempt, markAsBlocked, markAsLoaded, oembed, retry, status };
-}
-
-function parseOembedStatus(
-    url: string | null,
-    data: OembedResolution | undefined,
-    iframeStatus: IframeStatus
-): OembedStatus {
-    if (!isHttpUrl(url)) {
-        return "blocked";
-    }
-    if (data?.resolution === "found") {
-        return "oembed";
-    }
-    if (iframeStatus === "blocked") {
-        return "blocked";
-    }
-    if (iframeStatus === "loaded") {
-        return "loaded";
-    }
-    return "loading";
-}
-
 function useSideTab(): void {
     const { data: session, isPending } = useSession();
-    const userId = session?.user?.id ?? null;
     const { activeIndex, items } = useSideStore();
     const hydratedUserIdRef = useRef<string | null | undefined>(undefined);
+
+    const userId = session?.user?.id ?? null;
 
     // Persist after hydration. This effect runs before the hydration effect
     // below so a user switch never writes the previous user's tabs into the
@@ -1198,7 +1006,7 @@ function SidePanelListItem({ isActive, item }: SidePanelItemProps) {
             keepMounted
             value={getSideTabId(item)}
         >
-            {isActive ? <SidePanelUrl entry={item} /> : null}
+            {isActive ? <Oembed title={item.title} url={item.url} /> : null}
         </Tabs.Panel>
     );
 }
@@ -1257,50 +1065,6 @@ function SidePanelNotePanel({ isActive, item }: SidePanelNotePanelProps) {
     );
 }
 
-interface SidePanelUrlProps {
-    entry: SidePanelUrlEntry;
-}
-
-function SidePanelUrl({ entry }: SidePanelUrlProps) {
-    const gt = useGT();
-    const { attempt, markAsBlocked, markAsLoaded, oembed, retry, status } =
-        useUrlStatus(entry.url);
-
-    const isLoading = status === "loading";
-    const isBlocked = status === "blocked";
-    const isOembed = status === "oembed";
-
-    return (
-        <>
-            {isLoading ? <SidePanelLoading /> : null}
-            {isBlocked ? (
-                <SidePanelBlocked onRetry={retry} url={entry.url} />
-            ) : null}
-            {isOembed && oembed ? (
-                <SidePanelOembedPreview oembed={oembed} />
-            ) : null}
-            {isBlocked || isOembed ? null : (
-                // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts iframe onError/onLoad
-                <iframe
-                    allow={OEMBED_IFRAME_ALLOW}
-                    allowFullScreen
-                    className="bg-background size-full border-0"
-                    key={`${entry.url}:${attempt}`}
-                    loading="lazy"
-                    onError={markAsBlocked}
-                    onLoad={markAsLoaded}
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    sandbox={OEMBED_IFRAME_SANDBOX}
-                    src={entry.url}
-                    title={gt("Preview of {title}", {
-                        title: entry.title ?? gt("Preview"),
-                    })}
-                />
-            )}
-        </>
-    );
-}
-
 function SidePanelEmpty() {
     const recentItems = useRecentSideItems();
 
@@ -1353,51 +1117,6 @@ function SidePanelRecentItem({ item }: SidePanelRecentItemProps) {
                 <span className="min-w-0 truncate">{label}</span>
             </Button>
         </li>
-    );
-}
-
-interface SidePanelOembedPreviewProps {
-    oembed: Oembed;
-}
-
-function SidePanelOembedPreview({ oembed }: SidePanelOembedPreviewProps) {
-    const gt = useGT();
-    const src = getOembedIframeSrc(oembed);
-    const [hasDirectError, setHasDirectError] = useState(false);
-
-    useIsoLayoutEffect(() => {
-        setHasDirectError(false);
-    }, [oembed.html, oembed.provider]);
-
-    const handleDirectError = useStableCallback(() => {
-        log.warn("Side direct embed failed; falling back to widget document.", {
-            provider: oembed.provider,
-        });
-        setHasDirectError(true);
-    });
-
-    const directSrc = hasDirectError ? null : src;
-
-    return (
-        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: resource load/error lifecycle is not user interaction; upstream jsx-a11y exempts iframe onError/onLoad
-        <iframe
-            allow={directSrc ? OEMBED_IFRAME_ALLOW : undefined}
-            allowFullScreen={!!directSrc}
-            className="bg-background size-full border-0"
-            key={directSrc ?? oembed.html}
-            loading="lazy"
-            onError={directSrc ? handleDirectError : undefined}
-            referrerPolicy="strict-origin-when-cross-origin"
-            sandbox={
-                directSrc ? OEMBED_DIRECT_IFRAME_SANDBOX : OEMBED_IFRAME_SANDBOX
-            }
-            src={directSrc ?? undefined}
-            srcDoc={directSrc ? undefined : buildOembedSrcDocument(oembed.html)}
-            title={
-                oembed.title ??
-                gt("{provider} preview", { provider: oembed.provider })
-            }
-        />
     );
 }
 
@@ -1653,73 +1372,6 @@ function SidePanelNewMenuItem({ item }: SidePanelNewMenuItemProps) {
                 {gt("Open {title} in Side", { title })}
             </span>
         </MenuItem>
-    );
-}
-
-function SidePanelLoading() {
-    return (
-        <div
-            aria-live="polite"
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-center"
-            role="status"
-        >
-            <Spinner className="text-muted-foreground size-5" />
-            <div className="space-y-1">
-                <p className="text-foreground text-sm font-medium">
-                    <T>Loading preview…</T>
-                </p>
-                <p className="text-muted-foreground max-w-sm text-sm text-balance">
-                    <T>Opening the page.</T>
-                </p>
-            </div>
-        </div>
-    );
-}
-
-interface SidePanelBlockedProps {
-    onRetry: () => void;
-    url: string;
-}
-
-function SidePanelBlocked({ onRetry, url }: SidePanelBlockedProps) {
-    return (
-        <div
-            aria-live="assertive"
-            className="flex size-full flex-col items-center justify-center gap-4 px-6 text-center"
-            role="alert"
-        >
-            <div className="bg-destructive/10 text-destructive flex size-12 items-center justify-center rounded-full">
-                <AlertCircleIcon className="size-5" />
-            </div>
-            <div className="space-y-2">
-                <p className="text-foreground text-base font-medium">
-                    <T>Preview unavailable</T>
-                </p>
-                <p className="text-muted-foreground max-w-md text-sm text-balance">
-                    <T>This site can't be previewed.</T>
-                </p>
-            </div>
-            <div className="flex items-center gap-2">
-                <Button onClick={onRetry} size="sm" variant="outline">
-                    <RotateCcwIcon className="size-4" />
-                    <T>Try again</T>
-                </Button>
-                <Button
-                    nativeButton={false}
-                    render={
-                        <a
-                            href={url}
-                            rel="noopener noreferrer"
-                            target="_blank"
-                        />
-                    }
-                    size="sm"
-                >
-                    <ExternalLinkIcon className="size-4" />
-                    <T>Open in new tab</T>
-                </Button>
-            </div>
-        </div>
     );
 }
 

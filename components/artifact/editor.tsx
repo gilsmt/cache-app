@@ -78,6 +78,11 @@ import {
     useTransition,
 } from "react";
 import { TextMorph } from "torph/react";
+import type {
+    EditorDraft,
+    EditorSaveHandler,
+    SidePanelNote,
+} from "@/components/artifact/panel";
 import {
     type AutosaveStatus,
     useAutosave,
@@ -85,11 +90,6 @@ import {
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { ItemCollectionsCombobox } from "@/components/session/collections";
 import { useItemsStateContext } from "@/components/session/items";
-import type {
-    EditorDraft,
-    EditorSaveHandler,
-    SidePanelNote,
-} from "@/components/session/side-panel";
 import { Button } from "@/components/ui/button";
 import {
     ClaudeIcon,

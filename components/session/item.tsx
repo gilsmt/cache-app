@@ -32,11 +32,11 @@ import * as React from "react";
 import { Controlled as ControlledZoom } from "react-medium-image-zoom";
 import { Streamdown } from "streamdown";
 import useSWR from "swr";
+import { openSidePanel } from "@/components/artifact/panel";
 import { CommentComposer } from "@/components/comments/composer";
 import { useCopyToClipboard } from "@/components/hooks/use-copy-to-clipboard";
 import { useIsLastVisited } from "@/components/hooks/use-last-visited";
 import { ItemCollectionsCombobox } from "@/components/session/collections";
-import { openSidePanel } from "@/components/session/side-panel";
 import { AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -96,7 +96,7 @@ import {
     resolveDisplayDimensions,
 } from "@/lib/common/dimension";
 import { getOwnerDocument, getOwnerWindow } from "@/lib/common/dom";
-import { saveFile } from "@/lib/common/file";
+import { type FILE_EXTENSION, saveFile } from "@/lib/common/file";
 import { getImageColors } from "@/lib/common/image-color";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { slugify } from "@/lib/common/string";
@@ -138,7 +138,7 @@ const COBALT_SOURCES = new Set<LibraryItemSource>([
 ]);
 
 const ITEM_DOWNLOAD_FILE_EXTENSION_BY_MIME_TYPE: Partial<
-    Record<string, ItemDownloadFileExtension>
+    Record<string, FILE_EXTENSION>
 > = {
     [MIME_TYPES.avif]: "avif",
     [MIME_TYPES.bmp]: "bmp",
@@ -211,8 +211,6 @@ const ITEM_CARD_ACTIONS: {
         separatorBefore: true,
     },
 ];
-
-type ItemDownloadFileExtension = Exclude<keyof typeof MIME_TYPES, "binary">;
 
 interface ItemHoverVideo {
     handleCanPlay: (event: React.SyntheticEvent<HTMLVideoElement>) => void;
@@ -618,7 +616,7 @@ function formatWaybackTimestamp(daysOffset: number): string {
 function getItemDownloadFileExtension(
     url: string,
     contentType: string | null
-): ItemDownloadFileExtension | null {
+): FILE_EXTENSION | null {
     const normalizedContentType = contentType
         ?.split(";", 1)[0]
         ?.trim()

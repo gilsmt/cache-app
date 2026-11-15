@@ -45,6 +45,14 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { Streamdown } from "streamdown";
 import { ThinkingOrb } from "thinking-orbs";
 import {
+    type EditorDraft,
+    openSideNote,
+    openSidePanel,
+    SidePanel,
+    SidePanelContent,
+    SidePanelTrigger,
+} from "@/components/artifact/panel";
+import {
     BlockPaywallBanner,
     InlinePaywallBanner,
 } from "@/components/billing/paywall";
@@ -95,14 +103,6 @@ import {
     useItemsStateContext,
 } from "@/components/session/items";
 import { OnboardingMenu } from "@/components/session/onboarding";
-import {
-    type EditorDraft,
-    openSideNote,
-    openSidePanel,
-    SidePanel,
-    SidePanelContent,
-    SidePanelTrigger,
-} from "@/components/session/side-panel";
 import {
     Summary,
     SummaryPopup,
