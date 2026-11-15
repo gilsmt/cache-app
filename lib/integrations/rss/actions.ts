@@ -4,7 +4,7 @@ import * as z from "zod";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 import { getValidationErrorMessage } from "@/lib/common/action";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { RssFeedError } from "./errors";
+import { RssFeedError } from "./error";
 import { sanitizeFeedError } from "./sanitize";
 import * as service from "./service";
 

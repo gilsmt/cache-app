@@ -22,7 +22,7 @@ const ASSISTANT_LIBRARY_TEXT_PREVIEW_LENGTH_MAX = 1000;
 const SEARCH_LIBRARY_DESCRIPTION =
     "Search the user's saved Cache library. Query words are AND-matched across caption, note text, and URL within each item. Prefer concrete names, brands, domains, domainFilters, sourceFilters, or collectionIds over broad category labels. Results include saved URLs for inline Markdown citations; never show internal library item IDs. When truncated is true, continue with nextOffset while it is not null; if it is null, explain that the offset limit was reached and the result is partial.";
 
-const AssistantLibrarySearchInputSchema = z.strictObject({
+const InputSchema = z.object({
     collectionIds: z
         .array(z.string().trim().min(1).max(128))
         .max(10)
@@ -62,7 +62,7 @@ const AssistantLibrarySearchInputSchema = z.strictObject({
  * user's saved items. The database client loads lazily so workflow
  * definitions can import this module without server-only code.
  */
-export function createLibrarySearchTool(args: { userId: string }) {
+export function buildLibrarySearchTool(args: { userId: string }) {
     return tool({
         description: SEARCH_LIBRARY_DESCRIPTION,
         execute: (toolInput) =>
@@ -70,12 +70,12 @@ export function createLibrarySearchTool(args: { userId: string }) {
                 input: toolInput,
                 userId: args.userId,
             }),
-        inputSchema: AssistantLibrarySearchInputSchema,
+        inputSchema: InputSchema,
     });
 }
 
 async function searchAssistantLibrary(args: {
-    input: z.infer<typeof AssistantLibrarySearchInputSchema>;
+    input: z.infer<typeof InputSchema>;
     userId: string;
 }) {
     const { prisma } = await import("@/prisma");

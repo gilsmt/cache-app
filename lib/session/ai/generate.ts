@@ -17,7 +17,7 @@ import {
     EmptyGenerationOutputError,
     GenAiConfigurationError,
     GenAiGenerationError,
-} from "../error";
+} from "./error";
 import { resolveRegisteredModel } from "./resolver";
 
 const log = createLogger("intelligence:generation");
@@ -184,7 +184,6 @@ export interface GenerationUsage {
     totalTokens: number;
 }
 
-/** Usage as callers receive it from the SDK, before normalization. */
 export interface RawGenerationUsage {
     inputTokenDetails?: { cacheReadTokens?: number | undefined } | undefined;
     inputTokens?: number | undefined;
@@ -199,7 +198,6 @@ interface GenerationResult<T> {
 
 interface GenerationInput {
     defaultErrorMessage?: string;
-    /** Feature label used for logging, spans, and error context. */
     feature: string;
     logContext?: Record<string, unknown>;
     operation: string;

@@ -7,7 +7,7 @@ import { GEN_AI_QUOTAS } from "@/lib/billing/quotas";
 import { getUserPlanType } from "@/lib/billing/service";
 import type { PriceType } from "@/lib/billing/types";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { GenAiProtectionError } from "@/lib/session/error";
+import { GenAiProtectionError } from "@/lib/session/ai/error";
 
 const log = createLogger("intelligence:protection");
 
@@ -91,5 +91,16 @@ export async function protectGenAiRequest(args: {
         reason,
         requestedTokens,
         userId,
+    });
+}
+
+export async function consumeGenerationQuota(args: {
+    feature: string;
+    requestedTokens: number;
+    userId: string;
+}): Promise<void> {
+    await protectGenAiRequest({
+        ...args,
+        request: new Request("https://cache.local/internal/generation"),
     });
 }

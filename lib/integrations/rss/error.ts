@@ -15,4 +15,5 @@ export const RssFeedError = TaggedError.create(
         message: z.string(),
     })
 );
+
 export type RssFeedError = InstanceType<typeof RssFeedError>;

@@ -12,7 +12,7 @@ import { upsertLibraryItemImports } from "@/lib/integrations/import";
 import { prisma } from "@/prisma";
 import { Prisma } from "@/prisma/client/client";
 import { LibraryItemSource } from "@/prisma/client/enums";
-import { RssFeedError } from "./errors";
+import { RssFeedError } from "./error";
 import type { ParsedFeed } from "./parser";
 import { parseFeed } from "./parser";
 

@@ -10,11 +10,6 @@ export const AUTOMATION_ITEM_PAGE_LIMIT_MAX = 50;
 export const AUTOMATION_LEASE_DURATION_MS = 10 * 60 * 1000;
 export const AUTOMATION_RUNNING_TIMEOUT_MS = 45 * 60 * 1000;
 export const AUTOMATION_TEXT_PREVIEW_LENGTH_MAX = 1200;
-export const AUTOMATION_WEB_FETCH_BODY_LENGTH_MAX = 12_000;
-export const AUTOMATION_WEB_FETCH_TIMEOUT_MS = 15_000;
-export const AUTOMATION_WEB_FETCH_RETRY_ATTEMPTS = 3;
-export const AUTOMATION_WEB_FETCH_RETRY_BASE_DELAY_MS = 1000;
-export const AUTOMATION_WEB_FETCH_TOTAL_TIMEOUT_MS = 30_000;
 
 export interface AutomationTemplateDefinition {
     defaultCadence: AutomationCadence;

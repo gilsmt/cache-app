@@ -5,6 +5,11 @@ import { createLogger } from "@/lib/common/logs/console/logger";
 
 const log = createLogger("intelligence:pipeline");
 
+export const GenAiRequestProtectionError = TaggedError.create(
+    "GenAiRequestProtectionError",
+    z.object({ message: z.string() })
+);
+
 export const GenAiProtectionError = TaggedError.create(
     "GenAiProtectionError",
     z.object({
@@ -35,13 +40,11 @@ export const GenAiConfigurationError = TaggedError.create(
     })
 );
 
-/** Thrown when a generation or agent run returns a response without content. */
 export const EmptyGenerationOutputError = TaggedError.create(
     "EmptyGenerationOutputError",
     z.object({})
 );
 
-/** Failure statuses a generation-backed action can report to the client. */
 export type GenerationActionStatus =
     | "ERROR"
     | "FORBIDDEN"
@@ -63,6 +66,10 @@ export function mapGenerationFailure(
         summaryFallback?: string;
     }
 ): GenerationFailure {
+    if (GenAiRequestProtectionError.isInstance(error)) {
+        return { message: error.data.message, status: "FORBIDDEN" };
+    }
+
     if (GenAiProtectionError.isInstance(error)) {
         return {
             message: error.data.message,

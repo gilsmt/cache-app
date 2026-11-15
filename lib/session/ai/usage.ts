@@ -2,7 +2,10 @@ import type { GenerationUsage, RawGenerationUsage } from "./generate";
 
 export const CHARS_PER_TOKEN = 4;
 
-export function estimateTokens(text: string, outputTokenLimit = 0): number {
+export function estimateTokensUsage(
+    text: string,
+    outputTokenLimit = 0
+): number {
     return Math.max(
         1,
         Math.ceil(text.length / CHARS_PER_TOKEN) + outputTokenLimit

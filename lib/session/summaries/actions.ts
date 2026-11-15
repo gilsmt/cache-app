@@ -1,23 +1,19 @@
 "use server";
 
-import { request as getArcjetRequest } from "@arcjet/next";
 import { isUnauthenticated, requireActionUserId } from "@/lib/auth/session";
 import { getValidationErrorMessage } from "@/lib/common/action";
 import {
     type GenerationActionStatus,
     mapGenerationFailure,
-} from "@/lib/session/error";
+} from "@/lib/session/ai/error";
+import { getCachedCollectionDescription, getCachedOverview } from "./cache";
 import {
     type CollectionDescriptionRequest,
     CollectionDescriptionRequestSchema,
     type OverviewRequest,
     OverviewRequestSchema,
 } from "./schema";
-import {
-    generateCollectionDescription,
-    generateOverview,
-    OVERVIEW_FALLBACK_TEXT,
-} from "./service";
+import { OVERVIEW_FALLBACK_TEXT } from "./service";
 
 export type OverviewResult =
     | {
@@ -62,17 +58,20 @@ export async function getOverview(
     }
 
     try {
-        const result = await generateOverview({
+        const result = await getCachedOverview({
             expanded: parsed.data.expanded ?? false,
             items: parsed.data.items,
-            request: await getArcjetRequest(),
             sectionTitle: parsed.data.sectionTitle,
             userId: actor.userId,
         });
 
+        if ("error" in result) {
+            throw result.error;
+        }
+
         return {
             status: "SUCCESS",
-            summary: result.summary,
+            summary: result.value.summary,
         };
     } catch (error) {
         return mapGenerationFailure(error, {
@@ -105,13 +104,16 @@ export async function getCollectionDescription(
     }
 
     try {
-        const result = await generateCollectionDescription({
+        const result = await getCachedCollectionDescription({
             collectionTitle: parsed.data.title,
-            request: await getArcjetRequest(),
             userId: actor.userId,
         });
 
-        const description = result.description.trim();
+        if ("error" in result) {
+            throw result.error;
+        }
+
+        const description = result.value.description.trim();
         if (!description.length) {
             return {
                 message:

@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import type { FilePart, ModelMessage } from "ai";
-import { CHARS_PER_TOKEN, estimateTokens } from "@/lib/session/ai/usage";
+import { CHARS_PER_TOKEN, estimateTokensUsage } from "@/lib/session/ai/usage";
 
 // Model-independent reservation, not measured usage. Allow room for image tiling
 // without charging the base64 transport encoding as if it were prompt text.
@@ -37,7 +37,7 @@ export function estimateThreadRequestTokens(args: {
     });
 
     return (
-        estimateTokens(
+        estimateTokensUsage(
             `${args.system}\n${JSON.stringify(messagesForTokenEstimate)}`,
             args.outputTokenLimit
         ) + fileTokens
@@ -61,7 +61,7 @@ function estimateFileTokens(data: FilePart["data"], mediaType: string): number {
             ? data.slice(data.indexOf(",") + 1)
             : data;
         if (mediaType === "text/plain") {
-            return estimateTokens(
+            return estimateTokensUsage(
                 Buffer.from(base64, "base64").toString("utf8")
             );
         }
@@ -75,7 +75,7 @@ function estimateFileTokens(data: FilePart["data"], mediaType: string): number {
     }
     if (data instanceof Uint8Array || data instanceof ArrayBuffer) {
         if (mediaType === "text/plain") {
-            return estimateTokens(new TextDecoder().decode(data));
+            return estimateTokensUsage(new TextDecoder().decode(data));
         }
         return Math.max(
             DOCUMENT_TOKEN_RESERVATION_MIN,
@@ -89,7 +89,7 @@ function estimateFileTokens(data: FilePart["data"], mediaType: string): number {
             return estimateFileTokens(data.url, mediaType);
         case "text":
             if (mediaType === "text/plain") {
-                return estimateTokens(data.text);
+                return estimateTokensUsage(data.text);
             }
             return Math.max(
                 DOCUMENT_TOKEN_RESERVATION_MIN,

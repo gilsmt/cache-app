@@ -7,7 +7,7 @@ import { createLogger } from "@/lib/common/logs/console/logger";
 import {
     type GenerationActionStatus,
     mapGenerationFailure,
-} from "@/lib/session/error";
+} from "@/lib/session/ai/error";
 import { resolveAgentViewPage } from "../tool/agent-view";
 import {
     type AgentViewPage,

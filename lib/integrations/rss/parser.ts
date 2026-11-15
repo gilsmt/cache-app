@@ -5,12 +5,15 @@ import {
     parseFeed as parseFeedContent,
 } from "feedsmith";
 import { abortAfter } from "@/lib/common/abort";
-import { fetchPublicRedirect, readBodyText } from "@/lib/common/security/fetch";
-import { RssFeedError } from "./errors";
+import {
+    fetchPublicRedirect,
+    readResponseText,
+} from "@/lib/common/security/fetch";
+import { RssFeedError } from "./error";
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_REDIRECTS = 5;
-const FEED_BODY_CHARS_MAX = 10_000_000;
+const FEED_BODY_BYTES_MAX = 10_000_000;
 
 export interface ParsedFeed {
     description?: string;
@@ -61,16 +64,9 @@ export async function parseFeed(url: string): Promise<ParsedFeed> {
             });
         }
 
-        const body = await readBodyText(response, {
-            maxChars: FEED_BODY_CHARS_MAX,
+        content = await readResponseText(response, {
+            maxBytes: FEED_BODY_BYTES_MAX,
         });
-        if (body.truncated) {
-            throw new RssFeedError({
-                kind: "fetch_failed",
-                message: "The feed is too large to parse.",
-            });
-        }
-        content = body.text;
     } catch (error) {
         if (RssFeedError.isInstance(error)) {
             throw error;

@@ -40,6 +40,9 @@ export class HttpError extends Error {
     }
 
     isRetryable(): boolean {
+        if (!this.status) {
+            return true; // no response
+        }
         return this.status >= 500 || this.status === 429 || this.status === 408;
     }
 }

@@ -7,11 +7,11 @@ import { unique } from "@/lib/common/array";
 import { ITEM_KIND_BOOKMARK, SORT_ASC } from "@/lib/common/constants";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { normalizeCollectionName, truncateText } from "@/lib/common/string";
+import { GenAiProtectionError } from "@/lib/session/ai/error";
 import { generateStructured } from "@/lib/session/ai/generate";
+import { protectGenAiRequest } from "@/lib/session/ai/quotas";
 import { isIntelligenceConfigured } from "@/lib/session/ai/resolver";
-import { estimateTokens } from "@/lib/session/ai/usage";
-import { GenAiProtectionError } from "@/lib/session/error";
-import { protectGenAiRequest } from "@/lib/session/protection";
+import { estimateTokensUsage } from "@/lib/session/ai/usage";
 import { prisma } from "@/prisma";
 import { LibraryItemSource } from "@/prisma/client/enums";
 import {
@@ -115,7 +115,7 @@ async function decideCollectionsForItem(args: {
     await protectGenAiRequest({
         feature: "smart_collections",
         request: new Request("https://cache.local/internal/smart-collections"),
-        requestedTokens: estimateTokens(
+        requestedTokens: estimateTokensUsage(
             protectionPrompt,
             SMART_COLLECTIONS_OUTPUT_TOKEN_LIMIT
         ),

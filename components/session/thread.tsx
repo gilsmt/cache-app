@@ -64,7 +64,7 @@ import { createLogger } from "@/lib/common/logs/console/logger";
 import { uses24HourClock } from "@/lib/common/time";
 import { isHttpUrl, normalizeURL } from "@/lib/common/url";
 import { THREAD_NEW_ROUTE_ID } from "@/lib/threads/constants";
-import { getMessageCreatedAt, getMessageText } from "@/lib/threads/messages";
+import { getMessageCreatedAt, getMessageText } from "@/lib/threads/message";
 import type { ThreadSource } from "@/lib/threads/sources";
 
 const THREAD_TOOL_ICONS: Record<string, LucideIcon> = {
@@ -609,7 +609,7 @@ function ThreadComposerInput() {
                     className="block w-full text-base sm:text-sm"
                     enterKeyHint="send"
                     isUnstyled
-                    placeholder={gt("Talk with Cache")}
+                    placeholder={gt("Ask Cache")}
                     size="sm"
                     style={{ minHeight: "2rem" }}
                     textareaClassName="max-h-[min(30vh,600px)] overflow-y-auto overscroll-y-contain md:max-h-[min(40vh,600px)] pointer-coarse:max-h-[calc(4lh+0.75rem)] md:pointer-coarse:max-h-[calc(4lh+0.75rem)]"

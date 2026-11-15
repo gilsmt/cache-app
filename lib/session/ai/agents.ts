@@ -6,11 +6,15 @@ import {
     AUTOMATION_SYSTEM_PROMPT,
     buildAutomationUserMessage,
 } from "../instructions/automations";
-import { createAutomationPayloadTools } from "../tool/automation";
+import { buildAutomationPayloadItemsTool } from "../tool/automation-items";
+import { buildAutomationPayloadSummaryTool } from "../tool/automation-summary";
 import type { AssistantRequest } from "../tool/composer";
-import { createComposerTools } from "../tool/composer-tools";
-import { createLibrarySearchTool } from "../tool/library-search";
-import { createWebAgentTools } from "../tool/web";
+import { buildDefineViewTool } from "../tool/define-view";
+import { buildGitHubRepoTool } from "../tool/github";
+import { buildLibrarySearchTool } from "../tool/library";
+import { buildUpdateComposerTool } from "../tool/update-composer";
+import { buildWebFetchTool } from "../tool/webfetch";
+import { buildWebSearchTool } from "../tool/websearch";
 import type { AgentDefinition } from "./runner";
 
 export const assistantAgent: AgentDefinition<AssistantRequest> = {
@@ -23,9 +27,12 @@ export const assistantAgent: AgentDefinition<AssistantRequest> = {
     outputTokenLimit: 8192,
     timeoutMs: 60_000,
     tools: ({ input, state, userId }) => ({
-        ...createWebAgentTools(state),
-        search_library: createLibrarySearchTool({ userId }),
-        ...createComposerTools({ input, state, userId }),
+        define_view: buildDefineViewTool({ input, state, userId }),
+        github_repo: buildGitHubRepoTool(state),
+        search_library: buildLibrarySearchTool({ userId }),
+        update_composer: buildUpdateComposerTool({ input, state }),
+        web_fetch: buildWebFetchTool(state),
+        web_search: buildWebSearchTool(state),
     }),
     userMessage: buildAssistantUserMessage,
 };
@@ -49,8 +56,16 @@ export const automationAgent: AgentDefinition<AutomationAgentInput> = {
     outputTokenLimit: 8192,
     temperature: 0.3,
     tools: ({ input, state }) => ({
-        ...createWebAgentTools(state),
-        ...createAutomationPayloadTools({ runId: input.runId, state }),
+        getAutomationPayloadSummary: buildAutomationPayloadSummaryTool({
+            runId: input.runId,
+        }),
+        github_repo: buildGitHubRepoTool(state),
+        listAutomationPayloadItems: buildAutomationPayloadItemsTool({
+            runId: input.runId,
+            state,
+        }),
+        web_fetch: buildWebFetchTool(state),
+        web_search: buildWebSearchTool(state),
     }),
     userMessage: buildAutomationUserMessage,
 };

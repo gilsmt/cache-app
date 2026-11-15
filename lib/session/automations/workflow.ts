@@ -2,14 +2,15 @@ import { type ModelCallStreamPart, WorkflowAgent } from "@ai-sdk/workflow";
 import { isStepCount } from "ai";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import type { AutomationAgentInput } from "@/lib/session/ai/agents";
+import { getFinalStepSystem } from "@/lib/session/ai/final-step";
 import type { GenerationUsage } from "@/lib/session/ai/generate";
 import { resolveRegisteredModel } from "@/lib/session/ai/resolver";
+import type { AutomationAgentSource } from "@/lib/session/ai/runner";
 import { createAgentRunState } from "@/lib/session/ai/runner";
 import { summarizeStepUsage } from "@/lib/session/ai/usage";
 import { normalizeGeneratedMarkdown } from "@/lib/session/formatter/markdown";
-import { getFinalStepSystem } from "@/lib/session/instructions/final-step";
-import type { AutomationAgentSource } from "@/lib/session/tool/web";
-import { uniqueSources } from "@/lib/session/tool/web";
+
+const AUTOMATION_AGENT_SOURCE_LIMIT = 100;
 
 const log = createLogger("automations:workflow");
 
@@ -121,15 +122,18 @@ async function protectAutomationAgentRun(args: {
 }): Promise<AutomationProtectionDenial | null> {
     "use step";
 
-    const { protectGenAiRequest } = await import("@/lib/session/protection");
-    const { GenAiProtectionError } = await import("@/lib/session/error");
-    const { estimateTokens } = await import("@/lib/session/ai/usage");
+    const { protectGenAiRequest } = await import("@/lib/session/ai/quotas");
+    const { GenAiProtectionError } = await import("@/lib/session/ai/error");
+    const { estimateTokensUsage } = await import("@/lib/session/ai/usage");
 
     try {
         await protectGenAiRequest({
             feature: args.feature,
             request: new Request("https://cache.local/internal/automations"),
-            requestedTokens: estimateTokens(args.prompt, args.outputTokenLimit),
+            requestedTokens: estimateTokensUsage(
+                args.prompt,
+                args.outputTokenLimit
+            ),
             userId: args.userId,
         });
         return null;
@@ -218,4 +222,18 @@ function getFinalStepText(steps: Array<{ text?: string }>): string {
     }
 
     return "The automation completed, but it did not produce a text summary.";
+}
+
+function uniqueSources(sources: AutomationAgentSource[]) {
+    const byKey = new Map<string, AutomationAgentSource>();
+    for (const source of sources) {
+        const tag = source.type === "library_item" ? source.id : source.url;
+        const key = `${source.type}:${tag}`;
+        if (!byKey.has(key)) {
+            byKey.set(key, source);
+        }
+    }
+    return {
+        sources: [...byKey.values()].slice(0, AUTOMATION_AGENT_SOURCE_LIMIT),
+    };
 }

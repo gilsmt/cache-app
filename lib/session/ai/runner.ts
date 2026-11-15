@@ -8,22 +8,24 @@ import {
     type ToolSet,
 } from "ai";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { EmptyGenerationOutputError } from "../error";
 import { normalizeGeneratedMarkdown } from "../formatter/markdown";
-import { getFinalStepSystem } from "../instructions/final-step";
-import { protectGenAiRequest } from "../protection";
 import type { AgentViewPage, AssistantComposerPatch } from "../tool/composer";
-import type { AutomationAgentSource } from "../tool/web";
+import { EmptyGenerationOutputError } from "./error";
+import { getFinalStepSystem } from "./final-step";
 import {
     type GenerationUsage,
     type RawGenerationUsage,
     runGeneration,
 } from "./generate";
-import { estimateTokens } from "./usage";
+import { protectGenAiRequest } from "./quotas";
+import { estimateTokensUsage } from "./usage";
 
 const log = createLogger("intelligence:agent");
 
-/** What the tools of one agent run recorded. */
+export type AutomationAgentSource =
+    | { id: string; title: string; type: "library_item"; url: string }
+    | { title?: string; type: "web"; url: string };
+
 export interface AgentRunState {
     operationSummaries: string[];
     operations: AssistantComposerPatch[];
@@ -48,7 +50,6 @@ export function createAgentRunState(): AgentRunState {
  */
 export interface AgentDefinition<Input> {
     defaultErrorMessage: string;
-    /** Protection feature label. */
     feature: string;
     id: string;
     /**
@@ -95,7 +96,7 @@ export async function runAgent<Input>(args: {
     await protectGenAiRequest({
         feature: agent.feature,
         request: args.request,
-        requestedTokens: estimateTokens(
+        requestedTokens: estimateTokensUsage(
             `${instructions}\n\n${userMessage}`,
             agent.outputTokenLimit
         ),

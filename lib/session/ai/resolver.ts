@@ -5,7 +5,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { gateway, type LanguageModel } from "ai";
 import { serverEnv } from "@/env/server";
 import { createLogger } from "@/lib/common/logs/console/logger";
-import { GenAiConfigurationError } from "../error";
+import { GenAiConfigurationError } from "./error";
 import {
     DEFAULT_REGISTERED_MODEL,
     type ParsedRegisteredModel,
@@ -14,10 +14,6 @@ import {
 
 const log = createLogger("intelligence:model");
 
-/**
- * AI Gateway leads for model IDs in its catalog. OpenRouter catalog refs use
- * OpenRouter's own slug format, so they must use the direct OpenRouter adapter.
- */
 interface Provider {
     apiKey: string | undefined;
     create: (args: {
@@ -72,10 +68,6 @@ function resolveProvider(
     return undefined;
 }
 
-/**
- * Misconfiguration fails fast with a named error instead of surfacing as a
- * provider error mid-generation.
- */
 export function resolveRegisteredModel(operation: string): LanguageModel {
     const registeredModel =
         serverEnv.CACHE_AI_MODEL ?? DEFAULT_REGISTERED_MODEL;

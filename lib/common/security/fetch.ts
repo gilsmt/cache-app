@@ -345,55 +345,38 @@ export function releaseResponseBodyBudget(response: Response): void {
     getResponseBodyBudgetReleaser(response)?.();
 }
 
-export interface BoundedBodyText {
-    /** At most `maxChars` code units of the decoded body text. */
-    text: string;
-    /** True when the body carried more content than the cap allowed. */
-    truncated: boolean;
-}
-
 /**
- * Reads an untrusted response body within a character budget instead of
- * buffering it whole (`response.text()` reads until the connection ends).
- * The body decodes incrementally so memory stays bounded by the cap, and the
- * stream is cancelled the moment the budget overflows or a read fails —
- * which releases this response's abort budget through its cancel hook.
+ * Rejects oversized bodies instead of buffering unbounded input or returning
+ * partial text. Cancellation releases the response's abort budget and Agent.
  */
-export async function readBodyText(
+export async function readResponseText(
     response: Response,
-    options: { maxChars: number }
-): Promise<BoundedBodyText> {
+    options: { maxBytes: number }
+): Promise<string> {
     const body = response.body;
     if (body === null) {
-        return { text: "", truncated: false };
+        return "";
     }
 
     const reader = body.getReader();
     const decoder = new TextDecoder();
+    let bytesRead = 0;
     let text = "";
     try {
-        for (;;) {
+        while (true) {
             const { done, value } = await reader.read();
             if (done) {
                 break;
             }
-            text += decoder.decode(value, { stream: true });
-            if (text.length > options.maxChars) {
-                await reader.cancel().catch(() => undefined);
-                return {
-                    text: sliceToUtf16Boundary(text, options.maxChars),
-                    truncated: true,
-                };
+            bytesRead += value.byteLength;
+            if (bytesRead > options.maxBytes) {
+                throw new Error(
+                    `Response body exceeds the ${options.maxBytes} byte limit.`
+                );
             }
+            text += decoder.decode(value, { stream: true });
         }
-        text += decoder.decode();
-        if (text.length > options.maxChars) {
-            return {
-                text: sliceToUtf16Boundary(text, options.maxChars),
-                truncated: true,
-            };
-        }
-        return { text, truncated: false };
+        return text + decoder.decode();
     } catch (error) {
         await reader.cancel().catch(() => undefined);
         throw error;
@@ -404,24 +387,6 @@ export async function readBodyText(
             // Reader already released or the stream errored.
         }
     }
-}
-
-/**
- * Truncates to `maxChars` code units without splitting a UTF-16 surrogate
- * pair. The cap is counted in JS code units, so a cut can land between the
- * two halves of one code point; roll back the incomplete pair so no lone
- * surrogate is ever emitted to downstream parsers.
- */
-function sliceToUtf16Boundary(text: string, maxChars: number): string {
-    let end = Math.min(text.length, maxChars);
-    if (end <= 0) {
-        return "";
-    }
-    const lastCodeUnit = text.charCodeAt(end - 1);
-    if (lastCodeUnit >= 0xd8_00 && lastCodeUnit <= 0xdb_ff) {
-        end -= 1;
-    }
-    return text.slice(0, end);
 }
 
 export type FetchHttpRedirectResult =
