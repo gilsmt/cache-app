@@ -7,7 +7,7 @@ import { basename, extname, join } from "node:path";
 import { FileState, GoogleGenAI } from "@google/genai";
 import type { FilePart, TextPart } from "ai";
 import { decodeHTML } from "entities";
-import mime from "mime-types";
+import mime from "mime";
 import { serverEnv } from "@/env/server";
 import { abortAfter } from "@/lib/common/abort";
 import { unique } from "@/lib/common/array";
@@ -48,7 +48,6 @@ export interface SmartCollectionItem {
     url: string;
 }
 
-/** Attachment content plus the plain-text slice used for abuse estimation. */
 export interface SmartCollectionAttachment {
     cleanup?: () => Promise<void>;
     content: GenerationContent;
@@ -105,16 +104,16 @@ function inferDownloadAssetType(
     url: string
 ): { extension: string; mimeType: string } {
     const headerExt = contentTypeHeader
-        ? mime.extension(contentTypeHeader)
-        : false;
+        ? mime.getExtension(contentTypeHeader)
+        : null;
     if (headerExt) {
         return {
             extension: `.${headerExt}`,
-            mimeType: mime.lookup(headerExt) || MIME_TYPES.binary,
+            mimeType: mime.getType(headerExt) || MIME_TYPES.binary,
         };
     }
     const pathExt = extname(URL.parse(url)?.pathname ?? "").toLowerCase();
-    const lookupType = pathExt ? mime.lookup(pathExt) : false;
+    const lookupType = pathExt ? mime.getType(pathExt) : null;
     if (lookupType) {
         return { extension: pathExt, mimeType: lookupType };
     }
@@ -244,7 +243,7 @@ async function downloadRemoteAsset(
             reader = bodyReader;
             let downloadedBytes = 0;
 
-            for (;;) {
+            while (true) {
                 const { done, value } = await bodyReader.read();
                 if (done) {
                     responseBodyIsSettled = true;
@@ -442,11 +441,6 @@ async function resolveContentCandidates(
     return unique(candidates);
 }
 
-/**
- * Builds attachment content for an item: YouTube URLs pass through as video
- * file references, text-like assets are extracted inline, and other media is
- * uploaded to the Files API. Returns null when nothing usable is available.
- */
 export async function createAttachmentForItem(
     item: SmartCollectionItem
 ): Promise<SmartCollectionAttachment | null> {
