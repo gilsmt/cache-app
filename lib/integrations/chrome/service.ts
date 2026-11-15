@@ -5,7 +5,7 @@ import {
     LIBRARY_ITEM_COLLECTIONS_INCLUDE,
     type LibraryItemWithCollections,
 } from "@/lib/collections/utils";
-import { chunk, mapConcurrent } from "@/lib/common/array";
+import { mapConcurrent } from "@/lib/common/array";
 import {
     DEFAULT_BROWSER_PROFILE_ID,
     ITEM_KIND_BOOKMARK,
@@ -17,9 +17,9 @@ import { Prisma } from "@/prisma/client/client";
 import { LibraryItemSource } from "@/prisma/client/enums";
 
 import type {
-    ChromeBatchLookupState,
     ChromeBookmarkNode,
     ChromeLibraryItemDelegate,
+    ChromeLookupState,
 } from "./lookup";
 import {
     buildChromeBookmarkUpdateData,
@@ -33,12 +33,7 @@ import {
 } from "./lookup";
 
 const log = createLogger("library:chrome-bookmarks");
-const CHROME_BOOKMARK_SYNC_BATCH_SIZE = 25;
 const CHROME_PRUNE_CONCURRENCY = 8;
-
-// ---------------------------------------------------------------------------
-// Schemas
-// ---------------------------------------------------------------------------
 
 const chromeBookmarkNodeSchema = z.object({
     dateAdded: z.number().int().nonnegative().optional(),
@@ -120,19 +115,6 @@ interface ChromeSyncResult {
     upserted: number;
 }
 
-interface ChromeSyncAccumulator {
-    deduped: number;
-    deleted: number;
-    processed: number;
-    pruned: number;
-    smartCollectionItemIds: string[];
-    upserted: number;
-}
-
-// ---------------------------------------------------------------------------
-// Event handlers
-// ---------------------------------------------------------------------------
-
 /**
  * Wraps the Prisma delegate's `update` so a tombstoning that races between the
  * in-memory lookup and the database write (P2025) becomes a silent no-op
@@ -162,7 +144,7 @@ async function updateLiveChromeDelegate(
 async function handleChromeDeleteEvent(args: {
     delegate: ChromeLibraryItemDelegate;
     externalId: string;
-    lookup: ChromeBatchLookupState;
+    lookup: ChromeLookupState;
 }): Promise<boolean> {
     const exact = args.lookup.rowsByPrimaryExternalId.get(args.externalId);
     // Lookups are pre-filtered to live rows, but the gate below is the last
@@ -189,7 +171,7 @@ async function handleChromeDeleteEvent(args: {
             });
             // Always remove from the lookup — the row is either gone now or
             // was already tombstoned. Either way, subsequent delete events
-            // for the same externalId within this batch should be a no-op.
+            // for the same externalId within this request should be a no-op.
             removeChromeLookupRow(args.lookup, exact);
         }
         return true;
@@ -222,7 +204,7 @@ async function handleChromeBookmarkWriteEvent(args: {
     browserProfileId: string;
     delegate: ChromeLibraryItemDelegate;
     device: ChromeBookmarkSyncBody["device"];
-    lookup: ChromeBatchLookupState;
+    lookup: ChromeLookupState;
     occurredAt: string | undefined;
     userId: string;
 }): Promise<{
@@ -273,7 +255,8 @@ async function handleChromeBookmarkWriteEvent(args: {
         record.caption
     );
     const duplicateId = duplicateKey
-        ? args.lookup.duplicateToPrimaryId.get(duplicateKey)
+        ? args.lookup.duplicateToPrimaryIds.get(duplicateKey)?.values().next()
+              .value
         : null;
     const duplicate = duplicateId
         ? args.lookup.rowsById.get(duplicateId)
@@ -411,7 +394,7 @@ async function pruneChromeSnapshot(
     return deleteOutcomes.filter(Boolean).length;
 }
 
-async function processChromeBookmarkEventBatch(args: {
+async function processChromeBookmarkMutations(args: {
     browserProfileId: string;
     device: ChromeBookmarkSyncBody["device"];
     events: ChromeBookmarkSyncBody["events"][number][];
@@ -483,52 +466,36 @@ async function processChromeBookmarkEventBatch(args: {
     };
 }
 
-// ---------------------------------------------------------------------------
-// Exports
-// ---------------------------------------------------------------------------
-
 export async function applyChromeBookmarkSyncEvents(
     userId: string,
     body: ChromeBookmarkSyncBody
 ): Promise<ChromeSyncResult> {
     const browserProfileId =
         body.browserProfileId || DEFAULT_BROWSER_PROFILE_ID;
-    const accumulator: ChromeSyncAccumulator = {
-        deduped: 0,
-        deleted: 0,
-        processed: body.events.length,
-        pruned: 0,
-        smartCollectionItemIds: [],
-        upserted: 0,
-    };
-
-    const snapshotEvents = body.events.filter(
-        (event) => event.type === "import_complete"
-    );
     const mutationEvents = body.events.filter(
         (event) => event.type !== "import_complete"
     );
+    const result =
+        mutationEvents.length > 0
+            ? await processChromeBookmarkMutations({
+                  browserProfileId,
+                  device: body.device,
+                  events: mutationEvents,
+                  userId,
+              })
+            : {
+                  deduped: 0,
+                  deleted: 0,
+                  smartCollectionItemIds: [],
+                  upserted: 0,
+              };
 
-    for (const batch of chunk(
-        mutationEvents,
-        CHROME_BOOKMARK_SYNC_BATCH_SIZE
-    )) {
-        const result = await processChromeBookmarkEventBatch({
-            browserProfileId,
-            device: body.device,
-            events: batch,
-            userId,
-        });
-        accumulator.deduped += result.deduped;
-        accumulator.deleted += result.deleted;
-        accumulator.smartCollectionItemIds.push(
-            ...result.smartCollectionItemIds
-        );
-        accumulator.upserted += result.upserted;
-    }
-
-    for (const event of snapshotEvents) {
-        accumulator.pruned += await pruneChromeSnapshot(
+    let pruned = 0;
+    for (const event of body.events) {
+        if (event.type !== "import_complete") {
+            continue;
+        }
+        pruned += await pruneChromeSnapshot(
             prisma.libraryItem,
             userId,
             browserProfileId,
@@ -536,12 +503,7 @@ export async function applyChromeBookmarkSyncEvents(
         );
     }
 
-    return {
-        ...accumulator,
-        smartCollectionItemIds: [
-            ...new Set(accumulator.smartCollectionItemIds),
-        ],
-    };
+    return { ...result, processed: body.events.length, pruned };
 }
 
 export async function purgeChromeBookmarksForUser(

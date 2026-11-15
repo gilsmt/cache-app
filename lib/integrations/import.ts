@@ -25,6 +25,7 @@ const log = createLogger("integrations:import");
 
 const EXISTING_IMPORT_LOOKUP_BATCH_SIZE = 250;
 const IMPORT_UPSERT_CONCURRENCY = 4;
+const SNAPSHOT_IMPORT_WRITE_BATCH_SIZE = 250;
 const SNAPSHOT_IMPORT_TRANSACTION_MAX_WAIT_MS = 10_000;
 // Bound the full fetch and reconciliation; a timeout rolls back all changes.
 const SNAPSHOT_IMPORT_TRANSACTION_TIMEOUT_MS = 5 * 60_000;
@@ -311,13 +312,45 @@ function buildLibraryItemUpdateData(
 }
 
 /**
- * Persists only rows that are new or whose content changed against
+ * Selects only rows that are new or whose content changed against
  * `existingByIdentity`. Tombstoned identities are never written: a trashed
  * item stays trashed and syncs must not resurrect user deletions. Unchanged
  * rows are skipped entirely so steady-state syncs cost no writes, which also
  * preserves each item's original `scrapedAt` until its content actually
  * changes upstream.
  */
+function partitionChangedLibraryItemImports(args: {
+    existingByIdentity: ReadonlyMap<string, ExistingLibraryItemImport>;
+    rows: readonly LibraryItemImportRow[];
+}) {
+    const createdRows: LibraryItemImportRow[] = [];
+    const updatedRows: LibraryItemImportRow[] = [];
+    let unchangedCount = 0;
+    for (const row of args.rows) {
+        const existing = args.existingByIdentity.get(
+            libraryItemIdentityKey(row)
+        );
+        if (existing?.deletedAt) {
+            continue;
+        }
+        if (!existing) {
+            createdRows.push(row);
+            continue;
+        }
+        if (
+            isSameImportSnapshot(
+                existing.snapshot,
+                buildContentSnapshot(row.content)
+            )
+        ) {
+            unchangedCount += 1;
+            continue;
+        }
+        updatedRows.push(row);
+    }
+    return { createdRows, unchangedCount, updatedRows };
+}
+
 async function persistChangedLibraryItemImports(args: {
     delegate: LibraryItemDelegate;
     existingByIdentity: ReadonlyMap<string, ExistingLibraryItemImport>;
@@ -326,35 +359,16 @@ async function persistChangedLibraryItemImports(args: {
     upsertConcurrency: number;
     userId: string;
 }): Promise<PersistedLibraryItemImports> {
-    const importedKeys = new Set<string>();
-    const smartCollectionItemIds = new Set<string>();
-    const unchangedKeys = new Set<string>();
-    const updatedKeys = new Set<string>();
+    const { createdRows, unchangedCount, updatedRows } =
+        partitionChangedLibraryItemImports(args);
+    const smartCollectionItemIds: string[] = [];
     const shouldAddToSmartCollections =
         args.shouldAddToSmartCollections ??
         ((row: LibraryItemImportRow) => row.content.kind !== ITEM_KIND_FOLDER);
 
     await mapConcurrent(
-        args.rows,
+        [...createdRows, ...updatedRows],
         async (row) => {
-            const key = libraryItemIdentityKey(row);
-            const existing = args.existingByIdentity.get(key);
-
-            if (existing && existing.deletedAt !== null) {
-                return;
-            }
-
-            if (
-                existing &&
-                isSameImportSnapshot(
-                    existing.snapshot,
-                    buildContentSnapshot(row.content)
-                )
-            ) {
-                unchangedKeys.add(key);
-                return;
-            }
-
             const saved = await args.delegate.upsert({
                 create: buildLibraryItemCreateData(row, args.userId),
                 select: { id: true },
@@ -368,24 +382,88 @@ async function persistChangedLibraryItemImports(args: {
                     },
                 },
             });
-
-            if (existing) {
-                updatedKeys.add(key);
-            } else {
-                importedKeys.add(key);
-                if (shouldAddToSmartCollections(row)) {
-                    smartCollectionItemIds.add(saved.id);
-                }
+            if (
+                !args.existingByIdentity.has(libraryItemIdentityKey(row)) &&
+                shouldAddToSmartCollections(row)
+            ) {
+                smartCollectionItemIds.push(saved.id);
             }
         },
         args.upsertConcurrency
     );
 
     return {
-        importedCount: importedKeys.size,
-        smartCollectionItemIds: [...smartCollectionItemIds],
-        unchangedCount: unchangedKeys.size,
-        updatedCount: updatedKeys.size,
+        importedCount: createdRows.length,
+        smartCollectionItemIds,
+        unchangedCount,
+        updatedCount: updatedRows.length,
+    };
+}
+
+async function persistSnapshotLibraryItemImports(args: {
+    tx: Prisma.TransactionClient;
+    existingByIdentity: ReadonlyMap<string, ExistingLibraryItemImport>;
+    rows: readonly LibraryItemImportRow[];
+    source: LibraryItemSource;
+    userId: string;
+}): Promise<PersistedLibraryItemImports> {
+    const { createdRows, unchangedCount, updatedRows } =
+        partitionChangedLibraryItemImports(args);
+    const smartCollectionItemIds: string[] = [];
+    // A transaction has one connection. Batch writes to avoid a round trip per item.
+    for (const batch of chunk(createdRows, SNAPSHOT_IMPORT_WRITE_BATCH_SIZE)) {
+        const saved = await args.tx.libraryItem.createManyAndReturn({
+            data: batch.map((row) =>
+                buildLibraryItemCreateData(row, args.userId)
+            ),
+            select: { id: true, kind: true },
+        });
+        for (const item of saved) {
+            if (item.kind !== ITEM_KIND_FOLDER) {
+                smartCollectionItemIds.push(item.id);
+            }
+        }
+    }
+
+    let updatedCount = 0;
+    for (const batch of chunk(updatedRows, SNAPSHOT_IMPORT_WRITE_BATCH_SIZE)) {
+        const values = batch.map(
+            (row) => Prisma.sql`(
+            ${row.browserProfileId}::text, ${row.externalId}::text,
+            ${row.content.kind}::"LibraryItemKind", ${row.content.caption}::text,
+            ${row.content.parentExternalId}::text, ${row.content.postedAt}::timestamp,
+            ${row.content.sourceDeviceId}::text, ${row.content.sourceDeviceName}::text,
+            ${row.content.sourceMetadata === null ? null : JSON.stringify(row.content.sourceMetadata)}::jsonb,
+            ${row.content.url}::text, ${row.scrapedAt}::timestamp
+        )`
+        );
+        updatedCount += await args.tx.$executeRaw`
+            UPDATE "library_item" AS item
+            SET "kind" = incoming.kind, "caption" = incoming.caption,
+                "parentExternalId" = incoming.parent_external_id,
+                "postedAt" = incoming.posted_at,
+                "sourceDeviceId" = incoming.source_device_id,
+                "sourceDeviceName" = incoming.source_device_name,
+                "sourceMetadata" = incoming.source_metadata,
+                "url" = incoming.url, "scrapedAt" = incoming.scraped_at,
+                "updatedAt" = timezone('UTC', statement_timestamp())
+            FROM (VALUES ${Prisma.join(values)}) AS incoming(
+                browser_profile_id, external_id, kind, caption, parent_external_id,
+                posted_at, source_device_id, source_device_name, source_metadata,
+                url, scraped_at
+            )
+            WHERE item."userId" = ${args.userId}
+                AND item."source" = ${args.source}::"LibraryItemSource"
+                AND item."browserProfileId" = incoming.browser_profile_id
+                AND item."externalId" = incoming.external_id
+                AND item."deletedAt" IS NULL
+        `;
+    }
+    return {
+        importedCount: createdRows.length,
+        smartCollectionItemIds,
+        unchangedCount,
+        updatedCount,
     };
 }
 
@@ -510,11 +588,11 @@ async function importSnapshotProfileRows(args: {
         existingRows.map(rowToExistingLibraryItemImport)
     );
 
-    const persisted = await persistChangedLibraryItemImports({
-        delegate: args.tx.libraryItem,
+    const persisted = await persistSnapshotLibraryItemImports({
+        tx: args.tx,
         existingByIdentity,
         rows: args.rows,
-        upsertConcurrency: 1,
+        source: args.source,
         userId: args.userId,
     });
 

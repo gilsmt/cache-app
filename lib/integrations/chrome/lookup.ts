@@ -26,9 +26,9 @@ export interface ChromeBookmarkRecord {
 
 type ChromeLibraryRow = LibraryItem;
 
-export interface ChromeBatchLookupState {
+export interface ChromeLookupState {
     aliasToPrimaryId: Map<string, string>;
-    duplicateToPrimaryId: Map<string, string>;
+    duplicateToPrimaryIds: Map<string, Set<string>>;
     rowsById: Map<string, ChromeLibraryRow>;
     rowsByPrimaryExternalId: Map<string, ChromeLibraryRow>;
 }
@@ -162,7 +162,7 @@ export function promoteAliasToPrimary(
 }
 
 export function removeChromeLookupRow(
-    state: ChromeBatchLookupState,
+    state: ChromeLookupState,
     row: ChromeLibraryRow
 ): void {
     state.rowsById.delete(row.id);
@@ -174,12 +174,16 @@ export function removeChromeLookupRow(
 
     const duplicateKey = chromeDuplicateKey(row.kind, row.url, row.caption);
     if (duplicateKey) {
-        state.duplicateToPrimaryId.delete(duplicateKey);
+        const duplicateIds = state.duplicateToPrimaryIds.get(duplicateKey);
+        duplicateIds?.delete(row.id);
+        if (duplicateIds?.size === 0) {
+            state.duplicateToPrimaryIds.delete(duplicateKey);
+        }
     }
 }
 
 export function upsertChromeLookupRow(
-    state: ChromeBatchLookupState,
+    state: ChromeLookupState,
     row: ChromeLibraryRow
 ): void {
     state.rowsById.set(row.id, row);
@@ -190,15 +194,20 @@ export function upsertChromeLookupRow(
     }
 
     const duplicateKey = chromeDuplicateKey(row.kind, row.url, row.caption);
-    if (duplicateKey && !state.duplicateToPrimaryId.has(duplicateKey)) {
-        state.duplicateToPrimaryId.set(duplicateKey, row.id);
+    if (duplicateKey) {
+        const duplicateIds = state.duplicateToPrimaryIds.get(duplicateKey);
+        if (duplicateIds) {
+            duplicateIds.add(row.id);
+            return;
+        }
+        state.duplicateToPrimaryIds.set(duplicateKey, new Set([row.id]));
     }
 }
 
 export function buildChromeLookupState(rows: ChromeLibraryRow[]) {
-    const state: ChromeBatchLookupState = {
+    const state: ChromeLookupState = {
         aliasToPrimaryId: new Map(),
-        duplicateToPrimaryId: new Map(),
+        duplicateToPrimaryIds: new Map(),
         rowsById: new Map(),
         rowsByPrimaryExternalId: new Map(),
     };
@@ -211,7 +220,7 @@ export function buildChromeLookupState(rows: ChromeLibraryRow[]) {
 }
 
 export function replaceChromeLookupRow(
-    state: ChromeBatchLookupState,
+    state: ChromeLookupState,
     previous: ChromeLibraryRow,
     next: ChromeLibraryRow
 ): void {
