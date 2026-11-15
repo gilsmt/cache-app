@@ -2,7 +2,6 @@ import "server-only";
 
 import { templateDescriptionForNameKey } from "@/lib/collections/templates";
 import {
-    deduplicateLibraryItems,
     LIBRARY_COLLECTION_TAG_SELECT,
     LIBRARY_ITEM_COLLECTIONS_INCLUDE,
     LIBRARY_ITEM_COLLECTIONS_SELECT,
@@ -14,6 +13,7 @@ import {
     toLibraryCollectionSummary,
     toLibraryCollectionSummaryFromTagRecord,
     toLibraryCollectionTag,
+    toLibraryItemsWithCollections,
     toLibraryItemWithCollections,
     uniqueLibraryItemSources,
 } from "@/lib/collections/utils";
@@ -49,7 +49,6 @@ const LIBRARY_ITEMS_PAGE_LIMIT_MAX = 9999;
 const COLLECTION_ITEMS_INSERT_CHUNK_SIZE = 1000;
 const LIBRARY_ITEM_TRASH_WINDOW_MS =
     LIBRARY_ITEM_TRASH_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-const RECENTLY_DELETED_LIMIT_MAX = 200;
 const EXPIRED_LIBRARY_ITEM_PURGE_BATCH_SIZE = 1000;
 
 type CollectionTransaction = Prisma.TransactionClient;
@@ -964,7 +963,7 @@ interface RestoreLibraryItemResult {
 
 /**
  * Restores a tombstoned item back to the library. Items already restored or
- * never trashed surface as `not_found`; items currently in the trash are
+ * never trashed or expired surface as `not_found`; items in the trash window are
  * brought back with one update. Collection summaries are returned so callers
  * can refresh sidebar counts.
  */
@@ -973,18 +972,13 @@ export function restoreLibraryItem({
     userId,
 }: RestoreLibraryItemArgs): Promise<RestoreLibraryItemResult> {
     return prisma.$transaction(async (tx) => {
-        const item = await tx.libraryItem.findFirst({
-            select: {
-                collections: {
-                    select: {
-                        id: true,
-                    },
-                },
-                deletedAt: true,
-                id: true,
-            },
+        const [item] = await tx.libraryItem.updateManyAndReturn({
+            data: { deletedAt: null },
+            select: { id: true },
             where: {
-                deletedAt: { not: null },
+                deletedAt: {
+                    gte: new Date(Date.now() - LIBRARY_ITEM_TRASH_WINDOW_MS),
+                },
                 id: itemId,
                 userId,
             },
@@ -998,16 +992,14 @@ export function restoreLibraryItem({
             });
         }
 
-        await tx.libraryItem.update({
-            data: { deletedAt: null },
+        const { collections } = await tx.libraryItem.findUniqueOrThrow({
+            select: { collections: { select: { id: true } } },
             where: { id: item.id },
         });
 
         return {
             collectionSummaries: await findCollectionSummariesOwnedByIds(tx, {
-                collectionIds: item.collections.map(
-                    (collection) => collection.id
-                ),
+                collectionIds: collections.map((collection) => collection.id),
                 userId,
             }),
             itemId: item.id,
@@ -1078,7 +1070,7 @@ export function purgeExpiredLibraryItems({
         // bounded at EXPIRED_LIBRARY_ITEM_PURGE_BATCH_SIZE would leave stale
         // tombstones visible in listRecentlyDeletedItems, defeating the
         // trash-window guarantee.
-        for (;;) {
+        while (true) {
             const candidateIds = (
                 await tx.libraryItem.findMany({
                     select: { id: true },
@@ -1178,17 +1170,6 @@ export function purgeAllRecentlyDeletedItems({
     });
 }
 
-interface ListRecentlyDeletedItemsArgs {
-    limit?: number;
-    userId: string;
-}
-
-interface RecentlyDeletedItem {
-    collections: LibraryCollectionTag[];
-    deletedAt: Date;
-    item: LibraryItemWithCollections;
-}
-
 function getRecentlyDeletedItemsWhere({
     now,
     userId,
@@ -1225,32 +1206,20 @@ export function countRecentlyDeletedItems({
  * page load would purge anyway.
  */
 export async function listRecentlyDeletedItems({
-    limit,
     userId,
-}: ListRecentlyDeletedItemsArgs): Promise<RecentlyDeletedItem[]> {
+}: {
+    userId: string;
+}): Promise<LibraryItemWithCollections[]> {
     const now = new Date();
     await purgeExpiredLibraryItems({ now, userId });
-
-    const take = Math.max(
-        1,
-        Math.min(
-            limit ?? RECENTLY_DELETED_LIMIT_MAX,
-            RECENTLY_DELETED_LIMIT_MAX
-        )
-    );
 
     const rows = await prisma.libraryItem.findMany({
         include: LIBRARY_ITEM_COLLECTIONS_INCLUDE,
         orderBy: [{ deletedAt: SORT_DESC }, { id: SORT_DESC }],
-        take,
         where: getRecentlyDeletedItemsWhere({ now, userId }),
     });
 
-    return rows.map((item) => ({
-        collections: item.collections,
-        deletedAt: item.deletedAt ?? now,
-        item,
-    }));
+    return toLibraryItemsWithCollections(rows);
 }
 
 export async function toggleLibraryItemFavorite({
@@ -1735,9 +1704,7 @@ export async function getLibrary(args: {
 
         return {
             itemSources,
-            items: deduplicateLibraryItems(
-                items.map(toLibraryItemWithCollections)
-            ),
+            items: toLibraryItemsWithCollections(items),
             lockedItemCount: Math.max(totalItemCount - items.length, 0),
             totalItemCount,
         };
@@ -1762,9 +1729,7 @@ export async function getLibrary(args: {
 
         return {
             itemSources: derivedSources.map((source) => ({ source })),
-            items: deduplicateLibraryItems(
-                items.map(toLibraryItemWithCollections)
-            ),
+            items: toLibraryItemsWithCollections(items),
             lockedItemCount: 0,
             totalItemCount,
         };
@@ -1778,7 +1743,7 @@ export async function getLibrary(args: {
 
     return {
         itemSources,
-        items: deduplicateLibraryItems(items.map(toLibraryItemWithCollections)),
+        items: toLibraryItemsWithCollections(items),
         lockedItemCount: Math.max(totalItemCount - items.length, 0),
         totalItemCount,
     };

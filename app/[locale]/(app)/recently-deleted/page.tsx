@@ -89,7 +89,7 @@ async function RecentlyDeletedPageBody() {
     return (
         <div className="flex flex-col gap-8">
             <RecentlyDeletedPageHeader />
-            <RecentlyDeletedList items={items.map((entry) => entry.item)} />
+            <RecentlyDeletedList items={items} />
         </div>
     );
 }

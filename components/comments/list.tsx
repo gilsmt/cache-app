@@ -120,7 +120,10 @@ interface CommentsListItemValueProps {
 
 function CommentsListItemValue({ comment }: CommentsListItemValueProps) {
     const SourceIcon = getSourceIcon(comment.item.source) ?? MessageSquare;
-    const displayUrl = parseDisplayUrl(comment.item.url);
+    const displayUrl =
+        comment.item.kind === ITEM_KIND_NOTE
+            ? ""
+            : parseDisplayUrl(comment.item.url);
     const title =
         comment.item.kind === ITEM_KIND_NOTE
             ? getNoteExcerpt(comment.item.noteContentText) || "Untitled note"

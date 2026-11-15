@@ -142,8 +142,6 @@ export interface ActionErrorWithoutNotFound {
 
 export const COLLECTION_NAME_LENGTH_MAX = 64;
 
-const DEDUPE_STRING_MAX_LENGTH = 64;
-
 export const COLLECTION_VALIDATION_MESSAGES = {
     deleteIdRequired: "Select a collection to delete.",
     downloadUrlRequired: "A valid URL is required to download media.",
@@ -277,91 +275,28 @@ export function toLibraryItemWithCollections(
     };
 }
 
-function internString<T extends string>(
-    cache: Map<string, string>,
-    value: T
-): T {
-    if (value.length > DEDUPE_STRING_MAX_LENGTH) {
-        return value;
-    }
-    const cached = cache.get(value);
-    if (cached !== undefined) {
-        return cached as T;
-    }
-    cache.set(value, value);
-    return value;
-}
-
-function deduplicateCollection(
-    collection: LibraryCollectionTag,
-    stringCache: Map<string, string>,
-    collectionCache: Map<string, LibraryCollectionTag>
-): LibraryCollectionTag {
-    const cached = collectionCache.get(collection.id);
-    if (cached !== undefined) {
-        return cached;
-    }
-    const interned: LibraryCollectionTag = {
-        ...collection,
-        description:
-            collection.description === null
-                ? null
-                : internString(stringCache, collection.description),
-        id: internString(stringCache, collection.id),
-        name: internString(stringCache, collection.name),
-        priority: internString(stringCache, collection.priority),
-        shareId:
-            collection.shareId === null
-                ? null
-                : internString(stringCache, collection.shareId),
-    };
-    collectionCache.set(interned.id, interned);
-    return Object.freeze(interned);
-}
-
-export function deduplicateLibraryItems(
-    items: readonly LibraryItemWithCollections[]
+/**
+ * Converts one query result. Shared collection references let React serialize
+ * each collection once instead of repeating its fields for every membership.
+ */
+export function toLibraryItemsWithCollections(
+    items: readonly Prisma.LibraryItemGetPayload<{
+        include: typeof LIBRARY_ITEM_COLLECTIONS_INCLUDE;
+    }>[]
 ): LibraryItemWithCollections[] {
-    if (items.length === 0) {
-        return [];
-    }
-    const stringCache = new Map<string, string>();
-    const collectionCache = new Map<string, LibraryCollectionTag>();
-    return items.map((item) => {
-        const kind = internString(stringCache, item.kind);
-        const source = internString(stringCache, item.source);
-        const browserProfileId = internString(
-            stringCache,
-            item.browserProfileId
-        );
-        const userId = internString(stringCache, item.userId);
-        const sourceDeviceId =
-            item.sourceDeviceId === null
-                ? null
-                : internString(stringCache, item.sourceDeviceId);
-        const sourceDeviceName =
-            item.sourceDeviceName === null
-                ? null
-                : internString(stringCache, item.sourceDeviceName);
-        const parentExternalId =
-            item.parentExternalId === null
-                ? null
-                : internString(stringCache, item.parentExternalId);
-        const collections = item.collections.map((collection) =>
-            deduplicateCollection(collection, stringCache, collectionCache)
-        );
-        return {
-            ...item,
-            browserProfileId,
-            collections,
-            kind,
-            parentExternalId,
-            source,
-            sourceDeviceId,
-            sourceDeviceName,
-            userId,
-        };
-    });
+    const collectionsById = new Map<string, LibraryCollectionTag>();
+    return items.map((item) => ({
+        ...item,
+        collections: item.collections.map((collection) => {
+            const cached = collectionsById.get(collection.id);
+            if (cached !== undefined) {
+                return cached;
+            }
+            const tag = toLibraryCollectionTag(collection);
+            collectionsById.set(tag.id, tag);
+            return tag;
+        }),
+    }));
 }
 
 /**

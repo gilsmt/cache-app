@@ -17,12 +17,14 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/error-message";
+import { Spinner } from "@/components/ui/spinner";
 import {
     purgeAllRecentlyDeletedItems,
     purgeLibraryItem,
     restoreLibraryItem,
 } from "@/lib/collections/items";
 import {
+    getNoteExcerpt,
     getRecentlyDeletedDaysRemaining,
     type LibraryItemWithCollections,
 } from "@/lib/collections/utils";
@@ -73,7 +75,7 @@ function useRecentlyDeletedListContext(): RecentlyDeletedListContext {
 
 function displayTitle(item: LibraryItemWithCollections): string {
     if (item.kind === ITEM_KIND_NOTE) {
-        return item.noteContentText?.trim() || "Untitled note";
+        return getNoteExcerpt(item.noteContentText) || "Untitled note";
     }
     const caption = item.caption?.trim();
     if (caption) {
@@ -339,10 +341,22 @@ function RecentlyDeletedListToolbar() {
 }
 
 function RecentlyDeletedListEmpty() {
-    const { items } = useRecentlyDeletedListContext();
+    const { isActionPending, items } = useRecentlyDeletedListContext();
 
     if (items.length > 0) {
         return null;
+    }
+
+    if (isActionPending) {
+        return (
+            <div
+                className="text-muted-foreground flex min-h-64 items-center justify-center gap-2 text-sm"
+                role="status"
+            >
+                <Spinner aria-hidden className="size-4" />
+                <T>Updating items…</T>
+            </div>
+        );
     }
 
     return (
@@ -375,7 +389,8 @@ function RecentlyDeletedListItem({ item }: RecentlyDeletedListItemProps) {
 
     const SourceIcon = getSourceIcon(item.source) ?? Trash;
     const title = displayTitle(item);
-    const displayUrl = parseDisplayUrl(item.url);
+    const displayUrl =
+        item.kind === ITEM_KIND_NOTE ? "" : parseDisplayUrl(item.url);
     const shouldShowDisplayUrl = displayUrl !== "" && displayUrl !== title;
 
     const handleRestore = useStableCallback(() => {
@@ -582,8 +597,6 @@ function RecentlyDeletedDeleteAllDialog({
     onOpenChangeComplete,
     open,
 }: RecentlyDeletedDeleteAllDialogProps) {
-    const { items } = useRecentlyDeletedListContext();
-
     return (
         <Dialog
             onOpenChange={onOpenChange}
@@ -593,25 +606,13 @@ function RecentlyDeletedDeleteAllDialog({
             <DialogPopup>
                 <DialogHeader>
                     <DialogTitle>
-                        {items.length === 1 ? (
-                            <T>Delete this item forever?</T>
-                        ) : (
-                            <T>Delete all items forever?</T>
-                        )}
+                        <T>Delete all items forever?</T>
                     </DialogTitle>
                     <DialogDescription>
-                        {items.length === 1 ? (
-                            <T>
-                                Permanently delete the item in Recently deleted.
-                                This cannot be undone.
-                            </T>
-                        ) : (
-                            <T>
-                                Permanently delete all <Var>{items.length}</Var>{" "}
-                                items from Recently deleted. This cannot be
-                                undone.
-                            </T>
-                        )}
+                        <T>
+                            Permanently delete all items from Recently deleted.
+                            This cannot be undone.
+                        </T>
                     </DialogDescription>
                 </DialogHeader>
                 {failure ? (
