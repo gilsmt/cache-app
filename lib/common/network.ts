@@ -55,7 +55,6 @@ export function isNetworkError(error: unknown): error is Error {
         return stack === undefined;
     }
 
-    // Deno network errors start with specific text
     if (message.startsWith("error sending request for url")) {
         return true;
     }
@@ -68,6 +67,5 @@ export function isNetworkError(error: unknown): error is Error {
         return true;
     }
 
-    // Standard network error messages
     return ERROR_MESSAGES.has(message);
 }

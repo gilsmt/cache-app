@@ -61,16 +61,6 @@ Before adding a new utility, check if a similar one exists in the `lib/common` d
 
 Great names capture what a thing actually is or does. Append qualifiers to names. Units, bounds, and modifiers come at the end. This groups related variables together and makes scanning easier. The adequate variables should also follow a regular prefix convention, such as `is`, `has`, `can`, `should` or `allow`.
 
-## Comments in code
-
-Use mostly ASD-STE100 Simplified Technical English. Active-voice, simple tenses, single-meaning sentences, and consistent terms. Avoid dense, jargon-heavy, or ambiguous prose.
-
-Explain why, not what, and only when a future reader (with no access to this PR or chat) would otherwise be confused.
-
-Never log change history or chat context in code — no "previously did X, now does Y", "per <task/PR>", "changed because…", or "AI:"/"agent:" notes.
-
-When refactoring or moving code, preserve existing comments unless they are explicitly made obsolete by the change.
-
 ## React
 
 Follow [Base UI conventions](https://base-ui.com/react/handbook/composition).

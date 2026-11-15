@@ -232,7 +232,7 @@ async function readRemainingBody(
     let text = head.text;
     let bytesRead = head.bytesRead;
     try {
-        for (;;) {
+        while (true) {
             if (bytesRead >= maxBytes) {
                 break;
             }

@@ -16,15 +16,6 @@ export const DEFAULT_OG_IMAGE = `${BASE_URL}/opengraph-image.png`;
 export const DEFAULT_OG_IMAGE_ALT =
     "The word 'Cache' in bold abstract lettering on a warm off-white background";
 
-/**
- * Builds a standard Metadata object with alternates, Open Graph, and Twitter
- * card fields filled in. Callers provide page-specific title, description,
- * and optional keywords; common wiring (canonical URLs, card type, etc.) is
- * applied automatically.
- *
- * A default OG image is included so every page has a social preview. Callers
- * can override with a page-specific image via `ogImage`.
- */
 export function buildPageMetadata({
     description,
     keywords,

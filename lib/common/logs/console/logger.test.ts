@@ -25,7 +25,6 @@ interface EnvironmentFlags {
     runtime: RuntimeName | "";
 }
 
-/** Flags for a Node development runtime. */
 const DEV_ENV_FLAGS: EnvironmentFlags = {
     hasWindow: false,
     isDevelopment: true,

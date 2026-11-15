@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noExcessiveClassesPerFile: The factory must define its subclass with the base class to preserve inheritance and schema inference.
 import * as z from "zod";
 import { asRecord, isRecord } from "@/lib/common/object";
 
@@ -37,7 +38,6 @@ export abstract class TaggedError extends Error {
             static isInstance(
                 error: unknown
             ): error is InstanceType<typeof result> {
-                // Fast reject before the zod parse
                 if (!isRecord(error) || error.name !== name) {
                     return false;
                 }
@@ -105,17 +105,14 @@ export function getErrorMessage(
     }
 
     if (isRecord(value)) {
-        // Better-auth error shape
         if (typeof value.message === "string" && value.message.length > 0) {
             return value.message;
         }
 
-        // Generic API error shape
         if (typeof value.error === "string" && value.error.length > 0) {
             return value.error;
         }
 
-        // Nested data shape
         if (isRecord(value.data)) {
             return getErrorMessage(value.data, fallback);
         }

@@ -112,10 +112,6 @@ export async function closeRedisConnection(): Promise<void> {
     }
 }
 
-/**
- * Perform a health check on the Redis connection.
- * Throws a RedisConnectionError if the client is unavailable or unresponsive.
- */
 export async function healthCheck(): Promise<void> {
     const redis = getRedisClient();
 

@@ -271,7 +271,6 @@ function memoryRecordGet(key: string): PreviewRecord | null {
         memoryPreviewRecords.delete(key);
         return null;
     }
-    // LRU touch
     memoryPreviewRecords.delete(key);
     memoryPreviewRecords.set(key, entry);
     return entry.value;
@@ -1571,7 +1570,7 @@ async function readTextBodyWithLimit(
     }
 
     try {
-        for (;;) {
+        while (true) {
             let readResult: Awaited<ReturnType<typeof reader.read>>;
             try {
                 readResult = await reader.read();

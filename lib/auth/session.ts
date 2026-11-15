@@ -15,7 +15,6 @@ export type Session = typeof auth.$Infer.Session;
 export const getServerSession = cache(async () =>
     auth.api.getSession({
         headers: await headers(),
-        query: { disableCookieCache: true },
     })
 );
 

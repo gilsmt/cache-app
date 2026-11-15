@@ -106,9 +106,6 @@ function getEnvironmentRuntime(): RuntimeName | "" | "browser" {
     return runtime;
 }
 
-/**
- * Logging config for the current environment and runtime.
- */
 function getLogConfigForEnvironment(): LogConfig {
     const environmentRuntime = getEnvironmentRuntime();
     if (environmentRuntime === "browser") {
@@ -138,19 +135,9 @@ function stringifyLogValue(value: unknown, isDev: boolean) {
     }
 }
 
-/**
- * Logger class for standardized console logging
- *
- * Provides methods for logging at different severity levels
- * and handles formatting, colorization, and environment-specific behavior.
- */
 export class Logger {
     readonly #module: string;
 
-    /**
-     * Create a new logger for a specific module
-     * @param module The name of the module (e.g., 'OpenAIProvider', 'AgentBlockHandler')
-     */
     constructor(module: string) {
         this.#module = module;
     }
@@ -163,9 +150,6 @@ export class Logger {
         return LOG_LEVEL_INDEX[level] >= LOG_LEVEL_INDEX[config.minimumLevel];
     }
 
-    /**
-     * Format arguments for logging, converting objects to JSON strings
-     */
     static #formatArgs(args: unknown[], isDev: boolean): unknown[] {
         return args.map((arg) => {
             if (arg === null || arg === undefined) {
@@ -178,9 +162,6 @@ export class Logger {
         });
     }
 
-    /**
-     * Internal method to log a message with the specified level
-     */
     #log(level: LogLevel, message: string, ...args: unknown[]) {
         const config = getLogConfigForEnvironment();
 
@@ -213,39 +194,18 @@ export class Logger {
         }
     }
 
-    /**
-     * Log a debug message
-     *
-     * Use for detailed information useful during development and debugging.
-     * These logs are only shown in development environment by default.
-     */
     debug(message: string, ...args: unknown[]) {
         this.#log(LOG_LEVEL.DEBUG, message, ...args);
     }
 
-    /**
-     * Log an info message
-     *
-     * Use for general information about application operation.
-     */
     info(message: string, ...args: unknown[]) {
         this.#log(LOG_LEVEL.INFO, message, ...args);
     }
 
-    /**
-     * Log a warning message
-     *
-     * Use for potentially problematic situations that don't cause operation failure.
-     */
     warn(message: string, ...args: unknown[]) {
         this.#log(LOG_LEVEL.WARN, message, ...args);
     }
 
-    /**
-     * Log an error message
-     *
-     * Use for error events that might still allow the application to continue.
-     */
     error(message: string, ...args: unknown[]) {
         this.#log(LOG_LEVEL.ERROR, message, ...args);
     }
@@ -282,24 +242,6 @@ export class Logger {
     }
 }
 
-/**
- * Create a logger for a specific module
- *
- * @example
- * ```ts
- * import { createLogger } from '@/lib/common/logs/console/logger'
- *
- * const log = createLogger('MyComponent')
- *
- * log.debug('Initializing component', { props })
- * log.info('Component mounted')
- * log.warn('Deprecated prop used', { propName })
- * log.error('Failed to fetch data', error)
- * ```
- *
- * @param module The name of the module
- * @returns A Logger instance
- */
 export function createLogger(module: string): Logger {
     return new Logger(module);
 }

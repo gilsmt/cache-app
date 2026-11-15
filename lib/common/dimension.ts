@@ -184,7 +184,6 @@ export function preloadImageAspect(url: string): Promise<number | null> {
     return promise;
 }
 
-/** The aspect slot to render: cached dimensions when known, else the default, clamped to masonry bounds. */
 export function resolveDisplayDimensions(
     dimensions: Dimensions | null
 ): Dimensions {

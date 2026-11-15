@@ -51,7 +51,7 @@ function readLastVisitedItemIds(): string[] {
 
 function writeLastVisitedItemIds(ids: string[]): string[] {
     let candidate = ids;
-    for (;;) {
+    while (true) {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(candidate));
             return candidate;

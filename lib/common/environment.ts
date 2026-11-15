@@ -2,7 +2,6 @@
  * Adapted subset of `std-env`.
  */
 
-/** Name of the current JavaScript runtime (Wintercg runtime-keys proposal). */
 export type RuntimeName =
     | "node"
     | "bun"
@@ -21,19 +20,12 @@ const NODE_ENV: string | undefined =
         ? process.env.NODE_ENV
         : undefined;
 
-/** Detect if the global `window` object is available (i.e. browser-like). */
 export const hasWindow: boolean = typeof window !== "undefined";
 
-/** Detect if the current environment is production (`NODE_ENV=production`). */
 export const isProduction: boolean = NODE_ENV === "production";
 
-/**
- * Detect if the current environment is a test run
- * (`NODE_ENV=test` or `TEST` environment variable set).
- */
 export const isTest: boolean = NODE_ENV === "test" || !!env.TEST;
 
-/** Detect if the current environment is development (`NODE_ENV=dev` or `development`). */
 export const isDevelopment: boolean =
     NODE_ENV === "dev" || NODE_ENV === "development";
 

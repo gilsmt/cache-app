@@ -22,7 +22,7 @@ export function ErrorFallbackComponent(
 ) {
     const isOffline = useOffline();
 
-    // Heuristics to decide between soft reset vs hard reload
+    // decide between soft reset vs hard reload
     const isAbortError =
         error instanceof DOMException && error.name === "AbortError";
     const isChunkLoadOrHydration =
@@ -31,7 +31,6 @@ export function ErrorFallbackComponent(
 
     const handleClick = useStableCallback(() => {
         if ((isNetworkError(error) && !isOffline) || isAbortError) {
-            // Local soft retry/remount for transient or aborted operations
             retry();
             return;
         }
@@ -42,7 +41,6 @@ export function ErrorFallbackComponent(
             return;
         }
 
-        // Default: try a soft reset
         retry();
     });
 

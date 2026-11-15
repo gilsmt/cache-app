@@ -402,7 +402,7 @@ export function SidebarItem({
 }: useRender.ComponentProps<"div">) {
     const defaultProps = {
         className: cn(
-            "group text-foreground before:bg-muted relative flex h-8 max-h-8 min-h-8 min-w-0 flex-1 cursor-default items-center gap-1.5 truncate rounded-lg bg-clip-padding px-2.5 text-left text-[13px] leading-[normal] font-medium opacity-70 select-none before:absolute before:inset-0 before:-z-10 before:rounded-lg before:opacity-0 before:transition-transform before:duration-100 before:will-change-transform hover:opacity-100 hover:before:opacity-100 focus-visible:opacity-100 active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80! data-[active=true]:before:opacity-100",
+            "group text-foreground before:bg-muted relative flex h-8 max-h-8 min-h-8 min-w-0 flex-1 cursor-default items-center gap-1.5 truncate rounded-lg bg-clip-padding px-2.5 text-left text-[13px] leading-[normal] font-medium opacity-70 select-none before:absolute before:inset-0 before:-z-10 before:rounded-lg before:opacity-0 before:transition-transform before:duration-50 before:will-change-transform hover:opacity-100 hover:before:opacity-100 focus-visible:opacity-100 active:before:scale-x-[0.99] active:before:scale-y-[0.98] active:before:opacity-80! data-[active=true]:before:opacity-100",
             className
         ),
         "data-sidebar": "item",

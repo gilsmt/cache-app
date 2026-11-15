@@ -10,8 +10,6 @@ import { prisma } from "@/prisma";
 import { CommentError } from "./error";
 import { COMMENT_TEXT_MAX_LENGTH, normalizeCommentText } from "./utils";
 
-const COMMENTS_LIST_LIMIT_MAX = 200;
-
 export interface ItemCommentWithItem {
     contentText: string;
     createdAt: Date;
@@ -43,17 +41,10 @@ export async function getCommentForItem({
 }
 
 export async function listCommentsForUser({
-    limit,
     userId,
 }: {
-    limit?: number;
     userId: string;
 }): Promise<ItemCommentWithItem[]> {
-    const take = Math.max(
-        1,
-        Math.min(limit ?? COMMENTS_LIST_LIMIT_MAX, COMMENTS_LIST_LIMIT_MAX)
-    );
-
     const rows = await prisma.comment.findMany({
         include: {
             libraryItem: {
@@ -61,7 +52,6 @@ export async function listCommentsForUser({
             },
         },
         orderBy: [{ updatedAt: SORT_DESC }, { id: SORT_DESC }],
-        take,
         where: getActiveCommentsWhere(userId),
     });
 

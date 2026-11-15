@@ -23,10 +23,6 @@ export interface PreviewMetadata {
     videos: PreviewVideoMeta[];
 }
 
-/**
- * Extracts the OpenGraph surface link-preview-js exposed (title, description,
- * images, videos, favicons) in a single pass
- */
 export function extractPreviewMetadata(
     html: string,
     baseUrl: string

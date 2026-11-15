@@ -187,7 +187,6 @@ export async function fetchOembed(
     }
 }
 
-/** Returns true when the URL matches a known oEmbed provider. */
 export function hasOembedSupport(url: string): boolean {
     return detectProvider(url) !== null;
 }

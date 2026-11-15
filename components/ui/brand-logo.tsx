@@ -22,7 +22,6 @@ import { fetchWithTimeout } from "@/lib/common/timeout";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
-/** Splits an asset URL pathname from its query or hash. */
 const QUERY_OR_HASH_PATTERN = /[?#]/u;
 
 type ImageFileExtension = keyof typeof IMAGE_MIME_TYPES;

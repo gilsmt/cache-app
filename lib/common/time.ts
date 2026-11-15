@@ -121,9 +121,6 @@ export function getTimeOfDayOptionByLabel(
     );
 }
 
-/**
- * Detect whether the user's locale prefers a 24-hour clock.
- */
 export function uses24HourClock(locale?: string): boolean {
     const { hourCycle } = new Intl.DateTimeFormat(locale, {
         hour: "numeric",

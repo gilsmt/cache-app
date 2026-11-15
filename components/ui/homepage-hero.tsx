@@ -1468,10 +1468,6 @@ function VideoPreview({ tone }: PreviewProps) {
     );
 }
 
-/**
- * The product shows a textured panel and a broken-link glyph when a preview
- * cannot be fetched.
- */
 function FailedPreview() {
     return (
         <div className="texture-screen bg-muted/80 relative flex size-full flex-col items-center justify-center">

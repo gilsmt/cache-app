@@ -160,10 +160,8 @@ function handleToolError(
     return textErrorResult(fallbackMessage);
 }
 
-// ---------------------------------------------------------------------------
 // Tool handlers. The MCP SDK validates input against `inputSchema` before
 // invoking the callback, so the typed `args` are already safe.
-// ---------------------------------------------------------------------------
 
 async function handleListLibraryItems(
     args: z.infer<typeof McpLibraryItemListInputSchema>,
@@ -372,10 +370,6 @@ const TOOL_ANNOTATIONS = {
         readOnlyHint: true,
     },
 } as const;
-
-// ---------------------------------------------------------------------------
-// MCP server bootstrap.
-// ---------------------------------------------------------------------------
 
 type McpHandlerEvent = Parameters<NonNullable<McpHandlerOptions["onEvent"]>>[0];
 

@@ -102,7 +102,7 @@ export async function mapConcurrent<T, R>(
     let firstError: unknown;
 
     async function worker(): Promise<void> {
-        for (;;) {
+        while (true) {
             if (hasRejected) {
                 return;
             }

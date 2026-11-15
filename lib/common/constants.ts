@@ -144,7 +144,6 @@ export const ACTION_STATUS = {
     UPDATED: "UPDATED",
 } as const;
 
-/** Days an item lives in Recently deleted before a hard purge. */
 export const LIBRARY_ITEM_TRASH_WINDOW_DAYS = 30;
 
 export const NOTE_DND_MIME = "application/x-cache-note-id";

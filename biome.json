@@ -5,17 +5,7 @@
         "ultracite/biome/react",
         "ultracite/biome/next"
     ],
-    "files": {
-        "includes": [
-            "!!**/extensions",
-            "!!**/public",
-            "!!**/prisma/client",
-            "!!**/backups",
-            "!!**/.agents",
-            "!!**/.swc",
-            "!!**/.well-known/workflow"
-        ]
-    },
+    "files": { "includes": ["!!**/extensions", "!!**/.agents"] },
     "formatter": { "indentWidth": 4 },
     "javascript": { "formatter": { "indentWidth": 4 } },
     "json": { "formatter": { "indentWidth": 4 } },

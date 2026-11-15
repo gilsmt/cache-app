@@ -15,10 +15,6 @@ function escapeRegExpLiteral(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
-/**
- * Splits text around each whitespace-separated query term (literal,
- * case-insensitive, non-overlapping).
- */
 export function splitMatches(
     textToHighlight: string,
     query: string

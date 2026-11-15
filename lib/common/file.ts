@@ -52,7 +52,6 @@ export function saveFile(
     options: {
         /** supply without the extension */
         name: string;
-        /** file extension */
         extension: FILE_EXTENSION;
         mimeTypes?: string[];
         description: string;
