@@ -1,1 +1,1152 @@
-{}
+{
+    "0058026d25a68366": "Filtrar chats",
+    "00595d2729aa5370": "Acceso de agentes a tu biblioteca",
+    "019869a6c0157892": "Condiciones del Servicio",
+    "0258e612b158655d": "Nota sin título",
+    "02856c4de656e856": "Elementos guardados",
+    "03560a0d75adf329": "Productividad",
+    "0400595ed6026e78": "Usar el tema del sistema",
+    "04d770340f7a2fc0": "Notas sobre la temperatura del agua",
+    "05258a640c5bcb6a": "Eliminar chat",
+    "05b985f47a30af5c": "Añade un comentario a cualquier elemento guardado y aparecerá aquí.",
+    "062b5e45e86d2cc4": {
+        "c": [
+            {
+                "i": 2,
+                "k": "_gt_value_2",
+                "v": "v"
+            },
+            " palabras"
+        ],
+        "i": 1,
+        "t": "span"
+    },
+    "0643ac260c65e5fb": "Novedades de la versión 4.2",
+    "06659b8fcc809925": "Asignar colecciones",
+    "06797b0acfea9ea7": "No se han podido actualizar algunas fuentes.",
+    "06a6a74d363bdaf8": "Abrir el panel de atajos de teclado",
+    "075adcaff4be7543": [
+        {
+            "c": "Reúne todo lo que ya has guardado",
+            "i": 1,
+            "t": "h2"
+        },
+        {
+            "c": "Reúne automáticamente los marcadores de tu navegador, redes sociales y vídeos. Deja de recorrer páginas sin fin y de saltar entre pestañas de distintas plataformas para encontrar lo que más te importa.",
+            "i": 2,
+            "t": "p"
+        }
+    ],
+    "090dd58a9e726297": "Lectores curiosos",
+    "0987338ddea936cf": "No hay ninguna vista previa disponible.",
+    "0a006462e20f0944": "Párrafo",
+    "0a3be36a949e3fa3": "Detener generación",
+    "0a3fa6c7115addf2": "Accesibilidad y notas de la versión",
+    "0a868140f856b65e": "Tabla comparativa de molinillos",
+    "0b760a9d8c912f3b": "Añadir otra cuenta…",
+    "0be6923c367f9182": "Equipos anteriores",
+    "0d576db778160df6": "Hace 24 s",
+    "0d5988f4c0fbf2ad": "Cuenta de Cache",
+    "0dee970ebdc6b702": "Importa los repositorios que hayas marcado con una estrella en GitHub.",
+    "0ee98438909e178b": "Últimos 30 días",
+    "0fbfb8edd643e9bb": "Cerrando sesión…",
+    "1006b681024f3359": "Proporciones de café y agua",
+    "104132fd795e5775": "Se elimina hoy",
+    "10415e0296129d72": "Auditoría de navegación con teclado",
+    "1055894d83b71be5": "No hemos podido desarchivar este chat en este momento.",
+    "109351f62a9135ff": "Tachado",
+    "111a44209dc6e701": "Eliminar",
+    "112138ef6f883edd": "¿Eliminar chat?",
+    "113572df948c7fba": "Indexación para la búsqueda por OCR completada",
+    "115f1020431fd2e8": "Publicaciones y comentarios que guardas",
+    "118ab776d12b969b": [
+        "Devuelve ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " a tu biblioteca. Las colecciones y las vistas previas se conservan intactas."
+    ],
+    "11d641c2c7d32f5c": "No hemos podido abrir la página de facturación en este momento.",
+    "1251dfcf3fa4d431": "Acuerdo de Encargo del Tratamiento de {appName}: cómo tratamos y protegemos los datos personales.",
+    "133533b015cd9278": "Cargando resumen…",
+    "136b10cbfdf209dd": [
+        {
+            "c": {
+                "c": "¿Qué dicen mis marcadores sobre cómo vivir mejor?",
+                "i": 2,
+                "t": "p"
+            },
+            "i": 1,
+            "t": "div"
+        },
+        {
+            "c": [
+                {
+                    "c": "Cache AI",
+                    "i": 4,
+                    "t": "p"
+                },
+                {
+                    "c": "Tus marcadores sugieren una filosofía de vida centrada en actuar de forma consciente para lograr un gran impacto y en la mejora personal sistemática.",
+                    "i": 5,
+                    "t": "p"
+                }
+            ],
+            "i": 3,
+            "t": "div"
+        }
+    ],
+    "142b7634aca3d343": "Enviado a Notion.",
+    "14424cf61c52fd08": "No se ha podido mostrar esta página.",
+    "148d5dd8e5fc0bcc": "Te damos la bienvenida a tu Cache",
+    "149416ddb7c8f514": "elementos",
+    "1528b869eb7ad264": "Esta página no existe o ha cambiado de ubicación.",
+    "15a9bbab05aee871": "Importa tus marcadores de X a Cache.",
+    "15c8a471fd9b053b": [
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " se moverá a Eliminados recientemente. Tienes 30 días para restaurarlo antes de que se elimine definitivamente. Solo se elimina de tu biblioteca, no de la plataforma original."
+    ],
+    "162dd0a9601a79f9": "Encabezado 1",
+    "172317bba2cf602f": "Se ha producido un error inesperado…",
+    "184bbdd246744957": "Hoja de ruta",
+    "185a3a4c5eec5ceb": "Últimos 3 días",
+    "1875c90761635cfa": "El resumen no está disponible en este momento.",
+    "18dba829674244de": "Leer respuesta en voz alta",
+    "19503c26709ca870": "Marcadores que guardas en tu navegador",
+    "1965661953ff1994": "Pro",
+    "19dab0a19c81a9cd": "Abre la ventana emergente de la extensión de Cache y marca «Sincronizar» en Marcadores del navegador.",
+    "19ed295bdbbd37e9": "Política de Privacidad",
+    "1ad57d2c3c747be5": "Cerrar sesión",
+    "1bba2f3d9c08406e": "Repositorios que marcas con una estrella",
+    "1d1c7a1398fc122d": "mensual",
+    "1d298162735221d9": "Mi receta de café expreso",
+    "1d60cea31f9891c9": "Explorar «Versión 4.2»",
+    "1d829f40405b2c18": "Biblioteca",
+    "1df7f7e3e7bcec8f": {
+        "c": [
+            "Sigue explorando toda la biblioteca y desbloquea la navegación completa y las funciones Pro desde ",
+            {
+                "c": "8€/mes",
+                "i": 2,
+                "t": "span"
+            },
+            ". Cancela cuando quieras."
+        ],
+        "i": 1,
+        "t": "p"
+    },
+    "1ea4b2fc23c40fd0": "Recorrido por la nueva biblioteca",
+    "2022da48665bb686": "No se han podido obtener algunos elementos en esta ejecución.",
+    "20529ca475e73f99": "Tema",
+    "20b61a0a78d46e6b": "¿Qué molinillo debería comprar para preparar café expreso?",
+    "212cee029ada9dee": "Algunos elementos que coinciden no se muestran en la vista previa cargada.",
+    "21441af168c1ad9a": "actualizado",
+    "2160b45b8ed704e5": "Los elementos que eliminas de tu biblioteca permanecen aquí durante 30 días antes de eliminarse definitivamente.",
+    "22d56462418ed284": "Vista previa de {title}",
+    "22ecdfc00af0782c": [
+        {
+            "c": [
+                {
+                    "i": 2,
+                    "t": "Workflow"
+                },
+                {
+                    "c": "Configura rutinas sencillas para ver un resumen diario de lo último que has guardado y mucho más",
+                    "i": 3,
+                    "t": "span"
+                }
+            ],
+            "i": 1,
+            "t": "li"
+        },
+        {
+            "c": [
+                {
+                    "i": 5,
+                    "t": "Bookmark"
+                },
+                {
+                    "c": "Ten presentes los enlaces importantes en lugar de dejarlos enterrados entre los pendientes",
+                    "i": 6,
+                    "t": "span"
+                }
+            ],
+            "i": 4,
+            "t": "li"
+        }
+    ],
+    "230a6fc79f364a03": [
+        {
+            "c": "Casos de uso",
+            "i": 1,
+            "t": "span"
+        },
+        {
+            "i": 2,
+            "t": "br"
+        },
+        {
+            "c": "El trabajo, la vida y todo lo demás.",
+            "i": 3,
+            "t": "span"
+        },
+        " Cache es para…"
+    ],
+    "237f20ef8902c84f": "Pregunta a Cache",
+    "24027d4e6ab343d5": "Gestiona automatizaciones sencillas que organizan y resumen tu contenido guardado.",
+    "2460d9e8644d82da": "En Cache hay sitio para todo lo que te interesa. Un espacio diseñado para reunir todo lo que guardas. Haz preguntas para encontrar lo que buscas, explora ideas, redacta e investiga con todo lo que ya has guardado como contexto. Cuanto más añadas, más inteligente se vuelve.",
+    "258d16c1554b734c": "Copiar enlace",
+    "25e5fbe77d7cc75c": "o",
+    "25f457f910ba96b7": "Recomendado",
+    "263b25fd4e958777": "Ahora mismo no hemos podido eliminar definitivamente tus elementos.",
+    "2698dd52af31aad9": "Ruta a pie por Alfama",
+    "273f8a814a39e436": "Tostadores",
+    "274f9d3a62abb503": "Excursiones de un día",
+    "278b9aca6eb20d96": "Permite que Cache sincronice contenido de otras plataformas con tu biblioteca.",
+    "27d7979205fe23f9": "¿Quieres eliminar tu cuenta?",
+    "2802b5b8fa82c7ed": "Canal prioritario para sugerencias",
+    "28d0c498b28f2b33": "Fellow Ode frente al Niche",
+    "2913d419f4111c4f": "Comentar este elemento",
+    "2943dcfa6cfe22c9": "Descubre Cache: {completedTaskCount} de {totalTasks} tareas de la lista completadas",
+    "2af4594667b2c252": "El tranvía 28 de punta a punta",
+    "2c5c798252f91fdc": "Añadir",
+    "2c6e0b369e97542d": "Los mejores miradores para ver el atardecer",
+    "2d1a67ad66328cd8": "No hay coincidencias en esta vista.",
+    "2e477bab4317c062": "No se ha podido añadir otra cuenta.",
+    "2e9224bc11574ab5": "Exportar a Markdown",
+    "3136393af3e1a76a": "Mostrar u ocultar el panel de integraciones",
+    "314468e0bdda2688": "Abrir en",
+    "326ba75c5d49d10b": "Últimos 3 días",
+    "3277d64b5aade233": "Añadir nuevo",
+    "32b19c3e4683dc66": "¿Eliminar marcadores duplicados?",
+    "34b440f7dd401997": "Anteriores",
+    "34b75fb4a77d1d1e": "No se han podido importar las publicaciones guardadas de Reddit.",
+    "35bc93dd8971dab1": "Pregunta sobre la aplicación Cache en",
+    "366062e4c8b0ee7d": "No se han podido leer estos archivos. Intenta adjuntarlos de nuevo.",
+    "3698ef1870be20c6": "La solicitud ha fallado",
+    "3738243267fd1336": "El banco junto a la ventana",
+    "37cefa93e556d88a": "Guías de la ciudad y notas del itinerario",
+    "3843c27670bbf642": "No tienes conexión. Los cambios que hagas podrían perderse hasta que vuelvas a estar en línea. Comprueba la conexión e inténtalo de nuevo.",
+    "3937ec0f8b9c2f95": "No se ha podido descargar este archivo multimedia. Inténtalo de nuevo.",
+    "3b141ebe5a75d3fd": "{current} de {count}",
+    "3b14a8e6ad2c283f": "Pregunta sobre la aplicación Cache en ChatGPT",
+    "3b205a1c17c06fbd": "Favoritos",
+    "3bdd322fecdac8fb": "Reseñas de molinillos",
+    "3d26c791d3bcb69a": "Seguridad",
+    "3d7cdab1909733c0": "Gestionar",
+    "3e2e4940c7332c07": "Borrar búsqueda",
+    "3e8d46bf046881cb": "Colecciones Inteligentes",
+    "3ec782c58ebfe162": "Todo listo: biblioteca de contenido organizada",
+    "3f09e477f8e7a525": "Pregunta sobre la aplicación Cache en Gemini",
+    "3fe9728594a7340c": "Borrar filtros",
+    "400a7d9516cfbfd6": "Gestor de marcadores | {appName}",
+    "408574e37e8d91ee": "pronto",
+    "410db0e872d2852a": "Encabezado 2",
+    "4314e052a3524c51": "Favoritos",
+    "43c4658708e52e85": "Eliminar cuenta",
+    "43c5fbd02c6f330a": "Mostrar menos",
+    "43f2121a62993a18": "Empieza a escribir o pega un enlace para añadirlo",
+    "442ad87bcc4b1187": "No hay nada que restaurar ahora mismo",
+    "444aaab21680abbe": {
+        "c": [
+            {
+                "i": 2,
+                "k": "_gt_value_2",
+                "v": "v"
+            },
+            " para cerrar"
+        ],
+        "i": 1,
+        "t": "span"
+    },
+    "446fc0e1621b7ae8": "Ayuda",
+    "4593e3bd9f747b95": "Contratar Pro mensual",
+    "4632a7324b577192": "Páginas que exportas desde Cache",
+    "467fe4463e919a11": "Básculas con temporizador integrado",
+    "4681c4c9541539a4": "Iniciar sesión",
+    "468273f0188cd799": "Ir al final",
+    "46ab7706ada029d4": "Una colección de solo lectura compartida por {ownerName} en Cache.",
+    "46c5c40e8e1e304c": "Filtrar por YouTube",
+    "46dd4f419b2b570e": "Locales de fado",
+    "4822bc86018f75fc": "Archivar chat",
+    "4842519093db3e53": [
+        {
+            "c": "Busca y explora desde una única vista ágil",
+            "i": 1,
+            "t": "h2"
+        },
+        {
+            "c": "Vuelve al contenido que has guardado de forma más sencilla con una interfaz moderna y potente.",
+            "i": 2,
+            "t": "p"
+        }
+    ],
+    "48de21dffb27aea4": "Historial de cambios",
+    "498e0d67d27ff7b7": "Llamadas con clientes",
+    "4a00305dda1a153e": "Nuevo chat",
+    "4a3d602b5f6fa3a1": "Básculas y temporizadores",
+    "4a4cbcc7fd2b0aee": "Pastelerías",
+    "4bb1addffa918986": [
+        {
+            "c": "No lo dejes más para luego",
+            "i": 1,
+            "t": "h2"
+        },
+        {
+            "c": "Todos guardamos cosas con la mejor intención, pero acaban perdidas en una lista olvidada. Cache recupera lo mejor de lo que has guardado cuando más útil te resulta.",
+            "i": 2,
+            "t": "p"
+        }
+    ],
+    "4d1751261b773c2c": "¿Restaurar este elemento guardado?",
+    "4d4959bee757085b": [
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " colecciones"
+    ],
+    "4d587a9524c95dd7": [
+        "Accede a los ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " marcadores."
+    ],
+    "4e58b00dd0d6f8a9": "Formato de texto",
+    "4ed402eef07a4b77": "Público",
+    "4f344145221df575": "Cerrar vista previa ({shortcut})",
+    "4f9fe6ca659ac1f5": "No se han podido importar los pines de Pinterest.",
+    "4fae76516685c0a0": [
+        "Volver a ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        }
+    ],
+    "4fc630d6b2bf647f": "Restaurar",
+    "525049d7564113f6": "Se {count, plural, one {ha importado # elemento guardado} many {se han importado # elementos guardados} other {han importado # elementos guardados}}.",
+    "5282186f77bc6570": "Pregunta a Cache sobre tu contenido guardado.",
+    "539c91140aa9e79d": "Notas del manual de soporte",
+    "53b07f03aee126a6": "Sintra en un solo día",
+    "53b9a6ba24deb0e7": "Navegación",
+    "53baef447d17b16c": "coincidencias",
+    "54733851c614db5d": "Se cancelará cualquier suscripción activa y se eliminarán definitivamente tu biblioteca, tus colecciones y los datos de tu cuenta. Esta acción no se puede deshacer.",
+    "55a9f7e5970e1e47": "Guías de museos",
+    "55edde2f9f30e40c": "Lista de comprobación del lanzamiento",
+    "56798adfd31b2fb8": "Fuentes que sigues",
+    "569571a2b12ca3fe": "Biblioteca",
+    "56a2c0fa592f1937": "No hay chats que coincidan con tu búsqueda.",
+    "56d529ddb656a23b": "elemento",
+    "56d9e7462d146a1e": "Política de Privacidad de {appName}: cómo recopilamos, utilizamos y protegemos los datos personales.",
+    "5717fb8ba7e64068": "Hoy",
+    "589a6f1c3e507565": "Mostrando {count} elementos",
+    "5930189d0848c328": "Creadores y curadores de contenido",
+    "59470116de88a745": "Artículos, ensayos, boletines. Una biblioteca viva en lugar de un cementerio de lecturas pendientes.",
+    "595765ef1a782850": "Privacidad de Cache",
+    "595bc2bf2c161f91": "Comparar equipos de café",
+    "595d872d6f37fdfb": "Murales de azulejos de Alfama",
+    "59cef759b5ac96e0": "Versión 4.2",
+    "59e09c8ddbdbbb44": "Pide a Cache que saque más partido a tu biblioteca, investigue temas, programe tareas o esté pendiente de las novedades",
+    "5a0a4ee1bf2a58dc": "No se han podido cargar las cuentas guardadas.",
+    "5a3dcc76f3addcf2": "No se han podido cargar las conversaciones",
+    "5a8b7ed8982653e0": "Descartar",
+    "5aa41c2dff6613bf": "Eliminados recientemente",
+    "5adc88d41cfe0263": "Contraer grupo",
+    "5bbf199afe39d5e1": "Descartar",
+    "5bfb16171870f146": "Cambiar o añadir colecciones ({count} seleccionados)",
+    "5cd8335749473f45": "Hace 1 min",
+    "5d457c16fbb3ef2f": "Se han bloqueado algunas eliminaciones por seguridad.",
+    "5d756254c8a3a577": "© Cache App. Todos los derechos reservados.",
+    "5d7e34ba2a6a05dd": "Abrir pestañas recientes",
+    "5e37f4b517dff1e2": "Enviar a Notion",
+    "5eaf97d4f923e456": "Guía de migración para clientes de la API",
+    "5ef17423fea390b8": "Ve a tus favoritos, abre la ventana emergente de la extensión de Cache y pulsa «Importar página» para importarlos.",
+    "5f7836df60f0e71e": "Estas páginas pueden actualizarse periódicamente. La versión publicada en este sitio es la vigente en el momento de su visita.",
+    "5fe3ecd5fc72dfe2": "Manual de soporte",
+    "5fe745f5d487bc58": "Una alternativa a",
+    "600433e7972a7e75": "Facturación",
+    "60052bb800595d7b": "Buscar coincidencias en el título del chat",
+    "60296b62f35ffa08": "Da acceso a tu biblioteca a los agentes de IA a través del Model Context Protocol.",
+    "606daf45fd88b674": "Escritores y pensadores",
+    "60eced3fbf7bc98f": "Importa pines de tus tableros de Pinterest.",
+    "619a33097754031a": [
+        {
+            "c": "Viajes",
+            "i": 1,
+            "t": "p"
+        },
+        {
+            "c": "14 elementos",
+            "i": 2,
+            "t": "p"
+        }
+    ],
+    "61fadecde1736c6d": "Ir a {label}",
+    "625f4d5b076e227b": "Pásate a Pro para programar automatizaciones en tu biblioteca y automatizar las tareas del día a día.",
+    "62eae48ff290efd4": "Guardar imagen del logotipo",
+    "633acead9978d1a9": [
+        "Se eliminarán definitivamente ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " y su historial de ejecuciones. Esta acción no se puede deshacer."
+    ],
+    "634fd36cce8909a0": "Instalar la extensión",
+    "63b225fdaa18ae5f": "Pregunta sobre la aplicación Cache en Perplexity",
+    "63f90777818012e2": "Colección compartida",
+    "64705455763736a6": [
+        {
+            "c": [
+                {
+                    "i": 2,
+                    "t": "Search"
+                },
+                {
+                    "c": "Haz una pregunta y Cache encontrará lo que necesitas",
+                    "i": 3,
+                    "t": "span"
+                }
+            ],
+            "i": 1,
+            "t": "li"
+        },
+        {
+            "c": [
+                {
+                    "i": 5,
+                    "t": "Lightbulb"
+                },
+                {
+                    "c": "Conversa con la IA sobre tus marcadores sin perder el contexto",
+                    "i": 6,
+                    "t": "span"
+                }
+            ],
+            "i": 4,
+            "t": "li"
+        }
+    ],
+    "64a82e12acb8dbe7": "Una colección compartida en Cache.",
+    "64b08e57a2f2e7b7": "Cómo tratamos y protegemos los datos personales de los clientes.",
+    "6516055cdbb1b570": "Buscar atajos",
+    "66ea9c8e950a3bbf": "Los elementos que eliminas de tu biblioteca permanecen aquí durante 30 días antes de eliminarse definitivamente.",
+    "681a601ff4d8137c": "Tranvías y autobuses",
+    "687b25248d560408": [
+        {
+            "c": "Estilo de vida",
+            "i": 1,
+            "t": "p"
+        },
+        {
+            "c": "33 elementos",
+            "i": 2,
+            "t": "p"
+        }
+    ],
+    "68f40bb9bb699403": "Hoteles de diseño",
+    "69cac161cf484cd9": "No hemos podido abrir la página de pago en este momento.",
+    "6a02c2d68b5ef50d": "Chatea con Cache sobre tu contenido guardado.",
+    "6a348673e552d166": "Abrir o cerrar la vista previa",
+    "6a48fd0a37e725a1": "Información legal",
+    "6a59b19ab82428c6": "Hace 8 s",
+    "6ad5d5a635a11015": "Guardando…",
+    "6b75fd08ca7c6ae3": [
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " finaliza ",
+        {
+            "i": 2,
+            "k": "_gt_value_2",
+            "v": "v"
+        }
+    ],
+    "6bc7d41e095831d3": "Mostrar todo",
+    "6c1216fee667a463": [
+        {
+            "c": [
+                {
+                    "i": 2,
+                    "t": "SquareMousePointer"
+                },
+                {
+                    "c": "Guarda desde cualquier sitio con la extensión del navegador",
+                    "i": 3,
+                    "t": "span"
+                }
+            ],
+            "i": 1,
+            "t": "li"
+        },
+        {
+            "c": [
+                {
+                    "i": 5,
+                    "t": "CloudDownload"
+                },
+                {
+                    "c": "Comparte o exporta tus colecciones de Cache cuando quieras",
+                    "i": 6,
+                    "t": "span"
+                }
+            ],
+            "i": 4,
+            "t": "li"
+        }
+    ],
+    "6c127edcea226509": "Recetas de agua",
+    "6c6127cf3fb74a9e": "Subrayado",
+    "6d7ffa8a64927a74": [
+        {
+            "c": "Detecta lo obsoleto, conserva lo útil",
+            "i": 1,
+            "t": "h2"
+        },
+        {
+            "c": "Crea una base de conocimientos con el contenido guardado que ya has marcado como importante para ti. Impórtalo una vez y Cache lo organizará en minutos.",
+            "i": 2,
+            "t": "p"
+        }
+    ],
+    "6dc17c680e88d0a7": [
+        {
+            "c": [
+                {
+                    "i": 2,
+                    "t": "Component"
+                },
+                {
+                    "c": [
+                        {
+                            "c": "Colecciones Inteligentes",
+                            "i": 4,
+                            "t": "span"
+                        },
+                        " te ayuda a separar lo que puedes poner en práctica de lo que te inspira"
+                    ],
+                    "i": 3,
+                    "t": "span"
+                }
+            ],
+            "i": 1,
+            "t": "li"
+        },
+        {
+            "c": [
+                {
+                    "i": 6,
+                    "t": "Unlink"
+                },
+                {
+                    "c": "Filtra duplicados y enlaces rotos",
+                    "i": 7,
+                    "t": "span"
+                }
+            ],
+            "i": 5,
+            "t": "li"
+        }
+    ],
+    "6e24aef8a431a2ab": "Publicaciones que guardas en Marcadores",
+    "6f1b661d2c2cb538": "Desconocido",
+    "6f6eccbaa122fcae": "Usar el tema oscuro",
+    "6f938d5cbd13aeab": "Comentarios",
+    "701964090d7b3438": "Borrar búsqueda",
+    "7100844fb1990162": "Equipo para café expreso",
+    "7120e94fedd7615d": {
+        "c": [
+            {
+                "c": [
+                    "No tienes que usar Cache",
+                    {
+                        "i": 3,
+                        "t": "br"
+                    }
+                ],
+                "i": 2,
+                "t": "span"
+            },
+            " Deja que tus agentes de IA lo usen con ",
+            {
+                "i": 4,
+                "t": "ModelContextProtocolIcon"
+            },
+            " ",
+            {
+                "c": [
+                    {
+                        "i": 6,
+                        "t": "PopoverTrigger"
+                    },
+                    {
+                        "c": {
+                            "c": "MCP es un conector universal, como un «puerto USB» para la IA, pero que conecta software. Permite que tus agentes de IA accedan de forma segura a aplicaciones y datos para realizar acciones y trabajar por ti, sin que tengas que intervenir manualmente.",
+                            "i": 8,
+                            "t": "div"
+                        },
+                        "i": 7,
+                        "t": "PopoverPopup"
+                    }
+                ],
+                "i": 5,
+                "t": "Popover"
+            },
+            " y pon todos tus recursos a su alcance"
+        ],
+        "i": 1,
+        "t": "p"
+    },
+    "71a0bd88bed41d7c": "Volver arriba",
+    "72bc5ac741a6fe5e": "Importa archivos Markdown de Obsidian, Bear, exportaciones de Apple Notes o carpetas de tu ordenador con archivos escritos por ti.",
+    "7301ad055dbdbc3b": "Automatizaciones ilimitadas con agentes",
+    "73348bacbf8f5f17": "MyMind, Raindrop.io, Karakeep, Resurf y Pocket",
+    "736c01376b269f0b": "Proporciones de café y agua que funcionaron",
+    "73ad44361b7e811c": "Fotos y álbumes que marcas con una estrella",
+    "7472afb4558f12e9": "Última visita",
+    "74e1a06c5b6ad574": "Escribe el título de un chat para filtrar",
+    "74eb6f880badacc6": "Esta colección está vacía.",
+    "75d4d73501e837d5": "Obtener Pro",
+    "76032f2a7c66c429": "Importa tus fotos y álbumes favoritos de Google Fotos.",
+    "76215760a48c21ac": "Usar el tema claro",
+    "76c7db717571ae61": "Pensando…",
+    "7778504b2e559b68": "El gestor de marcadores con IA para gente ocupada. Consulta, gestiona y organiza tus marcadores de distintas plataformas.",
+    "778a91e02d4ebbc3": "Actualizando elementos…",
+    "78043c8cf86f8e80": "Notas de la versión 4.2",
+    "7842d17ac91e7c4f": "Acciones de la cuenta",
+    "79714df650698156": "Se {count, plural, one {ha importado # pin} many {se han importado # pines} other {han importado # pines}}.",
+    "79e96b9deacbf022": "No guardado",
+    "7a6c957300c408f9": "Privacidad",
+    "7a8ec4ce7cf50dc7": "Eliminados recientemente",
+    "7a904d0c2b78f081": "Versiones anteriores",
+    "7ae945f28f4ed360": "Cerrar la barra lateral ({shortcut})",
+    "7aec974bdfa1cdcb": "Comentario no disponible",
+    "7bf38c4262e9fc77": "Abriendo la página.",
+    "7ca9c9a15764489d": "GitHub",
+    "7e37b307eeb4c94e": "Nuevo hilo",
+    "7eb1a9a8160da8f7": "Ahorra con la facturación anual",
+    "7ed3ce90293415d2": "Búsqueda web",
+    "7f29dba7ce5dc22c": "Eliminar archivo adjunto",
+    "7f480c9fe5cf7bd4": "Resumen de la ejecución",
+    "7f8cb8174c6d288f": "Siguiente",
+    "7f9bdb1c7e0fc3a5": "Filtrar por GitHub",
+    "80fceba1ab22c9b6": "Abrir en Cursor",
+    "813e4a2dac81c293": "Abrir en ChatGPT",
+    "818f874d6398e37d": "Colecciones",
+    "81ae67bbef7a15d0": "De código abierto. De verdad tuyo",
+    "81d0d1e78b196630": "General",
+    "8225bb0311245046": "Abrir vista previa ({shortcut})",
+    "82db33c426a00be0": "No se han podido cargar las colecciones",
+    "82fa9c3fa8006d4a": "Aún no hay chats.",
+    "842a791ab1f466f2": "Mensaje de chat",
+    "84f6c0808af51bb4": "Tendrás que volver a iniciar sesión para acceder a tu biblioteca.",
+    "855fc8d0a319071f": "Completa esta lista de tareas",
+    "85a5481c27db7403": "elemento",
+    "85bb413001283113": "20 veces más uso de IA",
+    "85cec81edf9300bf": "Tostadores que merece la pena visitar",
+    "85dce58cc95211df": "Mostrar",
+    "86311df6a7e1f583": "Los elementos guardados de tus cuentas conectadas y los importados mediante la extensión aparecen a continuación, agrupados por origen.",
+    "87254fc32f854b77": "No se ha podido cambiar de cuenta.",
+    "878c23d10d0dffc2": "Ahora mismo no hemos podido eliminar definitivamente este elemento guardado.",
+    "87c4a6e8013172f4": "Cursiva",
+    "87f6f3f373779010": [
+        {
+            "c": [
+                {
+                    "i": 2,
+                    "t": "Terminal"
+                },
+                {
+                    "c": "Usa el menú de comandos y los atajos de teclado para trabajar de forma más eficiente",
+                    "i": 3,
+                    "t": "span"
+                }
+            ],
+            "i": 1,
+            "t": "li"
+        },
+        {
+            "c": [
+                {
+                    "i": 5,
+                    "t": "Album"
+                },
+                {
+                    "c": "Lee artículos sin distracciones con Quick Look",
+                    "i": 6,
+                    "t": "span"
+                }
+            ],
+            "i": 4,
+            "t": "li"
+        }
+    ],
+    "8a034c021a411631": "¿Quieres cerrar sesión?",
+    "8a51ee5e4662b88d": "Enlace copiado",
+    "8a723b4bf185e6f1": "Archivo Markdown",
+    "8a8379d47f86606f": "elementos",
+    "8b045bc1a6270fb5": "Colecciones",
+    "8bbae8d49dc951d6": "Buscar chats",
+    "8ca7edd1ff466c23": "Abrir en T3 Chat",
+    "8d01ed931a4c5812": "Eliminando…",
+    "8d486b84e82815f8": "Día de mercado en Campo de Ourique",
+    "8dd558750f9b9ddd": "Lisboa, mayo",
+    "8ebdbcb486fb7060": "Suscripción",
+    "8eeee33f47318d9a": "Hilos, vídeos, inspiración. Agrupa ideas en colecciones y compártelas.",
+    "8f91c424f37a5708": "Niche Zero, tras dos años de uso",
+    "8fba3b366db17ad6": "Aún no hay automatizaciones",
+    "92e47f5de41fd261": "No se han encontrado atajos",
+    "93b9717cc1acb2fd": "Documentos legales, políticas y avisos de {appName}.",
+    "93f881a7033302b7": "El paso que faltaba entre guardar marcadores y tomar notas. Todo estructurado, fácil de buscar y siempre a mano cuando lo necesitas.",
+    "948991db0bf6c74f": [
+        "+",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " más"
+    ],
+    "94c20ff6b75d8acb": "Cómo recopilamos, utilizamos y protegemos la información personal.",
+    "94df83a1ab618ab0": "No hay elementos que coincidan en la vista previa cargada.",
+    "95ee62a0d6968b89": "Enviar mensaje",
+    "9623dff4b6cc4b45": "Ajustes para un ristretto",
+    "969e6adce536dcf0": "Tus automatizaciones",
+    "970e8f516692fd95": "No hemos podido eliminar este chat en este momento.",
+    "97f68bd29d3d4247": {
+        "c": [
+            {
+                "i": 2,
+                "k": "_gt_value_2",
+                "v": "v"
+            },
+            " caracteres"
+        ],
+        "i": 1,
+        "t": "span"
+    },
+    "985ef45524728a6f": "Documentación",
+    "98f22f896e28d856": "Crea una para resumir u organizar el contenido guardado según el horario que elijas.",
+    "996e972b969048e9": "Acuerdo de Encargo del Tratamiento",
+    "99e4c3ba36537129": "Cancelar",
+    "9a3ab4e1dd220b00": "ahora",
+    "9ac1770bd802f44d": "Ahora mismo no hemos podido restaurar este elemento guardado.",
+    "9bba908de65db48f": "Ya tienes acceso completo a tu biblioteca y a todas las integraciones.",
+    "9bbecec926c3b695": "Reintentar",
+    "9c37b57910a7613c": "Tiempos de importación tras la reescritura",
+    "9cfaa2b6dcd66f25": "Notas de migración",
+    "9ddff5a5bcbb52cd": "¿Eliminar entrada?",
+    "9e0e71048f2e77ca": "Archivados",
+    "9e172217c3e3d8ae": "Pasar a Pro",
+    "9e440c6be1f9ade0": "Página web",
+    "9e80d634d015cc6d": "Qué llevar para tres días",
+    "9f769a469200729b": "Últimos 7 días",
+    "9ff27235f21b6576": "Archivos Markdown de tu ordenador",
+    "a06f2446c9ee9132": "Referencias, citas, fragmentos. Un archivo de investigación con material de partida fácil de encontrar.",
+    "a09545c3e39b9891": "Nuevo",
+    "a0dceb2ba7bdebac": "No hay colecciones que coincidan con esta vista.",
+    "a0df55fa99784f6b": "Once incidencias cerradas",
+    "a190980699ae2ce2": "Condiciones del Servicio de {appName}: normas sobre el uso del servicio y las cuentas, y sobre los usos permitidos.",
+    "a2acf8270d351160": "Algo ha salido mal",
+    "a38d104abfceea60": "No hemos podido archivar este chat en este momento.",
+    "a3aba2685c853fe4": "Copiar nota",
+    "a3bf9c945c7318bb": "Automatizaciones",
+    "a4826b3a88b774aa": "Elige un archivo PNG, JPEG, WebP, GIF, PDF o de texto sin formato con un nombre de menos de 256 caracteres.",
+    "a4851b921f91f4c2": "¿A qué lugares de Lisboa merece la pena dedicar una tarde entera?",
+    "a4ecc2d52fb9c50b": "Política de Privacidad",
+    "a586e0692358c532": "Pásate a Pro para acceder a todas las funciones de Cache y a todas las integraciones",
+    "a5ae11bec19a2aaa": [
+        "No se han encontrado colecciones.  ",
+        {
+            "c": "Crear tu primera colección",
+            "i": 1,
+            "t": "button"
+        }
+    ],
+    "a63e101e1787d42a": "Cafés en grano para probar",
+    "a656dc69a38a3639": "Cerrar sesión",
+    "a752f0eedca9330f": [
+        "Se elimina en ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " días"
+    ],
+    "a75b81e278a69a4a": "Vídeos que guardas en Favoritos",
+    "a7b00994918dc087": "Eliminar cuenta",
+    "a87256ad3b36ad42": "Obtener Cache Pro",
+    "a8bc3eb603d5de1f": "Información legal y políticas",
+    "a98a66fcfa96ef4d": "Descargar la aplicación de escritorio",
+    "aa43440b4330cc01": "Se {count, plural, one {ha importado # elemento} many {se han importado # elementos} other {han importado # elementos}}.",
+    "aa4603e03a9a08bb": "Excluir archivados",
+    "ab29a9106ca544b8": "Detener la lectura de la respuesta",
+    "ab47f58386924b4f": "Anterior",
+    "ab4abf4e5a6f6057": "Sin guardar",
+    "aba29e77e52bca46": "Eliminar",
+    "abe69a4d3c229cef": "Empezar a explorar",
+    "abecba256553addd": "Las sesiones recientes aparecerán aquí.",
+    "ac058d0fb238539b": "Explorar «Equipo para café expreso»",
+    "ac849396c7e047b9": "Abrir en Google Docs",
+    "ac9b4900dc5b202f": "No se ha podido mostrar la conversación.",
+    "ae136257600738d3": "Adjuntar archivos",
+    "ae4483d35e3db50a": [
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " conectadas"
+    ],
+    "aec0b93d8ada52fa": "Alternar tema: claro → oscuro → sistema",
+    "aec17d4a45d9a3ec": "No hemos podido cargar esta sección.",
+    "aed763efb0a6d555": "Nuevo hilo",
+    "aedffe1bfc18f4a4": "La respuesta del asistente está lista.",
+    "af34d21966b17dd8": {
+        "c": [
+            {
+                "i": 2,
+                "k": "_gt_value_2",
+                "v": "v"
+            },
+            " min de lectura"
+        ],
+        "i": 1,
+        "t": "span"
+    },
+    "af5f7f2d797796c2": "Borradores de versiones",
+    "afb04799e9a3f040": "Repositorio de GitHub",
+    "afbce44e8fcb7353": "Búsqueda en la biblioteca",
+    "afda415d2d75a5d3": "Chat",
+    "b0218088cb0cf61f": "Atajos de teclado",
+    "b04df1727faed146": "Tus cuentas",
+    "b0aeb2ddd7f89636": "Continúa la conversación sobre esta ejecución de la automatización.",
+    "b127631d1a822ff6": "Enviando a Notion…",
+    "b2726d94014de6e8": "Regístrate o inicia sesión para continuar",
+    "b2be70822d55f16a": "Abrir",
+    "b33e2234ec4ab823": "Plan gratuito",
+    "b3a33d39cbbf0a44": "Colecciones Inteligentes ha ordenado 40 elementos",
+    "b40988df46799484": "Configuración del controlador de temperatura",
+    "b5d10660aa01db49": "Script del registro de cambios",
+    "b5d5276005980a36": "Desarrolladores y creadores de productos",
+    "b66f822067b02508": "Ve a tus publicaciones guardadas, abre la ventana emergente de la extensión de Cache y pulsa «Importar página» para importarlas.",
+    "b6cc6318bc61aee4": "Publicaciones que guardas en Favoritos",
+    "b725c61c6d7808ab": "Cargando vista previa…",
+    "b80f965a578b8557": "Copiado",
+    "b8496c08d652a14c": "Coste por taza en casa",
+    "b86898ed10222bd3": "Continuar en el chat",
+    "b98a4606e128ee3d": "Abrir en Codex",
+    "b9a07e47a8a8bd4d": "Aún no hay comentarios",
+    "b9a24a2ced57204c": "Sin guardar",
+    "ba181f4de4504b18": "Murales de azulejos",
+    "ba6be79919a3606b": "Se elimina en 1 día",
+    "bace5c18f3e81576": "Colección compartida {collectionName}",
+    "baf0f86dd08375f6": "Los elementos restaurados vuelven a tu biblioteca con sus colecciones y vistas previas intactas. Los que permanezcan aquí se eliminarán definitivamente al cabo de 30 días.",
+    "bb62aeb20b5ee82f": "Borrar filtro de título",
+    "bbbaeb94ea2dafe7": "Añadir fuente",
+    "bda5af471ef547e0": "Más",
+    "bdca7a026d7dfe86": "Expandir o contraer la barra lateral",
+    "be1da3273ffdb5bd": "Volver a intentarlo",
+    "be5d8f2869b4cdfb": "Conecta Notion para enviar notas y colecciones de Cache a tu espacio de trabajo.",
+    "bf0f37f53a4e2d62": "Vista previa",
+    "c08fd48829bc45ff": "Explorar «Lisboa, mayo»",
+    "c0d5a144e1d1481b": "Cerrar sesión",
+    "c1172428bea235ca": "Normas que rigen el uso del servicio, la gestión de tu cuenta y los usos permitidos.",
+    "c154d98281ba13c7": "Inicia sesión para acceder a tu biblioteca de marcadores.",
+    "c1c83365c290bc3b": "Todo listo para exportar y compartir",
+    "c1d06d38cd246459": "Elementos ilimitados en la biblioteca",
+    "c201feaf9ce6b5e7": "No hay comandos que coincidan",
+    "c20306142f5a764d": "Abrir en Claude",
+    "c26cc4f576ea4c63": "fallido",
+    "c26fd6852bfece9e": "Continuar con Google",
+    "c27a41363d54f77c": "No hay pestañas recientes",
+    "c2a56ef700f03c86": "No hay chats que coincidan con esta vista.",
+    "c2e4a4a31183b309": "Adjunta hasta 5 archivos.",
+    "c37237fc8d425018": "Integraciones",
+    "c3aef4418640a206": "Abrir menú de la cuenta",
+    "c3c740f0509a6666": "Cerrar {title}",
+    "c4244c4a6f71e511": "Abrir en una pestaña nueva",
+    "c49564c8b926eb03": "Agrupar por fuente",
+    "c508811750b9ccc7": "Copiar respuesta",
+    "c5295b7ae2709a4a": "Vista previa no disponible",
+    "c5b185180d45a2b0": "Trampas de teclado",
+    "c5fc56c3b225be76": "Más",
+    "c6fa2905d56a750c": "Guardado",
+    "c77ae6acf6d584d4": "Marcadores importados",
+    "c7b6b877e9f2b845": [
+        "Elimina definitivamente ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " de Cache. Esta acción no se puede deshacer."
+    ],
+    "c7cc2f6d70115ecd": "Documentación, incidencias, código, tutoriales. Encuentra ese enlace justo cuando lo necesitas.",
+    "c884609397b72df2": "anual",
+    "c92ac233cb0d2434": "Desarchivar chat",
+    "c99665ea29f5774b": "Mostrar todos los chats",
+    "ca749b12449e9284": "Inicio",
+    "cac8380c56140294": "Comida y café",
+    "cb96d2ca669800f2": "Automatizaciones",
+    "cca6a310f45ce736": [
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " ",
+        {
+            "i": 2,
+            "k": "_gt_value_2",
+            "v": "v"
+        }
+    ],
+    "ccb2f47254d8ca62": [
+        "Prueba de ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        ", después ",
+        {
+            "i": 2,
+            "k": "_gt_value_2",
+            "v": "v"
+        }
+    ],
+    "cce82cf470bbbbda": "Te damos la bienvenida a",
+    "cdd5e7333b742d49": "Visitas a cafeterías",
+    "cee76fe02ab989b9": "Elimina definitivamente todos los elementos de Eliminados recientemente. Esta acción no se puede deshacer.",
+    "cf702c635fa32efc": "Acuerdo de Encargo del Tratamiento",
+    "d03076d5acec1a0e": "Comentarios que has añadido a elementos guardados, del más reciente al más antiguo.",
+    "d127f26d5bae862d": [
+        "Versión ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        }
+    ],
+    "d13a38a3c0107574": "Crea la tuya.",
+    "d15d4ce9981708e9": "Cancelar",
+    "d31dc412ebd02566": "Comentarios",
+    "d353ed81b71684aa": "Integraciones",
+    "d3dd4c69aa1b6c23": [
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " colección"
+    ],
+    "d4657bed6fce1d65": "Se {count, plural, one {ha importado # entrada} many {se han importado # entradas} other {se han importado # entradas}}.",
+    "d5879e9748890e58": "Planear una escapada de fin de semana",
+    "d5f5abc1d5470e1b": "Vídeos que guardas en listas de reproducción",
+    "d629568ad0f37c3b": "Expandir grupo",
+    "d62fd6aec3a4397a": "Cerrar sesión",
+    "d65e8f7cd92684dc": "Privado",
+    "d69d80ec5619024a": "Pines que guardas en tableros",
+    "d6db6a63bfbd1a36": "o ahorra con la facturación anual",
+    "d70e4938efa65780": {
+        "c": [
+            {
+                "i": 2,
+                "k": "_gt_value_2",
+                "v": "v"
+            },
+            " párrafos"
+        ],
+        "i": 1,
+        "t": "span"
+    },
+    "d83e1bdafb7ed7fd": "Todas las versiones",
+    "d892062995b3823f": "Dónde comer en Mouraria",
+    "d8c5029d8bebbcef": "Este elemento contiene una demostración interactiva para usuarios videntes que muestra la interfaz de Cache. La interfaz aparece sobre un fondo liso y discreto con el color de la marca.",
+    "d90d2b9e93e9f11f": "Pregunta sobre la aplicación Cache en Grok",
+    "d9273f5e246fa691": "Encabezado 3",
+    "d97c3597fca3f167": "Ve a tu lista Ver más tarde, abre la ventana emergente de la extensión de Cache y pulsa «Importar página» para importar los vídeos.",
+    "d9f20adc4f5cb60f": "está activo",
+    "da418e0ab9e87a6d": "Las plataformas de terceros a las que se conecte a través del Servicio funcionan de forma independiente de Cache. Cache no controla sus políticas, la aplicación de estas ni sus decisiones sobre el acceso, incluidos los cambios en la disponibilidad. Usted es responsable de cumplir las condiciones y políticas de cada plataforma. Cache no será responsable de las pérdidas derivadas de su relación con dichas plataformas o del uso que haga del Servicio en relación con ellas.",
+    "da5cb48432fe1921": "Añade fuentes RSS para importar automáticamente nuevas publicaciones a tu biblioteca. Configura automatizaciones para resumirlas o recibir las novedades que te interesan.",
+    "da9ea5b042584463": "Nuevo chat",
+    "daf8daec701f0863": "Cuenta",
+    "db046871e24073f1": "Hoy",
+    "db724a3f3f831f1b": "Últimos 7 días",
+    "db72ad3b2501e7a9": "Cargando cuentas",
+    "dbf8b87903802249": "Los archivos deben ocupar 3 MiB o menos en total.",
+    "dc23b2ce392af966": "Abrir {title} en Side",
+    "dce930d99de233a7": "Condiciones",
+    "dda6c918381f2359": "coincidencia",
+    "ddc161e16a7e8f5a": [
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " ",
+        {
+            "i": 2,
+            "k": "_gt_value_2",
+            "v": "v"
+        }
+    ],
+    "de37810bab787444": "Preparar el lanzamiento de un producto",
+    "de45b075b016cb14": [
+        "Mostrar ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " más"
+    ],
+    "de63b8aec42f9bee": [
+        "Has iniciado sesión como ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        }
+    ],
+    "deb397e0176082b2": "¿Eliminar todos los elementos definitivamente?",
+    "e0fec2dabff3eb10": "Dónde comer más barato en Mouraria",
+    "e17bae3a53e3c4b3": "Negrita",
+    "e244cbcf47545455": [
+        {
+            "c": {
+                "c": "Inteligencia de Marcadores",
+                "i": 2,
+                "t": "GradientWaveText"
+            },
+            "i": 1,
+            "t": "h1"
+        },
+        {
+            "c": "Cache es el gestor de marcadores con IA para personas ocupadas. Una forma más inteligente de recopilar, organizar y redescubrir todo lo que has guardado en distintas plataformas.",
+            "i": 3,
+            "t": "p"
+        }
+    ],
+    "e2ae8ee45426de4e": "Primeras reacciones de los usuarios",
+    "e34da33cf9964dc0": "Recientes",
+    "e3880b69cb9e1b0d": "Atajos de teclado",
+    "e390d15ad6e8987a": "¿Quieres eliminar la automatización?",
+    "e3b8bf08eccdcbdf": "Copiar instrucciones",
+    "e3fb410a95d4f393": [
+        {
+            "c": "Crea una biblioteca con todo el contenido que te gusta",
+            "i": 1,
+            "t": "h2"
+        },
+        {
+            "c": "Inspírate y encuentra esa lección, receta o idea que buscabas en lo que dura una pausa para el café.",
+            "i": 2,
+            "t": "p"
+        }
+    ],
+    "e58b39c43b238c77": "No se han podido importar los marcadores de X.",
+    "e5a2e5a743bc3ac5": "Recetas",
+    "e5b38698cb9dd797": "Comparativa de horarios de museos",
+    "e5fb3951dcb4ff6a": "Filtrar por Reddit",
+    "e601afd469d54d2b": "Se {count, plural, one {ha importado # repositorio} many {se han importado # repositorios} other {se han importado # repositorios}}.",
+    "e60e285cd7ab0607": "Conecta solo cuentas en las que confíes. Cache puede acceder a lo que decidas guardar con las aplicaciones conectadas. Siempre puedes cambiar de opinión.",
+    "e664c02d9eb64adc": "Resume los cambios de la última versión",
+    "e6a4bdb92d61776e": "Importa las publicaciones y los comentarios que hayas guardado en Reddit. Reddit solo permite acceder a los últimos 1,000 elementos guardados aproximadamente, por lo que los más antiguos nunca se importan.",
+    "e6bf33cf97345f68": "¿Eliminar definitivamente?",
+    "e6c1109fa39e2f8d": "Eliminar definitivamente",
+    "e706fad640f39781": "No hemos podido enviarlo a Notion en este momento.",
+    "e87675d6185bf140": "Cerrando sesión…",
+    "e8c281b1a85ac547": "Añade un comentario…",
+    "e9582dee1da6d8e4": "Sugerencias",
+    "e962025017569ce0": "Todas las anotaciones de tu biblioteca.",
+    "ea266d48dd325627": "Itinerarios antiguos",
+    "ea2f542d81a80c1b": "Vista previa de {provider}",
+    "ea5c6ad6574ea111": "Últimos 30 días",
+    "ea84eb135ce31d0d": "Descubre Cache",
+    "eaaea5d95ad53dc9": "Abrir en v0",
+    "eab7765b5da8ff49": "Acceso a todas las integraciones",
+    "eb91fdd2f019b0ae": "Estado de la aplicación Cache",
+    "ebd10d0dbbc3c4f0": [
+        {
+            "c": [
+                "Guarda con un clic",
+                {
+                    "i": 2,
+                    "t": "br"
+                },
+                {
+                    "c": "y los agentes de IA hacen el resto",
+                    "i": 3,
+                    "t": "span"
+                }
+            ],
+            "i": 1,
+            "t": "h2"
+        },
+        {
+            "c": "Integra Cache en tu día a día. Resume, investiga, compara o redacta con los marcadores relevantes ya incorporados al contexto.",
+            "i": 4,
+            "t": "p"
+        }
+    ],
+    "ec8aa22d305055e9": [
+        "Esto eliminará definitivamente ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " de tu Cache."
+    ],
+    "eda5b1fdb453a3b4": "Añadir nuevo",
+    "ee89eff1a7866351": "Reúne tus marcadores de todas las plataformas",
+    "ee8ae15112f3f99d": "Guías de molinillos y notas sobre ajustes",
+    "ef42d2346b2b1a85": "No se ha podido completar esta acción de la integración.",
+    "f01e24975e99850b": "Eliminar todo",
+    "f044e94922dd62f5": "¿Todo listo para empezar?",
+    "f08afb1daf7281d0": "Página no encontrada",
+    "f21311e069087012": "Listas de comprobación de calidad",
+    "f2e393e1419f8c99": "Documentación",
+    "f343ab93a752ec98": "No se han podido importar los repositorios marcados con una estrella en GitHub.",
+    "f344446f3e550d2c": "Sin título",
+    "f3773f612b5e4265": "Accesibilidad",
+    "f3c979f1e51251d0": "Condiciones del Servicio",
+    "f62c45d59633ddcc": "Volver a cargar la vista previa",
+    "f64eb1d33bee2e29": "Un itinerario de tres días por Lisboa",
+    "f6da1d6d95d181bc": "Se {count, plural, one {ha importado # marcador} many {se han importado # marcadores} other {han importado # marcadores}}.",
+    "f713c226105b5aff": "Lugares para ver el atardecer",
+    "f8044894735c7b5b": "Pregunta sobre la aplicación Cache en Claude",
+    "f92af3bd913028bf": [
+        "Se moverán ",
+        {
+            "i": 1,
+            "k": "_gt_value_1",
+            "v": "v"
+        },
+        " marcadores duplicados a Eliminados recientemente. La copia más antigua de cada enlace permanecerá en tu biblioteca. Tienes 30 días para restaurarlos antes de que se eliminen definitivamente."
+    ],
+    "fb9f72030cb6115c": "Abrir la barra lateral ({shortcut})",
+    "fc1316e63c38cc55": "Adopción tras el lanzamiento",
+    "fc60abc7ac108f76": "Cargando el editor de notas…",
+    "fdf31abfa2e25343": "No se han podido actualizar las fuentes RSS.",
+    "fe5d2ae7fa3700c3": "Creado",
+    "fe5ee6266a8106e0": "Tema",
+    "fe969cf7c0389a91": "Alfama antes de que lleguen las multitudes"
+}

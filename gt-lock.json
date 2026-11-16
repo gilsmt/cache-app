@@ -1,15 +1,15 @@
 {
     "version": 2,
-    "branchId": "brc_qg4b25epzp7yon4frscb7rkz",
+    "branchId": "brc_o5fhmvjqr1f61m29i933nw17",
     "entries": [
         {
             "fileId": "879f3a5f954ee8b75bf1e91f4ea9916b41c933e5beba7eb6362647a637c9c66d",
-            "versionId": "a3dfee1d0275567361fe0877255bf94cd9a46176a3c3c367625408d9fe8eb97b",
+            "versionId": "4dca9238094917add631674852e3112f2eabaaf5698a72590790963308916a5c",
             "translations": {
                 "es-ES": {
-                    "updatedAt": "2026-09-21T16:21:04.858Z",
+                    "updatedAt": "2026-11-16T12:58:41.642Z",
                     "fileName": "public/_gt/es-ES.json",
-                    "postProcessHash": "751ef86c60e9b8d6d6c95c763581d3f8797cce375e9afca01154107214dd88cf"
+                    "postProcessHash": "b4d1fe3fe5aed6311892009fe758159d0c2e8dd2ed43e9be3fa5d51592460151"
                 }
             },
             "fileName": "__INTERNAL_GT_TEMPLATE_NAME__"
