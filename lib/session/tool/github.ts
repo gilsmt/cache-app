@@ -8,7 +8,7 @@ import type { AutomationAgentSource } from "../ai/runner";
 const repoLog = createLogger("intelligence:github-repo");
 
 const GITHUB_RATE_LIMIT_PATTERN = /rate limit/iu;
-const GITHUB_REPO_PATTERN = /^[\w.-]+\/[\w.-]+$/u;
+const GITHUB_REPO_PATTERN = /^(?!\.+\/)[\w.-]+\/(?!\.+$)[\w.-]+$/u;
 
 const GitHubRepoInputSchema = z.object({
     repo: z
