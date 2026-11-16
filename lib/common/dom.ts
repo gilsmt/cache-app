@@ -84,13 +84,10 @@ function isPrintableKey(event: React.KeyboardEvent): boolean {
 }
 
 function isMenuTextInputKey(event: React.KeyboardEvent): boolean {
-    if (hasModifier(event)) {
-        return false;
-    }
     return (
-        event.key.length === 1 ||
         event.key.startsWith("Arrow") ||
         event.key === "Home" ||
-        event.key === "End"
+        event.key === "End" ||
+        (event.key.length === 1 && !hasModifier(event))
     );
 }

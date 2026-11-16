@@ -347,12 +347,21 @@ export function ComposerInput({
     const handleKeyDown = useStableCallback(
         (event: BaseUIEvent<React.KeyboardEvent<HTMLInputElement>>) => {
             onKeyDown?.(event);
+            if (event.currentTarget.tagName !== "TEXTAREA") {
+                return;
+            }
             if (
-                event.currentTarget.tagName === "TEXTAREA" &&
-                (event.key === "Home" || event.key === "End")
+                event.key === "Home" ||
+                event.key === "End" ||
+                ((event.key === "ArrowUp" || event.key === "ArrowDown") &&
+                    ((items.length === 0 && !filteredItems?.length) ||
+                        event.shiftKey ||
+                        event.ctrlKey ||
+                        event.metaKey ||
+                        event.altKey))
             ) {
-                // Autocomplete moves to the value's edges. Keep native textarea
-                // line navigation, selection, and platform-specific modifiers.
+                // Autocomplete treats textareas as single-line inputs. Keep
+                // native editing keys when list navigation is not intended.
                 event.preventBaseUIHandler();
             }
         }
