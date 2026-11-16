@@ -110,28 +110,6 @@ const ALL_LIBRARY_OPTION: AutomationCollectionOption = {
     name: "All library",
 };
 
-function getAutomationCollectionName(
-    option: AutomationCollectionOption
-): string {
-    return option.name;
-}
-
-function getAutomationCollectionId(option: AutomationCollectionOption): string {
-    return option.id;
-}
-
-function getOptionLabel(option: { label: string }): string {
-    return option.label;
-}
-
-function getStringOptionValue(option: { value: string }): string {
-    return option.value;
-}
-
-function getNumericOptionValue(option: { value: number }): string {
-    return String(option.value);
-}
-
 type AutomationCadence = "daily" | "weekly" | "monthly";
 type AutomationPayloadScope = "all_library_items" | "collection";
 type AutomationStatus = "active" | "paused";
@@ -184,6 +162,28 @@ interface AutomationFormState {
 }
 
 const log = createLogger("automations:composer");
+
+function getAutomationCollectionName(
+    option: AutomationCollectionOption
+): string {
+    return option.name;
+}
+
+function getAutomationCollectionId(option: AutomationCollectionOption): string {
+    return option.id;
+}
+
+function getOptionLabel(option: { label: string }): string {
+    return option.label;
+}
+
+function getStringOptionValue(option: { value: string }): string {
+    return option.value;
+}
+
+function getNumericOptionValue(option: { value: number }): string {
+    return String(option.value);
+}
 
 function getInitialFormState(
     automation: AutomationComposerAutomation | undefined,
@@ -325,19 +325,19 @@ export function AutomationComposerDialog({
     const isEditing = automation?.id !== undefined;
     const shouldRenderTrigger = trigger !== null;
     const shouldResumeAfterSave = isEditing && automation?.status === "paused";
-    const shouldRequireProAccess =
-        !isEditing || automation?.status === "active" || shouldResumeAfterSave;
-    const shouldShowPaywall =
-        shouldRequireProAccess &&
-        !isSubscriptionLoading &&
-        !isSelfHosted &&
-        !hasAccess;
+    const shouldShowPaywall = !(
+        isSubscriptionLoading ||
+        isSelfHosted ||
+        hasAccess
+    );
+
     const submitLabel = getSubmitLabel({
         isEditing,
         isTemplate: automation?.templateKey !== undefined,
         shouldResumeAfterSave,
     });
-    const timeOptions = getTimeOfDayOptions(locale);
+
+    const options = getTimeOfDayOptions(locale);
 
     const handleOpenChange = useStableCallback((nextOpen: boolean) => {
         if (nextOpen || !submissionPendingRef.current) {
@@ -407,7 +407,7 @@ export function AutomationComposerDialog({
                 return;
             }
 
-            if (shouldRequireProAccess && !isSelfHosted) {
+            if (!isSelfHosted) {
                 if (isSubscriptionLoading) {
                     return;
                 }
@@ -624,9 +624,9 @@ export function AutomationComposerDialog({
                             <AutomationTimeCombobox
                                 labelId={timeId}
                                 onValueChange={handleTimeValueChange}
-                                options={timeOptions}
+                                options={options}
                                 value={getTimeOfDayOption(
-                                    timeOptions,
+                                    options,
                                     formState.timeValue
                                 )}
                             />
@@ -687,9 +687,7 @@ export function AutomationComposerDialog({
                             <Button
                                 isLoading={
                                     isPending ||
-                                    (shouldRequireProAccess &&
-                                        isSubscriptionLoading &&
-                                        !isSelfHosted)
+                                    (isSubscriptionLoading && !isSelfHosted)
                                 }
                                 size="sm"
                                 type="submit"
