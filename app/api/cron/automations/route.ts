@@ -1,15 +1,8 @@
-import { start } from "workflow/api";
-import { automationRunWorkflow } from "@/app/workflows/automation";
 import { serverEnv } from "@/env/server";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { withRetry } from "@/lib/common/retry";
 import { safeCompare } from "@/lib/common/security/compare";
-import {
-    attachWorkflowRunId,
-    claimDueAutomationRuns,
-    markAutomationRunStartFailed,
-    recoverStaleAutomationRuns,
-} from "@/lib/session/automations/service";
+import { hasAutomationCronWork } from "@/lib/session/automations/cron";
 
 const log = createLogger("automations:cron");
 
@@ -27,6 +20,26 @@ export async function GET(request: Request) {
     }
 
     const now = new Date();
+    if (!(await hasAutomationCronWork(now))) {
+        return Response.json(
+            {
+                claimed: 0,
+                failedToStart: 0,
+                recovered: 0,
+                skipped: 0,
+                started: 0,
+                timedOut: 0,
+            },
+            { headers: NO_STORE_HEADERS }
+        );
+    }
+
+    const {
+        attachWorkflowRunId,
+        claimDueAutomationRuns,
+        markAutomationRunStartFailed,
+        recoverStaleAutomationRuns,
+    } = await import("@/lib/session/automations/service");
     const recovered = await recoverStaleAutomationRuns(now);
     const claimed = await claimDueAutomationRuns({ now });
 
@@ -34,6 +47,11 @@ export async function GET(request: Request) {
         claimed.claimed.map(async (run) => {
             let workflowRunId: string;
             try {
+                const [{ start }, { automationRunWorkflow }] =
+                    await Promise.all([
+                        import("workflow/api"),
+                        import("@/app/workflows/automation"),
+                    ]);
                 const workflowRun = await start(automationRunWorkflow, [
                     run.runId,
                 ]);
