@@ -22,7 +22,7 @@ import { createLogger } from "@/lib/common/logs/console/logger";
 
 const log = createLogger("accounts:delete-account-dialog");
 
-export function DeleteAccountDialogTrigger(
+export function AccountDeleteDialogTrigger(
     props: React.ComponentProps<typeof DialogTrigger>
 ) {
     const router = useRouter();

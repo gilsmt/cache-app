@@ -17,7 +17,7 @@ import {
     AccountMenuHeader,
     AccountMenuPopup,
     AccountMenuTrigger,
-} from "@/components/auth/account-menu";
+} from "@/components/accounts/account-menu";
 import { AutomationsCount } from "@/components/automations/count";
 import { CommentsCount } from "@/components/comments/count";
 import { RecentlyDeletedCount } from "@/components/recently-deleted/count";

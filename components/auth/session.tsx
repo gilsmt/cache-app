@@ -2,8 +2,9 @@
 
 import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T, Var } from "gt-next";
-import Link from "gt-next/link";
+import Link, { useLocalizeHref } from "gt-next/link";
 import { Info } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Script from "next/script";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,23 @@ import { createLogger } from "@/lib/common/logs/console/logger";
 import { useDesktopApp } from "@/lib/desktop/use-desktop-platform";
 
 const log = createLogger("auth:session");
+
+export function SessionDesktopRedirect() {
+    const router = useRouter();
+    const localizeHref = useLocalizeHref();
+    const { isDesktopApp } = useDesktopApp();
+    const signInHref = localizeHref("/signin");
+
+    React.useEffect(() => {
+        if (!isDesktopApp) {
+            return;
+        }
+
+        router.replace(signInHref);
+    }, [isDesktopApp, router, signInHref]);
+
+    return null;
+}
 
 /**
  * Mount once on public entry points because Google's prompt is global.

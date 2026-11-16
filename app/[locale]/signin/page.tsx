@@ -4,7 +4,7 @@ import { getGT, getLocale } from "gt-next/server";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { buildPageMetadata } from "@/app/metadata";
-import { SignInButton } from "@/components/auth/sign-in-button";
+import { SignInButton } from "@/components/auth/sign-in";
 import { PageShell } from "@/components/ui/page-shell";
 import { getServerSession } from "@/lib/auth/session";
 import {

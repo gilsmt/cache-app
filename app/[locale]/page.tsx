@@ -18,9 +18,12 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import type * as React from "react";
 import { buildPageMetadata } from "@/app/metadata";
-import { DesktopRedirect } from "@/components/auth/desktop-redirect";
-import { GoogleOneTapTrigger, SessionStatus } from "@/components/auth/session";
-import { SignInButton } from "@/components/auth/sign-in-button";
+import {
+    GoogleOneTapTrigger,
+    SessionDesktopRedirect,
+    SessionStatus,
+} from "@/components/auth/session";
+import { SignInButton } from "@/components/auth/sign-in";
 import { BrandLogo } from "@/components/ui/brand-logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -200,7 +203,7 @@ export default async function Home() {
 
     return (
         <PageShell>
-            <DesktopRedirect />
+            <SessionDesktopRedirect />
             <JsonLdScript data={HOME_JSON_LD} />
             <GoogleOneTapTrigger />
             <article className="flex flex-1 flex-col gap-8 lg:flex-row lg:justify-between">

@@ -15,9 +15,10 @@ import {
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { DeleteAccountDialogTrigger } from "@/components/auth/delete-account-dialog";
+import { AccountDeleteDialogTrigger } from "@/components/accounts/account-delete-dialog";
+import { AccountExportDialogTrigger } from "@/components/accounts/account-export-dialog";
 import { WithSessionOnly } from "@/components/auth/session";
-import { SignOutDialogTrigger } from "@/components/auth/sign-out-dialog";
+import { SignOutDialogTrigger } from "@/components/auth/sign-out";
 import {
     CloudHostOnly,
     SubscribedOnly,
@@ -677,7 +678,22 @@ function AccountActionsSubMenu(
                         }
                     />
                     <MenuSeparator />
-                    <DeleteAccountDialogTrigger
+                    <AccountExportDialogTrigger
+                        nativeButton={false}
+                        render={
+                            <MenuItem
+                                className="justify-between"
+                                closeOnClick={false}
+                                nativeButton={false}
+                            />
+                        }
+                    >
+                        <T>Export account data</T>
+                        <span className="text-muted-foreground text-xs">
+                            <T>Coming soon</T>
+                        </span>
+                    </AccountExportDialogTrigger>
+                    <AccountDeleteDialogTrigger
                         nativeButton={false}
                         render={
                             <MenuItem
@@ -688,7 +704,7 @@ function AccountActionsSubMenu(
                         }
                     >
                         <T context="Delete account menu item">Delete account</T>
-                    </DeleteAccountDialogTrigger>
+                    </AccountDeleteDialogTrigger>
                 </MenuGroup>
             </MenuSubPopup>
         </MenuSub>
