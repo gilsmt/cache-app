@@ -61,16 +61,22 @@ const PREVIEW_IMAGE_CACHE_TTL_SECONDS = 4 * 24 * 60 * 60; // 4 d
 // serves the page again.
 const PREVIEW_FALLBACK_IMAGE_CACHE_TTL_SECONDS = 60 * 60; // 1 h
 const PREVIEW_NEGATIVE_CACHE_TTL_SECONDS = 60;
+const PREVIEW_VIDEO_ERROR_CACHE_TTL_SECONDS = 12;
 // A refused upstream is cached only briefly: the refusal is transient, and a
 // short record keeps concurrent requests from hammering the same host.
 const PREVIEW_BLOCKED_CACHE_TTL_SECONDS = 60;
-const PREVIEW_RESOLUTION_LEASE_TTL_SECONDS = 12;
-const PREVIEW_RESOLUTION_WAIT_MS = 12_000;
+const PREVIEW_REDIS_COMMAND_TIMEOUT_MS = 1000;
+// Budget the cache recheck, upstream resolution and publication, plus scheduling slack.
+const PREVIEW_RESOLUTION_LEASE_TTL_SECONDS =
+    Math.ceil(
+        (FETCH_TIMEOUT_MS + 2 * PREVIEW_REDIS_COMMAND_TIMEOUT_MS) / 1000
+    ) + 3;
+const PREVIEW_RESOLUTION_WAIT_MS = PREVIEW_RESOLUTION_LEASE_TTL_SECONDS * 1000;
 const PREVIEW_RESOLUTION_POLL_MS = 250;
 // Process-local L1 in front of Redis. A hit returns from the Map before any
-// Redis read. Cap entries to bound memory. The L1 TTL is short and independent
-// of the Redis TTL: a Redis delete/update in another isolate is invisible to
-// this process's Map, so a brief L1 lifetime bounds how long a stale target can
+// Redis read. Cap entries to bound memory. The L1 TTL stays short and never
+// outlives the Redis record. A delete/update in another isolate is invisible
+// to this process's Map, so a brief L1 lifetime bounds how long a stale target can
 // be served (signed-URL expiry is still re-checked on every hit).
 const MEMORY_CACHE_MAX_ENTRIES = 256;
 const PREVIEW_IMAGE_MEMORY_CACHE_TTL_SECONDS = 5 * 60;
@@ -169,6 +175,10 @@ type CacheLookup<T> =
     | { status: "miss" };
 
 type ImagePreviewLookup = CacheLookup<ResolvedImage> | { status: "blocked" };
+
+type VideoPreviewLookup =
+    | CacheLookup<string>
+    | { status: "failure"; errorCode: string | null };
 
 type VideoPreviewWaitResult =
     | { status: "preview"; videoUrl: string }
@@ -276,7 +286,11 @@ function memoryRecordGet(key: string): PreviewRecord | null {
     return entry.value;
 }
 
-function memoryRecordSet(key: string, record: PreviewRecord): void {
+function memoryRecordSet(
+    key: string,
+    record: PreviewRecord,
+    expiresAtMs = Number.POSITIVE_INFINITY
+): void {
     if (memoryPreviewRecords.has(key)) {
         memoryPreviewRecords.delete(key);
     } else if (memoryPreviewRecords.size >= MEMORY_CACHE_MAX_ENTRIES) {
@@ -286,7 +300,10 @@ function memoryRecordSet(key: string, record: PreviewRecord): void {
         }
     }
     memoryPreviewRecords.set(key, {
-        expiresAtMs: Date.now() + recordMemoryTtlSeconds(record) * 1000,
+        expiresAtMs: Math.min(
+            expiresAtMs,
+            Date.now() + recordMemoryTtlSeconds(record) * 1000
+        ),
         value: record,
     });
 }
@@ -387,12 +404,17 @@ function parsePreviewRecord(value: unknown): PreviewRecord | null {
     }
 }
 
+const REDIS_PREVIEW_RECORD_SCHEMA = z.tuple([
+    z.string(),
+    z.number().positive(),
+]);
+
 const RECORD_REDIS_TTL_SECONDS = {
     blocked: PREVIEW_BLOCKED_CACHE_TTL_SECONDS,
     image: PREVIEW_IMAGE_CACHE_TTL_SECONDS,
     negative: PREVIEW_NEGATIVE_CACHE_TTL_SECONDS,
     video: PREVIEW_VIDEO_CACHE_TTL_SECONDS,
-    "video-error": PREVIEW_RESOLUTION_LEASE_TTL_SECONDS,
+    "video-error": PREVIEW_VIDEO_ERROR_CACHE_TTL_SECONDS,
 } as const satisfies Record<PreviewRecord["kind"], number>;
 
 function recordRedisTtlSeconds(record: PreviewRecord): number {
@@ -400,8 +422,7 @@ function recordRedisTtlSeconds(record: PreviewRecord): number {
 }
 
 function recordMemoryTtlSeconds(record: PreviewRecord): number {
-    // The L1 image TTL stays short and independent of the Redis TTL: a Redis
-    // delete/update in another isolate is invisible to this process's Map.
+    // A Redis delete/update in another isolate is invisible to this process's Map.
     return record.kind === "image"
         ? PREVIEW_IMAGE_MEMORY_CACHE_TTL_SECONDS
         : recordRedisTtlSeconds(record);
@@ -454,6 +475,13 @@ export async function GET(request: Request): Promise<Response> {
             return previewNotFoundResponse(targetUrl.href, "video");
         }
 
+        if (cachedVideo.status === "failure") {
+            return videoPreviewFailureResponse(
+                cachedVideo.errorCode,
+                targetUrl.href
+            );
+        }
+
         if (!isCobaltHost(targetUrl.href)) {
             log.debug("Host not supported for video preview", {
                 targetUrl: targetUrl.href,
@@ -498,7 +526,6 @@ export async function GET(request: Request): Promise<Response> {
             request.signal
         );
         if (resolution.status === "not_found") {
-            writeCachedNegativePreview(targetUrl.href, "image");
             return previewNotFoundResponse(targetUrl.href, "image");
         }
         if (
@@ -612,7 +639,6 @@ async function serveImageMetadataResponse(
             request.signal
         );
         if (resolution.status === "not_found") {
-            writeCachedNegativePreview(targetUrl.href, "image");
             return previewNotFoundResponse(targetUrl.href, "image");
         }
         if (
@@ -671,7 +697,7 @@ async function resolveImagePreview(
             imageUrl: page.directImageUrl,
             pageUrl: targetHref,
         };
-        writeCachedImagePreview(targetHref, preview, "page");
+        await writeCachedImagePreview(targetHref, preview, "page");
         return { status: "resolved", value: preview };
     }
 
@@ -693,7 +719,7 @@ async function resolveImagePreview(
             imageUrl: candidate.url,
             pageUrl: page.pageUrl,
         };
-        writeCachedImagePreview(targetHref, preview, candidate.source);
+        await writeCachedImagePreview(targetHref, preview, candidate.source);
         return { status: "resolved", value: preview };
     }
 
@@ -926,6 +952,16 @@ async function resolveImagePreviewAfterLease(
     }
 
     try {
+        const cached = await readCachedImagePreview(targetUrl.href);
+        if (cached.status === "hit") {
+            return { status: "resolved", value: cached.value };
+        }
+        if (cached.status === "negative") {
+            return { status: "not_found" };
+        }
+        if (cached.status === "blocked") {
+            return { status: "blocked" };
+        }
         const outcome = await resolveImagePreviewWithTimeout(targetUrl);
         if (outcome.status === "not_found") {
             await writeCachedNegativePreview(targetUrl.href, "image");
@@ -940,9 +976,7 @@ async function resolveImagePreviewAfterLease(
         return { status: "resolved", value: outcome.value };
     } finally {
         if (lease.status === "acquired") {
-            releasePreviewResolutionLease(key, lease.token).catch(
-                () => undefined
-            );
+            await releasePreviewResolutionLease(key, lease.token);
         }
     }
 }
@@ -1004,7 +1038,7 @@ async function streamImageResponse(
     if (!imageResponse.ok) {
         await imageResponse.body?.cancel().catch(() => undefined);
         if (imageResponse.status === 404 || imageResponse.status === 410) {
-            replaceCachedImagePreviewWithNegative(targetHref, preview);
+            await replaceCachedImagePreviewWithNegative(targetHref, preview);
             return previewNotFoundResponse(targetHref, "image");
         }
         if (isUpstreamRefusal(imageResponse.status)) {
@@ -1096,33 +1130,10 @@ async function resolveVideoPreview(
             signal
         );
         if (!videoResult?.videoUrl) {
-            if (
-                videoResult?.errorCode === PREVIEW_RESOLUTION_TIMEOUT_ERROR_CODE
-            ) {
-                return textResponse(
-                    "Video preview temporarily unavailable",
-                    503
-                );
-            }
-            const { classifyCobaltError } = await loadCobaltService();
-            const errorCategory = classifyCobaltError(videoResult?.errorCode);
-            if (errorCategory === "rate_limited") {
-                return textResponse(
-                    "Video preview temporarily unavailable due to rate limiting",
-                    429
-                );
-            }
-            if (errorCategory === "fetch_failed") {
-                return textResponse(
-                    "Video preview temporarily unavailable",
-                    503
-                );
-            }
-            if (errorCategory === "not_found") {
-                writeCachedNegativePreview(targetUrl.href, "video");
-                return previewNotFoundResponse(targetUrl.href, "video");
-            }
-            return previewNotFoundResponse(targetUrl.href, "video");
+            return videoPreviewFailureResponse(
+                videoResult.errorCode,
+                targetUrl.href
+            );
         }
 
         if (delivery === "redirect") {
@@ -1144,6 +1155,27 @@ async function resolveVideoPreview(
     }
 }
 
+async function videoPreviewFailureResponse(
+    errorCode: string | null,
+    targetHref: string
+): Promise<Response> {
+    if (errorCode === PREVIEW_RESOLUTION_TIMEOUT_ERROR_CODE) {
+        return textResponse("Video preview temporarily unavailable", 503);
+    }
+    const { classifyCobaltError } = await loadCobaltService();
+    const errorCategory = classifyCobaltError(errorCode);
+    if (errorCategory === "rate_limited") {
+        return textResponse(
+            "Video preview temporarily unavailable due to rate limiting",
+            429
+        );
+    }
+    if (errorCategory === "fetch_failed") {
+        return textResponse("Video preview temporarily unavailable", 503);
+    }
+    return previewNotFoundResponse(targetHref, "video");
+}
+
 async function resolveVideo(
     targetUrl: URL,
     signal?: AbortSignal
@@ -1152,7 +1184,7 @@ async function resolveVideo(
     const { resolveCobaltPreview } = await loadCobaltService();
     const result = await resolveCobaltPreview(targetHref, signal);
     if (result.status === "SUCCESS" && result.videoPreviewUrl) {
-        writeCachedVideoPreview(targetHref, result.videoPreviewUrl);
+        await writeCachedVideoPreview(targetHref, result.videoPreviewUrl);
         return { errorCode: null, videoUrl: result.videoPreviewUrl };
     }
 
@@ -1217,19 +1249,31 @@ async function resolveVideoAfterLease(
     }
 
     try {
+        const cached = await readCachedVideoPreview(targetUrl.href);
+        if (cached.status === "hit") {
+            return { errorCode: null, videoUrl: cached.value };
+        }
+        if (cached.status === "negative") {
+            return { errorCode: null, videoUrl: null };
+        }
+        if (cached.status === "failure") {
+            return { errorCode: cached.errorCode, videoUrl: null };
+        }
         const result = await resolveVideoWithTimeout(targetUrl);
         if (!result.videoUrl) {
-            await writePreviewRecord(targetUrl.href, "video", {
-                errorCode: result.errorCode,
-                kind: "video-error",
-            });
+            const { classifyCobaltError } = await loadCobaltService();
+            await writePreviewRecord(
+                targetUrl.href,
+                "video",
+                classifyCobaltError(result.errorCode) === "not_found"
+                    ? NEGATIVE_PREVIEW_RECORD
+                    : { errorCode: result.errorCode, kind: "video-error" }
+            );
         }
         return result;
     } finally {
         if (lease.status === "acquired") {
-            releasePreviewResolutionLease(key, lease.token).catch(
-                () => undefined
-            );
+            await releasePreviewResolutionLease(key, lease.token);
         }
     }
 }
@@ -1624,16 +1668,31 @@ async function readTextBodyWithLimit(
     }
 }
 
-async function readFromRedis(key: string): Promise<string | null> {
+async function readFromRedis(
+    key: string
+): Promise<{ value: string; expiresAtMs: number } | null> {
     try {
         const { getRedisClient } = await loadRedisModule();
-        const redis = getRedisClient();
+        const redis = getRedisClient()?.withCommandOptions({
+            timeout: PREVIEW_REDIS_COMMAND_TIMEOUT_MS,
+        });
         if (!redis) {
             return null;
         }
-        return await redis.get(key);
+        const startedAtMs = Date.now();
+        const result = REDIS_PREVIEW_RECORD_SCHEMA.safeParse(
+            await redis.eval(
+                "local value = redis.call('get', KEYS[1]); if not value then return nil end return {value, redis.call('pttl', KEYS[1])}",
+                { keys: [key] }
+            )
+        );
+        if (!result.success) {
+            return null;
+        }
+        const [value, ttlMs] = result.data;
+        return { value, expiresAtMs: startedAtMs + ttlMs };
     } catch (error) {
-        log.debug("Redis read failed", {
+        log.warn("Redis read failed", {
             error: error instanceof Error ? error.message : String(error),
             key,
         });
@@ -1648,13 +1707,15 @@ async function writeToRedis(
 ): Promise<void> {
     try {
         const { getRedisClient } = await loadRedisModule();
-        const redis = getRedisClient();
+        const redis = getRedisClient()?.withCommandOptions({
+            timeout: PREVIEW_REDIS_COMMAND_TIMEOUT_MS,
+        });
         if (!redis) {
             return;
         }
         await redis.set(key, value, { EX: ttlSeconds });
     } catch (error) {
-        log.debug("Redis write failed", {
+        log.warn("Redis write failed", {
             error: error instanceof Error ? error.message : String(error),
             key,
         });
@@ -1671,7 +1732,9 @@ async function deleteFromRedisIfValueMatches(
     expectedValue: string
 ): Promise<void> {
     const { getRedisClient } = await loadRedisModule();
-    const redis = getRedisClient();
+    const redis = getRedisClient()?.withCommandOptions({
+        timeout: PREVIEW_REDIS_COMMAND_TIMEOUT_MS,
+    });
     if (!redis) {
         return;
     }
@@ -1722,22 +1785,26 @@ async function readPreviewRecord(
     }
     let parsedJson: unknown;
     try {
-        parsedJson = JSON.parse(cached);
+        parsedJson = JSON.parse(cached.value);
     } catch {
         return null;
     }
     const record = parsePreviewRecord(parsedJson);
-    if (!record || isExpiredImageRecord(record)) {
+    if (
+        !record ||
+        isExpiredImageRecord(record) ||
+        cached.expiresAtMs <= Date.now()
+    ) {
         return null;
     }
-    memoryRecordSet(key, record);
+    memoryRecordSet(key, record, cached.expiresAtMs);
     return record;
 }
 
 /**
  * Writes the record to L1 synchronously and returns the Redis write promise.
- * Lease holders await it before releasing the lease; success writes may leave
- * it running in the background. Redis errors are logged and absorbed.
+ * Callers await publication before releasing the lease. Redis errors are
+ * logged and absorbed so the preview remains available during an outage.
  */
 function writePreviewRecord(
     targetHref: string,
@@ -1746,24 +1813,30 @@ function writePreviewRecord(
     ttlSeconds: number = recordRedisTtlSeconds(record)
 ): Promise<void> {
     const key = previewRecordKey(targetHref, type);
-    memoryRecordSet(key, record);
+    memoryRecordSet(key, record, Date.now() + ttlSeconds * 1000);
     return writeToRedis(key, JSON.stringify(record), ttlSeconds);
 }
 
 async function readCachedVideoPreview(
     targetHref: string
-): Promise<CacheLookup<string>> {
+): Promise<VideoPreviewLookup> {
     const record = await readPreviewRecord(targetHref, "video");
     if (record?.kind === "video") {
         return { status: "hit", value: record.videoUrl };
+    }
+    if (record?.kind === "video-error") {
+        return { status: "failure", errorCode: record.errorCode };
     }
     return record?.kind === "negative"
         ? { status: "negative" }
         : { status: "miss" };
 }
 
-function writeCachedVideoPreview(targetHref: string, videoUrl: string): void {
-    writePreviewRecord(targetHref, "video", { kind: "video", videoUrl });
+function writeCachedVideoPreview(
+    targetHref: string,
+    videoUrl: string
+): Promise<void> {
+    return writePreviewRecord(targetHref, "video", { kind: "video", videoUrl });
 }
 
 async function readCachedImagePreview(
@@ -1785,12 +1858,12 @@ function writeCachedImagePreview(
     targetHref: string,
     preview: ResolvedImage,
     source: ImagePreviewSource
-): void {
+): Promise<void> {
     const ttlSeconds =
         source === "fallback"
             ? PREVIEW_FALLBACK_IMAGE_CACHE_TTL_SECONDS
             : RECORD_REDIS_TTL_SECONDS.image;
-    writePreviewRecord(
+    return writePreviewRecord(
         targetHref,
         "image",
         { kind: "image", preview },
@@ -1826,16 +1899,16 @@ function isExpiredImageRecord(record: PreviewRecord): boolean {
  * invalidation decided without a concurrent fresh resolution cannot clobber
  * it — the newer SET wins and stays served.
  */
-function replaceCachedImagePreviewWithNegative(
+async function replaceCachedImagePreviewWithNegative(
     targetHref: string,
     stalePreview: ResolvedImage
-): void {
+): Promise<void> {
     const key = previewRecordKey(targetHref, "image");
     memoryRecordSet(key, NEGATIVE_PREVIEW_RECORD);
-    replaceStaleRedisRecordWithNegative(
+    await replaceStaleRedisRecordWithNegative(
         key,
         serializePreviewRecord({ kind: "image", preview: stalePreview })
-    ).catch(() => undefined);
+    );
 }
 
 async function replaceStaleRedisRecordWithNegative(
@@ -1844,7 +1917,9 @@ async function replaceStaleRedisRecordWithNegative(
 ): Promise<void> {
     try {
         const { getRedisClient } = await loadRedisModule();
-        const redis = getRedisClient();
+        const redis = getRedisClient()?.withCommandOptions({
+            timeout: PREVIEW_REDIS_COMMAND_TIMEOUT_MS,
+        });
         if (!redis) {
             return;
         }
@@ -1860,7 +1935,7 @@ async function replaceStaleRedisRecordWithNegative(
             }
         );
     } catch (error) {
-        log.debug("Redis preview record replace failed", {
+        log.warn("Redis preview record replace failed", {
             error: error instanceof Error ? error.message : String(error),
             key,
         });
@@ -1921,7 +1996,9 @@ async function acquirePreviewResolutionLease(
 ): Promise<PreviewResolutionLease> {
     try {
         const { getRedisClient } = await loadRedisModule();
-        const redis = getRedisClient();
+        const redis = getRedisClient()?.withCommandOptions({
+            timeout: PREVIEW_REDIS_COMMAND_TIMEOUT_MS,
+        });
         if (!redis) {
             return { status: "unavailable" };
         }
@@ -1941,7 +2018,7 @@ async function acquirePreviewResolutionLease(
             ? { status: "acquired", token }
             : { status: "held" };
     } catch (error) {
-        log.debug("Preview resolution lease unavailable", {
+        log.warn("Preview resolution lease unavailable", {
             error: error instanceof Error ? error.message : String(error),
         });
         return { status: "unavailable" };
@@ -1958,7 +2035,7 @@ async function releasePreviewResolutionLease(
             token
         );
     } catch (error) {
-        log.debug("Preview resolution lease release failed", {
+        log.warn("Preview resolution lease release failed", {
             error: error instanceof Error ? error.message : String(error),
         });
     }
