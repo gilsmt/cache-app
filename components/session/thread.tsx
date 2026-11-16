@@ -268,7 +268,8 @@ export function Thread({ initialMessages, sources, threadId }: ThreadProps) {
                                     </span>
                                     <p className="text-muted-foreground text-sm">
                                         <T>
-                                            Ask Cache about your saved content.
+                                            Ask a question, find something, or
+                                            work through an idea with Cache.
                                         </T>
                                     </p>
                                 </div>
