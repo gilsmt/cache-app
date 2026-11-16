@@ -22,6 +22,7 @@
         "db-deploy": "prisma migrate deploy",
         "db-migrate": "prisma migrate dev",
         "dev": "next dev",
+        "doctor": "bunx -y react-doctor@latest components --scope changed --blocking error --no-score --yes",
         "postinstall": "prisma generate",
         "lint": "ultracite check",
         "lint:fix": "ultracite fix",
