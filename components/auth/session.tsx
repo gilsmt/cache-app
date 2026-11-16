@@ -1,15 +1,14 @@
 "use client";
 
+import { useStableCallback } from "@base-ui/utils/useStableCallback";
 import { T, Var } from "gt-next";
 import Link from "gt-next/link";
 import { Info } from "lucide-react";
+import Script from "next/script";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import {
-    authClient,
-    HAS_GOOGLE_ONE_TAP_CLIENT_ID,
-    useSession,
-} from "@/lib/auth/client";
+import { GOOGLE_ONE_TAP_CLIENT_ID, useSession } from "@/lib/auth/client";
+import { startGoogleOneTap } from "@/lib/auth/plugins/one-tap";
 import type { Session } from "@/lib/auth/session";
 import { createLogger } from "@/lib/common/logs/console/logger";
 import { useDesktopApp } from "@/lib/desktop/use-desktop-platform";
@@ -17,31 +16,53 @@ import { useDesktopApp } from "@/lib/desktop/use-desktop-platform";
 const log = createLogger("auth:session");
 
 /**
- * Mount once on public entry points. Repeated mounts may initialize Google's
- * script more than once.
+ * Mount once on public entry points because Google's prompt is global.
  */
 export function GoogleOneTapTrigger() {
     const { data: session, isPending } = useSession();
     const { isDesktopApp } = useDesktopApp();
+    const [isScriptReady, setIsScriptReady] = React.useState(false);
 
     const sessionId = session?.session?.id;
+
+    const handleScriptReady = useStableCallback(() => setIsScriptReady(true));
+    const handleScriptError = useStableCallback((error: Error) => {
+        log.error("Google One Tap script failed", error);
+    });
 
     React.useEffect(() => {
         if (
             isPending ||
             sessionId ||
             isDesktopApp ||
-            !HAS_GOOGLE_ONE_TAP_CLIENT_ID
+            !GOOGLE_ONE_TAP_CLIENT_ID ||
+            !isScriptReady
         ) {
             return;
         }
 
-        authClient.oneTap({ callbackURL: "/library" }).catch((error) => {
+        try {
+            return startGoogleOneTap(
+                "google" in window ? window.google : undefined,
+                GOOGLE_ONE_TAP_CLIENT_ID
+            );
+        } catch (error) {
             log.error("Google One Tap init failed", error);
-        });
-    }, [isPending, sessionId, isDesktopApp]);
+        }
+    }, [isPending, sessionId, isDesktopApp, isScriptReady]);
 
-    return null;
+    if (isPending || sessionId || isDesktopApp || !GOOGLE_ONE_TAP_CLIENT_ID) {
+        return null;
+    }
+
+    return (
+        <Script
+            onError={handleScriptError}
+            onLoad={handleScriptReady}
+            onReady={handleScriptReady}
+            src="https://accounts.google.com/gsi/client"
+        />
+    );
 }
 
 interface SessionGateProps {
@@ -144,14 +165,12 @@ export function SessionStatus({ serverSession }: SessionStatusProps) {
                 <Button
                     isLoading={isPending}
                     nativeButton={false}
-                    render={
-                        <Link href="/signout" prefetch={false}>
-                            <T context="User Sign out of the app">Log out</T>
-                        </Link>
-                    }
+                    render={<Link href="/signout" prefetch={false} />}
                     size="xs"
                     variant="link"
-                />
+                >
+                    <T context="User Sign out of the app">Log out</T>
+                </Button>
             </div>
         </div>
     );
